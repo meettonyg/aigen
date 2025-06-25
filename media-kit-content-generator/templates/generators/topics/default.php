@@ -18,54 +18,59 @@ $authority_hook_components = [
     'who' => '',
     'result' => '',
     'when' => '',
-    'how' => ''
+    'how' => '',
+    'complete' => ''
 ];
 
 // Try to get entry from URL parameters
 if (isset($_GET['entry'])) {
     $entry_key = sanitize_text_field($_GET['entry']);
     
-    // Use the Formidable service to resolve entry ID and get all field data
+    // Use the Formidable service to get data using the correct field IDs
     if (isset($formidable_service)) {
         $entry_data = $formidable_service->get_entry_data($entry_key);
         if ($entry_data['success']) {
             $entry_id = $entry_data['entry_id'];
             
-            // Extract field values for form population
-            foreach ($entry_data['fields'] as $field) {
-                $field_name = strtolower($field['name']);
-                $field_key = strtolower($field['key']);
-                
-                // Map common topic field names
-                if (strpos($field_name, 'topic') !== false || strpos($field_key, 'topic') !== false) {
-                    // Extract topic number from field name
-                    if (preg_match('/topic[\s_-]*([1-5])/i', $field_name, $matches) || 
-                        preg_match('/([1-5])[\s_-]*topic/i', $field_name, $matches)) {
-                        $topic_num = $matches[1];
-                        $form_field_values["topic_{$topic_num}"] = $field['value'];
-                    }
-                }
-                
-                // Map authority hook components
-                if (strpos($field_name, 'who') !== false || strpos($field_key, 'who') !== false) {
-                    $authority_hook_components['who'] = $field['value'];
-                } elseif (strpos($field_name, 'result') !== false || strpos($field_key, 'result') !== false || 
-                         strpos($field_name, 'what') !== false || strpos($field_key, 'what') !== false) {
-                    $authority_hook_components['result'] = $field['value'];
-                } elseif (strpos($field_name, 'when') !== false || strpos($field_key, 'when') !== false) {
-                    $authority_hook_components['when'] = $field['value'];
-                } elseif (strpos($field_name, 'how') !== false || strpos($field_key, 'how') !== false) {
-                    $authority_hook_components['how'] = $field['value'];
-                }
-            }
+            // Get authority hook components using Form 515 field IDs
+            $authority_hook_components['who'] = $formidable_service->get_field_value($entry_id, 10296) ?: 'your audience';
+            $authority_hook_components['result'] = $formidable_service->get_field_value($entry_id, 10297) ?: 'achieve their goals';
+            $authority_hook_components['when'] = $formidable_service->get_field_value($entry_id, 10387) ?: 'they need help';
+            $authority_hook_components['how'] = $formidable_service->get_field_value($entry_id, 10298) ?: 'through your method';
+            $authority_hook_components['complete'] = $formidable_service->get_field_value($entry_id, 10358);
             
-            error_log('MKCG Topics: Loaded entry ' . $entry_id . ' with ' . count($entry_data['fields']) . ' fields');
-            error_log('MKCG Topics: Authority components - ' . json_encode($authority_hook_components));
-            error_log('MKCG Topics: Topic fields - ' . json_encode($form_field_values));
+            // If no complete authority hook, build from components
+            if (empty($authority_hook_components['complete'])) {
+            $authority_hook_components['complete'] = "I help {$authority_hook_components['who']} {$authority_hook_components['result']} when {$authority_hook_components['when']} {$authority_hook_components['how']}.";
+            }
+        
+        // However, if we have component data, always rebuild from components (components take precedence)
+        $has_component_data = !empty($authority_hook_components['who']) || !empty($authority_hook_components['result']) || 
+                             !empty($authority_hook_components['when']) || !empty($authority_hook_components['how']);
+        
+        if ($has_component_data) {
+            $authority_hook_components['complete'] = "I help {$authority_hook_components['who']} {$authority_hook_components['result']} when {$authority_hook_components['when']} {$authority_hook_components['how']}.";
+        }
+            
+            // Get existing topics using Form 515 field IDs
+            $form_field_values['topic_1'] = $formidable_service->get_field_value($entry_id, 8498);
+            $form_field_values['topic_2'] = $formidable_service->get_field_value($entry_id, 8499);
+            $form_field_values['topic_3'] = $formidable_service->get_field_value($entry_id, 8500);
+            $form_field_values['topic_4'] = $formidable_service->get_field_value($entry_id, 8501);
+            $form_field_values['topic_5'] = $formidable_service->get_field_value($entry_id, 8502);
+            
+            error_log('MKCG Topics: Loaded entry ' . $entry_id . ' - Authority Hook: ' . $authority_hook_components['complete']);
+            error_log('MKCG Topics: Components - ' . json_encode($authority_hook_components));
+            error_log('MKCG Topics: Topics - ' . json_encode($form_field_values));
         } else {
             error_log('MKCG Topics: Failed to load entry data for key: ' . $entry_key);
         }
     }
+}
+
+// Fallback for authority hook if still empty
+if (empty($authority_hook_components['complete'])) {
+    $authority_hook_components['complete'] = "I help {$authority_hook_components['who']} {$authority_hook_components['result']} when {$authority_hook_components['when']} {$authority_hook_components['how']}.";
 }
 ?>
 
@@ -93,7 +98,7 @@ if (isset($_GET['entry'])) {
                     </div>
                     
                     <div class="topics-generator__authority-hook-content">
-                        <p id="topics-generator-authority-hook-text">I help your audience test, increase revenue by 40%, save 10+ hours per week when they need you through your method.</p>
+                        <p id="topics-generator-authority-hook-text"><?php echo esc_html($authority_hook_components['complete']); ?></p>
                     </div>
                     
                     <div class="topics-generator__authority-hook-actions">
@@ -134,7 +139,10 @@ if (isset($_GET['entry'])) {
                         <h4 class="field__label">WHO do you help?</h4>
                         
                         <div class="topics-generator__input-group">
-                            <input type="text" class="topics-generator__input" id="topics-generator-who-input" placeholder="e.g. SaaS founders, course creators, consultants">
+                            <input type="text" class="topics-generator__input" id="topics-generator-who-input" 
+                                   data-field-id="10296" data-component="who"
+                                   value="<?php echo esc_attr($authority_hook_components['who']); ?>"
+                                   placeholder="e.g. SaaS founders, course creators, consultants">
                             <button class="topics-generator__clear-button" id="topics-generator-clear-who">×</button>
                         </div>
                         
@@ -161,7 +169,10 @@ if (isset($_GET['entry'])) {
                         <h4 class="field__label">What RESULT do you help them achieve?</h4>
                         
                         <div class="topics-generator__input-group">
-                            <input type="text" class="topics-generator__input" id="topics-generator-result-input" placeholder="e.g. increase revenue by 40%, save 10+ hours per week">
+                            <input type="text" class="topics-generator__input" id="topics-generator-result-input" 
+                                   data-field-id="10297" data-component="result"
+                                   value="<?php echo esc_attr($authority_hook_components['result']); ?>"
+                                   placeholder="e.g. increase revenue by 40%, save 10+ hours per week">
                             <button class="topics-generator__clear-button" id="topics-generator-clear-result">×</button>
                         </div>
                         
@@ -188,7 +199,10 @@ if (isset($_GET['entry'])) {
                         <h4 class="field__label">WHEN do they need this help?</h4>
                         
                         <div class="topics-generator__input-group">
-                            <input type="text" class="topics-generator__input" id="topics-generator-when-input" placeholder="e.g. during rapid growth, when scaling their team">
+                            <input type="text" class="topics-generator__input" id="topics-generator-when-input" 
+                                   data-field-id="10387" data-component="when"
+                                   value="<?php echo esc_attr($authority_hook_components['when']); ?>"
+                                   placeholder="e.g. during rapid growth, when scaling their team">
                             <button class="topics-generator__clear-button" id="topics-generator-clear-when">×</button>
                         </div>
                         
@@ -223,7 +237,10 @@ if (isset($_GET['entry'])) {
                         <h4 class="field__label">HOW do you help them?</h4>
                         
                         <div class="topics-generator__input-group">
-                            <input type="text" class="topics-generator__input" id="topics-generator-how-input" placeholder="e.g. through your method, with your framework">
+                            <input type="text" class="topics-generator__input" id="topics-generator-how-input" 
+                                   data-field-id="10298" data-component="how"
+                                   value="<?php echo esc_attr($authority_hook_components['how']); ?>"
+                                   placeholder="e.g. through your method, with your framework">
                             <button class="topics-generator__clear-button" id="topics-generator-clear-how">×</button>
                         </div>
                         
@@ -280,7 +297,9 @@ if (isset($_GET['entry'])) {
                             <div class="topics-generator__form-field-number">1</div>
                             <div class="topics-generator__form-field-title">First Interview Topic</div>
                         </div>
-                        <input type="text" class="topics-generator__form-field-input" id="topics-generator-topic-field-1" name="field_8498">
+                        <input type="text" class="topics-generator__form-field-input" id="topics-generator-topic-field-1" 
+                               name="field_8498" data-field-id="8498" data-topic-number="1"
+                               value="<?php echo esc_attr($form_field_values['topic_1'] ?? ''); ?>">
                         <div class="topics-generator__form-examples">
                             <p>Examples:</p>
                             <div class="topics-generator__form-example">How to create magnetic content that attracts ideal clients</div>
@@ -294,7 +313,9 @@ if (isset($_GET['entry'])) {
                             <div class="topics-generator__form-field-number">2</div>
                             <div class="topics-generator__form-field-title">Second Interview Topic</div>
                         </div>
-                        <input type="text" class="topics-generator__form-field-input" id="topics-generator-topic-field-2" name="field_8499">
+                        <input type="text" class="topics-generator__form-field-input" id="topics-generator-topic-field-2" 
+                               name="field_8499" data-field-id="8499" data-topic-number="2"
+                               value="<?php echo esc_attr($form_field_values['topic_2'] ?? ''); ?>">
                     </div>
                     
                     <div class="topics-generator__form-field">
@@ -302,7 +323,9 @@ if (isset($_GET['entry'])) {
                             <div class="topics-generator__form-field-number">3</div>
                             <div class="topics-generator__form-field-title">Third Interview Topic</div>
                         </div>
-                        <input type="text" class="topics-generator__form-field-input" id="topics-generator-topic-field-3" name="field_8500">
+                        <input type="text" class="topics-generator__form-field-input" id="topics-generator-topic-field-3" 
+                               name="field_8500" data-field-id="8500" data-topic-number="3"
+                               value="<?php echo esc_attr($form_field_values['topic_3'] ?? ''); ?>">
                     </div>
                     
                     <div class="topics-generator__form-field">
@@ -310,7 +333,9 @@ if (isset($_GET['entry'])) {
                             <div class="topics-generator__form-field-number">4</div>
                             <div class="topics-generator__form-field-title">Fourth Interview Topic</div>
                         </div>
-                        <input type="text" class="topics-generator__form-field-input" id="topics-generator-topic-field-4" name="field_8501">
+                        <input type="text" class="topics-generator__form-field-input" id="topics-generator-topic-field-4" 
+                               name="field_8501" data-field-id="8501" data-topic-number="4"
+                               value="<?php echo esc_attr($form_field_values['topic_4'] ?? ''); ?>">
                     </div>
                     
                     <div class="topics-generator__form-field">
@@ -318,7 +343,9 @@ if (isset($_GET['entry'])) {
                             <div class="topics-generator__form-field-number">5</div>
                             <div class="topics-generator__form-field-title">Fifth Interview Topic</div>
                         </div>
-                        <input type="text" class="topics-generator__form-field-input" id="topics-generator-topic-field-5" name="field_8502">
+                        <input type="text" class="topics-generator__form-field-input" id="topics-generator-topic-field-5" 
+                               name="field_8502" data-field-id="8502" data-topic-number="5"
+                               value="<?php echo esc_attr($form_field_values['topic_5'] ?? ''); ?>">
                     </div>
                     
                     <!-- Hidden fields for AJAX -->
@@ -415,5 +442,30 @@ if (isset($_GET['entry'])) {
         </div>
     </div>
 </div>
+
+<!-- Pass PHP data to JavaScript -->
+<script type="text/javascript">
+    window.MKCG_Topics_Data = {
+        entryId: <?php echo intval($entry_id); ?>,
+        entryKey: '<?php echo esc_js($entry_key); ?>',
+        hasEntry: <?php echo $entry_id > 0 ? 'true' : 'false'; ?>,
+        authorityHook: {
+            who: '<?php echo esc_js($authority_hook_components['who']); ?>',
+            result: '<?php echo esc_js($authority_hook_components['result']); ?>',
+            when: '<?php echo esc_js($authority_hook_components['when']); ?>',
+            how: '<?php echo esc_js($authority_hook_components['how']); ?>',
+            complete: '<?php echo esc_js($authority_hook_components['complete']); ?>'
+        },
+        topics: {
+            topic_1: '<?php echo esc_js($form_field_values['topic_1'] ?? ''); ?>',
+            topic_2: '<?php echo esc_js($form_field_values['topic_2'] ?? ''); ?>',
+            topic_3: '<?php echo esc_js($form_field_values['topic_3'] ?? ''); ?>',
+            topic_4: '<?php echo esc_js($form_field_values['topic_4'] ?? ''); ?>',
+            topic_5: '<?php echo esc_js($form_field_values['topic_5'] ?? ''); ?>'
+        }
+    };
+    
+    console.log('MKCG Topics: Loaded data', window.MKCG_Topics_Data);
+</script>
 
 <!-- JavaScript functionality loaded separately -->

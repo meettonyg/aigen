@@ -123,6 +123,7 @@
 .field__select,
 .field__textarea {
     width: 100%;
+    max-width: 600px;
     padding: 10px 12px;
     border: 1px solid var(--mkcg-border);
     border-radius: var(--mkcg-radius-small);
@@ -1068,6 +1069,7 @@ div[id*="target-audience"] {
 .form-field textarea,
 .dropdown {
     width: 100%;
+    max-width: 600px;
     padding: 10px 12px;
     border: 1px solid var(--mkcg-border);
     border-radius: var(--mkcg-radius-small);
@@ -1833,19 +1835,27 @@ textarea.text-input {
     color: #2c3e50;
 }
 
+/* IMPORTANT: Force constrain topic field width with high specificity */
+.topics-generator .topics-generator__form .topics-generator__form-field .topics-generator__form-field-input,
+input.topics-generator__form-field-input,
 .topics-generator__form-field-input {
-    width: 100%;
+    width: 100% !important;
+    max-width: 600px !important;
     padding: 12px 15px;
     border: 1px solid #dce1e5;
     border-radius: 4px;
     font-size: 14px;
     transition: border-color 0.2s;
+    box-sizing: border-box;
 }
 
+/* Also constrain the examples section to match */
+.topics-generator .topics-generator__form .topics-generator__form-field .topics-generator__form-examples,
 .topics-generator__form-examples {
     margin-top: 10px;
     font-size: 14px;
     color: #5a6d7e;
+    max-width: 600px !important;
 }
 
 .topics-generator__form-example {
@@ -1999,6 +2009,24 @@ textarea.text-input {
         width: 100%;
         justify-content: center;
     }
+    
+    /* Remove max-width constraint on mobile for better UX */
+    .field__input,
+    .field__select,
+    .field__textarea,
+    .mkcg-form-field-input,
+    .topics-generator__form-field-input,
+    .topics-generator .topics-generator__form .topics-generator__form-field .topics-generator__form-field-input,
+    input.topics-generator__form-field-input,
+    .topics-generator__form-examples,
+    .topics-generator .topics-generator__form .topics-generator__form-field .topics-generator__form-examples,
+    .text-input,
+    .form-field input[type="text"],
+    .form-field select,
+    .form-field textarea,
+    .dropdown {
+        max-width: none !important;
+    }
 }
 
 @media screen and (max-width: 480px) {
@@ -2113,6 +2141,7 @@ textarea.text-input {
 /* Form field compatibility */
 .mkcg-form-field-input {
     width: 100%;
+    max-width: 600px;
     padding: 12px 15px;
     border: 1px solid #dce1e5;
     border-radius: 4px;

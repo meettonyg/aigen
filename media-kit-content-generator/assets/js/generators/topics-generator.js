@@ -37,12 +37,12 @@
       modalCancelButton: '#topics-generator-modal-cancel'
     },
     
-    // Field values
+    // Field values - Initialize from existing data, not hardcoded
     fields: {
-      who: 'your audience',
-      result: 'test, increase revenue by 40%, save 10+ hours per week',
-      when: 'they need you',
-      how: 'through your method'
+      who: '',
+      result: '',
+      when: '',
+      how: ''
     },
     
     // Topics storage
@@ -54,9 +54,101 @@
      */
     init: function() {
       console.log('🎯 Topics Generator: Initializing with BEM methodology');
+      
+      // Load existing data FIRST before doing anything else
+      this.loadExistingData();
+      
       this.bindEvents();
-      this.updateAuthorityHook();
-      this.loadFormidableData();
+      // Don't call updateAuthorityHook() here - let loadExistingData() handle it
+    },
+    
+    /**
+     * Load existing data from PHP (prioritize over all other sources)
+     */
+    loadExistingData: function() {
+      console.log('📝 Loading existing data from PHP...');
+      
+      // Check if PHP data was passed to JavaScript
+      if (window.MKCG_Topics_Data && window.MKCG_Topics_Data.hasEntry) {
+        console.log('✅ Found existing data:', window.MKCG_Topics_Data);
+        
+        // Load authority hook components
+        const authorityHook = window.MKCG_Topics_Data.authorityHook;
+        if (authorityHook) {
+          this.fields.who = authorityHook.who || '';
+          this.fields.result = authorityHook.result || '';
+          this.fields.when = authorityHook.when || '';
+          this.fields.how = authorityHook.how || '';
+          
+          // Update the input fields
+          this.updateInputFields();
+          
+          // Always build from components if we have component data (components take precedence)
+          const hasComponentData = this.fields.who || this.fields.result || this.fields.when || this.fields.how;
+          
+          if (hasComponentData) {
+            console.log('✅ Building authority hook from components:', this.fields);
+            this.updateAuthorityHook();
+          } else if (authorityHook.complete) {
+            console.log('✅ Using stored complete authority hook:', authorityHook.complete);
+            this.updateAuthorityHookText(authorityHook.complete);
+          } else {
+            console.log('⚠️ No authority hook data found, using defaults');
+            this.updateAuthorityHook();
+          }
+        }
+        
+        // Load existing topics
+        const topics = window.MKCG_Topics_Data.topics;
+        if (topics) {
+          Object.keys(topics).forEach(key => {
+            if (topics[key]) {
+              const fieldNum = key.split('_')[1];
+              const field = document.querySelector(`#topics-generator-topic-field-${fieldNum}`);
+              if (field) {
+                field.value = topics[key];
+              }
+            }
+          });
+        }
+      } else {
+        console.log('⚠️ No existing data found, using defaults');
+        // Set fallback defaults only if no PHP data
+        this.fields.who = this.fields.who || 'your audience';
+        this.fields.result = this.fields.result || 'achieve their goals';
+        this.fields.when = this.fields.when || 'they need help';
+        this.fields.how = this.fields.how || 'through your method';
+        this.updateAuthorityHook();
+      }
+    },
+    
+    /**
+     * Update input fields with current field values
+     */
+    updateInputFields: function() {
+      const fieldMappings = [
+        { field: 'who', selector: '#topics-generator-who-input' },
+        { field: 'result', selector: '#topics-generator-result-input' },
+        { field: 'when', selector: '#topics-generator-when-input' },
+        { field: 'how', selector: '#topics-generator-how-input' }
+      ];
+      
+      fieldMappings.forEach(({ field, selector }) => {
+        const input = document.querySelector(selector);
+        if (input && this.fields[field]) {
+          input.value = this.fields[field];
+        }
+      });
+    },
+    
+    /**
+     * Update authority hook display with specific text
+     */
+    updateAuthorityHookText: function(hookText) {
+      const hookElement = document.querySelector(this.elements.authorityHookText);
+      if (hookElement) {
+        hookElement.textContent = hookText;
+      }
     },
     
     /**
@@ -90,17 +182,7 @@
       
       if (entryKey) {
         console.log('🔗 Entry key found in URL:', entryKey);
-        // Simulate loading existing data
-        setTimeout(() => {
-          this.populateFields({
-            topic_1: 'How to scale your business without burning out',
-            topic_2: 'The authority positioning framework for experts',
-            who: 'business owners and entrepreneurs',
-            result: 'scale their business by 300%',
-            when: 'they want to grow without sacrificing their personal life',
-            how: 'through my proven systems and frameworks'
-          });
-        }, 500);
+        // Note: Data loading is now handled by loadExistingData() from PHP
       }
     },
     
@@ -166,8 +248,8 @@
       // Input change events
       const inputEvents = [
         { selector: this.elements.whoInput, field: 'who', default: 'your audience' },
-        { selector: this.elements.resultInput, field: 'result', default: 'test, increase revenue by 40%, save 10+ hours per week' },
-        { selector: this.elements.whenInput, field: 'when', default: 'they need you' },
+        { selector: this.elements.resultInput, field: 'result', default: 'achieve their goals' },
+        { selector: this.elements.whenInput, field: 'when', default: 'they need help' },
         { selector: this.elements.howInput, field: 'how', default: 'through your method' }
       ];
       
@@ -175,8 +257,12 @@
         const input = document.querySelector(selector);
         if (input) {
           input.addEventListener('input', () => {
-            this.fields[field] = input.value || defaultValue;
+            // Update the field value (keep empty if user cleared it)
+            this.fields[field] = input.value;
             this.updateAuthorityHook();
+            
+            // Auto-save authority hook components to Formidable
+            this.autoSaveAuthorityComponent(field, input.value);
           });
         }
       });
@@ -242,6 +328,57 @@
           this.autoSaveField(input);
         });
       });
+    },
+    
+    /**
+     * Auto-save authority hook component to Formidable
+     */
+    autoSaveAuthorityComponent: function(component, value) {
+      const entryId = document.querySelector('#topics-generator-entry-id')?.value;
+      if (!entryId || entryId === '0') return;
+      
+      // Map component names to field IDs (Form 515)
+      const componentFieldMap = {
+        'who': '10296',
+        'result': '10297', 
+        'when': '10387',
+        'how': '10298'
+      };
+      
+      const fieldId = componentFieldMap[component];
+      if (!fieldId) return;
+      
+      // Debounce the save to avoid too many requests
+      clearTimeout(this.componentSaveTimer);
+      this.componentSaveTimer = setTimeout(() => {
+        this.saveComponentToFormidable(component, fieldId, value);
+      }, 1000);
+    },
+    
+    /**
+     * Save component to Formidable and update complete authority hook
+     */
+    saveComponentToFormidable: function(component, fieldId, value) {
+      const entryId = document.querySelector('#topics-generator-entry-id')?.value;
+      
+      // Use our AJAX handlers to save the component
+      if (window.MKCG_FormUtils) {
+        MKCG_FormUtils.wp.makeAjaxRequest('mkcg_update_authority_hook', {
+          entry_id: entryId,
+          who: this.fields.who,
+          result: this.fields.result,
+          when: this.fields.when,
+          how: this.fields.how,
+          nonce: window.topics_vars?.topics_nonce || ''
+        }, {
+          onSuccess: (data) => {
+            console.log('✅ Authority hook components saved:', data);
+          },
+          onError: (error) => {
+            console.log('⚠️ Failed to save authority hook components:', error);
+          }
+        });
+      }
     },
     
     /**
@@ -350,11 +487,42 @@
      * Update the Authority Hook text based on input fields
      */
     updateAuthorityHook: function() {
-      const hookText = `I help ${this.fields.who} ${this.fields.result} when ${this.fields.when} ${this.fields.how}.`;
+      const hookText = `I help ${this.fields.who || 'your audience'} ${this.fields.result || 'achieve their goals'} when ${this.fields.when || 'they need help'} ${this.fields.how || 'through your method'}.`;
       const hookElement = document.querySelector(this.elements.authorityHookText);
       if (hookElement) {
         hookElement.textContent = hookText;
       }
+      
+      // Also save the complete authority hook to Formidable (field 10358)
+      this.saveCompleteAuthorityHook(hookText);
+    },
+    
+    /**
+     * Save the complete authority hook to Formidable
+     */
+    saveCompleteAuthorityHook: function(hookText) {
+      const entryId = document.querySelector('#topics-generator-entry-id')?.value;
+      if (!entryId || entryId === '0') return;
+      
+      // Debounce the save
+      clearTimeout(this.hookSaveTimer);
+      this.hookSaveTimer = setTimeout(() => {
+        if (window.MKCG_FormUtils) {
+          MKCG_FormUtils.wp.makeAjaxRequest('mkcg_save_field', {
+            entry_id: entryId,
+            field_id: '10358',
+            value: hookText,
+            nonce: window.topics_vars?.topics_nonce || ''
+          }, {
+            onSuccess: () => {
+              console.log('✅ Complete authority hook saved to field 10358');
+            },
+            onError: (error) => {
+              console.log('⚠️ Failed to save complete authority hook:', error);
+            }
+          });
+        }
+      }, 1500);
     },
     
     /**

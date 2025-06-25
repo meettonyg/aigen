@@ -89,26 +89,31 @@ The expert's area of expertise is: \"$authority_hook\".
     public function format_output($api_response) {
         // The API service already formats topics as an array
         if (is_array($api_response)) {
-            return [
-                'topics' => $api_response,
-                'count' => count($api_response)
-            ];
-        }
-        
-        // Fallback if raw string returned
-        $topics = [];
-        if (preg_match_all('/\d+\.\s*[\'"]?(.*?)[\'"]?(?=\n\d+\.|\n\n|$)/s', $api_response, $matches)) {
-            $topics = array_map('trim', $matches[1]);
+            $topics = $api_response;
         } else {
-            $topics = array_filter(array_map(function($t) {
-                return trim($t, " '\"");
-            }, explode("\n", $api_response)));
+            // Fallback if raw string returned
+            $topics = [];
+            if (preg_match_all('/\d+\.\s*[\'"]?(.*?)[\'"]?(?=\n\d+\.|\n\n|$)/s', $api_response, $matches)) {
+                $topics = array_map('trim', $matches[1]);
+            } else {
+                $topics = array_filter(array_map(function($t) {
+                    return trim($t, " '\"");
+                }, explode("\n", $api_response)));
+            }
         }
         
-        return [
+        // Format for Formidable field mapping
+        $formatted = [
             'topics' => $topics,
             'count' => count($topics)
         ];
+        
+        // Map individual topics to fields for form 515
+        for ($i = 0; $i < min(5, count($topics)); $i++) {
+            $formatted['topic_' . ($i + 1)] = $topics[$i];
+        }
+        
+        return $formatted;
     }
     
     /**
@@ -121,14 +126,92 @@ The expert's area of expertise is: \"$authority_hook\".
     }
     
     /**
-     * Get field mappings for Formidable
+     * Get field mappings for Formidable (Form 515)
      */
     protected function get_field_mappings() {
-        // Map generated content to Formidable field IDs
-        // These would be configured based on your specific form
+        // Map generated content to Formidable field IDs for form 515
         return [
-            'topics' => 10359, // Example field ID for topics
-            'topic_count' => 10360 // Example field ID for topic count
+            'topic_1' => 8498,  // Topic 1
+            'topic_2' => 8499,  // Topic 2
+            'topic_3' => 8500,  // Topic 3
+            'topic_4' => 8501,  // Topic 4
+            'topic_5' => 8502,  // Topic 5
+            'authority_hook' => 10358  // Complete Authority Hook
+        ];
+    }
+    
+    /**
+     * Get authority hook component field mappings for form 515
+     */
+    public function get_authority_hook_field_mappings() {
+        return [
+            'who' => 10296,    // WHO do you help?
+            'result' => 10297, // WHAT result do you help them achieve?
+            'when' => 10387,   // WHEN do they need you?
+            'how' => 10298,    // HOW do you help them?
+            'complete' => 10358 // Complete Authority Hook
+        ];
+    }
+    
+    /**
+     * Build authority hook from components
+     */
+    public function build_authority_hook_from_components($entry_id) {
+        $field_mappings = $this->get_authority_hook_field_mappings();
+        
+        $who = $this->formidable_service->get_field_value($entry_id, $field_mappings['who']) ?: 'your audience';
+        $result = $this->formidable_service->get_field_value($entry_id, $field_mappings['result']) ?: 'achieve their goals';
+        $when = $this->formidable_service->get_field_value($entry_id, $field_mappings['when']) ?: 'they need help';
+        $how = $this->formidable_service->get_field_value($entry_id, $field_mappings['how']) ?: 'through your method';
+        
+        return "I help {$who} {$result} when {$when} {$how}.";
+    }
+    
+    /**
+     * Save authority hook components to Formidable
+     */
+    public function save_authority_hook_components($entry_id, $who, $result, $when, $how) {
+        $field_mappings = $this->get_authority_hook_field_mappings();
+        
+        // Save individual components
+        $components = [
+            'who' => $who,
+            'result' => $result,
+            'when' => $when,
+            'how' => $how
+        ];
+        
+        $saved_fields = [];
+        foreach ($components as $component => $value) {
+            if (isset($field_mappings[$component])) {
+                $result = $this->formidable_service->save_generated_content(
+                    $entry_id,
+                    [$component => $value],
+                    [$component => $field_mappings[$component]]
+                );
+                
+                if ($result['success']) {
+                    $saved_fields[$component] = $field_mappings[$component];
+                }
+            }
+        }
+        
+        // Build and save complete authority hook
+        $complete_hook = "I help {$who} {$result} when {$when} {$how}.";
+        $complete_result = $this->formidable_service->save_generated_content(
+            $entry_id,
+            ['complete' => $complete_hook],
+            ['complete' => $field_mappings['complete']]
+        );
+        
+        if ($complete_result['success']) {
+            $saved_fields['complete'] = $field_mappings['complete'];
+        }
+        
+        return [
+            'success' => count($saved_fields) > 0,
+            'saved_fields' => $saved_fields,
+            'authority_hook' => $complete_hook
         ];
     }
     
@@ -215,6 +298,9 @@ The expert's area of expertise is: \"$authority_hook\".
         // Format output
         $formatted_output = $this->format_output($api_response['content']);
         
+        // Save topics to individual fields
+        $this->save_to_formidable($entry_id, $formatted_output);
+        
         // Return in legacy format for compatibility
         wp_send_json_success([
             'topics' => $formatted_output['topics']
@@ -234,6 +320,10 @@ The expert's area of expertise is: \"$authority_hook\".
         // Keep the legacy fetch authority hook action
         add_action('wp_ajax_fetch_authority_hook', [$this, 'handle_fetch_authority_hook']);
         add_action('wp_ajax_nopriv_fetch_authority_hook', [$this, 'handle_fetch_authority_hook']);
+        
+        // Add authority hook component actions
+        add_action('wp_ajax_save_authority_hook_components', [$this, 'handle_save_authority_hook_components']);
+        add_action('wp_ajax_nopriv_save_authority_hook_components', [$this, 'handle_save_authority_hook_components']);
     }
     
     /**
@@ -260,6 +350,35 @@ The expert's area of expertise is: \"$authority_hook\".
             ]);
         } else {
             wp_send_json_error($authority_hook_result);
+        }
+    }
+    
+    /**
+     * Handle saving authority hook components
+     */
+    public function handle_save_authority_hook_components() {
+        if (!check_ajax_referer('generate_topics_nonce', 'security', false)) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
+        
+        $entry_id = intval($_POST['entry_id']);
+        $who = sanitize_text_field($_POST['who'] ?? '');
+        $result = sanitize_text_field($_POST['result'] ?? '');
+        $when = sanitize_text_field($_POST['when'] ?? '');
+        $how = sanitize_text_field($_POST['how'] ?? '');
+        
+        if (!$entry_id) {
+            wp_send_json_error(['message' => 'Invalid entry ID']);
+            return;
+        }
+        
+        $save_result = $this->save_authority_hook_components($entry_id, $who, $result, $when, $how);
+        
+        if ($save_result['success']) {
+            wp_send_json_success($save_result);
+        } else {
+            wp_send_json_error(['message' => 'Failed to save authority hook components']);
         }
     }
 }

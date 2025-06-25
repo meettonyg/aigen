@@ -118,8 +118,8 @@ class MKCG_Formidable_Service {
             }
         }
         
-        // Strategy 2: Try known field ID (from your Topics generator)
-        $known_field_id = 10358;
+        // Strategy 2: Try known field ID for complete Authority Hook (Form 515)
+        $known_field_id = 10358; // Complete Authority Hook field
         $direct_query = $wpdb->get_var($wpdb->prepare(
             "SELECT meta_value FROM $item_metas_table WHERE item_id = %d AND field_id = %d",
             $entry_id, $known_field_id
@@ -132,6 +132,54 @@ class MKCG_Formidable_Service {
                 'field_id' => $known_field_id,
                 'value' => $direct_query,
                 'method' => 'known_field_id'
+            ];
+        }
+        
+        // Strategy 2b: Try to build from components if complete hook is empty
+        $component_fields = [
+            'who' => 10296,    // WHO do you help?
+            'result' => 10297, // WHAT result do you help them achieve?
+            'when' => 10387,   // WHEN do they need you?
+            'how' => 10298     // HOW do you help them?
+        ];
+        
+        $components = [];
+        $has_components = false;
+        
+        foreach ($component_fields as $component => $field_id) {
+            $value = $wpdb->get_var($wpdb->prepare(
+                "SELECT meta_value FROM $item_metas_table WHERE item_id = %d AND field_id = %d",
+                $entry_id, $field_id
+            ));
+            
+            if ($value) {
+                $components[$component] = $value;
+                $has_components = true;
+            } else {
+                $components[$component] = $this->get_default_component($component);
+            }
+        }
+        
+        if ($has_components) {
+            $built_hook = "I help {$components['who']} {$components['result']} when {$components['when']} {$components['how']}.";
+            error_log('MKCG Formidable Service: Built Authority Hook from components');
+            
+            // Save the built hook to the complete field
+            $wpdb->replace(
+                $item_metas_table,
+                [
+                    'item_id' => $entry_id,
+                    'field_id' => $known_field_id,
+                    'meta_value' => $built_hook
+                ],
+                ['%d', '%d', '%s']
+            );
+            
+            return [
+                'success' => true,
+                'field_id' => $known_field_id,
+                'value' => $built_hook,
+                'method' => 'built_from_components'
             ];
         }
         
@@ -294,5 +342,19 @@ class MKCG_Formidable_Service {
         }
         
         return 0;
+    }
+    
+    /**
+     * Get default component values for Authority Hook
+     */
+    private function get_default_component($component) {
+        $defaults = [
+            'who' => 'your audience',
+            'result' => 'achieve their goals',
+            'when' => 'they need help',
+            'how' => 'through your method'
+        ];
+        
+        return isset($defaults[$component]) ? $defaults[$component] : '';
     }
 }

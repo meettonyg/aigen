@@ -64,6 +64,9 @@ class Media_Kit_Content_Generator {
         require_once MKCG_PLUGIN_PATH . 'includes/generators/class-mkcg-offers-generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/class-mkcg-topics-generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/class-mkcg-questions-generator.php';
+        
+        // Load AJAX handlers
+        require_once MKCG_PLUGIN_PATH . 'includes/generators/class-mkcg-topics-ajax-handlers.php';
     }
     
     private function init_services() {
@@ -96,6 +99,11 @@ class Media_Kit_Content_Generator {
             $this->formidable_service,
             $this->authority_hook_service
         );
+        
+        // Initialize AJAX handlers for Topics generator
+        if (isset($this->generators['topics'])) {
+            new MKCG_Topics_AJAX_Handlers($this->generators['topics']);
+        }
     }
     
     public function init() {
@@ -325,11 +333,30 @@ class Media_Kit_Content_Generator {
             'plugin_url' => MKCG_PLUGIN_URL
         ]);
         
-        // Also pass topics-specific nonce
+        // Also pass topics-specific data with enhanced nonces
         wp_localize_script('mkcg-topics-generator', 'topics_vars', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('generate_topics_nonce'),
-            'plugin_url' => MKCG_PLUGIN_URL
+            'topics_nonce' => wp_create_nonce('mkcg_topics_nonce'),
+            'plugin_url' => MKCG_PLUGIN_URL,
+            'entry_id' => $this->get_current_entry_id(),
+            'entry_key' => $this->get_current_entry_key(),
+            'field_mappings' => [
+                'authority_hook' => [
+                    'who' => 10296,
+                    'result' => 10297,
+                    'when' => 10387,
+                    'how' => 10298,
+                    'complete' => 10358
+                ],
+                'topics' => [
+                    'topic_1' => 8498,
+                    'topic_2' => 8499,
+                    'topic_3' => 8500,
+                    'topic_4' => 8501,
+                    'topic_5' => 8502
+                ]
+            ]
         ]);
         
         // Debug output
@@ -397,6 +424,29 @@ class Media_Kit_Content_Generator {
     
     public function get_generator($type) {
         return isset($this->generators[$type]) ? $this->generators[$type] : null;
+    }
+    
+    /**
+     * Get current entry ID from URL parameters
+     */
+    public function get_current_entry_id() {
+        if (isset($_GET['entry'])) {
+            $entry_key = sanitize_text_field($_GET['entry']);
+            $entry_data = $this->formidable_service->get_entry_data($entry_key);
+            
+            if ($entry_data['success']) {
+                return $entry_data['entry_id'];
+            }
+        }
+        
+        return 0;
+    }
+    
+    /**
+     * Get current entry key from URL parameters
+     */
+    public function get_current_entry_key() {
+        return isset($_GET['entry']) ? sanitize_text_field($_GET['entry']) : '';
     }
 }
 
