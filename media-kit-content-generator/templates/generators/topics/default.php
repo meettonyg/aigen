@@ -12,16 +12,58 @@ if (!defined('ABSPATH')) {
 // Get entry information
 $entry_id = 0;
 $entry_key = '';
+$entry_data = null;
+$form_field_values = [];
+$authority_hook_components = [
+    'who' => '',
+    'result' => '',
+    'when' => '',
+    'how' => ''
+];
 
 // Try to get entry from URL parameters
 if (isset($_GET['entry'])) {
     $entry_key = sanitize_text_field($_GET['entry']);
     
-    // Use the Formidable service to resolve entry ID
+    // Use the Formidable service to resolve entry ID and get all field data
     if (isset($formidable_service)) {
         $entry_data = $formidable_service->get_entry_data($entry_key);
         if ($entry_data['success']) {
             $entry_id = $entry_data['entry_id'];
+            
+            // Extract field values for form population
+            foreach ($entry_data['fields'] as $field) {
+                $field_name = strtolower($field['name']);
+                $field_key = strtolower($field['key']);
+                
+                // Map common topic field names
+                if (strpos($field_name, 'topic') !== false || strpos($field_key, 'topic') !== false) {
+                    // Extract topic number from field name
+                    if (preg_match('/topic[\s_-]*([1-5])/i', $field_name, $matches) || 
+                        preg_match('/([1-5])[\s_-]*topic/i', $field_name, $matches)) {
+                        $topic_num = $matches[1];
+                        $form_field_values["topic_{$topic_num}"] = $field['value'];
+                    }
+                }
+                
+                // Map authority hook components
+                if (strpos($field_name, 'who') !== false || strpos($field_key, 'who') !== false) {
+                    $authority_hook_components['who'] = $field['value'];
+                } elseif (strpos($field_name, 'result') !== false || strpos($field_key, 'result') !== false || 
+                         strpos($field_name, 'what') !== false || strpos($field_key, 'what') !== false) {
+                    $authority_hook_components['result'] = $field['value'];
+                } elseif (strpos($field_name, 'when') !== false || strpos($field_key, 'when') !== false) {
+                    $authority_hook_components['when'] = $field['value'];
+                } elseif (strpos($field_name, 'how') !== false || strpos($field_key, 'how') !== false) {
+                    $authority_hook_components['how'] = $field['value'];
+                }
+            }
+            
+            error_log('MKCG Topics: Loaded entry ' . $entry_id . ' with ' . count($entry_data['fields']) . ' fields');
+            error_log('MKCG Topics: Authority components - ' . json_encode($authority_hook_components));
+            error_log('MKCG Topics: Topic fields - ' . json_encode($form_field_values));
+        } else {
+            error_log('MKCG Topics: Failed to load entry data for key: ' . $entry_key);
         }
     }
 }
@@ -68,9 +110,6 @@ if (isset($_GET['entry'])) {
                 <!-- Authority Hook Builder - HIDDEN BY DEFAULT -->
                 <div class="topics-generator__builder topics-generator__builder--hidden" id="topics-generator-authority-hook-builder">
                     <div class="topics-generator__builder-header">
-                        <div class="topics-generator__builder-number">
-                            <span class="topics-generator__circle-number">1</span>
-                        </div>
                         <h3 class="topics-generator__builder-title">Authority Hook Builder</h3>
                         
                         <p class="topics-generator__builder-description">

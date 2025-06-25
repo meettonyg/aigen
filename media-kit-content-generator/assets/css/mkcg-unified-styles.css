@@ -1498,11 +1498,10 @@ textarea.text-input {
 }
 
 .topics-generator__builder-title {
-    display: inline-block;
     font-size: 18px;
-    margin: 0;
+    margin: 0 0 15px 0;
     color: #2c3e50;
-    vertical-align: middle;
+    font-weight: 600;
 }
 
 .topics-generator__builder-description {

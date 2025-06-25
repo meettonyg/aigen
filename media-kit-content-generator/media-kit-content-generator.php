@@ -252,6 +252,13 @@ class Media_Kit_Content_Generator {
             display: none !important;
         }
         
+        .topics-generator__builder-title {
+            font-size: 18px !important;
+            margin: 0 0 15px 0 !important;
+            color: #2c3e50 !important;
+            font-weight: 600 !important;
+        }
+        
         .topics-generator__input {
             width: 100% !important;
             padding: 12px !important;
