@@ -211,33 +211,4 @@ if ($entry_id && empty($authority_hook) && isset($authority_hook_service)) {
     <input type="hidden" id="mkcg-authority-hook" name="authority_hook" value="<?php echo esc_attr($authority_hook); ?>">
 </div>
 
-<script type="text/javascript">
-// Initialize Authority Hook component on page load
-document.addEventListener('DOMContentLoaded', function() {
-    if (typeof MKCG_FormUtils !== 'undefined' && MKCG_FormUtils.authorityHook) {
-        MKCG_FormUtils.authorityHook.init();
-        
-        // Initialize tag manager for audience
-        if (MKCG_FormUtils.tags) {
-            const audienceTagManager = MKCG_FormUtils.tags.create(
-                '#tags_container', 
-                '#tag_input',
-                {
-                    onAdd: function(text, isChecked) {
-                        console.log('Added audience tag:', text);
-                        MKCG_FormUtils.authorityHook.update();
-                    },
-                    onRemove: function(text) {
-                        console.log('Removed audience tag:', text);
-                        MKCG_FormUtils.authorityHook.update();
-                    },
-                    onChange: function(text, isChecked) {
-                        console.log('Tag changed:', text, isChecked);
-                        MKCG_FormUtils.authorityHook.update();
-                    }
-                }
-            );
-        }
-    }
-});
-</script>
+<!-- JavaScript functionality handled by authority-hook-builder.js -->
