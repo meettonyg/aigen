@@ -45,33 +45,86 @@
     }
     
     hideTargetAudienceSection() {
-      // Hide Target Audience section by finding it with multiple methods
-      const selectors = [
-        '.section:has(.section__title:contains("Target Audience"))',
-        '.section .section__title:contains("Target Audience")',
-        '#topics-audience',
-        '[placeholder*="SaaS startup founders"]',
-        '[placeholder*="real estate investors"]'
-      ];
-      
-      // Find and hide Target Audience section
-      const targetSections = document.querySelectorAll('.section');
-      targetSections.forEach(section => {
-        const titleElement = section.querySelector('.section__title');
-        if (titleElement && titleElement.textContent.includes('Target Audience')) {
-          section.style.display = 'none';
-          console.log('✅ Target Audience section hidden');
+      // Hide Target Audience section with multiple methods and retry logic
+      const hideTargetAudience = () => {
+        let hiddenCount = 0;
+        
+        // Method 1: Find sections by title text
+        const sections = document.querySelectorAll('.section');
+        sections.forEach(section => {
+          const titleElement = section.querySelector('.section__title');
+          if (titleElement && titleElement.textContent.includes('Target Audience')) {
+            section.style.display = 'none !important';
+            hiddenCount++;
+            console.log('✅ Target Audience section hidden by title');
+          }
+        });
+        
+        // Method 2: Find by field ID and hide container
+        const audienceField = document.getElementById('topics-audience');
+        if (audienceField) {
+          const container = audienceField.closest('.section, .form-group, .field-group, div[class*="section"], div[class*="field"]');
+          if (container) {
+            container.style.display = 'none !important';
+            hiddenCount++;
+            console.log('✅ Target Audience field container hidden by field ID');
+          }
         }
-      });
+        
+        // Method 3: Find by placeholder text
+        const fieldsWithPlaceholder = document.querySelectorAll('[placeholder*="SaaS startup"], [placeholder*="real estate"]');
+        fieldsWithPlaceholder.forEach(field => {
+          const container = field.closest('.section, .form-group, .field-group, div[class*="section"], div[class*="field"]');
+          if (container) {
+            container.style.display = 'none !important';
+            hiddenCount++;
+            console.log('✅ Target Audience field hidden by placeholder');
+          }
+        });
+        
+        // Method 4: Find by label text
+        const labels = document.querySelectorAll('label');
+        labels.forEach(label => {
+          if (label.textContent.includes('Target Audience') || label.textContent.includes('Specific Target Audience')) {
+            const container = label.closest('.section, .form-group, .field-group, div[class*="section"], div[class*="field"]');
+            if (container) {
+              container.style.display = 'none !important';
+              hiddenCount++;
+              console.log('✅ Target Audience section hidden by label');
+            }
+          }
+        });
+        
+        return hiddenCount;
+      };
       
-      // Also hide by field ID if it exists
-      const audienceField = document.getElementById('topics-audience');
-      if (audienceField) {
-        const container = audienceField.closest('.section, .form-group, .field-group, div[class*="section"], div[class*="field"]');
-        if (container) {
-          container.style.display = 'none';
-          console.log('✅ Target Audience field container hidden');
-        }
+      // Initial attempt
+      let hiddenCount = hideTargetAudience();
+      
+      // Retry after a short delay if nothing was hidden (in case elements load later)
+      if (hiddenCount === 0) {
+        setTimeout(() => {
+          const retryCount = hideTargetAudience();
+          if (retryCount === 0) {
+            console.log('ℹ️ No Target Audience sections found to hide');
+          }
+        }, 500);
+      }
+      
+      // Set up observer to catch dynamically added content
+      if (typeof MutationObserver !== 'undefined') {
+        const observer = new MutationObserver((mutations) => {
+          mutations.forEach((mutation) => {
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+              hideTargetAudience();
+            }
+          });
+        });
+        
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true
+        });
       }
     }
     
@@ -365,7 +418,10 @@
         alert('Please complete your Authority Hook first by filling in the WHO, RESULT, WHEN, and HOW fields.');
         // Focus on the first tab
         const whoTab = document.getElementById('tabwho');
-        if (whoTab) whoTab.checked = true;
+        if (whoTab) {
+          whoTab.checked = true;
+          whoTab.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
         return;
       }
       
@@ -379,7 +435,8 @@
       const requestData = {
         action: 'generate_interview_topics',
         security: nonce,
-        audience: authorityHook
+        audience: authorityHook,
+        authority_hook: authorityHook
       };
       
       if (entryId && entryId !== '0') {
@@ -558,6 +615,13 @@
       window.topicsGenerator = new TopicsGenerator(window.authorityHookBuilder);
     }
     
+    // Make sure Target Audience is hidden after everything loads
+    setTimeout(() => {
+      if (window.authorityHookBuilder) {
+        window.authorityHookBuilder.hideTargetAudienceSection();
+      }
+    }, 1000);
+    
     console.log('✅ All systems ready!');
   }
 
@@ -568,5 +632,8 @@
     // DOM is already loaded
     initializeComponents();
   }
+  
+  // Fallback initialization for dynamic content
+  setTimeout(initializeComponents, 100);
 
 })();
