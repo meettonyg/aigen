@@ -8,6 +8,11 @@ class MKCG_Questions_Generator extends MKCG_Base_Generator {
     
     protected $generator_type = 'questions';
     
+    // Enhanced configuration
+    protected $max_questions_per_topic = 10;
+    protected $max_retries = 3;
+    protected $cache_duration = 3600; // 1 hour
+    
     /**
      * Get form fields configuration
      */
@@ -432,6 +437,13 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
         // Add auto-save AJAX action
         add_action('wp_ajax_mkcg_save_question', [$this, 'handle_save_question_ajax']);
         add_action('wp_ajax_nopriv_mkcg_save_question', [$this, 'handle_save_question_ajax']);
+        
+        // CRITICAL FIX: Add topic editing AJAX handlers
+        add_action('wp_ajax_mkcg_save_topic', [$this, 'handle_save_topic_ajax']);
+        add_action('wp_ajax_nopriv_mkcg_save_topic', [$this, 'handle_save_topic_ajax']);
+        
+        add_action('wp_ajax_mkcg_save_all_data', [$this, 'handle_save_all_data_ajax']);
+        add_action('wp_ajax_nopriv_mkcg_save_all_data', [$this, 'handle_save_all_data_ajax']);
     }
     
     /**
@@ -467,6 +479,117 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
         } else {
             wp_send_json_error(['message' => 'Failed to save question']);
         }
+    }
+    
+    /**
+     * CRITICAL FIX: AJAX handler for saving individual topics (inline editing)
+     */
+    public function handle_save_topic_ajax() {
+        if (!check_ajax_referer('generate_topics_nonce', 'nonce', false)) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
+        
+        $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
+        $topic_number = isset($_POST['topic_number']) ? intval($_POST['topic_number']) : 0;
+        $topic_text = isset($_POST['topic_text']) ? sanitize_textarea_field($_POST['topic_text']) : '';
+        
+        if (!$post_id || !$topic_number || ($topic_number < 1 || $topic_number > 5)) {
+            wp_send_json_error(['message' => 'Missing or invalid parameters']);
+            return;
+        }
+        
+        // Save topic to post meta using Formidable service
+        if (!$this->formidable_service) {
+            wp_send_json_error(['message' => 'Formidable service not available']);
+            return;
+        }
+        
+        $result = $this->formidable_service->save_single_topic_to_post($post_id, $topic_number, $topic_text);
+        
+        if ($result) {
+            error_log("MKCG Questions: Saved topic {$topic_number} to post {$post_id}: " . substr($topic_text, 0, 50));
+            wp_send_json_success([
+                'message' => 'Topic saved successfully',
+                'post_id' => $post_id,
+                'topic_number' => $topic_number,
+                'topic_text' => $topic_text
+            ]);
+        } else {
+            wp_send_json_error(['message' => 'Failed to save topic']);
+        }
+    }
+    
+    /**
+     * AJAX handler for saving all topics and questions data
+     */
+    public function handle_save_all_data_ajax() {
+        if (!check_ajax_referer('generate_topics_nonce', 'nonce', false)) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
+        
+        $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
+        $entry_id = isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0;
+        $topics_data = isset($_POST['topics']) ? $_POST['topics'] : [];
+        $questions_data = isset($_POST['questions']) ? $_POST['questions'] : [];
+        
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID is required']);
+            return;
+        }
+        
+        if (!$this->formidable_service) {
+            wp_send_json_error(['message' => 'Formidable service not available']);
+            return;
+        }
+        
+        $saved_topics = 0;
+        $saved_questions = 0;
+        
+        // Save topics
+        if (!empty($topics_data) && is_array($topics_data)) {
+            // Sanitize topics data
+            $clean_topics = [];
+            foreach ($topics_data as $num => $text) {
+                $topic_num = intval($num);
+                if ($topic_num >= 1 && $topic_num <= 5) {
+                    $clean_topics[$topic_num] = sanitize_textarea_field($text);
+                }
+            }
+            
+            $result = $this->formidable_service->save_topics_to_post($post_id, $clean_topics);
+            if ($result) {
+                $saved_topics = count($clean_topics);
+            }
+        }
+        
+        // Save questions
+        if (!empty($questions_data) && is_array($questions_data)) {
+            foreach ($questions_data as $topic_num => $topic_questions) {
+                if (is_array($topic_questions)) {
+                    // Sanitize questions
+                    $clean_questions = [];
+                    foreach ($topic_questions as $q_num => $question) {
+                        $clean_questions[] = sanitize_textarea_field($question);
+                    }
+                    
+                    $result = $this->formidable_service->save_questions_to_post($post_id, $clean_questions, intval($topic_num));
+                    if ($result) {
+                        $saved_questions += count($clean_questions);
+                    }
+                }
+            }
+        }
+        
+        error_log("MKCG Questions: Save all data - Topics: {$saved_topics}, Questions: {$saved_questions}");
+        
+        wp_send_json_success([
+            'message' => "Successfully saved {$saved_topics} topics and {$saved_questions} questions",
+            'saved_topics' => $saved_topics,
+            'saved_questions' => $saved_questions,
+            'post_id' => $post_id
+        ]);
     }
     
     /**

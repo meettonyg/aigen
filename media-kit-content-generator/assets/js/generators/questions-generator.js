@@ -1,6 +1,17 @@
 /**
- * Questions Generator - Enhanced JavaScript
- * Unified implementation with topic selection and enhanced FormUtils integration
+ * Questions Generator - Enhanced JavaScript with Inline Topic Editing
+ * 
+ * CRITICAL FEATURES IMPLEMENTED:
+ * ✅ Inline topic editing - click empty topics or double-click existing to edit
+ * ✅ Auto-save on blur - saves when user clicks away from editor
+ * ✅ AJAX backend integration - saves to WordPress post meta via PHP handlers
+ * ✅ Visual feedback - saving/saved/error indicators with animations
+ * ✅ Keyboard shortcuts - Ctrl+Enter to save, Escape to cancel
+ * ✅ Enhanced UX - empty topic placeholders, proper form validation
+ * ✅ Cross-generator integration - works with existing Topics Generator data
+ * 
+ * ROOT ISSUE FIXED: Missing PHP AJAX handlers for topic saving
+ * ARCHITECTURE: Uses unified MKCG FormUtils + enhanced Questions Generator methods
  */
 
 const QuestionsGenerator = {
@@ -33,12 +44,28 @@ const QuestionsGenerator = {
      * Initialize the Questions Generator
      */
     init: function() {
-        console.log('MKCG Questions: Initializing Questions Generator');
-        this.loadTopicsData();
-        this.bindEvents();
-        this.updateSelectedTopic();
-        this.loadSelectedTopic(); // Load from localStorage if available
-        this.debugInfo();
+        console.log('MKCG Questions: Initializing Questions Generator v' + (typeof mkcg_questions_ajax !== 'undefined' ? mkcg_questions_ajax.version : 'unknown'));
+        
+        const initStartTime = Date.now();
+        
+        try {
+            this.loadTopicsData();
+            this.bindEvents();
+            this.updateSelectedTopic();
+            this.loadSelectedTopic(); // Load from localStorage if available
+            this.restoreStateFromReturn(); // Restore state if returning from Topics Generator
+            this.autoRefreshTopics(); // Auto-refresh topics if needed
+            this.debugInfo();
+            
+            // Track initialization performance
+            this.trackPerformance('initialization', initStartTime);
+            
+            console.log('MKCG Questions: Initialization completed successfully');
+            
+        } catch (error) {
+            console.error('MKCG Questions: Initialization failed:', error);
+            this.handleError(error, 'initialization');
+        }
     },
     
     /**
@@ -163,19 +190,74 @@ const QuestionsGenerator = {
      * Bind events to DOM elements
      */
     bindEvents: function() {
-        // Topic selection
+        // Topic card click - for selection AND editing
         document.querySelectorAll(this.elements.topicCards).forEach(card => {
-            card.addEventListener('click', () => {
+            card.addEventListener('click', (e) => {
+                // Don't trigger selection when clicking action buttons
+                if (e.target.closest('.mkcg-topic-actions')) {
+                    return;
+                }
+                
                 const topicId = parseInt(card.getAttribute('data-topic'));
-                this.selectTopic(topicId);
+                
+                // Double-click to edit, single-click to select
+                if (e.detail === 2) {
+                    this.startEditingTopic(topicId);
+                } else {
+                    this.selectTopic(topicId);
+                }
             });
         });
         
-        // Edit topics button
+        // Topic content click - start editing (enhanced with double-click support)
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.mkcg-topic-card__content') && !e.target.closest('.mkcg-topic-card__actions')) {
+                const topicContent = e.target.closest('.mkcg-topic-card__content');
+                const topicId = parseInt(topicContent.getAttribute('data-topic-id'));
+                
+                // Check if clicking on empty topic or placeholder
+                const isEmptyTopic = e.target.closest('.mkcg-topic-card--empty') || e.target.closest('.mkcg-topic-card__placeholder');
+                
+                if (isEmptyTopic) {
+                    // Immediately start editing for empty topics
+                    this.startEditingTopic(topicId);
+                } else {
+                    // For existing topics, require double-click to edit
+                    const currentTime = Date.now();
+                    const lastClickTime = this.lastClickTimes?.[topicId] || 0;
+                    
+                    if (currentTime - lastClickTime < 500) {
+                        // Double-click detected
+                        this.startEditingTopic(topicId);
+                    } else {
+                        // Single click - just select the topic
+                        this.selectTopic(topicId);
+                    }
+                    
+                    // Store click time
+                    if (!this.lastClickTimes) this.lastClickTimes = {};
+                    this.lastClickTimes[topicId] = currentTime;
+                }
+            }
+        });
+        
+        // Topic save/cancel buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('mkcg-topic-card__save')) {
+                const topicId = parseInt(e.target.getAttribute('data-topic-id'));
+                this.saveTopicEdit(topicId);
+            } else if (e.target.classList.contains('mkcg-topic-card__cancel')) {
+                const topicId = parseInt(e.target.getAttribute('data-topic-id'));
+                this.cancelTopicEdit(topicId);
+            }
+        });
+        
+        // Edit topics with AI button
         const editButton = document.querySelector(this.elements.editTopicsButton);
         if (editButton) {
-            editButton.addEventListener('click', () => {
-                this.editTopics();
+            editButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.editTopicsWithAI();
             });
         }
         
@@ -184,6 +266,14 @@ const QuestionsGenerator = {
         if (generateButton) {
             generateButton.addEventListener('click', () => {
                 this.generateQuestions();
+            });
+        }
+        
+        // Save All button
+        const saveAllButton = document.getElementById('mkcg-save-all-data');
+        if (saveAllButton) {
+            saveAllButton.addEventListener('click', () => {
+                this.saveAllData();
             });
         }
         
@@ -297,23 +387,401 @@ const QuestionsGenerator = {
     },
     
     /**
-     * Edit topics (redirect to topics generator or open editor)
+     * Start editing a topic inline
      */
-    editTopics: function() {
-        // Try to redirect to topics generator page
+    startEditingTopic: function(topicId) {
+        const topicCard = document.querySelector(`[data-topic="${topicId}"]`);
+        if (!topicCard) return;
+        
+        // Don't start editing if already editing
+        if (topicCard.classList.contains('mkcg-topic-card--editing')) {
+            return;
+        }
+        
+        console.log('MKCG Questions: Starting edit for topic', topicId);
+        
+        const topicContent = topicCard.querySelector('.mkcg-topic-content');
+        const topicText = topicContent.querySelector('.mkcg-topic-text');
+        const topicEditor = topicContent.querySelector('.mkcg-topic-editor');
+        const topicActions = topicCard.querySelector('.mkcg-topic-actions');
+        
+        // Get current text
+        const currentText = topicText.getAttribute('data-original-text') || '';
+        
+        // Set editor value
+        topicEditor.value = currentText;
+        
+        // Show editing state
+        topicCard.classList.add('mkcg-topic-card--editing');
+        topicText.style.display = 'none';
+        topicEditor.style.display = 'block';
+        topicActions.style.display = 'flex';
+        
+        // Focus the editor
+        topicEditor.focus();
+        topicEditor.select();
+        
+        // Add keyboard shortcuts and auto-save
+        topicEditor.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.cancelTopicEdit(topicId);
+            } else if (e.key === 'Enter' && e.ctrlKey) {
+                this.saveTopicEdit(topicId);
+            }
+        });
+        
+        // CRITICAL FIX: Add auto-save on blur (when user clicks away)
+        topicEditor.addEventListener('blur', (e) => {
+            // Only auto-save if the card is still in editing mode
+            if (topicCard.classList.contains('mkcg-topic-card--editing')) {
+                // Small delay to allow manual save/cancel button clicks
+                setTimeout(() => {
+                    if (topicCard.classList.contains('mkcg-topic-card--editing')) {
+                        console.log('MKCG Questions: Auto-saving topic on blur:', topicId);
+                        this.saveTopicEdit(topicId);
+                    }
+                }, 100);
+            }
+        });
+        
+        // Prevent blur when clicking save/cancel buttons
+        topicActions.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // Prevents blur event
+        });
+    },
+    
+    /**
+     * Save topic edit - ENHANCED with AJAX backend
+     */
+    saveTopicEdit: function(topicId) {
+        const topicCard = document.querySelector(`[data-topic="${topicId}"]`);
+        if (!topicCard) return;
+        
+        console.log('MKCG Questions: Saving topic', topicId);
+        
+        const topicContent = topicCard.querySelector('.mkcg-topic-content');
+        const topicText = topicContent.querySelector('.mkcg-topic-text');
+        const topicEditor = topicContent.querySelector('.mkcg-topic-editor');
+        const topicActions = topicCard.querySelector('.mkcg-topic-actions');
+        const placeholder = topicText.querySelector('.mkcg-topic-placeholder');
+        
+        // Get new text
+        const newText = topicEditor.value.trim();
+        
+        // Show saving state
+        this.showTopicSavingState(topicCard, true);
+        
+        // Save to backend via AJAX
+        this.saveTopicToBackend(topicId, newText)
+            .then(response => {
+                if (response.success) {
+                    // Update the display
+                    if (newText) {
+                        // Remove placeholder if exists
+                        if (placeholder) {
+                            placeholder.remove();
+                        }
+                        topicText.textContent = newText;
+                        topicCard.classList.remove('mkcg-topic-card--empty');
+                    } else {
+                        // Show placeholder for empty
+                        topicText.innerHTML = '<span class="mkcg-topic-placeholder">Click to add topic</span>';
+                        topicCard.classList.add('mkcg-topic-card--empty');
+                    }
+                    
+                    // Update data attribute
+                    topicText.setAttribute('data-original-text', newText);
+                    
+                    // Update local topics data
+                    this.topicsData[topicId] = newText;
+                    
+                    // Update selected topic if this is the active one
+                    if (this.selectedTopicId === topicId) {
+                        this.selectedTopicText = newText || 'No topic selected';
+                        this.updateSelectedTopic();
+                    }
+                    
+                    // Show success feedback
+                    this.showTopicSaveSuccess(topicCard);
+                    
+                } else {
+                    // Show error
+                    console.error('MKCG Questions: Save failed:', response.data?.message);
+                    this.showTopicSaveError(topicCard, response.data?.message || 'Save failed');
+                }
+            })
+            .catch(error => {
+                console.error('MKCG Questions: Save error:', error);
+                this.showTopicSaveError(topicCard, 'Network error');
+            })
+            .finally(() => {
+                // Exit editing mode
+                this.exitEditingMode(topicCard, topicText, topicEditor, topicActions);
+                
+                // Hide saving state
+                this.showTopicSavingState(topicCard, false);
+            });
+    },
+    
+    /**
+     * Cancel topic edit
+     */
+    cancelTopicEdit: function(topicId) {
+        const topicCard = document.querySelector(`[data-topic="${topicId}"]`);
+        if (!topicCard) return;
+        
+        console.log('MKCG Questions: Canceling edit for topic', topicId);
+        
+        const topicContent = topicCard.querySelector('.mkcg-topic-content');
+        const topicText = topicContent.querySelector('.mkcg-topic-text');
+        const topicEditor = topicContent.querySelector('.mkcg-topic-editor');
+        const topicActions = topicCard.querySelector('.mkcg-topic-actions');
+        
+        // Exit editing mode without saving
+        this.exitEditingMode(topicCard, topicText, topicEditor, topicActions);
+    },
+    
+    /**
+     * Exit editing mode
+     */
+    exitEditingMode: function(topicCard, topicText, topicEditor, topicActions) {
+        topicCard.classList.remove('mkcg-topic-card--editing');
+        topicText.style.display = 'block';
+        topicEditor.style.display = 'none';
+        topicActions.style.display = 'none';
+    },
+    
+    /**
+     * Edit topics with AI (original edit topics functionality)
+     */
+    editTopicsWithAI: function() {
         const entryId = document.getElementById('mkcg-entry-id')?.value;
         const entryKey = document.getElementById('mkcg-entry-key')?.value;
         
-        let topicsUrl = window.location.origin + window.location.pathname.replace('/questions/', '/topics/');
+        console.log('MKCG Questions: Edit Topics with AI clicked', { entryId, entryKey });
         
-        if (entryKey) {
-            topicsUrl += '?entry=' + encodeURIComponent(entryKey);
-        } else if (entryId) {
-            topicsUrl += '?entry_id=' + encodeURIComponent(entryId);
+        // Multiple URL construction strategies for robustness
+        let topicsUrl = this.buildTopicsUrl(entryId, entryKey);
+        
+        if (topicsUrl) {
+            console.log('MKCG Questions: Redirecting to Topics Generator:', topicsUrl);
+            
+            // Save current state for when user returns
+            this.saveStateForReturn();
+            
+            // Try opening in new tab first, fallback to same tab
+            try {
+                const newWindow = window.open(topicsUrl, '_blank');
+                if (!newWindow) {
+                    // Popup blocked, use same tab
+                    window.location.href = topicsUrl;
+                }
+            } catch (error) {
+                console.log('MKCG Questions: New tab failed, using same tab');
+                window.location.href = topicsUrl;
+            }
+        } else {
+            // No entry data available - show instructions
+            this.showEditTopicsInstructions();
+        }
+    },
+    
+    /**
+     * Save all topics and questions to Formidable
+     */
+    saveAllData: function() {
+        const saveButton = document.getElementById('mkcg-save-all-data');
+        const saveStatus = document.getElementById('mkcg-save-status');
+        
+        if (!saveButton || !saveStatus) return;
+        
+        console.log('MKCG Questions: Starting save all data');
+        
+        // Disable button and show saving state
+        saveButton.disabled = true;
+        saveButton.textContent = 'Saving...';
+        saveStatus.style.display = 'block';
+        saveStatus.className = 'mkcg-save-status mkcg-save-status--saving';
+        saveStatus.textContent = 'Saving topics and questions...';
+        
+        // Get all data to save
+        const postId = document.getElementById('mkcg-post-id')?.value;
+        const entryId = document.getElementById('mkcg-entry-id')?.value;
+        const nonce = document.getElementById('mkcg-questions-nonce')?.value;
+        
+        // Collect topics data
+        const topicsData = {};
+        for (let i = 1; i <= 5; i++) {
+            const topicText = document.querySelector(`[data-topic="${i}"] .mkcg-topic-text`);
+            if (topicText) {
+                const originalText = topicText.getAttribute('data-original-text') || '';
+                topicsData[i] = originalText.trim();
+            }
         }
         
-        // Open in new tab
-        window.open(topicsUrl, '_blank');
+        // Collect questions data
+        const questionsData = {};
+        document.querySelectorAll('.mkcg-form-field-input').forEach(input => {
+            const fieldId = input.id;
+            const matches = fieldId.match(/mkcg-question-field-(\d+)-(\d+)/);
+            if (matches) {
+                const topicNum = parseInt(matches[1]);
+                const questionNum = parseInt(matches[2]);
+                if (!questionsData[topicNum]) {
+                    questionsData[topicNum] = {};
+                }
+                questionsData[topicNum][questionNum] = input.value.trim();
+            }
+        });
+        
+        // Prepare data for AJAX
+        const data = {
+            action: 'mkcg_save_all_data',
+            post_id: postId,
+            entry_id: entryId,
+            topics: topicsData,
+            questions: questionsData,
+            nonce: nonce
+        };
+        
+        console.log('MKCG Questions: Saving data:', data);
+        
+        // Send AJAX request
+        fetch(ajaxurl || '/wp-admin/admin-ajax.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams(data).toString()
+        })
+        .then(response => response.json())
+        .then(response => {
+            console.log('MKCG Questions: Save response:', response);
+            
+            if (response.success) {
+                saveStatus.className = 'mkcg-save-status mkcg-save-status--success';
+                saveStatus.textContent = response.data?.message || 'Successfully saved all topics and questions!';
+                
+                // Update topicsData with saved values
+                this.topicsData = { ...topicsData };
+                
+            } else {
+                saveStatus.className = 'mkcg-save-status mkcg-save-status--error';
+                saveStatus.textContent = response.data?.message || 'Failed to save. Please try again.';
+            }
+            
+            // Hide status after 5 seconds
+            setTimeout(() => {
+                saveStatus.style.display = 'none';
+            }, 5000);
+            
+        })
+        .catch(error => {
+            console.error('MKCG Questions: Save error:', error);
+            saveStatus.className = 'mkcg-save-status mkcg-save-status--error';
+            saveStatus.textContent = 'Network error. Please check your connection and try again.';
+        })
+        .finally(() => {
+            // Re-enable button
+            saveButton.disabled = false;
+            saveButton.textContent = '💾 Save All Topics & Questions';
+        });
+    },
+    
+    /**
+     * Build Topics Generator URL with multiple fallback strategies
+     */
+    buildTopicsUrl: function(entryId, entryKey) {
+        let baseUrl = '';
+        
+        // Strategy 1: Replace /questions/ with /topics/ in current URL
+        if (window.location.pathname.includes('/questions/')) {
+            baseUrl = window.location.origin + window.location.pathname.replace('/questions/', '/topics/');
+        }
+        // Strategy 2: Try common WordPress permalink structures
+        else if (window.location.pathname.includes('questions')) {
+            baseUrl = window.location.origin + window.location.pathname.replace('questions', 'topics');
+        }
+        // Strategy 3: Assume root-level pages
+        else {
+            baseUrl = window.location.origin + '/topics/';
+        }
+        
+        // Add parameters
+        if (entryKey && entryKey !== '0' && entryKey !== '') {
+            return baseUrl + '?entry=' + encodeURIComponent(entryKey);
+        } else if (entryId && entryId !== '0' && entryId !== '') {
+            return baseUrl + '?entry_id=' + encodeURIComponent(entryId);
+        }
+        
+        // Return base URL even without parameters
+        return baseUrl;
+    },
+    
+    /**
+     * Save current state for when user returns from Topics Generator
+     */
+    saveStateForReturn: function() {
+        try {
+            const currentState = {
+                selectedTopicId: this.selectedTopicId,
+                generatedQuestions: this.generatedQuestions,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('mkcg_questions_return_state', JSON.stringify(currentState));
+            console.log('MKCG Questions: State saved for return');
+        } catch (error) {
+            console.log('MKCG Questions: Failed to save state:', error);
+        }
+    },
+    
+    /**
+     * Restore state when returning from Topics Generator
+     */
+    restoreStateFromReturn: function() {
+        try {
+            const savedState = localStorage.getItem('mkcg_questions_return_state');
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                
+                // Only restore if recent (within 1 hour)
+                if (Date.now() - state.timestamp < 3600000) {
+                    if (state.selectedTopicId && this.topicsData[state.selectedTopicId]) {
+                        this.selectTopic(state.selectedTopicId);
+                    }
+                    
+                    if (state.generatedQuestions && state.generatedQuestions.length > 0) {
+                        this.generatedQuestions = state.generatedQuestions;
+                        this.displayQuestions(state.generatedQuestions);
+                    }
+                }
+                
+                // Clear saved state
+                localStorage.removeItem('mkcg_questions_return_state');
+            }
+        } catch (error) {
+            console.log('MKCG Questions: Failed to restore state:', error);
+        }
+    },
+    
+    /**
+     * Show instructions when Edit Topics button can't determine URL
+     */
+    showEditTopicsInstructions: function() {
+        const message = `
+To edit your topics:
+
+1. Go to your Topics Generator page
+2. Make your changes
+3. Return to this Questions Generator
+4. Your topics will be automatically refreshed
+
+If you need help finding the Topics Generator, please contact support.`;
+        
+        alert(message);
+        
+        // Try to refresh topics from server as fallback
+        this.fetchTopicsFromServer();
     },
     
     /**
@@ -609,6 +1077,282 @@ const QuestionsGenerator = {
         
         const fields = fieldMappings[topicNumber] || fieldMappings[1];
         return fields[questionIndex] || fields[0];
+    },
+    
+    /**
+     * Enhanced error handling with retry logic
+     */
+    handleError: function(error, context, retryCallback) {
+        console.error('MKCG Questions Error:', error, 'Context:', context);
+        
+        // Show user-friendly error message
+        const errorMessage = this.getUserFriendlyErrorMessage(error);
+        
+        // If retry callback provided, offer retry option
+        if (retryCallback && typeof retryCallback === 'function') {
+            const shouldRetry = confirm(errorMessage + '\n\nWould you like to try again?');
+            if (shouldRetry) {
+                setTimeout(retryCallback, 1000);
+                return;
+            }
+        } else {
+            alert(errorMessage);
+        }
+        
+        // Reset UI state
+        this.hideLoading();
+        this.enableGenerateButton();
+    },
+    
+    /**
+     * Get user-friendly error messages
+     */
+    getUserFriendlyErrorMessage: function(error) {
+        if (typeof error === 'string') {
+            if (error.includes('network') || error.includes('fetch')) {
+                return 'Network connection issue. Please check your internet connection and try again.';
+            }
+            if (error.includes('timeout')) {
+                return 'The request timed out. Please try again in a moment.';
+            }
+            if (error.includes('security') || error.includes('nonce')) {
+                return 'Security token expired. Please refresh the page and try again.';
+            }
+        }
+        
+        return 'An unexpected error occurred. Please try again or contact support if the problem persists.';
+    },
+    
+    /**
+     * Auto-refresh topics when returning from Topics Generator
+     */
+    autoRefreshTopics: function() {
+        // Check if we should auto-refresh topics
+        const lastRefresh = localStorage.getItem('mkcg_topics_last_refresh');
+        const refreshThreshold = 5 * 60 * 1000; // 5 minutes
+        
+        if (!lastRefresh || (Date.now() - parseInt(lastRefresh)) > refreshThreshold) {
+            console.log('MKCG Questions: Auto-refreshing topics');
+            this.fetchTopicsFromServer();
+            localStorage.setItem('mkcg_topics_last_refresh', Date.now().toString());
+        }
+    },
+    
+    /**
+     * Performance monitoring
+     */
+    trackPerformance: function(action, startTime) {
+        if (!startTime) return;
+        
+        const duration = Date.now() - startTime;
+        console.log(`MKCG Questions Performance: ${action} took ${duration}ms`);
+        
+        // Store performance data for analytics (if enabled)
+        if (typeof mkcg_questions_ajax !== 'undefined' && mkcg_questions_ajax.features?.analytics) {
+            this.sendPerformanceData(action, duration);
+        }
+    },
+    
+    /**
+     * Send performance data for monitoring
+     */
+    sendPerformanceData: function(action, duration) {
+        // Only send if duration is significant
+        if (duration > 1000) {
+            const data = {
+                action: 'mkcg_track_performance',
+                performance_action: action,
+                duration: duration,
+                timestamp: Date.now(),
+                user_agent: navigator.userAgent,
+                nonce: typeof mkcg_questions_ajax !== 'undefined' ? mkcg_questions_ajax.nonce : ''
+            };
+            
+            // Send as background request (don't block UI)
+            fetch(ajaxurl || '/wp-admin/admin-ajax.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams(data).toString()
+            }).catch(() => {}); // Ignore errors for analytics
+        }
+    },
+    
+    /**
+     * CRITICAL FIX: Save topic to backend via AJAX
+     */
+    saveTopicToBackend: function(topicId, topicText) {
+        const postId = document.getElementById('mkcg-post-id')?.value;
+        const nonce = document.getElementById('mkcg-questions-nonce')?.value;
+        
+        if (!postId) {
+            return Promise.reject(new Error('No post ID available'));
+        }
+        
+        const data = {
+            action: 'mkcg_save_topic',
+            post_id: postId,
+            topic_number: topicId,
+            topic_text: topicText,
+            nonce: nonce
+        };
+        
+        return fetch(ajaxurl || '/wp-admin/admin-ajax.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams(data).toString()
+        })
+        .then(response => response.json());
+    },
+    
+    /**
+     * Show topic saving state
+     */
+    showTopicSavingState: function(topicCard, isSaving) {
+        const existingIndicator = topicCard.querySelector('.mkcg-topic-save-indicator');
+        
+        if (isSaving) {
+            if (!existingIndicator) {
+                const indicator = document.createElement('div');
+                indicator.className = 'mkcg-topic-save-indicator';
+                indicator.innerHTML = '💾 Saving...';
+                indicator.style.cssText = `
+                    position: absolute;
+                    top: 5px;
+                    right: 5px;
+                    background: #f87f34;
+                    color: white;
+                    padding: 2px 6px;
+                    border-radius: 3px;
+                    font-size: 11px;
+                    z-index: 10;
+                `;
+                topicCard.style.position = 'relative';
+                topicCard.appendChild(indicator);
+            }
+        } else {
+            if (existingIndicator) {
+                existingIndicator.remove();
+            }
+        }
+    },
+    
+    /**
+     * Show topic save success feedback
+     */
+    showTopicSaveSuccess: function(topicCard) {
+        const indicator = document.createElement('div');
+        indicator.className = 'mkcg-topic-save-success';
+        indicator.innerHTML = '✓ Saved';
+        indicator.style.cssText = `
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #27ae60;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            z-index: 10;
+            animation: fadeInOut 3s ease-in-out;
+        `;
+        
+        // Add fade animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeInOut {
+                0% { opacity: 0; transform: translateY(-10px); }
+                20% { opacity: 1; transform: translateY(0); }
+                80% { opacity: 1; transform: translateY(0); }
+                100% { opacity: 0; transform: translateY(-10px); }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        topicCard.style.position = 'relative';
+        topicCard.appendChild(indicator);
+        
+        // Remove after animation
+        setTimeout(() => {
+            if (indicator.parentNode) {
+                indicator.remove();
+            }
+            if (style.parentNode) {
+                style.remove();
+            }
+        }, 3000);
+    },
+    
+    /**
+     * Show topic save error feedback
+     */
+    showTopicSaveError: function(topicCard, errorMessage) {
+        const indicator = document.createElement('div');
+        indicator.className = 'mkcg-topic-save-error';
+        indicator.innerHTML = '✗ Error';
+        indicator.title = errorMessage;
+        indicator.style.cssText = `
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #e74c3c;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            z-index: 10;
+            cursor: pointer;
+        `;
+        
+        indicator.addEventListener('click', () => {
+            alert('Save Error: ' + errorMessage + '\n\nClick to try again.');
+            indicator.remove();
+        });
+        
+        topicCard.style.position = 'relative';
+        topicCard.appendChild(indicator);
+        
+        // Auto-remove after 10 seconds
+        setTimeout(() => {
+            if (indicator.parentNode) {
+                indicator.remove();
+            }
+        }, 10000);
+    },
+    
+    /**
+     * Cleanup function to prevent memory leaks
+     */
+    cleanup: function() {
+        // Clear any active timeouts
+        if (this.retryTimeout) {
+            clearTimeout(this.retryTimeout);
+        }
+        
+        // Clear performance monitoring
+        if (this.performanceStartTime) {
+            this.performanceStartTime = null;
+        }
+        
+        // Clear cached data older than 1 hour
+        try {
+            const items = Object.keys(localStorage);
+            items.forEach(key => {
+                if (key.startsWith('mkcg_') && key.includes('_timestamp')) {
+                    const timestamp = parseInt(localStorage.getItem(key) || '0');
+                    if (Date.now() - timestamp > 3600000) { // 1 hour
+                        const dataKey = key.replace('_timestamp', '');
+                        localStorage.removeItem(key);
+                        localStorage.removeItem(dataKey);
+                    }
+                }
+            });
+        } catch (error) {
+            console.log('MKCG Questions: Cleanup error (non-critical):', error);
+        }
+        
+        console.log('MKCG Questions: Cleanup completed');
     }
 };
 

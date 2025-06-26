@@ -647,6 +647,34 @@ class MKCG_Formidable_Service {
     }
     
     /**
+     * CRITICAL FIX: Save single topic to custom post meta (for inline editing)
+     */
+    public function save_single_topic_to_post($post_id, $topic_number, $topic_text) {
+        if (!$post_id || !$topic_number || ($topic_number < 1 || $topic_number > 5)) {
+            return false;
+        }
+        
+        $meta_key = 'topic_' . $topic_number;
+        $result = update_post_meta($post_id, $meta_key, trim($topic_text));
+        
+        if ($result !== false) {
+            // Also update the combined topics array
+            $all_topics = get_post_meta($post_id, 'all_topics', true);
+            if (!is_array($all_topics)) {
+                $all_topics = [];
+            }
+            $all_topics[$topic_number] = trim($topic_text);
+            update_post_meta($post_id, 'all_topics', $all_topics);
+            
+            error_log("MKCG Formidable: Saved single topic {$topic_number} to post {$post_id}: {$meta_key}");
+            return true;
+        }
+        
+        error_log("MKCG Formidable: Failed to save single topic {$topic_number} to post {$post_id}");
+        return false;
+    }
+    
+    /**
      * Get questions from custom post meta for a specific topic
      */
     public function get_questions_from_post($post_id, $topic_number = null) {
