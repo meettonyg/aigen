@@ -438,4 +438,285 @@ class MKCG_Formidable_Service {
         
         return isset($defaults[$component]) ? $defaults[$component] : '';
     }
+    
+    /**
+     * Get post ID associated with Formidable entry
+     * This is how we connect to the custom post
+     */
+    public function get_post_id_from_entry($entry_id) {
+        global $wpdb;
+        
+        // Method 1: Check if there's a direct post_id field in the entry
+        $post_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->prefix}frm_items WHERE id = %d",
+            $entry_id
+        ));
+        
+        if ($post_id) {
+            error_log('MKCG Formidable: Found post ID via frm_items.post_id: ' . $post_id);
+            return $post_id;
+        }
+        
+        // Method 2: Look for post ID in item_metas (common Formidable pattern)
+        $post_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT meta_value FROM {$wpdb->prefix}frm_item_metas 
+             WHERE item_id = %d 
+             AND field_id IN (
+                 SELECT id FROM {$wpdb->prefix}frm_fields 
+                 WHERE type = 'hidden' 
+                 AND (field_key LIKE '%post_id%' OR name LIKE '%post%')
+             )",
+            $entry_id
+        ));
+        
+        if ($post_id && is_numeric($post_id)) {
+            error_log('MKCG Formidable: Found post ID via meta field: ' . $post_id);
+            return intval($post_id);
+        }
+        
+        // Method 3: Check for "Create Post" action results
+        $post_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->prefix}frm_items WHERE id = %d AND post_id IS NOT NULL",
+            $entry_id
+        ));
+        
+        if ($post_id) {
+            error_log('MKCG Formidable: Found post ID via create post action: ' . $post_id);
+            return $post_id;
+        }
+        
+        error_log('MKCG Formidable: No post ID found for entry ' . $entry_id);
+        return false;
+    }
+    
+    /**
+     * Get topics from custom post meta fields
+     * This is where the Topics Generator saves the generated topics
+     */
+    public function get_topics_from_post($post_id) {
+        $topics = [];
+        
+        // Common topic meta field patterns
+        $topic_meta_patterns = [
+            'topic_%d',          // topic_1, topic_2, etc.
+            'interview_topic_%d', // interview_topic_1, etc.
+            'topic%d',           // topic1, topic2, etc.
+            'generated_topic_%d'  // generated_topic_1, etc.
+        ];
+        
+        foreach ($topic_meta_patterns as $pattern) {
+            $found_topics = [];
+            
+            // Check for 5 topics (1-5)
+            for ($i = 1; $i <= 5; $i++) {
+                $meta_key = sprintf($pattern, $i);
+                $topic_value = get_post_meta($post_id, $meta_key, true);
+                
+                if (!empty($topic_value)) {
+                    $found_topics[$i] = trim($topic_value);
+                    error_log("MKCG Formidable: Found topic {$i} in meta key '{$meta_key}': " . substr($topic_value, 0, 50) . '...');
+                }
+            }
+            
+            // If we found topics with this pattern, use them
+            if (!empty($found_topics)) {
+                error_log('MKCG Formidable: Using topic pattern: ' . $pattern);
+                return $found_topics;
+            }
+        }
+        
+        // Try alternative: single meta field with all topics (like your field 10081 but in post meta)
+        $all_topics_patterns = [
+            'all_topics',
+            'generated_topics',
+            'interview_topics',
+            'topics_list'
+        ];
+        
+        foreach ($all_topics_patterns as $meta_key) {
+            $topics_data = get_post_meta($post_id, $meta_key, true);
+            
+            if (!empty($topics_data)) {
+                error_log('MKCG Formidable: Found combined topics in meta key: ' . $meta_key);
+                
+                // If it's an array, use it directly
+                if (is_array($topics_data)) {
+                    $parsed_topics = [];
+                    foreach ($topics_data as $index => $topic) {
+                        if (!empty($topic)) {
+                            $parsed_topics[$index + 1] = trim($topic);
+                        }
+                    }
+                    if (!empty($parsed_topics)) {
+                        return $parsed_topics;
+                    }
+                }
+                
+                // If it's a string, try to parse it
+                if (is_string($topics_data)) {
+                    $parsed_topics = $this->parse_topics_string($topics_data);
+                    if (!empty($parsed_topics)) {
+                        return $parsed_topics;
+                    }
+                }
+            }
+        }
+        
+        error_log('MKCG Formidable: No topics found in post meta for post ' . $post_id);
+        return [];
+    }
+    
+    /**
+     * Parse topics from string format (similar to field 10081 but more flexible)
+     */
+    private function parse_topics_string($topics_string) {
+        $topics = [];
+        
+        if (empty($topics_string)) {
+            return $topics;
+        }
+        
+        // Try JSON first
+        $json_decoded = json_decode($topics_string, true);
+        if (is_array($json_decoded)) {
+            foreach ($json_decoded as $index => $topic) {
+                if (!empty($topic)) {
+                    $topics[is_numeric($index) ? $index + 1 : count($topics) + 1] = trim($topic);
+                }
+            }
+            return $topics;
+        }
+        
+        // Parse line-by-line format (like field 10081)
+        $lines = explode("\n", $topics_string);
+        
+        foreach ($lines as $line) {
+            $line = trim($line);
+            
+            // Look for "Topic X:" or "* Topic X:" patterns
+            if (preg_match('/^\*?\s*Topic\s+(\d+):\s*(.+)$/i', $line, $matches)) {
+                $topic_number = intval($matches[1]);
+                $topic_text = trim($matches[2]);
+                
+                if ($topic_number >= 1 && $topic_number <= 5 && !empty($topic_text)) {
+                    $topics[$topic_number] = $topic_text;
+                }
+            }
+            // Also try numbered list format "1. Topic text"
+            elseif (preg_match('/^\s*(\d+)\.\s*(.+)$/i', $line, $matches)) {
+                $topic_number = intval($matches[1]);
+                $topic_text = trim($matches[2]);
+                
+                if ($topic_number >= 1 && $topic_number <= 5 && !empty($topic_text)) {
+                    $topics[$topic_number] = $topic_text;
+                }
+            }
+        }
+        
+        return $topics;
+    }
+    
+    /**
+     * Save topics to custom post meta (for Topics Generator)
+     */
+    public function save_topics_to_post($post_id, $topics) {
+        if (!$post_id || empty($topics)) {
+            return false;
+        }
+        
+        $saved_count = 0;
+        
+        // Save individual topic meta fields
+        foreach ($topics as $index => $topic) {
+            if (!empty($topic)) {
+                $meta_key = 'topic_' . $index;
+                $result = update_post_meta($post_id, $meta_key, trim($topic));
+                
+                if ($result !== false) {
+                    $saved_count++;
+                    error_log("MKCG Formidable: Saved topic {$index} to post meta: {$meta_key}");
+                }
+            }
+        }
+        
+        // Also save as a combined array for backup
+        update_post_meta($post_id, 'all_topics', $topics);
+        
+        error_log("MKCG Formidable: Saved {$saved_count} topics to post {$post_id}");
+        return $saved_count > 0;
+    }
+    
+    /**
+     * Get questions from custom post meta for a specific topic
+     */
+    public function get_questions_from_post($post_id, $topic_number = null) {
+        $questions = [];
+        
+        if ($topic_number) {
+            // Get questions for specific topic (1-5)
+            for ($i = 1; $i <= 5; $i++) {
+                $question_number = (($topic_number - 1) * 5) + $i; // Calculate global question number
+                $meta_key = 'question_' . $question_number;
+                $question_value = get_post_meta($post_id, $meta_key, true);
+                
+                if (!empty($question_value)) {
+                    $questions[$i] = trim($question_value);
+                    error_log("MKCG Formidable: Found question {$i} for topic {$topic_number}: " . substr($question_value, 0, 50) . '...');
+                }
+            }
+        } else {
+            // Get all questions (1-25)
+            for ($i = 1; $i <= 25; $i++) {
+                $meta_key = 'question_' . $i;
+                $question_value = get_post_meta($post_id, $meta_key, true);
+                
+                if (!empty($question_value)) {
+                    $questions[$i] = trim($question_value);
+                }
+            }
+        }
+        
+        return $questions;
+    }
+    
+    /**
+     * Save questions to custom post meta (for Questions Generator)
+     */
+    public function save_questions_to_post($post_id, $questions, $topic_number) {
+        if (!$post_id || empty($questions)) {
+            return false;
+        }
+        
+        $saved_count = 0;
+        
+        // Save questions with global numbering
+        foreach ($questions as $index => $question) {
+            if (!empty($question)) {
+                $question_number = (($topic_number - 1) * 5) + ($index + 1); // Calculate global question number
+                $meta_key = 'question_' . $question_number;
+                $result = update_post_meta($post_id, $meta_key, trim($question));
+                
+                if ($result !== false) {
+                    $saved_count++;
+                    error_log("MKCG Formidable: Saved question {$question_number} (topic {$topic_number}, pos {$index}) to post meta: {$meta_key}");
+                }
+            }
+        }
+        
+        error_log("MKCG Formidable: Saved {$saved_count} questions for topic {$topic_number} to post {$post_id}");
+        return $saved_count > 0;
+    }
+    
+    /**
+     * Get all questions organized by topic
+     */
+    public function get_all_questions_by_topic($post_id) {
+        $questions_by_topic = [];
+        
+        for ($topic = 1; $topic <= 5; $topic++) {
+            $questions_by_topic[$topic] = $this->get_questions_from_post($post_id, $topic);
+        }
+        
+        return $questions_by_topic;
+    }
 }

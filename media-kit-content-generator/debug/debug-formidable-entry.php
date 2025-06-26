@@ -203,9 +203,52 @@ function debug_formidable_entry() {
     return $output;
 }
 
+// Test the new fix
+function test_topics_fix() {
+    $entry_id = 74492; // y8ver
+    
+    echo '<div style="background: #e8f5e8; padding: 15px; margin: 20px 0; border-radius: 8px;">';
+    echo '<h3>🔧 TOPICS FIX TEST</h3>';
+    
+    global $wpdb;
+    $item_metas_table = $wpdb->prefix . 'frm_item_metas';
+    
+    $topics_combined = $wpdb->get_var($wpdb->prepare(
+        "SELECT meta_value FROM $item_metas_table WHERE item_id = %d AND field_id = 10081",
+        $entry_id
+    ));
+    
+    if ($topics_combined) {
+        echo '<p>✅ <strong>Field 10081 FOUND!</strong></p>';
+        
+        // Test parsing
+        if (class_exists('MKCG_Formidable_Service')) {
+            $service = new MKCG_Formidable_Service();
+            $topics = $service->parse_combined_topics($topics_combined);
+            
+            if (!empty($topics)) {
+                echo '<p>✅ <strong>TOPICS PARSED:</strong> ' . count($topics) . ' topics found</p>';
+                foreach ($topics as $num => $topic) {
+                    echo '<p>Topic ' . $num . ': ' . esc_html($topic) . '</p>';
+                }
+                echo '<p style="color: green; font-weight: bold;">🎉 FIX IS WORKING!</p>';
+            } else {
+                echo '<p>❌ Could not parse topics</p>';
+            }
+        } else {
+            echo '<p>⚠️ MKCG_Formidable_Service not available</p>';
+        }
+    } else {
+        echo '<p>❌ Field 10081 is empty/null</p>';
+    }
+    
+    echo '</div>';
+}
+
 // If accessed directly
 if (!function_exists('add_shortcode')) {
     echo debug_formidable_entry();
+    echo test_topics_fix();
 } else {
     // Add as shortcode
     add_shortcode('debug_formidable_entry', 'debug_formidable_entry');

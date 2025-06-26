@@ -36,54 +36,46 @@ if (isset($_GET['entry'])) {
     $debug_info[] = 'Entry ID from URL: ' . $entry_id;
 }
 
-// Get available topics from Topics Generator
+// Get available topics from custom post meta (NOT from field 10081)
 $available_topics = [];
+$existing_questions = [];
+$post_id = null;
 $topics_debug = [];
 
 if ($entry_id && isset($formidable_service)) {
-    // FIXED: Topics are in field 10081 as a combined list
-    $topics_debug[] = 'CORRECTED: Looking for topics in field 10081 (combined field)';
+    $topics_debug[] = 'CORRECTED: Getting topics from custom post meta, not Formidable fields';
     $topics_debug[] = 'Entry ID: ' . $entry_id;
     
-    global $wpdb;
-    $item_metas_table = $wpdb->prefix . 'frm_item_metas';
+    // Get the post ID associated with this entry
+    $post_id = $formidable_service->get_post_id_from_entry($entry_id);
     
-    // Get the topics from field 10081
-    $topics_combined = $wpdb->get_var($wpdb->prepare(
-        "SELECT meta_value FROM $item_metas_table WHERE item_id = %d AND field_id = 10081",
-        $entry_id
-    ));
-    
-    $topics_debug[] = 'Field 10081 content: ' . ($topics_combined ? substr($topics_combined, 0, 200) . '...' : 'NULL');
-    
-    if ($topics_combined && !empty(trim($topics_combined))) {
-        // Parse the topics from the combined field
-        // Format appears to be: "* Topic 1: Title\n* Topic 2: Title\n..."
-        $topics_debug[] = 'Parsing topics from combined field...';
+    if ($post_id) {
+        $topics_debug[] = 'Found associated post ID: ' . $post_id;
         
-        // Split by lines and look for topic patterns
-        $lines = explode("\n", $topics_combined);
-        $topic_count = 0;
+        // Get topics from custom post meta
+        $available_topics = $formidable_service->get_topics_from_post($post_id);
         
-        foreach ($lines as $line) {
-            $line = trim($line);
-            
-            // Look for "Topic X:" or "* Topic X:" patterns
-            if (preg_match('/^\*?\s*Topic\s+(\d+):\s*(.+)$/i', $line, $matches)) {
-                $topic_number = intval($matches[1]);
-                $topic_text = trim($matches[2]);
-                
-                if ($topic_number >= 1 && $topic_number <= 5 && !empty($topic_text)) {
-                    $available_topics[$topic_number] = $topic_text;
-                    $topic_count++;
-                    $topics_debug[] = "Found Topic {$topic_number}: {$topic_text}";
-                }
+        if (!empty($available_topics)) {
+            $topics_debug[] = 'SUCCESS: Found ' . count($available_topics) . ' topics in post meta';
+            foreach ($available_topics as $num => $topic) {
+                $topics_debug[] = "Topic {$num}: " . substr($topic, 0, 50) . '...';
             }
+        } else {
+            $topics_debug[] = 'No topics found in post meta fields';
         }
         
-        $topics_debug[] = "SUCCESS: Parsed {$topic_count} topics from field 10081";
+        // Get existing questions organized by topic
+        $existing_questions = $formidable_service->get_all_questions_by_topic($post_id);
+        
+        if (!empty($existing_questions)) {
+            $question_count = 0;
+            foreach ($existing_questions as $topic_num => $questions) {
+                $question_count += count($questions);
+            }
+            $topics_debug[] = 'Found ' . $question_count . ' existing questions in post meta';
+        }
     } else {
-        $topics_debug[] = 'Field 10081 is empty or null';
+        $topics_debug[] = 'No associated post found for entry ' . $entry_id;
     }
 } else {
     if (!$entry_id) {
@@ -150,10 +142,10 @@ if (empty($available_topics)) {
                 <!-- Topic Selector -->
                 <div class="mkcg-topic-selector">
                     <div class="mkcg-selector-header">
-                        <h3 class="mkcg-section-title">Choose Your Topic</h3>
-                        <button class="mkcg-edit-topics-button" id="mkcg-edit-topics">
-                            ✎ Edit Topics
-                        </button>
+                    <h3 class="mkcg-section-title">Choose Your Topic</h3>
+                    <a href="<?php echo $entry_key ? '/topics/?entry=' . urlencode($entry_key) : '/topics/'; ?>" class="mkcg-edit-topics-button" id="mkcg-edit-topics">
+                    ✎ Edit Topics
+                    </a>
                     </div>
                     
                     <div class="mkcg-topics-grid" id="mkcg-topics-grid">
@@ -221,53 +213,46 @@ if (empty($available_topics)) {
                     </div>
                 </div>
                 
-                <!-- Form Fields -->
+                <!-- Form Fields - Topic-specific Questions -->
                 <div class="mkcg-form-step">
-                    <div class="mkcg-form-field">
-                        <div class="mkcg-form-field-label">
-                            <div class="mkcg-form-field-number">1</div>
-                            <div class="mkcg-form-field-title">First Interview Question</div>
-                        </div>
-                        <textarea class="mkcg-form-field-input" id="mkcg-question-field-1" name="field_8505" placeholder="Enter your first interview question..."></textarea>
-                        <div class="mkcg-form-examples">
-                            <p>Examples:</p>
-                            <div class="mkcg-form-example">"What led you to develop this approach to podcast monetization?"</div>
-                            <div class="mkcg-form-example">"Can you walk us through your step-by-step process for landing high-paying sponsors?"</div>
-                            <div class="mkcg-form-example">"What's the biggest mistake you see podcasters make when trying to monetize?"</div>
-                        </div>
-                    </div>
-                    
-                    <div class="mkcg-form-field">
-                        <div class="mkcg-form-field-label">
-                            <div class="mkcg-form-field-number">2</div>
-                            <div class="mkcg-form-field-title">Second Interview Question</div>
-                        </div>
-                        <textarea class="mkcg-form-field-input" id="mkcg-question-field-2" name="field_8506" placeholder="Enter your second interview question..."></textarea>
-                    </div>
-                    
-                    <div class="mkcg-form-field">
-                        <div class="mkcg-form-field-label">
-                            <div class="mkcg-form-field-number">3</div>
-                            <div class="mkcg-form-field-title">Third Interview Question</div>
-                        </div>
-                        <textarea class="mkcg-form-field-input" id="mkcg-question-field-3" name="field_8507" placeholder="Enter your third interview question..."></textarea>
-                    </div>
-                    
-                    <div class="mkcg-form-field">
-                        <div class="mkcg-form-field-label">
-                            <div class="mkcg-form-field-number">4</div>
-                            <div class="mkcg-form-field-title">Fourth Interview Question</div>
-                        </div>
-                        <textarea class="mkcg-form-field-input" id="mkcg-question-field-4" name="field_8508" placeholder="Enter your fourth interview question..."></textarea>
-                    </div>
-                    
-                    <div class="mkcg-form-field">
-                        <div class="mkcg-form-field-label">
-                            <div class="mkcg-form-field-number">5</div>
-                            <div class="mkcg-form-field-title">Fifth Interview Question</div>
-                        </div>
-                        <textarea class="mkcg-form-field-input" id="mkcg-question-field-5" name="field_8509" placeholder="Enter your fifth interview question..."></textarea>
-                    </div>
+                    <?php for ($topic_num = 1; $topic_num <= 5; $topic_num++): ?>
+                        <?php if (isset($available_topics[$topic_num])): ?>
+                            <div class="mkcg-topic-questions" id="mkcg-topic-<?php echo $topic_num; ?>-questions" style="<?php echo $topic_num === 1 ? 'display: block;' : 'display: none;'; ?>">
+                                <div class="mkcg-topic-questions-header">
+                                    <h3>Questions for Topic <?php echo $topic_num; ?>: <?php echo esc_html($available_topics[$topic_num]); ?></h3>
+                                </div>
+                                
+                                <?php 
+                                // Get existing questions for this topic
+                                $topic_questions = isset($existing_questions[$topic_num]) ? $existing_questions[$topic_num] : [];
+                                ?>
+                                
+                                <?php for ($q = 1; $q <= 5; $q++): ?>
+                                    <div class="mkcg-form-field">
+                                        <div class="mkcg-form-field-label">
+                                            <div class="mkcg-form-field-number"><?php echo $q; ?></div>
+                                            <div class="mkcg-form-field-title">Question <?php echo $q; ?> for Topic <?php echo $topic_num; ?></div>
+                                        </div>
+                                        <textarea 
+                                            class="mkcg-form-field-input" 
+                                            id="mkcg-question-field-<?php echo $topic_num; ?>-<?php echo $q; ?>" 
+                                            name="field_question_<?php echo $topic_num; ?>_<?php echo $q; ?>" 
+                                            placeholder="Enter question <?php echo $q; ?> for this topic..."
+                                        ><?php echo isset($topic_questions[$q]) ? esc_textarea($topic_questions[$q]) : ''; ?></textarea>
+                                        
+                                        <?php if ($q === 1): // Only show examples for first question ?>
+                                        <div class="mkcg-form-examples">
+                                            <p>Examples:</p>
+                                            <div class="mkcg-form-example">"What led you to develop this approach to [topic area]?"</div>
+                                            <div class="mkcg-form-example">"Can you walk us through your step-by-step process for [topic implementation]?"</div>
+                                            <div class="mkcg-form-example">"What's the biggest mistake you see people make with [topic area]?"</div>
+                                        </div>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endfor; ?>
+                            </div>
+                        <?php endif; ?>
+                    <?php endfor; ?>
                     
                     <!-- Hidden fields for AJAX -->
                     <input type="hidden" id="mkcg-entry-id" value="<?php echo esc_attr($entry_id); ?>">
@@ -366,4 +351,161 @@ if (empty($available_topics)) {
 <script type="text/javascript">
 // Topics data from PHP
 const MKCG_TopicsData = <?php echo json_encode($available_topics); ?>;
+
+// Existing questions data from PHP
+const MKCG_ExistingQuestions = <?php echo json_encode($existing_questions); ?>;
+
+// Post ID for saving
+const MKCG_PostId = <?php echo json_encode($post_id); ?>;
+
+// Initialize Questions Generator
+jQuery(document).ready(function($) {
+    // Handle topic card clicks
+    $('.mkcg-topic-card').on('click', function() {
+        const topicNum = $(this).data('topic');
+        
+        // Update active state
+        $('.mkcg-topic-card').removeClass('active');
+        $(this).addClass('active');
+        
+        // Show selected topic questions, hide others
+        $('.mkcg-topic-questions').hide();
+        $('#mkcg-topic-' + topicNum + '-questions').show();
+        
+        // Update selected topic display
+        const topicText = MKCG_TopicsData[topicNum];
+        $('#mkcg-selected-topic-text').text(topicText);
+        $('#mkcg-selected-topic-id').val(topicNum);
+        
+        console.log('Switched to topic ' + topicNum + ': ' + topicText);
+    });
+    
+    // Handle AI generation button
+    $('#mkcg-generate-questions').on('click', function() {
+        const selectedTopic = $('#mkcg-selected-topic-id').val();
+        const topicText = $('#mkcg-selected-topic-text').text();
+        const entryId = $('#mkcg-entry-id').val();
+        const nonce = $('#mkcg-questions-nonce').val();
+        
+        if (!selectedTopic || !topicText) {
+            alert('Please select a topic first.');
+            return;
+        }
+        
+        // Show loading
+        $('#mkcg-loading').show();
+        $('#mkcg-questions-result').hide();
+        
+        // Make AJAX request
+        $.ajax({
+            type: 'POST',
+            url: ajaxurl,
+            data: {
+                action: 'generate_interview_questions',
+                security: nonce,
+                entry_id: entryId,
+                topic: topicText,
+                topic_number: selectedTopic
+            },
+            success: function(response) {
+                $('#mkcg-loading').hide();
+                
+                if (response.success && response.data.questions) {
+                    displayGeneratedQuestions(response.data.questions, selectedTopic);
+                } else {
+                    alert('Error generating questions: ' + (response.data?.message || 'Unknown error'));
+                }
+            },
+            error: function(xhr, status, error) {
+                $('#mkcg-loading').hide();
+                alert('Failed to generate questions: ' + error);
+            }
+        });
+    });
+    
+    // Function to display generated questions
+    function displayGeneratedQuestions(questions, topicNumber) {
+        let questionsHtml = '';
+        
+        questions.forEach((question, index) => {
+            questionsHtml += `
+                <div class="mkcg-question-item">
+                    <div class="mkcg-question-number">
+                        <strong>Question ${index + 1}:</strong>
+                    </div>
+                    <div class="mkcg-question-text">
+                        ${question}
+                    </div>
+                    <button class="mkcg-use-question-btn" data-question="${question}" data-position="${index + 1}">Use</button>
+                </div>`;
+        });
+        
+        $('#mkcg-questions-list').html(questionsHtml);
+        $('#mkcg-questions-result').show();
+    }
+    
+    // Handle "Use" button clicks
+    $(document).on('click', '.mkcg-use-question-btn', function() {
+        const question = $(this).data('question');
+        const position = $(this).data('position');
+        const selectedTopic = $('#mkcg-selected-topic-id').val();
+        
+        // Set the question in the appropriate field
+        const fieldId = `#mkcg-question-field-${selectedTopic}-${position}`;
+        $(fieldId).val(question);
+        
+        // Auto-save to post meta
+        saveQuestionToPostMeta(selectedTopic, position, question);
+        
+        alert(`Question ${position} has been added to Topic ${selectedTopic}.`);
+    });
+    
+    // Function to save question to post meta
+    function saveQuestionToPostMeta(topicNumber, position, question) {
+        if (!MKCG_PostId) {
+            console.log('No post ID available for auto-save');
+            return;
+        }
+        
+        // Calculate global question number
+        const globalQuestionNumber = ((topicNumber - 1) * 5) + position;
+        
+        $.ajax({
+            type: 'POST',
+            url: ajaxurl,
+            data: {
+                action: 'mkcg_save_question',
+                post_id: MKCG_PostId,
+                question_number: globalQuestionNumber,
+                question: question,
+                nonce: $('#mkcg-questions-nonce').val()
+            },
+            success: function(response) {
+                console.log('Question saved to post meta:', response);
+            },
+            error: function() {
+                console.log('Failed to save question to post meta');
+            }
+        });
+    }
+    
+    // Auto-save when questions are manually edited
+    $(document).on('blur', '.mkcg-form-field-input', function() {
+        const fieldId = $(this).attr('id');
+        const matches = fieldId.match(/mkcg-question-field-(\d+)-(\d+)/);
+        
+        if (matches && MKCG_PostId) {
+            const topicNumber = parseInt(matches[1]);
+            const position = parseInt(matches[2]);
+            const question = $(this).val();
+            
+            if (question.trim()) {
+                saveQuestionToPostMeta(topicNumber, position, question);
+            }
+        }
+    });
+    
+    console.log('Questions Generator initialized with topics:', MKCG_TopicsData);
+    console.log('Existing questions:', MKCG_ExistingQuestions);
+});
 </script>

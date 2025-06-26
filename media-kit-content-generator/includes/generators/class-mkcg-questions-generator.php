@@ -343,41 +343,34 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
         }
         
         try {
-            // Set the topic number for field mapping
-            $this->current_input['topic_number'] = $topic_number;
-            $field_mappings = $this->get_field_mappings();
-            $question_fields = $field_mappings['questions'];
+            // Get the post ID from the entry
+            $post_id = $this->formidable_service->get_post_id_from_entry($entry_id);
             
-            $update_data = [];
-            
-            // Map questions to fields (limit to 5 questions per topic)
-            $form_questions = array_slice($questions, 0, 5);
-            foreach ($form_questions as $index => $question) {
-                if (isset($question_fields[$index])) {
-                    $update_data[$question_fields[$index]] = $question;
-                }
+            if (!$post_id) {
+                error_log('MKCG Questions Generator: No post ID found for entry ' . $entry_id);
+                return false;
             }
             
-            // Update the Formidable entry using the Formidable service
-            $result = $this->formidable_service->save_generated_content($entry_id, $update_data, $update_data);
+            // Save questions to post meta
+            $result = $this->formidable_service->save_questions_to_post($post_id, $questions, $topic_number);
             
-            if ($result['success']) {
-                error_log('MKCG Questions Generator: Successfully saved ' . count($update_data) . ' questions to Formidable entry ' . $entry_id . ' for topic ' . $topic_number);
-                error_log('MKCG Questions Generator: Field mappings used: ' . print_r($question_fields, true));
+            if ($result) {
+                error_log('MKCG Questions Generator: Successfully saved ' . count($questions) . ' questions to post meta for topic ' . $topic_number);
             } else {
-                error_log('MKCG Questions Generator: Failed to save questions to Formidable: ' . print_r($result, true));
+                error_log('MKCG Questions Generator: Failed to save questions to post meta');
             }
             
-            return $result['success'];
+            return $result;
             
         } catch (Exception $e) {
-            error_log('MKCG Questions Generator: Error saving to Formidable: ' . $e->getMessage());
+            error_log('MKCG Questions Generator: Error saving to post meta: ' . $e->getMessage());
             return false;
         }
     }
     
     /**
-     * AJAX handler for getting topics from Topics Generator entry
+     * CORRECTED: Get topics from custom post associated with Formidable entry
+     * Based on original working implementation
      */
     public function handle_get_topics_ajax() {
         if (!check_ajax_referer('mkcg_nonce', 'nonce', false)) {
@@ -393,9 +386,6 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
             return;
         }
         
-        // Get topics from Topics Generator fields (Form 515) - USER PROVIDED
-        $topic_fields = ['8498', '8499', '8500', '8501', '8502'];
-        
         if ($entry_key) {
             $entry_data = $this->formidable_service->get_entry_data($entry_key);
             if (!$entry_data['success']) {
@@ -405,29 +395,23 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
             $entry_id = $entry_data['entry_id'];
         }
         
-        // Get entry data which includes all fields
-        $entry_data = $this->formidable_service->get_entry_data($entry_id);
+        // Get the post ID associated with this Formidable entry
+        $post_id = $this->formidable_service->get_post_id_from_entry($entry_id);
         
-        if (!$entry_data['success']) {
-            wp_send_json_error(['message' => 'Could not retrieve entry data']);
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'No custom post found for this entry']);
             return;
         }
         
-        $topics = [];
-        foreach ($topic_fields as $index => $field_id) {
-            if (isset($entry_data['fields'][$field_id]) && !empty($entry_data['fields'][$field_id]['value'])) {
-                $topics[$index + 1] = trim($entry_data['fields'][$field_id]['value']);
-            }
-        }
+        // Get topics from custom post meta fields
+        $topics = $this->formidable_service->get_topics_from_post($post_id);
         
         if (empty($topics)) {
-            // Log available fields for debugging
-            $available_fields = array_keys($entry_data['fields']);
-            error_log('MKCG Questions: No topics found. Available fields: ' . implode(', ', $available_fields));
-            wp_send_json_error(['message' => 'No topics found in this entry. Please generate topics first.']);
+            wp_send_json_error(['message' => 'No topics found in custom post. Please generate topics first.']);
             return;
         }
         
+        error_log('MKCG Questions: Successfully found ' . count($topics) . ' topics from custom post ' . $post_id);
         wp_send_json_success(['topics' => $topics]);
     }
     
@@ -444,6 +428,45 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
         // Add new unified AJAX actions
         add_action('wp_ajax_mkcg_get_topics', [$this, 'handle_get_topics_ajax']);
         add_action('wp_ajax_nopriv_mkcg_get_topics', [$this, 'handle_get_topics_ajax']);
+        
+        // Add auto-save AJAX action
+        add_action('wp_ajax_mkcg_save_question', [$this, 'handle_save_question_ajax']);
+        add_action('wp_ajax_nopriv_mkcg_save_question', [$this, 'handle_save_question_ajax']);
+    }
+    
+    /**
+     * AJAX handler for auto-saving individual questions
+     */
+    public function handle_save_question_ajax() {
+        if (!check_ajax_referer('generate_topics_nonce', 'nonce', false)) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
+        
+        $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
+        $question_number = isset($_POST['question_number']) ? intval($_POST['question_number']) : 0;
+        $question = isset($_POST['question']) ? sanitize_textarea_field($_POST['question']) : '';
+        
+        if (!$post_id || !$question_number || empty($question)) {
+            wp_send_json_error(['message' => 'Missing required parameters']);
+            return;
+        }
+        
+        // Save question to post meta
+        $meta_key = 'question_' . $question_number;
+        $result = update_post_meta($post_id, $meta_key, trim($question));
+        
+        if ($result !== false) {
+            error_log("MKCG Questions: Auto-saved question {$question_number} to post {$post_id}");
+            wp_send_json_success([
+                'message' => 'Question saved successfully',
+                'post_id' => $post_id,
+                'question_number' => $question_number,
+                'meta_key' => $meta_key
+            ]);
+        } else {
+            wp_send_json_error(['message' => 'Failed to save question']);
+        }
     }
     
     /**
