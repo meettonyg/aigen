@@ -263,6 +263,8 @@ abstract class MKCG_Base_Generator {
             $generator_type = $this->generator_type;
             $form_fields = $this->get_form_fields();
             $authority_hook_service = $this->authority_hook_service;
+            $formidable_service = $this->formidable_service;
+            $api_service = $this->api_service;
             
             include $template_path;
         } else {

@@ -36,19 +36,77 @@ class MKCG_Formidable_Service {
             ];
         }
         
-        // Get all field values for this entry
+        // Debug: Log the entry ID we're working with
+        error_log('MKCG Formidable Service: Working with entry ID: ' . $entry_id);
+        
+        // Get all field values for this entry - ENHANCED QUERY
         $item_metas_table = $wpdb->prefix . 'frm_item_metas';
         $fields_table = $wpdb->prefix . 'frm_fields';
         
+        // Try multiple query approaches
+        
+        // Method 1: With field join (preferred)
         $all_meta_values = $wpdb->get_results($wpdb->prepare(
             "SELECT fm.field_id, fm.meta_value, ff.name, ff.field_key 
              FROM $item_metas_table fm 
-             JOIN $fields_table ff ON fm.field_id = ff.id
-             WHERE fm.item_id = %d",
+             LEFT JOIN $fields_table ff ON fm.field_id = ff.id
+             WHERE fm.item_id = %d
+             ORDER BY fm.field_id",
             $entry_id
         ), ARRAY_A);
         
+        error_log('MKCG Formidable Service: Method 1 found ' . count($all_meta_values) . ' fields');
+        
+        // Method 2: Direct meta query (fallback)
         if (empty($all_meta_values)) {
+            $all_meta_values = $wpdb->get_results($wpdb->prepare(
+                "SELECT field_id, meta_value, field_id as name, field_id as field_key 
+                 FROM $item_metas_table 
+                 WHERE item_id = %d
+                 ORDER BY field_id",
+                $entry_id
+            ), ARRAY_A);
+            
+            error_log('MKCG Formidable Service: Method 2 found ' . count($all_meta_values) . ' fields');
+        }
+        
+        // Method 3: Check specifically for our topic fields
+        $topic_fields = ['8498', '8499', '8500', '8501', '8502'];
+        $specific_check = [];
+        
+        foreach ($topic_fields as $field_id) {
+            $value = $wpdb->get_var($wpdb->prepare(
+                "SELECT meta_value FROM $item_metas_table WHERE item_id = %d AND field_id = %d",
+                $entry_id, $field_id
+            ));
+            
+            if ($value !== null) {
+                $specific_check[] = "Field {$field_id}: '{$value}'";
+                
+                // Add to our results if not already there
+                $found = false;
+                foreach ($all_meta_values as $existing) {
+                    if ($existing['field_id'] == $field_id) {
+                        $found = true;
+                        break;
+                    }
+                }
+                
+                if (!$found) {
+                    $all_meta_values[] = [
+                        'field_id' => $field_id,
+                        'meta_value' => $value,
+                        'name' => 'Topic Field ' . $field_id,
+                        'field_key' => 'topic_' . $field_id
+                    ];
+                }
+            }
+        }
+        
+        error_log('MKCG Formidable Service: Specific topic field check: ' . implode(', ', $specific_check));
+        
+        if (empty($all_meta_values)) {
+            error_log('MKCG Formidable Service: No field data found for entry ID: ' . $entry_id);
             return [
                 'success' => false,
                 'message' => 'No field data found for entry ID: ' . $entry_id
@@ -60,17 +118,40 @@ class MKCG_Formidable_Service {
         foreach ($all_meta_values as $meta) {
             $field_data[$meta['field_id']] = [
                 'id' => $meta['field_id'],
-                'name' => $meta['name'],
-                'key' => $meta['field_key'],
+                'name' => $meta['name'] ?: 'Unknown',
+                'key' => $meta['field_key'] ?: '',
                 'value' => $meta['meta_value']
             ];
+        }
+        
+        // Debug: Log what we found
+        $found_field_ids = array_keys($field_data);
+        error_log('MKCG Formidable Service: Found field IDs: ' . implode(', ', $found_field_ids));
+        
+        // Check specifically for topic fields
+        $topic_found = [];
+        foreach ($topic_fields as $field_id) {
+            if (isset($field_data[$field_id]) && !empty($field_data[$field_id]['value'])) {
+                $topic_found[] = "Field {$field_id}: '" . substr($field_data[$field_id]['value'], 0, 50) . "'";
+            }
+        }
+        
+        if (!empty($topic_found)) {
+            error_log('MKCG Formidable Service: Topic fields found: ' . implode(', ', $topic_found));
+        } else {
+            error_log('MKCG Formidable Service: NO topic fields found in fields: ' . implode(', ', $found_field_ids));
         }
         
         return [
             'success' => true,
             'entry_id' => $entry_id,
             'fields' => $field_data,
-            'raw_data' => $all_meta_values
+            'raw_data' => $all_meta_values,
+            'debug_info' => [
+                'total_fields' => count($field_data),
+                'topic_fields_found' => count($topic_found),
+                'specific_check' => $specific_check
+            ]
         ];
     }
     

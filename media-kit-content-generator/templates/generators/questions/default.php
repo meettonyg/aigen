@@ -1,7 +1,7 @@
 <?php
 /**
- * Questions Generator Template - BEM Methodology
- * Default template for generating interview questions
+ * Questions Generator Template - Unified Implementation
+ * Enhanced template for generating interview questions with topic selection
  */
 
 // Prevent direct access
@@ -12,356 +12,358 @@ if (!defined('ABSPATH')) {
 // Get entry information
 $entry_id = 0;
 $entry_key = '';
+$debug_info = [];
 
 // Try to get entry from URL parameters
 if (isset($_GET['entry'])) {
     $entry_key = sanitize_text_field($_GET['entry']);
+    $debug_info[] = 'Entry key from URL: ' . $entry_key;
     
     // Use the Formidable service to resolve entry ID
     if (isset($formidable_service)) {
         $entry_data = $formidable_service->get_entry_data($entry_key);
         if ($entry_data['success']) {
             $entry_id = $entry_data['entry_id'];
+            $debug_info[] = 'Resolved entry ID: ' . $entry_id;
+        } else {
+            $debug_info[] = 'Failed to resolve entry: ' . $entry_data['message'];
         }
+    } else {
+        $debug_info[] = 'Formidable service not available';
     }
+} elseif (isset($_GET['entry_id'])) {
+    $entry_id = intval($_GET['entry_id']);
+    $debug_info[] = 'Entry ID from URL: ' . $entry_id;
+}
+
+// Get available topics from Topics Generator
+$available_topics = [];
+$topics_debug = [];
+
+if ($entry_id && isset($formidable_service)) {
+    // FIXED: Topics are in field 10081 as a combined list
+    $topics_debug[] = 'CORRECTED: Looking for topics in field 10081 (combined field)';
+    $topics_debug[] = 'Entry ID: ' . $entry_id;
+    
+    global $wpdb;
+    $item_metas_table = $wpdb->prefix . 'frm_item_metas';
+    
+    // Get the topics from field 10081
+    $topics_combined = $wpdb->get_var($wpdb->prepare(
+        "SELECT meta_value FROM $item_metas_table WHERE item_id = %d AND field_id = 10081",
+        $entry_id
+    ));
+    
+    $topics_debug[] = 'Field 10081 content: ' . ($topics_combined ? substr($topics_combined, 0, 200) . '...' : 'NULL');
+    
+    if ($topics_combined && !empty(trim($topics_combined))) {
+        // Parse the topics from the combined field
+        // Format appears to be: "* Topic 1: Title\n* Topic 2: Title\n..."
+        $topics_debug[] = 'Parsing topics from combined field...';
+        
+        // Split by lines and look for topic patterns
+        $lines = explode("\n", $topics_combined);
+        $topic_count = 0;
+        
+        foreach ($lines as $line) {
+            $line = trim($line);
+            
+            // Look for "Topic X:" or "* Topic X:" patterns
+            if (preg_match('/^\*?\s*Topic\s+(\d+):\s*(.+)$/i', $line, $matches)) {
+                $topic_number = intval($matches[1]);
+                $topic_text = trim($matches[2]);
+                
+                if ($topic_number >= 1 && $topic_number <= 5 && !empty($topic_text)) {
+                    $available_topics[$topic_number] = $topic_text;
+                    $topic_count++;
+                    $topics_debug[] = "Found Topic {$topic_number}: {$topic_text}";
+                }
+            }
+        }
+        
+        $topics_debug[] = "SUCCESS: Parsed {$topic_count} topics from field 10081";
+    } else {
+        $topics_debug[] = 'Field 10081 is empty or null';
+    }
+} else {
+    if (!$entry_id) {
+        $topics_debug[] = 'No entry ID available';
+    }
+    if (!isset($formidable_service)) {
+        $topics_debug[] = 'Formidable service not available';
+    }
+}
+
+// Debug output for development (remove in production)
+if (defined('WP_DEBUG') && WP_DEBUG) {
+    echo '<!-- DEBUG INFO: ' . implode(' | ', $debug_info) . ' -->';
+    echo '<!-- TOPICS DEBUG: ' . implode(' | ', $topics_debug) . ' -->';
+    echo '<!-- FOUND TOPICS: ' . print_r($available_topics, true) . ' -->';
+}
+
+// Error if no topics found - redirect to topics generator
+if (empty($available_topics)) {
+    $topics_url = '';
+    if ($entry_key) {
+        $topics_url = site_url('/topics/?entry=' . urlencode($entry_key));
+    } elseif ($entry_id) {
+        $topics_url = site_url('/topics/?entry_id=' . $entry_id);
+    }
+    
+    echo '<div class="mkcg-error-notice">';
+    echo '<h3>No Topics Found</h3>';
+    echo '<p>Please generate your interview topics first before creating questions.</p>';
+    
+    // Debug information for development
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        echo '<div style="margin-top: 15px; padding: 10px; background: #f0f0f0; border-radius: 4px; font-size: 12px;">';
+        echo '<strong>Debug Info:</strong><br>';
+        echo 'Entry ID: ' . ($entry_id ?: 'None') . '<br>';
+        echo 'Entry Key: ' . ($entry_key ?: 'None') . '<br>';
+        echo 'Debug: ' . implode(' | ', $debug_info) . '<br>';
+        echo 'Topics Debug: ' . implode(' | ', $topics_debug) . '<br>';
+        echo '</div>';
+    }
+    
+    if ($topics_url) {
+        echo '<a href="' . esc_url($topics_url) . '" class="mkcg-button">Generate Topics First</a>';
+    }
+    echo '</div>';
+    return;
 }
 ?>
 
-<div class="generator questions-generator">
-    <div class="generator__title">Interview Questions Generator</div>
-    
-    <!-- Section 1: Topic Input -->
-    <div class="section">
-        <div class="section__header">
-            <div class="section__number"></div>
-            <div class="section__title">Podcast Topic</div>
+<div class="mkcg-questions-generator-wrapper">
+    <div class="mkcg-container">
+        <div class="mkcg-onboard-header">
+            <h1 class="mkcg-tool-title">Create Your Interview Questions</h1>
         </div>
-        <div class="section__content">
-            <div class="field">
-                <label for="questions-topic" class="field__label">Enter the podcast topic you want to generate questions for:</label>
-                <textarea id="questions-topic" 
-                          name="topic" 
-                          class="field__textarea"
-                          rows="3" 
-                          placeholder="e.g., How to Scale Your Business Without Burning Out"
-                          required></textarea>
-                <p class="field__help">
-                    Enter a specific topic or select one from your generated topics list. The questions will be tailored to this topic.
+        
+        <div class="mkcg-content-wrapper">
+            <!-- LEFT PANEL -->
+            <div class="mkcg-left-panel">
+                <!-- Introduction Text -->
+                <p class="mkcg-intro-text">
+                    Generate compelling interview questions based on your selected topic. Questions will be crafted to showcase your expertise while providing maximum value to podcast listeners.
                 </p>
-            </div>
-            
-            <div class="field">
-                <label for="questions-topic-number" class="field__label">Topic Number (Optional)</label>
-                <input type="number" 
-                       id="questions-topic-number" 
-                       name="topic_number" 
-                       class="field__input"
-                       min="1" 
-                       max="10"
-                       placeholder="1">
-                <p class="field__help">
-                    If this is part of a series, enter the topic number.
-                </p>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Section 2: Generation Controls -->
-    <div class="section">
-        <div class="section__header">
-            <div class="section__number"></div>
-            <div class="section__title">Generate Questions</div>
-        </div>
-        <div class="section__content">
-            <p class="field__description">
-                Generate 10 compelling podcast interview questions based on your topic. 
-                Questions will include origin, process, results, mistakes, and transformation-focused questions.
-            </p>
-            
-            <div class="button-group">
-                <button type="button" id="generate-questions-btn" class="button button--ai">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="button__icon">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                
+                <!-- Topic Selector -->
+                <div class="mkcg-topic-selector">
+                    <div class="mkcg-selector-header">
+                        <h3 class="mkcg-section-title">Choose Your Topic</h3>
+                        <button class="mkcg-edit-topics-button" id="mkcg-edit-topics">
+                            ✎ Edit Topics
+                        </button>
+                    </div>
+                    
+                    <div class="mkcg-topics-grid" id="mkcg-topics-grid">
+                        <?php if (!empty($available_topics)): ?>
+                            <?php foreach ($available_topics as $topic_id => $topic_text): ?>
+                            <div class="mkcg-topic-card <?php echo $topic_id === 1 ? 'active' : ''; ?>" data-topic="<?php echo esc_attr($topic_id); ?>">
+                                <div class="mkcg-topic-number"><?php echo esc_html($topic_id); ?></div>
+                                <div class="mkcg-topic-text"><?php echo esc_html($topic_text); ?></div>
+                            </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="mkcg-no-topics-message">
+                                <p>No topics available. Please generate topics first.</p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <!-- Selected Topic Result -->
+                <div class="mkcg-selected-topic-result" id="mkcg-selected-topic-result">
+                    <div class="mkcg-result-header">
+                        <span class="mkcg-star-icon">★</span>
+                        <h3 class="mkcg-result-title">Selected Topic</h3>
+                        <span class="mkcg-ai-badge">FROM TOPICS</span>
+                    </div>
+                    
+                    <div class="mkcg-selected-topic-content">
+                        <p id="mkcg-selected-topic-text"><?php echo !empty($available_topics) ? esc_html($available_topics[1]) : 'No topic selected'; ?></p>
+                    </div>
+                    
+                    <div class="mkcg-result-actions">
+                        <button class="mkcg-generate-button" id="mkcg-generate-questions">
+                            Generate Questions with AI
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Loading indicator -->
+                <div class="mkcg-ai-loading" id="mkcg-loading" style="display: none;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z"></path>
                     </svg>
-                    Generate Questions with AI
-                </button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Results Section (Initially Hidden) -->
-    <div id="questions-results" class="section" style="display: none;">
-        <div class="section__header">
-            <div class="section__number"></div>
-            <div class="section__title">Generated Questions</div>
-        </div>
-        <div class="section__content">
-            <div id="questions-list" class="results">
-                <!-- Questions will be populated here by JavaScript -->
+                    Generating questions...
+                </div>
+                
+                <!-- Questions result -->
+                <div class="mkcg-questions-result" id="mkcg-questions-result" style="display: none;">
+                    <div class="mkcg-questions-list" id="mkcg-questions-list">
+                        <!-- Generated questions will be listed here -->
+                    </div>
+                </div>
+                
+                <!-- Field Selection Modal -->
+                <div class="mkcg-modal" id="mkcg-field-modal">
+                    <div class="mkcg-modal-content">
+                        <div class="mkcg-modal-header">
+                            <h3 class="mkcg-modal-title">Enter the field number to update (1-5):</h3>
+                        </div>
+                        <input type="number" min="1" max="5" class="mkcg-field-input" id="mkcg-field-number" value="1">
+                        <div class="mkcg-modal-actions">
+                            <button class="mkcg-ok-button" id="mkcg-modal-ok">OK</button>
+                            <button class="mkcg-cancel-button" id="mkcg-modal-cancel">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Form Fields -->
+                <div class="mkcg-form-step">
+                    <div class="mkcg-form-field">
+                        <div class="mkcg-form-field-label">
+                            <div class="mkcg-form-field-number">1</div>
+                            <div class="mkcg-form-field-title">First Interview Question</div>
+                        </div>
+                        <textarea class="mkcg-form-field-input" id="mkcg-question-field-1" name="field_8505" placeholder="Enter your first interview question..."></textarea>
+                        <div class="mkcg-form-examples">
+                            <p>Examples:</p>
+                            <div class="mkcg-form-example">"What led you to develop this approach to podcast monetization?"</div>
+                            <div class="mkcg-form-example">"Can you walk us through your step-by-step process for landing high-paying sponsors?"</div>
+                            <div class="mkcg-form-example">"What's the biggest mistake you see podcasters make when trying to monetize?"</div>
+                        </div>
+                    </div>
+                    
+                    <div class="mkcg-form-field">
+                        <div class="mkcg-form-field-label">
+                            <div class="mkcg-form-field-number">2</div>
+                            <div class="mkcg-form-field-title">Second Interview Question</div>
+                        </div>
+                        <textarea class="mkcg-form-field-input" id="mkcg-question-field-2" name="field_8506" placeholder="Enter your second interview question..."></textarea>
+                    </div>
+                    
+                    <div class="mkcg-form-field">
+                        <div class="mkcg-form-field-label">
+                            <div class="mkcg-form-field-number">3</div>
+                            <div class="mkcg-form-field-title">Third Interview Question</div>
+                        </div>
+                        <textarea class="mkcg-form-field-input" id="mkcg-question-field-3" name="field_8507" placeholder="Enter your third interview question..."></textarea>
+                    </div>
+                    
+                    <div class="mkcg-form-field">
+                        <div class="mkcg-form-field-label">
+                            <div class="mkcg-form-field-number">4</div>
+                            <div class="mkcg-form-field-title">Fourth Interview Question</div>
+                        </div>
+                        <textarea class="mkcg-form-field-input" id="mkcg-question-field-4" name="field_8508" placeholder="Enter your fourth interview question..."></textarea>
+                    </div>
+                    
+                    <div class="mkcg-form-field">
+                        <div class="mkcg-form-field-label">
+                            <div class="mkcg-form-field-number">5</div>
+                            <div class="mkcg-form-field-title">Fifth Interview Question</div>
+                        </div>
+                        <textarea class="mkcg-form-field-input" id="mkcg-question-field-5" name="field_8509" placeholder="Enter your fifth interview question..."></textarea>
+                    </div>
+                    
+                    <!-- Hidden fields for AJAX -->
+                    <input type="hidden" id="mkcg-entry-id" value="<?php echo esc_attr($entry_id); ?>">
+                    <input type="hidden" id="mkcg-entry-key" value="<?php echo esc_attr($entry_key); ?>">
+                    <input type="hidden" id="mkcg-questions-nonce" value="<?php echo wp_create_nonce('generate_topics_nonce'); ?>">
+                    <input type="hidden" id="mkcg-selected-topic-id" value="1">
+                </div>
             </div>
             
-            <div class="button-group">
-                <button type="button" id="copy-all-questions-btn" class="button button--copy">
-                    Copy All Questions
-                </button>
-                <button type="button" id="regenerate-questions-btn" class="button button--ai">
-                    Regenerate Questions
-                </button>
+            <!-- RIGHT PANEL -->
+            <div class="mkcg-right-panel">
+                <h2 class="mkcg-right-panel-header">Crafting Effective Interview Questions</h2>
+                <p class="mkcg-right-panel-subtitle">Well-crafted questions help podcast hosts guide the conversation while giving you opportunities to showcase your expertise. Each question should be open-ended and allow you to deliver valuable insights to listeners.</p>
+                
+                <div class="mkcg-formula-box">
+                    <span class="mkcg-formula-label">APPROACH</span>
+                    Balance <span class="mkcg-highlight">specific questions</span> that demonstrate your expertise with <span class="mkcg-highlight">story-based questions</span> that engage the audience.
+                </div>
+                
+                <div class="mkcg-process-step">
+                    <div class="mkcg-process-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <circle cx="12" cy="12" r="6"></circle>
+                            <circle cx="12" cy="12" r="2"></circle>
+                        </svg>
+                    </div>
+                    <div class="mkcg-process-content">
+                        <h3 class="mkcg-process-title">Frame Questions for Stories</h3>
+                        <p class="mkcg-process-description">
+                            Include questions that prompt you to share real-world examples and stories. Listeners connect with narratives, and hosts appreciate guests who illustrate points with compelling stories.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="mkcg-process-step">
+                    <div class="mkcg-process-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="8" y1="6" x2="21" y2="6"></line>
+                            <line x1="8" y1="12" x2="21" y2="12"></line>
+                            <line x1="8" y1="18" x2="21" y2="18"></line>
+                            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                        </svg>
+                    </div>
+                    <div class="mkcg-process-content">
+                        <h3 class="mkcg-process-title">Show Range and Depth</h3>
+                        <p class="mkcg-process-description">
+                            Mix high-level strategic questions with tactical implementation details. This demonstrates both your big-picture understanding and your practical expertise in executing solutions.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="mkcg-process-step">
+                    <div class="mkcg-process-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                    </div>
+                    <div class="mkcg-process-content">
+                        <h3 class="mkcg-process-title">Include Audience Transformation</h3>
+                        <p class="mkcg-process-description">
+                            Create questions that allow you to describe the transformation your clients or audience experience. Podcast hosts love when guests can articulate clear before-and-after scenarios.
+                        </p>
+                    </div>
+                </div>
+                
+                <h3 class="mkcg-examples-header">Question Types to Include:</h3>
+                
+                <div class="mkcg-example-card">
+                    <strong>Origin Questions:</strong>
+                    <p>"What led you to develop this approach to content creation?"</p>
+                    <p>"How did you discover this common mistake in SaaS scaling?"</p>
+                </div>
+                
+                <div class="mkcg-example-card">
+                    <strong>Process Questions:</strong>
+                    <p>"Can you walk us through your step-by-step approach to building self-sufficient teams?"</p>
+                    <p>"What does your content creation process look like from start to finish?"</p>
+                </div>
+                
+                <div class="mkcg-example-card">
+                    <strong>Result Questions:</strong>
+                    <p>"What kind of results have your clients seen after implementing these strategies?"</p>
+                    <p>"How does a properly scaled SaaS business operate differently than one that's struggling?"</p>
+                </div>
             </div>
         </div>
     </div>
-    
-    <!-- Loading Overlay -->
-    <div id="questions-loading-overlay" class="loading" style="display: none;">
-        <div class="loading__content">
-            <div class="loading__spinner"></div>
-            <div class="loading__message">Generating interview questions...</div>
-        </div>
-    </div>
-    
-    <!-- Hidden fields for data -->
-    <input type="hidden" id="questions-entry-id" value="<?php echo esc_attr($entry_id); ?>">
-    <input type="hidden" id="questions-entry-key" value="<?php echo esc_attr($entry_key); ?>">
-    <input type="hidden" id="questions-nonce" value="<?php echo wp_create_nonce('mkcg_nonce'); ?>">
 </div>
 
 <script type="text/javascript">
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize Questions Generator
-    const QuestionsGenerator = {
-        
-        init: function() {
-            this.bindEvents();
-            this.loadSelectedTopic();
-        },
-        
-        bindEvents: function() {
-            const generateBtn = document.getElementById('generate-questions-btn');
-            const regenerateBtn = document.getElementById('regenerate-questions-btn');
-            const copyAllBtn = document.getElementById('copy-all-questions-btn');
-            
-            if (generateBtn) {
-                generateBtn.addEventListener('click', () => this.generateQuestions());
-            }
-            
-            if (regenerateBtn) {
-                regenerateBtn.addEventListener('click', () => this.generateQuestions());
-            }
-            
-            if (copyAllBtn) {
-                copyAllBtn.addEventListener('click', () => this.copyAllQuestions());
-            }
-        },
-        
-        loadSelectedTopic: function() {
-            // Check if a topic was selected from the Topics generator
-            if (typeof localStorage !== 'undefined') {
-                const selectedTopic = localStorage.getItem('selected_topic');
-                const topicNumber = localStorage.getItem('topic_number');
-                
-                if (selectedTopic) {
-                    const topicField = document.getElementById('questions-topic');
-                    const numberField = document.getElementById('questions-topic-number');
-                    
-                    if (topicField) {
-                        topicField.value = selectedTopic;
-                    }
-                    
-                    if (numberField && topicNumber) {
-                        numberField.value = topicNumber;
-                    }
-                    
-                    // Clear from localStorage
-                    localStorage.removeItem('selected_topic');
-                    localStorage.removeItem('topic_number');
-                }
-            }
-        },
-        
-        generateQuestions: function() {
-            const topic = document.getElementById('questions-topic')?.value;
-            const topicNumber = document.getElementById('questions-topic-number')?.value;
-            const entryId = document.getElementById('questions-entry-id')?.value;
-            const entryKey = document.getElementById('questions-entry-key')?.value;
-            
-            if (!topic || topic.trim() === '') {
-                alert('Please enter a podcast topic first.');
-                return;
-            }
-            
-            // Show loading
-            this.showLoading('Generating compelling interview questions...');
-            
-            // Prepare data
-            const data = {
-                topic: topic,
-                topic_number: topicNumber || 1,
-                entry_id: entryId || '',
-                entry_key: entryKey || ''
-            };
-            
-            // Make AJAX request using FormUtils
-            if (typeof MKCG_FormUtils !== 'undefined') {
-                MKCG_FormUtils.wp.makeAjaxRequest('generate_questions', data, {
-                    onSuccess: (response) => {
-                        this.hideLoading();
-                        this.displayQuestions(response.content.questions);
-                    },
-                    onError: (error) => {
-                        this.hideLoading();
-                        alert('Error generating questions: ' + error);
-                    }
-                });
-            } else {
-                // Fallback for legacy compatibility
-                this.generateQuestionsLegacy(data);
-            }
-        },
-        
-        generateQuestionsLegacy: function(data) {
-            // Legacy AJAX call for backwards compatibility
-            const postData = new URLSearchParams();
-            postData.append('action', 'generate_interview_questions');
-            postData.append('security', document.getElementById('questions-nonce')?.value || '');
-            postData.append('entry_id', data.entry_id);
-            postData.append('topic', data.topic);
-            postData.append('topic_number', data.topic_number);
-            
-            fetch(ajaxurl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                },
-                body: postData.toString()
-            })
-            .then(response => response.json())
-            .then(response => {
-                this.hideLoading();
-                if (response.success) {
-                    this.displayQuestions(response.data.questions);
-                } else {
-                    alert('Error: ' + (response.data?.message || 'Failed to generate questions'));
-                }
-            })
-            .catch(error => {
-                this.hideLoading();
-                alert('Network error: ' + error.message);
-            });
-        },
-        
-        displayQuestions: function(questions) {
-            const resultsSection = document.getElementById('questions-results');
-            const questionsList = document.getElementById('questions-list');
-            
-            if (!questionsList || !questions || questions.length === 0) {
-                alert('No questions were generated. Please try again.');
-                return;
-            }
-            
-            // Clear previous results
-            questionsList.innerHTML = '';
-            
-            // Add questions to the list
-            questions.forEach((question, index) => {
-                const questionElement = document.createElement('div');
-                questionElement.className = 'results__item';
-                questionElement.innerHTML = `
-                    <span class="results__number">${index + 1}.</span>
-                    <span class="results__text">${this.escapeHtml(question)}</span>
-                    <button type="button" class="button button--copy" onclick="QuestionsGenerator.copyQuestion('${this.escapeHtml(question)}')">
-                        Copy
-                    </button>
-                `;
-                questionsList.appendChild(questionElement);
-            });
-            
-            // Show results section
-            resultsSection.style.display = 'block';
-            
-            // Scroll to results
-            resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        },
-        
-        copyQuestion: function(question) {
-            if (typeof MKCG_FormUtils !== 'undefined') {
-                MKCG_FormUtils.ui.copyToClipboard(question);
-            } else {
-                this.copyToClipboard(question);
-            }
-        },
-        
-        copyAllQuestions: function() {
-            const questionElements = document.querySelectorAll('.results__text');
-            if (questionElements.length === 0) {
-                alert('No questions to copy.');
-                return;
-            }
-            
-            let allQuestions = '';
-            questionElements.forEach((element, index) => {
-                allQuestions += `${index + 1}. ${element.textContent}\n`;
-            });
-            
-            if (typeof MKCG_FormUtils !== 'undefined') {
-                MKCG_FormUtils.ui.copyToClipboard(allQuestions);
-            } else {
-                this.copyToClipboard(allQuestions);
-            }
-        },
-        
-        copyToClipboard: function(text) {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text)
-                    .then(() => alert('Copied to clipboard!'))
-                    .catch(() => this.fallbackCopy(text));
-            } else {
-                this.fallbackCopy(text);
-            }
-        },
-        
-        fallbackCopy: function(text) {
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            document.body.appendChild(textarea);
-            textarea.select();
-            try {
-                document.execCommand('copy');
-                alert('Copied to clipboard!');
-            } catch (err) {
-                alert('Unable to copy. Please copy manually.');
-            }
-            document.body.removeChild(textarea);
-        },
-        
-        showLoading: function(message = 'Loading...') {
-            const overlay = document.getElementById('questions-loading-overlay');
-            if (overlay) {
-                const messageEl = overlay.querySelector('.loading__message');
-                if (messageEl) {
-                    messageEl.textContent = message;
-                }
-                overlay.style.display = 'flex';
-            }
-        },
-        
-        hideLoading: function() {
-            const overlay = document.getElementById('questions-loading-overlay');
-            if (overlay) {
-                overlay.style.display = 'none';
-            }
-        },
-        
-        escapeHtml: function(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-    };
-    
-    // Initialize when page loads
-    QuestionsGenerator.init();
-    
-    // Make globally available
-    window.QuestionsGenerator = QuestionsGenerator;
-});
+// Topics data from PHP
+const MKCG_TopicsData = <?php echo json_encode($available_topics); ?>;
 </script>

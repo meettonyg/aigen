@@ -165,10 +165,27 @@ class Media_Kit_Content_Generator {
     }
     
     /**
-     * Questions Generator Shortcode (placeholder)
+     * Questions Generator Shortcode
      */
     public function questions_shortcode($atts) {
-        return '<div class="mkcg-placeholder">Questions Generator - Coming Soon</div>';
+        $atts = shortcode_atts([
+            'entry_id' => 0,
+            'entry_key' => ''
+        ], $atts);
+        
+        // Force load scripts for shortcode
+        $this->enqueue_scripts();
+        
+        ob_start();
+        
+        // Set global variables for template
+        global $formidable_service;
+        $formidable_service = $this->formidable_service;
+        
+        // Include the template
+        include MKCG_PLUGIN_PATH . 'templates/generators/questions/default.php';
+        
+        return ob_get_clean();
     }
     
     public function enqueue_scripts() {
@@ -180,121 +197,25 @@ class Media_Kit_Content_Generator {
             error_log('MKCG: CSS file not found at: ' . $css_file);
         }
         
-        // Enqueue unified CSS with high priority
+        // Enqueue unified CSS with high priority and proper cache busting
         wp_enqueue_style(
             'mkcg-unified-styles', 
             MKCG_PLUGIN_URL . 'assets/css/mkcg-unified-styles.css', 
             [], 
-            MKCG_VERSION . '_' . filemtime($css_file), // Cache busting
+            MKCG_VERSION . '_' . filemtime($css_file), // Cache busting with file modification time
             'all'
         );
         
-        // Add inline CSS for immediate testing
-        $inline_css = '
-        /* MKCG Inline Test CSS */
-        .topics-generator {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-            max-width: 1200px !important;
-            margin: 0 auto !important;
-            padding: 20px !important;
-            background-color: #f5f7fa !important;
-        }
+        // Add CSS loading debugging
+        wp_add_inline_style('mkcg-unified-styles', '
+        /* MKCG CSS Loaded Successfully - ' . date('Y-m-d H:i:s') . ' */
+        .mkcg-css-test { color: #1a9bdc; }
+        ');
         
-        .topics-generator__title {
-            font-size: 32px !important;
-            font-weight: 700 !important;
-            color: #2c3e50 !important;
-            text-align: center !important;
-            margin-bottom: 30px !important;
-        }
-        
-        .topics-generator__content {
-            display: flex !important;
-            gap: 30px !important;
-            flex-wrap: wrap !important;
-        }
-        
-        .topics-generator__panel {
-            flex: 1 !important;
-            min-width: 300px !important;
-        }
-        
-        .topics-generator__panel--right {
-            background-color: #f9fafb !important;
-            padding: 25px !important;
-            border-radius: 8px !important;
-            border: 1px solid #e0e0e0 !important;
-        }
-        
-        .topics-generator__authority-hook {
-            background-color: #f9fafb !important;
-            border: 1px solid #e0e0e0 !important;
-            border-radius: 8px !important;
-            padding: 20px !important;
-            margin-bottom: 25px !important;
-        }
-        
-        .topics-generator__button {
-            display: inline-flex !important;
-            align-items: center !important;
-            padding: 8px 16px !important;
-            border: none !important;
-            border-radius: 4px !important;
-            cursor: pointer !important;
-            font-weight: 500 !important;
-            margin-right: 10px !important;
-        }
-        
-        .topics-generator__button--generate {
-            background-color: #f87f34 !important;
-            color: white !important;
-        }
-        
-        .topics-generator__button--edit {
-            background-color: white !important;
-            color: #1a9bdc !important;
-            border: 1px solid #1a9bdc !important;
-        }
-        
-        .topics-generator__builder--hidden {
-            display: none !important;
-        }
-        
-        .topics-generator__builder-title {
-            font-size: 18px !important;
-            margin: 0 0 15px 0 !important;
-            color: #2c3e50 !important;
-            font-weight: 600 !important;
-        }
-        
-        .topics-generator__input {
-            width: 100% !important;
-            padding: 12px !important;
-            border: 1px solid #dce1e5 !important;
-            border-radius: 4px !important;
-            font-size: 14px !important;
-        }
-        
-        .topics-generator__form-field {
-            margin-bottom: 20px !important;
-        }
-        
-        .topics-generator__form-field-input {
-            width: 100% !important;
-            padding: 12px 15px !important;
-            border: 1px solid #dce1e5 !important;
-            border-radius: 4px !important;
-            font-size: 14px !important;
-        }
-        
-        @media (max-width: 768px) {
-            .topics-generator__content {
-                flex-direction: column !important;
-            }
-        }
-        ';
-        
-        wp_add_inline_style('mkcg-unified-styles', $inline_css);
+        // Force CSS to load with higher priority
+        add_action('wp_head', function() {
+            echo '<link rel="stylesheet" id="mkcg-force-css" href="' . MKCG_PLUGIN_URL . 'assets/css/mkcg-unified-styles.css?v=' . MKCG_VERSION . '" type="text/css" media="all" />' . "\n";
+        }, 1);
         
         // Enqueue jQuery
         wp_enqueue_script('jquery');
@@ -322,6 +243,15 @@ class Media_Kit_Content_Generator {
             'mkcg-topics-generator', 
             MKCG_PLUGIN_URL . 'assets/js/generators/topics-generator.js', 
             ['mkcg-authority-hook-builder'], 
+            MKCG_VERSION, 
+            true
+        );
+        
+        // Enqueue Questions Generator (depends on FormUtils)
+        wp_enqueue_script(
+            'mkcg-questions-generator', 
+            MKCG_PLUGIN_URL . 'assets/js/generators/questions-generator.js', 
+            ['mkcg-form-utils'], 
             MKCG_VERSION, 
             true
         );
@@ -355,6 +285,32 @@ class Media_Kit_Content_Generator {
                     'topic_3' => 8500,
                     'topic_4' => 8501,
                     'topic_5' => 8502
+                ]
+            ]
+        ]);
+        
+        // Pass questions-specific data
+        wp_localize_script('mkcg-questions-generator', 'questions_vars', [
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('generate_topics_nonce'),
+            'questions_nonce' => wp_create_nonce('mkcg_questions_nonce'),
+            'plugin_url' => MKCG_PLUGIN_URL,
+            'entry_id' => $this->get_current_entry_id(),
+            'entry_key' => $this->get_current_entry_key(),
+            'field_mappings' => [
+                'topics' => [
+                    'topic_1' => 8498,
+                    'topic_2' => 8499,
+                    'topic_3' => 8500,
+                    'topic_4' => 8501,
+                    'topic_5' => 8502
+                ],
+                'questions' => [
+                    'topic_1' => ['8505', '8506', '8507', '8508', '8509'],
+                    'topic_2' => ['8510', '8511', '8512', '8513', '8514'],
+                    'topic_3' => ['10370', '10371', '10372', '10373', '10374'],
+                    'topic_4' => ['10375', '10376', '10377', '10378', '10379'],
+                    'topic_5' => ['10380', '10381', '10382', '10383', '10384']
                 ]
             ]
         ]);

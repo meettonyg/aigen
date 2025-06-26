@@ -1,7 +1,7 @@
 <?php
 /**
- * MKCG Questions Generator
- * Generates interview questions based on a given topic
+ * MKCG Questions Generator - Enhanced Unified Implementation
+ * Generates interview questions based on selected topics with enhanced UI and Formidable integration
  */
 
 class MKCG_Questions_Generator extends MKCG_Base_Generator {
@@ -23,9 +23,13 @@ class MKCG_Questions_Generator extends MKCG_Base_Generator {
                 'type' => 'number',
                 'label' => 'Topic Number',
                 'required' => false,
-                'description' => 'The number of this topic in a series'
+                'description' => 'The number of this topic in a series (1-5)'
             ],
             'entry_id' => [
+                'type' => 'hidden',
+                'required' => false
+            ],
+            'entry_key' => [
                 'type' => 'hidden',
                 'required' => false
             ]
@@ -46,6 +50,13 @@ class MKCG_Questions_Generator extends MKCG_Base_Generator {
             $errors[] = 'Topic must be at least 5 characters';
         }
         
+        if (!empty($data['topic_number'])) {
+            $topic_number = intval($data['topic_number']);
+            if ($topic_number < 1 || $topic_number > 5) {
+                $errors[] = 'Topic number must be between 1 and 5';
+            }
+        }
+        
         return [
             'valid' => empty($errors),
             'errors' => $errors
@@ -57,6 +68,7 @@ class MKCG_Questions_Generator extends MKCG_Base_Generator {
      */
     public function build_prompt($data) {
         $topic = $data['topic'];
+        $topic_number = isset($data['topic_number']) ? intval($data['topic_number']) : 1;
         
         $prompt = "You are an expert in generating highly engaging and insightful podcast interview questions. Your task is to generate **10 compelling interview questions** based on the provided **podcast topic**.
 
@@ -66,32 +78,39 @@ class MKCG_Questions_Generator extends MKCG_Base_Generator {
 - Each question must be **highly relevant to the topic**.
 - Questions should be **open-ended** to encourage meaningful discussion.
 - Ensure a **mix of question types** to balance storytelling, strategy, and implementation.
+- Questions should help the guest showcase their expertise while providing value to listeners.
 
 ### **Question Categories & Examples:**
 
 **1️⃣ Origin Questions** (The \"why\" behind the topic)
-- \"What led you to develop this approach to [$topic]?\"
-- \"How did you first realize the impact of [$topic]?\"
+- \"What led you to develop this approach to [topic area]?\"
+- \"How did you first realize the impact of [topic concept]?\"
 
 **2️⃣ Process Questions** (Step-by-step guidance)
-- \"Can you walk us through your method for [$topic]?\"
+- \"Can you walk us through your method for [topic implementation]?\"
 - \"What does your process look like from start to finish?\"
 
 **3️⃣ Result Questions** (Proof of impact)
-- \"What kind of results have people seen from implementing [$topic]?\"
-- \"How does someone's situation change when they apply [$topic] effectively?\"
+- \"What kind of results have people seen from implementing [topic strategy]?\"
+- \"How does someone's situation change when they apply [topic] effectively?\"
 
 **4️⃣ Common Mistakes & Misconceptions** (Debunking myths)
-- \"What are the biggest mistakes people make with [$topic]?\"
-- \"What's the most common misconception about [$topic]?\"
+- \"What are the biggest mistakes people make with [topic area]?\"
+- \"What's the most common misconception about [topic]?\"
 
 **5️⃣ Transformation & Story-Based Questions** (Audience journey)
-- \"Can you share a powerful success story related to [$topic]?\"
-- \"What's the biggest shift people experience after learning [$topic]?\"
+- \"Can you share a powerful success story related to [topic]?\"
+- \"What's the biggest shift people experience after learning [topic concept]?\"
 
-### **Now generate 10 unique, compelling podcast interview questions based on the given topic.**
+### **Requirements:**
+1. Generate exactly 10 unique, compelling questions
+2. Each question should be interview-ready (clear and concise)
+3. Questions should flow logically and build upon each other
+4. Include a mix of strategic and tactical questions
+5. Ensure questions allow for storytelling opportunities
 
-Format the output as a numbered list (1., 2., etc.), with each question on a new line.";
+### **Output Format:**
+Please provide the questions as a numbered list (1., 2., etc.), with each question on a new line. Do not include any additional formatting or explanations.";
         
         return $prompt;
     }
@@ -100,63 +119,127 @@ Format the output as a numbered list (1., 2., etc.), with each question on a new
      * Format API response
      */
     public function format_output($api_response) {
-        // The API service already formats questions as an array
+        // The API service should return formatted questions
         if (is_array($api_response)) {
             return [
                 'questions' => $api_response,
-                'count' => count($api_response)
+                'count' => count($api_response),
+                'topic' => isset($this->current_input['topic']) ? $this->current_input['topic'] : ''
             ];
         }
         
-        // Fallback if raw string returned
+        // Parse questions from string response
         $questions = [];
-        if (preg_match_all('/\d+\.\s*[\'"]?(.*?)[\'"]?(?=\n\d+\.|\n\n|$)/s', $api_response, $matches)) {
-            $questions = array_map('trim', $matches[1]);
-        } else {
-            $questions = array_filter(array_map(function($q) {
+        
+        // Try to extract numbered questions
+        if (preg_match_all('/^\s*\d+\.\s*(.+?)(?=^\s*\d+\.|$)/m', $api_response, $matches)) {
+            $questions = array_map(function($q) {
                 return trim($q, " '\"");
-            }, explode("\n", $api_response)));
+            }, $matches[1]);
+        } else {
+            // Fallback: split by lines and filter
+            $lines = explode("\n", $api_response);
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if (!empty($line) && !preg_match('/^(#|\*|\-|Guidelines|Requirements|Output)/', $line)) {
+                    // Remove numbering if present
+                    $line = preg_replace('/^\d+\.\s*/', '', $line);
+                    $line = trim($line, " '\"");
+                    if (strlen($line) > 10) { // Minimum question length
+                        $questions[] = $line;
+                    }
+                }
+            }
         }
+        
+        // Limit to 10 questions and ensure we have questions
+        $questions = array_slice($questions, 0, 10);
         
         return [
             'questions' => $questions,
-            'count' => count($questions)
+            'count' => count($questions),
+            'topic' => isset($this->current_input['topic']) ? $this->current_input['topic'] : ''
         ];
     }
     
     /**
-     * Get generator-specific input
+     * Get generator-specific input from POST data
      */
     protected function get_generator_specific_input() {
         return [
             'topic' => isset($_POST['topic']) ? sanitize_textarea_field($_POST['topic']) : '',
-            'topic_number' => isset($_POST['topic_number']) ? intval($_POST['topic_number']) : 1
+            'topic_number' => isset($_POST['topic_number']) ? intval($_POST['topic_number']) : 1,
+            'entry_id' => isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0,
+            'entry_key' => isset($_POST['entry_key']) ? sanitize_text_field($_POST['entry_key']) : ''
         ];
     }
     
     /**
-     * Get field mappings for Formidable
+     * Get field mappings for Formidable Forms based on topic number
      */
     protected function get_field_mappings() {
-        // Map generated content to Formidable field IDs
+        $topic_number = isset($this->current_input['topic_number']) ? $this->current_input['topic_number'] : 1;
+        
+        // Map questions to appropriate Formidable field IDs based on topic
+        $field_mappings = [
+            1 => ['8505', '8506', '8507', '8508', '8509'], // Topic 1 → Questions 1-5
+            2 => ['8510', '8511', '8512', '8513', '8514'], // Topic 2 → Questions 6-10
+            3 => ['10370', '10371', '10372', '10373', '10374'], // Topic 3 → Questions 11-15
+            4 => ['10375', '10376', '10377', '10378', '10379'], // Topic 4 → Questions 16-20
+            5 => ['10380', '10381', '10382', '10383', '10384']  // Topic 5 → Questions 21-25
+        ];
+        
         return [
-            'questions' => 10361, // Example field ID for questions
-            'question_count' => 10362 // Example field ID for question count
+            'questions' => $field_mappings[$topic_number] ?? $field_mappings[1],
+            'topic_number' => $topic_number,
+            'generated_count' => '10361' // Field to store number of generated questions
         ];
     }
     
     /**
-     * Get API options
+     * Get entry fields by field IDs (missing method)
+     */
+    public function get_entry_fields($entry_id, $field_ids) {
+        if (!$this->formidable_service) {
+            return ['success' => false, 'message' => 'Formidable service not available'];
+        }
+        
+        $fields = [];
+        foreach ($field_ids as $field_id) {
+            $value = $this->formidable_service->get_field_value($entry_id, $field_id);
+            $fields[] = ['value' => $value];
+        }
+        
+        return [
+            'success' => true,
+            'fields' => $fields
+        ];
+    }
+    
+    /**
+     * Update entry fields (missing method)
+     */
+    public function update_entry_fields($entry_id, $field_data) {
+        if (!$this->formidable_service) {
+            return ['success' => false, 'message' => 'Formidable service not available'];
+        }
+        
+        return $this->formidable_service->save_generated_content($entry_id, $field_data, $field_data);
+    }
+    
+    /**
+     * Get API options for question generation
      */
     protected function get_api_options($input_data) {
         return [
             'temperature' => 0.8,
-            'max_tokens' => 1200
+            'max_tokens' => 1500, // Increased for 10 detailed questions
+            'top_p' => 0.9
         ];
     }
     
     /**
-     * Override AJAX generation to handle legacy compatibility
+     * Enhanced AJAX generation handler
      */
     public function handle_ajax_generation() {
         // Handle legacy action name for backwards compatibility
@@ -165,32 +248,31 @@ Format the output as a numbered list (1., 2., etc.), with each question on a new
             return;
         }
         
-        // Call parent method for new unified handling
+        // Use parent method for unified handling
         parent::handle_ajax_generation();
     }
     
     /**
-     * Handle legacy questions generation (for backwards compatibility)
+     * Handle legacy questions generation for backwards compatibility
      */
     private function handle_legacy_questions_generation() {
-        // Use the original Questions generator logic for existing implementations
         if (!check_ajax_referer('generate_topics_nonce', 'security', false)) {
             wp_send_json_error(['message' => 'Security check failed']);
             return;
         }
         
-        // Make entry_id optional - the function will work with just a topic
+        // Extract input data
         $entry_id = isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0;
         $topic = isset($_POST['topic']) ? sanitize_textarea_field($_POST['topic']) : '';
         $topic_number = isset($_POST['topic_number']) ? intval($_POST['topic_number']) : 1;
         
         if (empty($topic)) {
-            error_log('No topic provided for question generation');
+            error_log('MKCG Questions Generator: No topic provided');
             wp_send_json_error(['message' => 'No topic provided.']);
             return;
         }
         
-        error_log('Generating questions for topic: ' . $topic);
+        error_log('MKCG Questions Generator: Generating questions for topic: ' . $topic);
         
         // Build input data
         $input_data = [
@@ -199,7 +281,10 @@ Format the output as a numbered list (1., 2., etc.), with each question on a new
             'topic_number' => $topic_number
         ];
         
-        // Validate
+        // Store for use in other methods
+        $this->current_input = $input_data;
+        
+        // Validate input
         $validation_result = $this->validate_input($input_data);
         if (!$validation_result['valid']) {
             wp_send_json_error([
@@ -211,10 +296,18 @@ Format the output as a numbered list (1., 2., etc.), with each question on a new
         // Build prompt
         $prompt = $this->build_prompt($input_data);
         
-        // Generate content
-        $api_response = $this->api_service->generate_content($prompt, $this->generator_type);
+        // Get API options
+        $api_options = $this->get_api_options($input_data);
+        
+        // Generate content using API service
+        $api_response = $this->api_service->generate_content(
+            $prompt, 
+            $this->generator_type, 
+            $api_options
+        );
         
         if (!$api_response['success']) {
+            error_log('MKCG Questions Generator API Error: ' . print_r($api_response, true));
             wp_send_json_error($api_response);
             return;
         }
@@ -222,20 +315,157 @@ Format the output as a numbered list (1., 2., etc.), with each question on a new
         // Format output
         $formatted_output = $this->format_output($api_response['content']);
         
-        // Return in legacy format for compatibility
+        if (empty($formatted_output['questions'])) {
+            wp_send_json_error(['message' => 'No questions were generated. Please try again.']);
+            return;
+        }
+        
+        // Save to Formidable if entry_id is provided
+        if ($entry_id > 0) {
+            $this->save_questions_to_formidable($entry_id, $formatted_output['questions'], $topic_number);
+        }
+        
+        // Return success response
         wp_send_json_success([
-            'questions' => $formatted_output['questions']
+            'questions' => $formatted_output['questions'],
+            'count' => $formatted_output['count'],
+            'topic' => $formatted_output['topic']
         ]);
     }
     
     /**
-     * Initialize legacy AJAX actions for backwards compatibility
+     * Save generated questions to Formidable Forms
+     */
+    private function save_questions_to_formidable($entry_id, $questions, $topic_number) {
+        if (!$this->formidable_service) {
+            error_log('MKCG Questions Generator: Formidable service not available');
+            return false;
+        }
+        
+        try {
+            // Set the topic number for field mapping
+            $this->current_input['topic_number'] = $topic_number;
+            $field_mappings = $this->get_field_mappings();
+            $question_fields = $field_mappings['questions'];
+            
+            $update_data = [];
+            
+            // Map questions to fields (limit to 5 questions per topic)
+            $form_questions = array_slice($questions, 0, 5);
+            foreach ($form_questions as $index => $question) {
+                if (isset($question_fields[$index])) {
+                    $update_data[$question_fields[$index]] = $question;
+                }
+            }
+            
+            // Update the Formidable entry using the Formidable service
+            $result = $this->formidable_service->save_generated_content($entry_id, $update_data, $update_data);
+            
+            if ($result['success']) {
+                error_log('MKCG Questions Generator: Successfully saved ' . count($update_data) . ' questions to Formidable entry ' . $entry_id . ' for topic ' . $topic_number);
+                error_log('MKCG Questions Generator: Field mappings used: ' . print_r($question_fields, true));
+            } else {
+                error_log('MKCG Questions Generator: Failed to save questions to Formidable: ' . print_r($result, true));
+            }
+            
+            return $result['success'];
+            
+        } catch (Exception $e) {
+            error_log('MKCG Questions Generator: Error saving to Formidable: ' . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * AJAX handler for getting topics from Topics Generator entry
+     */
+    public function handle_get_topics_ajax() {
+        if (!check_ajax_referer('mkcg_nonce', 'nonce', false)) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
+        
+        $entry_id = isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0;
+        $entry_key = isset($_POST['entry_key']) ? sanitize_text_field($_POST['entry_key']) : '';
+        
+        if (!$entry_id && !$entry_key) {
+            wp_send_json_error(['message' => 'No entry ID or key provided']);
+            return;
+        }
+        
+        // Get topics from Topics Generator fields (Form 515) - USER PROVIDED
+        $topic_fields = ['8498', '8499', '8500', '8501', '8502'];
+        
+        if ($entry_key) {
+            $entry_data = $this->formidable_service->get_entry_data($entry_key);
+            if (!$entry_data['success']) {
+                wp_send_json_error(['message' => 'Entry not found: ' . $entry_key]);
+                return;
+            }
+            $entry_id = $entry_data['entry_id'];
+        }
+        
+        // Get entry data which includes all fields
+        $entry_data = $this->formidable_service->get_entry_data($entry_id);
+        
+        if (!$entry_data['success']) {
+            wp_send_json_error(['message' => 'Could not retrieve entry data']);
+            return;
+        }
+        
+        $topics = [];
+        foreach ($topic_fields as $index => $field_id) {
+            if (isset($entry_data['fields'][$field_id]) && !empty($entry_data['fields'][$field_id]['value'])) {
+                $topics[$index + 1] = trim($entry_data['fields'][$field_id]['value']);
+            }
+        }
+        
+        if (empty($topics)) {
+            // Log available fields for debugging
+            $available_fields = array_keys($entry_data['fields']);
+            error_log('MKCG Questions: No topics found. Available fields: ' . implode(', ', $available_fields));
+            wp_send_json_error(['message' => 'No topics found in this entry. Please generate topics first.']);
+            return;
+        }
+        
+        wp_send_json_success(['topics' => $topics]);
+    }
+    
+    /**
+     * Initialize Questions Generator with AJAX handlers
      */
     public function init() {
         parent::init();
         
-        // Add legacy AJAX actions
+        // Add legacy AJAX actions for backwards compatibility
         add_action('wp_ajax_generate_interview_questions', [$this, 'handle_ajax_generation']);
         add_action('wp_ajax_nopriv_generate_interview_questions', [$this, 'handle_ajax_generation']);
+        
+        // Add new unified AJAX actions
+        add_action('wp_ajax_mkcg_get_topics', [$this, 'handle_get_topics_ajax']);
+        add_action('wp_ajax_nopriv_mkcg_get_topics', [$this, 'handle_get_topics_ajax']);
+    }
+    
+    /**
+     * Enqueue scripts and styles for Questions Generator
+     */
+    public function enqueue_scripts() {
+        parent::enqueue_scripts();
+        
+        // Enqueue Questions Generator specific script
+        wp_enqueue_script(
+            'mkcg-questions-generator',
+            plugin_dir_url(__FILE__) . '../../assets/js/generators/questions-generator.js',
+            ['mkcg-form-utils'],
+            MKCG_VERSION,
+            true
+        );
+        
+        // Pass data to JavaScript
+        wp_localize_script('mkcg-questions-generator', 'mkcg_questions_ajax', [
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('mkcg_nonce'),
+            'topics_nonce' => wp_create_nonce('generate_topics_nonce')
+        ]);
     }
 }
