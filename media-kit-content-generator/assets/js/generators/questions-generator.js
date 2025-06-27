@@ -190,74 +190,20 @@ const QuestionsGenerator = {
      * Bind events to DOM elements
      */
     bindEvents: function() {
-        // Topic card click - for selection AND editing
+        // Topic card click - simple selection only
         document.querySelectorAll(this.elements.topicCards).forEach(card => {
             card.addEventListener('click', (e) => {
-                // Don't trigger selection when clicking action buttons
-                if (e.target.closest('.mkcg-topic-actions')) {
-                    return;
-                }
-                
                 const topicId = parseInt(card.getAttribute('data-topic'));
-                
-                // Double-click to edit, single-click to select
-                if (e.detail === 2) {
-                    this.startEditingTopic(topicId);
-                } else {
-                    this.selectTopic(topicId);
-                }
+                this.selectTopic(topicId);
             });
         });
         
-        // Topic content click - start editing (enhanced with double-click support)
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('.mkcg-topic-card__content') && !e.target.closest('.mkcg-topic-card__actions')) {
-                const topicContent = e.target.closest('.mkcg-topic-card__content');
-                const topicId = parseInt(topicContent.getAttribute('data-topic-id'));
-                
-                // Check if clicking on empty topic or placeholder
-                const isEmptyTopic = e.target.closest('.mkcg-topic-card--empty') || e.target.closest('.mkcg-topic-card__placeholder');
-                
-                if (isEmptyTopic) {
-                    // Immediately start editing for empty topics
-                    this.startEditingTopic(topicId);
-                } else {
-                    // For existing topics, require double-click to edit
-                    const currentTime = Date.now();
-                    const lastClickTime = this.lastClickTimes?.[topicId] || 0;
-                    
-                    if (currentTime - lastClickTime < 500) {
-                        // Double-click detected
-                        this.startEditingTopic(topicId);
-                    } else {
-                        // Single click - just select the topic
-                        this.selectTopic(topicId);
-                    }
-                    
-                    // Store click time
-                    if (!this.lastClickTimes) this.lastClickTimes = {};
-                    this.lastClickTimes[topicId] = currentTime;
-                }
-            }
-        });
-        
-        // Topic save/cancel buttons
-        document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('mkcg-topic-card__save')) {
-                const topicId = parseInt(e.target.getAttribute('data-topic-id'));
-                this.saveTopicEdit(topicId);
-            } else if (e.target.classList.contains('mkcg-topic-card__cancel')) {
-                const topicId = parseInt(e.target.getAttribute('data-topic-id'));
-                this.cancelTopicEdit(topicId);
-            }
-        });
-        
-        // Edit topics with AI button
+        // Edit topics button
         const editButton = document.querySelector(this.elements.editTopicsButton);
         if (editButton) {
             editButton.addEventListener('click', (e) => {
                 e.preventDefault();
-                this.editTopicsWithAI();
+                this.editTopics();
             });
         }
         
@@ -269,13 +215,7 @@ const QuestionsGenerator = {
             });
         }
         
-        // Save All button
-        const saveAllButton = document.getElementById('mkcg-save-all-data');
-        if (saveAllButton) {
-            saveAllButton.addEventListener('click', () => {
-                this.saveAllData();
-            });
-        }
+
         
         // Modal events
         const modalOkButton = document.querySelector(this.elements.modalOkButton);
@@ -386,307 +326,30 @@ const QuestionsGenerator = {
         }
     },
     
-    /**
-     * Start editing a topic inline
-     */
-    startEditingTopic: function(topicId) {
-        const topicCard = document.querySelector(`[data-topic="${topicId}"]`);
-        if (!topicCard) return;
-        
-        // Don't start editing if already editing
-        if (topicCard.classList.contains('mkcg-topic-card--editing')) {
-            return;
-        }
-        
-        console.log('MKCG Questions: Starting edit for topic', topicId);
-        
-        const topicContent = topicCard.querySelector('.mkcg-topic-content');
-        const topicText = topicContent.querySelector('.mkcg-topic-text');
-        const topicEditor = topicContent.querySelector('.mkcg-topic-editor');
-        const topicActions = topicCard.querySelector('.mkcg-topic-actions');
-        
-        // Get current text
-        const currentText = topicText.getAttribute('data-original-text') || '';
-        
-        // Set editor value
-        topicEditor.value = currentText;
-        
-        // Show editing state
-        topicCard.classList.add('mkcg-topic-card--editing');
-        topicText.style.display = 'none';
-        topicEditor.style.display = 'block';
-        topicActions.style.display = 'flex';
-        
-        // Focus the editor
-        topicEditor.focus();
-        topicEditor.select();
-        
-        // Add keyboard shortcuts and auto-save
-        topicEditor.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                this.cancelTopicEdit(topicId);
-            } else if (e.key === 'Enter' && e.ctrlKey) {
-                this.saveTopicEdit(topicId);
-            }
-        });
-        
-        // CRITICAL FIX: Add auto-save on blur (when user clicks away)
-        topicEditor.addEventListener('blur', (e) => {
-            // Only auto-save if the card is still in editing mode
-            if (topicCard.classList.contains('mkcg-topic-card--editing')) {
-                // Small delay to allow manual save/cancel button clicks
-                setTimeout(() => {
-                    if (topicCard.classList.contains('mkcg-topic-card--editing')) {
-                        console.log('MKCG Questions: Auto-saving topic on blur:', topicId);
-                        this.saveTopicEdit(topicId);
-                    }
-                }, 100);
-            }
-        });
-        
-        // Prevent blur when clicking save/cancel buttons
-        topicActions.addEventListener('mousedown', (e) => {
-            e.preventDefault(); // Prevents blur event
-        });
-    },
+
     
     /**
-     * Save topic edit - ENHANCED with AJAX backend
+     * Edit topics functionality
      */
-    saveTopicEdit: function(topicId) {
-        const topicCard = document.querySelector(`[data-topic="${topicId}"]`);
-        if (!topicCard) return;
-        
-        console.log('MKCG Questions: Saving topic', topicId);
-        
-        const topicContent = topicCard.querySelector('.mkcg-topic-content');
-        const topicText = topicContent.querySelector('.mkcg-topic-text');
-        const topicEditor = topicContent.querySelector('.mkcg-topic-editor');
-        const topicActions = topicCard.querySelector('.mkcg-topic-actions');
-        const placeholder = topicText.querySelector('.mkcg-topic-placeholder');
-        
-        // Get new text
-        const newText = topicEditor.value.trim();
-        
-        // Show saving state
-        this.showTopicSavingState(topicCard, true);
-        
-        // Save to backend via AJAX
-        this.saveTopicToBackend(topicId, newText)
-            .then(response => {
-                if (response.success) {
-                    // Update the display
-                    if (newText) {
-                        // Remove placeholder if exists
-                        if (placeholder) {
-                            placeholder.remove();
-                        }
-                        topicText.textContent = newText;
-                        topicCard.classList.remove('mkcg-topic-card--empty');
-                    } else {
-                        // Show placeholder for empty
-                        topicText.innerHTML = '<span class="mkcg-topic-placeholder">Click to add topic</span>';
-                        topicCard.classList.add('mkcg-topic-card--empty');
-                    }
-                    
-                    // Update data attribute
-                    topicText.setAttribute('data-original-text', newText);
-                    
-                    // Update local topics data
-                    this.topicsData[topicId] = newText;
-                    
-                    // Update selected topic if this is the active one
-                    if (this.selectedTopicId === topicId) {
-                        this.selectedTopicText = newText || 'No topic selected';
-                        this.updateSelectedTopic();
-                    }
-                    
-                    // Show success feedback
-                    this.showTopicSaveSuccess(topicCard);
-                    
-                } else {
-                    // Show error
-                    console.error('MKCG Questions: Save failed:', response.data?.message);
-                    this.showTopicSaveError(topicCard, response.data?.message || 'Save failed');
-                }
-            })
-            .catch(error => {
-                console.error('MKCG Questions: Save error:', error);
-                this.showTopicSaveError(topicCard, 'Network error');
-            })
-            .finally(() => {
-                // Exit editing mode
-                this.exitEditingMode(topicCard, topicText, topicEditor, topicActions);
-                
-                // Hide saving state
-                this.showTopicSavingState(topicCard, false);
-            });
-    },
-    
-    /**
-     * Cancel topic edit
-     */
-    cancelTopicEdit: function(topicId) {
-        const topicCard = document.querySelector(`[data-topic="${topicId}"]`);
-        if (!topicCard) return;
-        
-        console.log('MKCG Questions: Canceling edit for topic', topicId);
-        
-        const topicContent = topicCard.querySelector('.mkcg-topic-content');
-        const topicText = topicContent.querySelector('.mkcg-topic-text');
-        const topicEditor = topicContent.querySelector('.mkcg-topic-editor');
-        const topicActions = topicCard.querySelector('.mkcg-topic-actions');
-        
-        // Exit editing mode without saving
-        this.exitEditingMode(topicCard, topicText, topicEditor, topicActions);
-    },
-    
-    /**
-     * Exit editing mode
-     */
-    exitEditingMode: function(topicCard, topicText, topicEditor, topicActions) {
-        topicCard.classList.remove('mkcg-topic-card--editing');
-        topicText.style.display = 'block';
-        topicEditor.style.display = 'none';
-        topicActions.style.display = 'none';
-    },
-    
-    /**
-     * Edit topics with AI (original edit topics functionality)
-     */
-    editTopicsWithAI: function() {
+    editTopics: function() {
         const entryId = document.getElementById('mkcg-entry-id')?.value;
         const entryKey = document.getElementById('mkcg-entry-key')?.value;
         
-        console.log('MKCG Questions: Edit Topics with AI clicked', { entryId, entryKey });
+        console.log('MKCG Questions: Edit Topics clicked', { entryId, entryKey });
         
-        // Multiple URL construction strategies for robustness
+        // Build Topics Generator URL
         let topicsUrl = this.buildTopicsUrl(entryId, entryKey);
         
         if (topicsUrl) {
             console.log('MKCG Questions: Redirecting to Topics Generator:', topicsUrl);
-            
-            // Save current state for when user returns
-            this.saveStateForReturn();
-            
-            // Try opening in new tab first, fallback to same tab
-            try {
-                const newWindow = window.open(topicsUrl, '_blank');
-                if (!newWindow) {
-                    // Popup blocked, use same tab
-                    window.location.href = topicsUrl;
-                }
-            } catch (error) {
-                console.log('MKCG Questions: New tab failed, using same tab');
-                window.location.href = topicsUrl;
-            }
+            window.location.href = topicsUrl;
         } else {
-            // No entry data available - show instructions
-            this.showEditTopicsInstructions();
+            // Fallback to generic topics page
+            window.location.href = '/topics/';
         }
     },
     
-    /**
-     * Save all topics and questions to Formidable
-     */
-    saveAllData: function() {
-        const saveButton = document.getElementById('mkcg-save-all-data');
-        const saveStatus = document.getElementById('mkcg-save-status');
-        
-        if (!saveButton || !saveStatus) return;
-        
-        console.log('MKCG Questions: Starting save all data');
-        
-        // Disable button and show saving state
-        saveButton.disabled = true;
-        saveButton.textContent = 'Saving...';
-        saveStatus.style.display = 'block';
-        saveStatus.className = 'mkcg-save-status mkcg-save-status--saving';
-        saveStatus.textContent = 'Saving topics and questions...';
-        
-        // Get all data to save
-        const postId = document.getElementById('mkcg-post-id')?.value;
-        const entryId = document.getElementById('mkcg-entry-id')?.value;
-        const nonce = document.getElementById('mkcg-questions-nonce')?.value;
-        
-        // Collect topics data
-        const topicsData = {};
-        for (let i = 1; i <= 5; i++) {
-            const topicText = document.querySelector(`[data-topic="${i}"] .mkcg-topic-text`);
-            if (topicText) {
-                const originalText = topicText.getAttribute('data-original-text') || '';
-                topicsData[i] = originalText.trim();
-            }
-        }
-        
-        // Collect questions data
-        const questionsData = {};
-        document.querySelectorAll('.mkcg-form-field-input').forEach(input => {
-            const fieldId = input.id;
-            const matches = fieldId.match(/mkcg-question-field-(\d+)-(\d+)/);
-            if (matches) {
-                const topicNum = parseInt(matches[1]);
-                const questionNum = parseInt(matches[2]);
-                if (!questionsData[topicNum]) {
-                    questionsData[topicNum] = {};
-                }
-                questionsData[topicNum][questionNum] = input.value.trim();
-            }
-        });
-        
-        // Prepare data for AJAX
-        const data = {
-            action: 'mkcg_save_all_data',
-            post_id: postId,
-            entry_id: entryId,
-            topics: topicsData,
-            questions: questionsData,
-            nonce: nonce
-        };
-        
-        console.log('MKCG Questions: Saving data:', data);
-        
-        // Send AJAX request
-        fetch(ajaxurl || '/wp-admin/admin-ajax.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: new URLSearchParams(data).toString()
-        })
-        .then(response => response.json())
-        .then(response => {
-            console.log('MKCG Questions: Save response:', response);
-            
-            if (response.success) {
-                saveStatus.className = 'mkcg-save-status mkcg-save-status--success';
-                saveStatus.textContent = response.data?.message || 'Successfully saved all topics and questions!';
-                
-                // Update topicsData with saved values
-                this.topicsData = { ...topicsData };
-                
-            } else {
-                saveStatus.className = 'mkcg-save-status mkcg-save-status--error';
-                saveStatus.textContent = response.data?.message || 'Failed to save. Please try again.';
-            }
-            
-            // Hide status after 5 seconds
-            setTimeout(() => {
-                saveStatus.style.display = 'none';
-            }, 5000);
-            
-        })
-        .catch(error => {
-            console.error('MKCG Questions: Save error:', error);
-            saveStatus.className = 'mkcg-save-status mkcg-save-status--error';
-            saveStatus.textContent = 'Network error. Please check your connection and try again.';
-        })
-        .finally(() => {
-            // Re-enable button
-            saveButton.disabled = false;
-            saveButton.textContent = '💾 Save All Topics & Questions';
-        });
-    },
+
     
     /**
      * Build Topics Generator URL with multiple fallback strategies
@@ -1177,149 +840,7 @@ If you need help finding the Topics Generator, please contact support.`;
         }
     },
     
-    /**
-     * CRITICAL FIX: Save topic to backend via AJAX
-     */
-    saveTopicToBackend: function(topicId, topicText) {
-        const postId = document.getElementById('mkcg-post-id')?.value;
-        const nonce = document.getElementById('mkcg-questions-nonce')?.value;
-        
-        if (!postId) {
-            return Promise.reject(new Error('No post ID available'));
-        }
-        
-        const data = {
-            action: 'mkcg_save_topic',
-            post_id: postId,
-            topic_number: topicId,
-            topic_text: topicText,
-            nonce: nonce
-        };
-        
-        return fetch(ajaxurl || '/wp-admin/admin-ajax.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: new URLSearchParams(data).toString()
-        })
-        .then(response => response.json());
-    },
-    
-    /**
-     * Show topic saving state
-     */
-    showTopicSavingState: function(topicCard, isSaving) {
-        const existingIndicator = topicCard.querySelector('.mkcg-topic-save-indicator');
-        
-        if (isSaving) {
-            if (!existingIndicator) {
-                const indicator = document.createElement('div');
-                indicator.className = 'mkcg-topic-save-indicator';
-                indicator.innerHTML = '💾 Saving...';
-                indicator.style.cssText = `
-                    position: absolute;
-                    top: 5px;
-                    right: 5px;
-                    background: #f87f34;
-                    color: white;
-                    padding: 2px 6px;
-                    border-radius: 3px;
-                    font-size: 11px;
-                    z-index: 10;
-                `;
-                topicCard.style.position = 'relative';
-                topicCard.appendChild(indicator);
-            }
-        } else {
-            if (existingIndicator) {
-                existingIndicator.remove();
-            }
-        }
-    },
-    
-    /**
-     * Show topic save success feedback
-     */
-    showTopicSaveSuccess: function(topicCard) {
-        const indicator = document.createElement('div');
-        indicator.className = 'mkcg-topic-save-success';
-        indicator.innerHTML = '✓ Saved';
-        indicator.style.cssText = `
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: #27ae60;
-            color: white;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 11px;
-            z-index: 10;
-            animation: fadeInOut 3s ease-in-out;
-        `;
-        
-        // Add fade animation
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes fadeInOut {
-                0% { opacity: 0; transform: translateY(-10px); }
-                20% { opacity: 1; transform: translateY(0); }
-                80% { opacity: 1; transform: translateY(0); }
-                100% { opacity: 0; transform: translateY(-10px); }
-            }
-        `;
-        document.head.appendChild(style);
-        
-        topicCard.style.position = 'relative';
-        topicCard.appendChild(indicator);
-        
-        // Remove after animation
-        setTimeout(() => {
-            if (indicator.parentNode) {
-                indicator.remove();
-            }
-            if (style.parentNode) {
-                style.remove();
-            }
-        }, 3000);
-    },
-    
-    /**
-     * Show topic save error feedback
-     */
-    showTopicSaveError: function(topicCard, errorMessage) {
-        const indicator = document.createElement('div');
-        indicator.className = 'mkcg-topic-save-error';
-        indicator.innerHTML = '✗ Error';
-        indicator.title = errorMessage;
-        indicator.style.cssText = `
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: #e74c3c;
-            color: white;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 11px;
-            z-index: 10;
-            cursor: pointer;
-        `;
-        
-        indicator.addEventListener('click', () => {
-            alert('Save Error: ' + errorMessage + '\n\nClick to try again.');
-            indicator.remove();
-        });
-        
-        topicCard.style.position = 'relative';
-        topicCard.appendChild(indicator);
-        
-        // Auto-remove after 10 seconds
-        setTimeout(() => {
-            if (indicator.parentNode) {
-                indicator.remove();
-            }
-        }, 10000);
-    },
+
     
     /**
      * Cleanup function to prevent memory leaks

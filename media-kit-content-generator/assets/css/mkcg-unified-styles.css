@@ -855,16 +855,18 @@ body {
   font-size: 14px;
   display: inline-flex;
   align-items: center;
-  padding: 6px var(--spacing-sm);
-  background-color: var(--bg-tertiary);
-  border: none;
+  padding: 8px 16px;
+  background-color: white;
+  border: 1px solid var(--primary-color);
   border-radius: var(--border-radius-small);
   cursor: pointer;
   transition: var(--transition-fast);
+  font-weight: 500;
 }
 
 .mkcg-edit-topics-button:hover {
-  background-color: #e0e6ed;
+  background-color: var(--primary-color);
+  color: white;
   text-decoration: none;
 }
 
@@ -875,199 +877,166 @@ body {
 }
 
 /* =============================================================================
-   ENHANCED TOPIC CARDS (Questions Generator)
+   CLEAN TOPIC CARDS (Questions Generator) - MATCHING IMAGE 1 DESIGN
    ============================================================================= */
 
+.mkcg-topics-grid {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
 .mkcg-topic-card {
-  background-color: var(--bg-primary);
-  border: 2px solid var(--bg-border);
-  border-radius: var(--border-radius);
-  padding: var(--spacing-md);
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 16px 20px;
   cursor: pointer;
-  transition: all var(--transition-normal);
-  position: relative;
+  transition: all 0.2s ease;
   display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-sm);
-  min-height: 80px;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  position: relative;
 }
 
 .mkcg-topic-card:hover {
-  border-color: var(--primary-color);
-  box-shadow: var(--shadow-small);
-  transform: translateY(-1px);
+  border-color: #1a9bdc;
+  background-color: #f0f8ff;
 }
 
 .mkcg-topic-card.active {
-  border-color: var(--primary-color);
-  background-color: #f0f8ff;
-  box-shadow: var(--shadow-medium);
-}
-
-.mkcg-topic-card--empty {
-  border-style: dashed;
-  background-color: #fafbfc;
-  justify-content: center;
-  align-items: center;
-}
-
-.mkcg-topic-card--empty:hover {
-  border-color: var(--primary-color);
-  background-color: #f0f8ff;
-}
-
-.mkcg-topic-card--editing {
-  background-color: #fff;
-  border-color: var(--primary-color);
-  box-shadow: 0 4px 16px rgba(26, 155, 220, 0.25);
-  transform: translateY(-3px);
-  z-index: 50;
+  background: linear-gradient(135deg, #1a9bdc 0%, #1589c7 100%);
+  border-color: #1a9bdc;
+  color: white;
+  box-shadow: 0 2px 8px rgba(26, 155, 220, 0.25);
 }
 
 /* Topic Card Number */
-.mkcg-topic-card__number {
+.mkcg-topic-number {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  background-color: var(--primary-color);
-  color: var(--bg-primary);
+  width: 28px;
+  height: 28px;
+  background-color: #1a9bdc;
+  color: white;
   border-radius: 50%;
-  font-size: 16px;
-  font-weight: var(--font-weight-bold);
+  font-size: 14px;
+  font-weight: 600;
   flex-shrink: 0;
 }
 
-.mkcg-topic-card.active .mkcg-topic-card__number {
-  background-color: #0d8ecf;
+.mkcg-topic-card.active .mkcg-topic-number {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
-.mkcg-topic-card--empty .mkcg-topic-card__number {
-  background-color: #ccc;
-  display: none;
-}
-
-/* Topic Card Content */
-.mkcg-topic-card__content {
+/* Topic Card Text */
+.mkcg-topic-text {
   flex-grow: 1;
-  position: relative;
-}
-
-.mkcg-topic-card__text {
   font-size: 15px;
   line-height: 1.4;
-  color: var(--text-primary);
-  min-height: 20px;
+  color: #495057;
+  font-weight: 500;
 }
 
-.mkcg-topic-card__placeholder {
-  color: var(--text-light);
-  font-style: italic;
-  font-size: 14px;
-  text-align: center;
+.mkcg-topic-card.active .mkcg-topic-text {
+  color: white;
 }
 
-.mkcg-topic-card__editor {
-  width: 100%;
-  min-height: 60px;
-  padding: var(--spacing-sm);
-  border: 2px solid var(--primary-color);
-  border-radius: var(--border-radius-small);
-  font-size: 15px;
-  font-family: var(--font-family);
-  line-height: 1.4;
-  resize: vertical;
-  outline: none;
-  background: var(--bg-primary);
-}
-
-.mkcg-topic-card__editor:focus {
-  border-color: var(--secondary-color);
-  box-shadow: 0 0 0 2px rgba(248, 127, 52, 0.2);
-}
-
-/* Topic Card Actions */
-.mkcg-topic-card__actions {
-  display: flex;
-  gap: var(--spacing-xs);
-  margin-top: var(--spacing-xs);
-  justify-content: flex-end;
-}
-
-.mkcg-topic-card__save,
-.mkcg-topic-card__cancel {
-  width: 28px;
-  height: 28px;
-  border: none;
+/* Edit Icon - Shows on hover */
+.mkcg-topic-edit-icon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  background-color: rgba(26, 155, 220, 0.1);
   border-radius: 50%;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: bold;
-  transition: all var(--transition-fast);
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.mkcg-topic-card__save {
-  background-color: var(--success-color);
-  color: var(--bg-primary);
+.mkcg-topic-edit-icon:hover {
+  background-color: rgba(26, 155, 220, 0.2);
 }
 
-.mkcg-topic-card__save:hover {
-  background-color: #2eb359;
-  transform: scale(1.1);
+.mkcg-topic-card:hover .mkcg-topic-edit-icon {
+  display: flex;
 }
 
-.mkcg-topic-card__cancel {
-  background-color: var(--error-color);
-  color: var(--bg-primary);
+.mkcg-topic-card.active .mkcg-topic-edit-icon {
+  background-color: rgba(255, 255, 255, 0.2);
+  display: flex;
 }
 
-.mkcg-topic-card__cancel:hover {
-  background-color: #e6332a;
-  transform: scale(1.1);
+.mkcg-topic-card.active .mkcg-topic-edit-icon:hover {
+  background-color: rgba(255, 255, 255, 0.3);
 }
 
-/* Add Icon for Empty Topics */
-.mkcg-topic-card__add-icon {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 36px;
-  color: var(--text-light);
-  font-weight: var(--font-weight-bold);
-  transition: all var(--transition-fast);
-  pointer-events: none;
+/* Inline Editing Styles */
+.mkcg-topic-card--editing {
+  background-color: white;
+  border-color: #1a9bdc;
+  box-shadow: 0 0 0 2px rgba(26, 155, 220, 0.2);
 }
 
-.mkcg-topic-card--empty:hover .mkcg-topic-card__add-icon {
-  color: var(--primary-color);
-  transform: translate(-50%, -50%) scale(1.1);
+.mkcg-topic-editor {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #1a9bdc;
+  border-radius: 4px;
+  font-size: 15px;
+  font-family: inherit;
+  line-height: 1.4;
+  outline: none;
+  background: white;
 }
 
-/* Hide elements when editing */
-.mkcg-topic-card--editing .mkcg-topic-card__text {
-  display: none;
+.mkcg-topic-editor:focus {
+  border-color: #0d8ecf;
+  box-shadow: 0 0 0 2px rgba(26, 155, 220, 0.2);
 }
 
-.mkcg-topic-card--editing .mkcg-topic-card__add-icon {
-  display: none;
+/* Topic Actions */
+.mkcg-topic-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
 }
 
-/* Save indicators */
-.save-indicator {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 10px;
-  font-weight: bold;
-  z-index: 10;
-  pointer-events: none;
+.mkcg-topic-save,
+.mkcg-topic-cancel {
+  padding: 4px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.mkcg-topic-save {
+  background-color: #28a745;
+  color: white;
+}
+
+.mkcg-topic-save:hover {
+  background-color: #218838;
+}
+
+.mkcg-topic-cancel {
+  background-color: #6c757d;
+  color: white;
+}
+
+.mkcg-topic-cancel:hover {
+  background-color: #5a6268;
 }
 
 /* =============================================================================
@@ -1581,319 +1550,7 @@ body {
   }
 }
 
-/* =============================================================================
-   INLINE EDITING STYLES
-   ============================================================================= */
 
-.mkcg-topic-content {
-  flex-grow: 1;
-  position: relative;
-}
-
-.mkcg-topic-editor {
-  width: 100%;
-  min-height: 60px;
-  padding: var(--spacing-sm);
-  border: 2px solid var(--primary-color);
-  border-radius: var(--border-radius-small);
-  font-size: 16px;
-  font-family: var(--font-family);
-  resize: vertical;
-  outline: none;
-  background: var(--bg-primary);
-}
-
-.mkcg-topic-editor:focus {
-  border-color: var(--secondary-color);
-  box-shadow: 0 0 0 2px rgba(248, 127, 52, 0.2);
-}
-
-.mkcg-topic-actions {
-  display: flex;
-  gap: var(--spacing-xs);
-  margin-top: var(--spacing-xs);
-  justify-content: flex-end;
-}
-
-.mkcg-topic-save,
-.mkcg-topic-cancel {
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: bold;
-  transition: all var(--transition-fast);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.mkcg-topic-save {
-  background-color: var(--success-color);
-  color: var(--bg-primary);
-}
-
-.mkcg-topic-save:hover {
-  background-color: #2eb359;
-  transform: scale(1.1);
-}
-
-.mkcg-topic-cancel {
-  background-color: var(--error-color);
-  color: var(--bg-primary);
-}
-
-.mkcg-topic-cancel:hover {
-  background-color: #e6332a;
-  transform: scale(1.1);
-}
-
-.mkcg-topic-card--editing {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(26, 155, 220, 0.2);
-  transform: translateY(-2px);
-}
-
-.mkcg-topic-card--editing .mkcg-topic-text {
-  display: none;
-}
-
-.mkcg-topic-card--editing .mkcg-topic-add-icon {
-  display: none;
-}
-
-.mkcg-topic-card--empty {
-  border: 2px dashed var(--bg-border);
-}
-
-.mkcg-topic-card--empty:hover {
-  border-color: var(--primary-color);
-}
-
-.mkcg-topic-placeholder {
-  color: var(--text-light);
-  font-style: italic;
-  font-size: 14px;
-}
-
-.mkcg-topic-add-icon {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 48px;
-  color: var(--text-light);
-  font-weight: var(--font-weight-bold);
-  transition: all var(--transition-fast);
-  pointer-events: none;
-}
-
-.mkcg-topic-card--empty:hover .mkcg-topic-add-icon {
-  color: var(--primary-color);
-  transform: translate(-50%, -50%) scale(1.1);
-}
-
-/* =============================================================================
-   TOPIC SAVE INDICATORS (CRITICAL FIX)
-   ============================================================================= */
-
-.mkcg-topic-save-indicator,
-.mkcg-topic-save-success,
-.mkcg-topic-save-error {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 11px;
-  font-weight: bold;
-  z-index: 10;
-  pointer-events: none;
-}
-
-.mkcg-topic-save-indicator {
-  background: var(--secondary-color);
-  color: var(--bg-primary);
-  animation: pulse 1s infinite;
-}
-
-.mkcg-topic-save-success {
-  background: var(--success-color);
-  color: var(--bg-primary);
-  animation: fadeInOut 3s ease-in-out;
-}
-
-.mkcg-topic-save-error {
-  background: var(--error-color);
-  color: var(--bg-primary);
-  cursor: pointer;
-  pointer-events: all;
-}
-
-@keyframes pulse {
-  0% { opacity: 0.6; }
-  50% { opacity: 1; }
-  100% { opacity: 0.6; }
-}
-
-@keyframes fadeInOut {
-  0% { opacity: 0; transform: translateY(-10px); }
-  20% { opacity: 1; transform: translateY(0); }
-  80% { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-10px); }
-}
-
-/* =============================================================================
-   SAVE SECTION STYLES
-   ============================================================================= */
-
-.mkcg-save-section {
-  margin-top: var(--spacing-xl);
-  padding: var(--spacing-lg);
-  text-align: center;
-  background: var(--bg-secondary);
-  border-radius: var(--border-radius);
-  border: 2px solid var(--bg-border);
-}
-
-.mkcg-save-all-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-md) var(--spacing-xl);
-  background: linear-gradient(135deg, var(--success-color), #2eb359);
-  color: var(--bg-primary);
-  border: none;
-  border-radius: 30px;
-  font-size: 18px;
-  font-weight: var(--font-weight-bold);
-  cursor: pointer;
-  transition: all var(--transition-normal);
-  box-shadow: 0 4px 15px rgba(52, 199, 89, 0.3);
-  min-width: 250px;
-  min-height: 50px;
-}
-
-.mkcg-save-all-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(52, 199, 89, 0.4);
-}
-
-.mkcg-save-all-button:active {
-  transform: translateY(0);
-}
-
-.mkcg-save-all-button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-.mkcg-save-status {
-  margin-top: var(--spacing-md);
-  padding: var(--spacing-sm) var(--spacing-md);
-  border-radius: var(--border-radius-small);
-  font-weight: var(--font-weight-medium);
-  transition: all var(--transition-fast);
-}
-
-.mkcg-save-status--success {
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-}
-
-.mkcg-save-status--error {
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
-}
-
-.mkcg-save-status--saving {
-  background-color: #fff3cd;
-  color: #856404;
-  border: 1px solid #ffeaa7;
-}
-
-/* =============================================================================
-   ENHANCED TOPIC CARD EDITING STATES
-   ============================================================================= */
-
-.mkcg-topic-card {
-  position: relative;
-  transition: all var(--transition-normal);
-}
-
-.mkcg-topic-card:hover {
-  cursor: pointer;
-}
-
-.mkcg-topic-card--editing {
-  background-color: #fff;
-  border-color: var(--primary-color);
-  box-shadow: 0 4px 16px rgba(26, 155, 220, 0.25);
-  transform: translateY(-3px);
-  z-index: 50;
-}
-
-.mkcg-topic-card--editing .mkcg-topic-editor {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(26, 155, 220, 0.2);
-  background: #fafbfc;
-}
-
-.mkcg-topic-card--editing .mkcg-topic-editor:focus {
-  border-color: var(--secondary-color);
-  box-shadow: 0 0 0 3px rgba(248, 127, 52, 0.3);
-  background: #fff;
-}
-
-/* Visual feedback for empty topics */
-.mkcg-topic-card--empty {
-  border-style: dashed;
-  background-color: #fafbfc;
-}
-
-.mkcg-topic-card--empty .mkcg-topic-placeholder {
-  color: var(--text-light);
-  font-style: italic;
-  text-align: center;
-  padding: var(--spacing-sm) 0;
-}
-
-.mkcg-topic-card--empty:hover {
-  border-color: var(--primary-color);
-  background-color: #f0f8ff;
-}
-
-.mkcg-topic-card--empty:hover .mkcg-topic-placeholder {
-  color: var(--primary-color);
-}
-
-/* Improved action buttons positioning */
-.mkcg-topic-actions {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  display: none;
-  gap: 4px;
-  z-index: 10;
-}
-
-.mkcg-topic-card--editing .mkcg-topic-actions {
-  display: flex;
-  position: static;
-  justify-content: flex-end;
-  margin-top: var(--spacing-xs);
-}
-
-/* Enhanced save indicators positioning */
-.mkcg-topic-card[style*="position: relative"] {
-  position: relative !important;
-}
 
 @media screen and (max-width: 480px) {
   .topics-generator__title,

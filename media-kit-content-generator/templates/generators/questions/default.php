@@ -119,77 +119,60 @@ if (empty($available_topics)) {
                     Generate compelling interview questions based on your selected topic. Questions will be crafted to showcase your expertise while providing maximum value to podcast listeners.
                 </p>
                 
-                <!-- Topic Selector with Enhanced Design -->
+                <!-- Topic Selector with Clean Design -->
                 <div class="mkcg-topic-selector">
                     <div class="mkcg-selector-header">
                         <h3 class="mkcg-section-title">Choose Your Topic</h3>
-                        <a href="<?php echo $entry_key ? '/topics/?entry=' . urlencode($entry_key) : '/topics/'; ?>" class="mkcg-edit-topics-button" id="mkcg-edit-topics">
-                            🤖 Edit Topics with AI
-                        </a>
+                        <button class="mkcg-edit-topics-button" id="mkcg-edit-topics" type="button">
+                            ✎ Edit Topics
+                        </button>
                     </div>
                     
                     <div class="mkcg-topics-grid" id="mkcg-topics-grid">
-                        <?php foreach ($all_topics as $topic_id => $topic_text): ?>
-                            <div class="mkcg-topic-card <?php echo $topic_id === 1 ? 'mkcg-topic-card--active' : ''; ?> <?php echo empty($topic_text) ? 'mkcg-topic-card--empty' : ''; ?>" 
-                                 data-topic="<?php echo esc_attr($topic_id); ?>"
-                                 title="<?php echo empty($topic_text) ? 'Click to add topic' : 'Click to select, click pencil to edit'; ?>">
+                        <?php 
+                        // Always show 5 topic slots
+                        for ($topic_id = 1; $topic_id <= 5; $topic_id++): 
+                            $topic_text = isset($all_topics[$topic_id]) ? $all_topics[$topic_id] : '';
+                            $is_active = ($topic_id === 1) ? 'active' : '';
+                            $is_empty = empty($topic_text);
+                        ?>
+                            <div class="mkcg-topic-card <?php echo $is_active; ?>" 
+                                 data-topic="<?php echo esc_attr($topic_id); ?>">
                                 
-                                <div class="mkcg-topic-card__number">
+                                <div class="mkcg-topic-number">
                                     <?php echo esc_html($topic_id); ?>
                                 </div>
                                 
-                                <div class="mkcg-topic-card__content" data-topic-id="<?php echo esc_attr($topic_id); ?>">
-                                    <div class="mkcg-topic-card__text" data-original-text="<?php echo esc_attr($topic_text); ?>">
-                                        <?php if (!empty($topic_text)): ?>
+                                <div class="mkcg-topic-content">
+                                    <div class="mkcg-topic-text" data-original="<?php echo esc_attr($topic_text); ?>">
+                                        <?php if (!$is_empty): ?>
                                             <?php echo esc_html($topic_text); ?>
                                         <?php else: ?>
-                                            <span class="mkcg-topic-card__placeholder">Click to add topic</span>
+                                            Click to add topic
                                         <?php endif; ?>
                                     </div>
                                     
-                                    <textarea class="mkcg-topic-card__editor" 
-                                              style="display: none;" 
-                                              placeholder="Enter your topic here..."
-                                              rows="2"><?php echo esc_textarea($topic_text); ?></textarea>
+                                    <input type="text" 
+                                           class="mkcg-topic-editor" 
+                                           value="<?php echo esc_attr($topic_text); ?>"
+                                           style="display: none;"
+                                           placeholder="Enter topic here...">
+                                    
+                                    <div class="mkcg-topic-actions" style="display: none;">
+                                        <button class="mkcg-topic-save" type="button">Save</button>
+                                        <button class="mkcg-topic-cancel" type="button">Cancel</button>
+                                    </div>
                                 </div>
                                 
-                                <?php if (!empty($topic_text)): ?>
-                                    <div class="mkcg-topic-card__edit-icon" title="Edit this topic">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                            <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                        </svg>
-                                    </div>
-                                <?php else: ?>
-                                    <div class="mkcg-topic-card__add-icon">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                                        </svg>
-                                    </div>
-                                <?php endif; ?>
-                                
-                                <div class="mkcg-topic-card__actions" style="display: none;">
-                                    <button class="mkcg-topic-card__save" 
-                                            data-topic-id="<?php echo esc_attr($topic_id); ?>" 
-                                            title="Save (Ctrl+Enter)"
-                                            type="button">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <polyline points="20,6 9,17 4,12"></polyline>
-                                        </svg>
-                                    </button>
-                                    <button class="mkcg-topic-card__cancel" 
-                                            data-topic-id="<?php echo esc_attr($topic_id); ?>" 
-                                            title="Cancel (Esc)"
-                                            type="button">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                                        </svg>
-                                    </button>
+                                <div class="mkcg-topic-edit-icon" title="Edit this topic">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                        <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                    </svg>
                                 </div>
+                                
                             </div>
-                        <?php endforeach; ?>
+                        <?php endfor; ?>
                     </div>
                 </div>
                 
@@ -289,14 +272,7 @@ if (empty($available_topics)) {
                     <input type="hidden" id="mkcg-selected-topic-id" value="1">
                     <input type="hidden" id="mkcg-post-id" value="<?php echo esc_attr($post_id); ?>">
                 </div>
-                
-                <!-- Save All Button -->
-                <div class="mkcg-save-section">
-                    <button class="mkcg-save-all-button" id="mkcg-save-all-data" type="button">
-                        💾 Save All Topics & Questions
-                    </button>
-                    <div class="mkcg-save-status" id="mkcg-save-status" style="display: none;"></div>
-                </div>
+
             </div>
             
             <!-- RIGHT PANEL -->
@@ -385,7 +361,7 @@ if (empty($available_topics)) {
     </div>
 </div>
 
-<!-- Enhanced JavaScript for Topic Editing -->
+<!-- Simplified JavaScript for Topic Selection -->
 <script type="text/javascript">
 // Topics data from PHP
 const MKCG_TopicsData = <?php echo json_encode($all_topics); ?>;
@@ -396,93 +372,16 @@ const MKCG_ExistingQuestions = <?php echo json_encode($existing_questions); ?>;
 // Post ID for saving
 const MKCG_PostId = <?php echo json_encode($post_id); ?>;
 
-// Enhanced Questions Generator with Inline Editing
+// Simple Questions Generator with Clean Topic Selection
 jQuery(document).ready(function($) {
-    console.log('🎯 Questions Generator Enhanced: Initializing with inline topic editing');
+    console.log('🎯 Questions Generator: Initializing with clean topic selection');
     console.log('Topics data:', MKCG_TopicsData);
-    console.log('Post ID:', MKCG_PostId);
     
-    // Topic card selection and editing
+    // Simple topic card selection
     $('.mkcg-topic-card').on('click', function(e) {
-        // Don't trigger if clicking on action buttons
-        if ($(e.target).closest('.mkcg-topic-card__actions').length) {
-            return;
-        }
-        
         const $card = $(this);
         const topicId = parseInt($card.data('topic'));
-        const isEmpty = $card.hasClass('mkcg-topic-card--empty');
-        const isEditing = $card.hasClass('mkcg-topic-card--editing');
-        
-        if (isEditing) {
-            return; // Already editing
-        }
-        
-        if (isEmpty) {
-            // Empty topics: start editing immediately
-            startEditingTopic(topicId);
-        } else {
-            // Existing topics: select on single click, edit on double click
-            const now = Date.now();
-            const lastClick = $card.data('lastClick') || 0;
-            
-            if (now - lastClick < 500) {
-                // Double click: start editing
-                startEditingTopic(topicId);
-            } else {
-                // Single click: select topic
-                selectTopic(topicId);
-            }
-            
-            $card.data('lastClick', now);
-        }
-    });
-    
-    // Save/Cancel button handlers
-    $(document).on('click', '.mkcg-topic-card__save', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const topicId = parseInt($(this).data('topic-id'));
-        saveTopicEdit(topicId);
-    });
-    
-    $(document).on('click', '.mkcg-topic-card__cancel', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const topicId = parseInt($(this).data('topic-id'));
-        cancelTopicEdit(topicId);
-    });
-    
-    // Keyboard shortcuts for editing
-    $(document).on('keydown', '.mkcg-topic-card__editor', function(e) {
-        if (e.key === 'Escape') {
-            const topicId = parseInt($(this).closest('.mkcg-topic-card').data('topic'));
-            cancelTopicEdit(topicId);
-        } else if (e.key === 'Enter' && e.ctrlKey) {
-            e.preventDefault();
-            const topicId = parseInt($(this).closest('.mkcg-topic-card').data('topic'));
-            saveTopicEdit(topicId);
-        }
-    });
-    
-    // Auto-save on blur
-    $(document).on('blur', '.mkcg-topic-card__editor', function() {
-        const $card = $(this).closest('.mkcg-topic-card');
-        if ($card.hasClass('mkcg-topic-card--editing')) {
-            // Small delay to allow save/cancel buttons to work
-            setTimeout(() => {
-                if ($card.hasClass('mkcg-topic-card--editing')) {
-                    const topicId = parseInt($card.data('topic'));
-                    console.log('💾 Auto-saving topic on blur:', topicId);
-                    saveTopicEdit(topicId);
-                }
-            }, 100);
-        }
-    });
-    
-    // Prevent blur when clicking action buttons
-    $(document).on('mousedown', '.mkcg-topic-card__actions', function(e) {
-        e.preventDefault();
+        selectTopic(topicId);
     });
     
     // Select topic function
@@ -506,171 +405,10 @@ jQuery(document).ready(function($) {
         $(`.mkcg-topic-questions .topic-title`).text(topicText);
     }
     
-    // Start editing function
-    function startEditingTopic(topicId) {
-        console.log('🖊️ Starting edit for topic:', topicId);
-        
-        const $card = $(`.mkcg-topic-card[data-topic="${topicId}"]`);
-        if ($card.hasClass('mkcg-topic-card--editing')) {
-            return; // Already editing
-        }
-        
-        const $content = $card.find('.mkcg-topic-card__content');
-        const $text = $content.find('.mkcg-topic-card__text');
-        const $editor = $content.find('.mkcg-topic-card__editor');
-        const $actions = $card.find('.mkcg-topic-card__actions');
-        
-        // Get current text
-        const currentText = $text.data('original-text') || '';
-        
-        // Set editor value
-        $editor.val(currentText);
-        
-        // Show editing state
-        $card.addClass('mkcg-topic-card--editing');
-        $text.hide();
-        $editor.show();
-        $actions.show();
-        
-        // Focus and select text
-        $editor.focus();
-        if (currentText) {
-            $editor[0].select();
-        }
-    }
-    
-    // Save topic edit function
-    function saveTopicEdit(topicId) {
-        console.log('💾 Saving topic:', topicId);
-        
-        const $card = $(`.mkcg-topic-card[data-topic="${topicId}"]`);
-        const $content = $card.find('.mkcg-topic-card__content');
-        const $text = $content.find('.mkcg-topic-card__text');
-        const $editor = $content.find('.mkcg-topic-card__editor');
-        const $actions = $card.find('.mkcg-topic-card__actions');
-        
-        const newText = $editor.val().trim();
-        
-        // Show saving indicator
-        showSavingIndicator($card, '💾 Saving...');
-        
-        // Save to backend
-        if (MKCG_PostId) {
-            $.ajax({
-                type: 'POST',
-                url: ajaxurl,
-                data: {
-                    action: 'mkcg_save_topic',
-                    post_id: MKCG_PostId,
-                    topic_number: topicId,
-                    topic_text: newText,
-                    nonce: $('#mkcg-questions-nonce').val()
-                },
-                success: function(response) {
-                    if (response.success) {
-                        console.log('✅ Topic saved successfully');
-                        
-                        // Update display
-                        updateTopicDisplay($card, $text, newText);
-                        
-                        // Update local data
-                        MKCG_TopicsData[topicId] = newText;
-                        
-                        // Update selected topic if active
-                        if ($card.hasClass('active')) {
-                            $('#mkcg-selected-topic-text').text(newText || 'Click to add topic');
-                            $(`.mkcg-topic-questions .topic-title`).text(newText || 'Add topic above');
-                        }
-                        
-                        showSavingIndicator($card, '✅ Saved', 'success');
-                    } else {
-                        console.error('❌ Save failed:', response.data?.message);
-                        showSavingIndicator($card, '❌ Error', 'error');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('❌ Network error:', error);
-                    showSavingIndicator($card, '❌ Error', 'error');
-                },
-                complete: function() {
-                    // Exit editing mode
-                    exitEditingMode($card, $text, $editor, $actions);
-                }
-            });
-        } else {
-            // No backend save, just update display
-            updateTopicDisplay($card, $text, newText);
-            MKCG_TopicsData[topicId] = newText;
-            exitEditingMode($card, $text, $editor, $actions);
-        }
-    }
-    
-    // Cancel topic edit function
-    function cancelTopicEdit(topicId) {
-        console.log('❌ Canceling edit for topic:', topicId);
-        
-        const $card = $(`.mkcg-topic-card[data-topic="${topicId}"]`);
-        const $content = $card.find('.mkcg-topic-card__content');
-        const $text = $content.find('.mkcg-topic-card__text');
-        const $editor = $content.find('.mkcg-topic-card__editor');
-        const $actions = $card.find('.mkcg-topic-card__actions');
-        
-        exitEditingMode($card, $text, $editor, $actions);
-    }
-    
-    // Update topic display
-    function updateTopicDisplay($card, $text, newText) {
-        if (newText) {
-            $text.html(newText);
-            $card.removeClass('mkcg-topic-card--empty');
-            $card.find('.mkcg-topic-card__add-icon').hide();
-        } else {
-            $text.html('<span class="mkcg-topic-card__placeholder">Click to add topic</span>');
-            $card.addClass('mkcg-topic-card--empty');
-            $card.find('.mkcg-topic-card__add-icon').show();
-        }
-        $text.data('original-text', newText);
-    }
-    
-    // Exit editing mode
-    function exitEditingMode($card, $text, $editor, $actions) {
-        $card.removeClass('mkcg-topic-card--editing');
-        $text.show();
-        $editor.hide();
-        $actions.hide();
-    }
-    
-    // Show saving indicator
-    function showSavingIndicator($card, message, type = 'saving') {
-        // Remove existing indicators
-        $card.find('.save-indicator').remove();
-        
-        const $indicator = $('<div class="save-indicator"></div>')
-            .text(message)
-            .css({
-                position: 'absolute',
-                top: '5px',
-                right: '5px',
-                background: type === 'success' ? '#27ae60' : type === 'error' ? '#e74c3c' : '#f87f34',
-                color: 'white',
-                padding: '2px 6px',
-                borderRadius: '3px',
-                fontSize: '10px',
-                fontWeight: 'bold',
-                zIndex: 10
-            });
-        
-        $card.css('position', 'relative').append($indicator);
-        
-        if (type === 'success' || type === 'error') {
-            setTimeout(() => $indicator.fadeOut(), 3000);
-        }
-    }
-    
     // Initialize: Select first topic
     selectTopic(1);
     
-    // AI generation functionality (existing code)
+    // AI generation functionality
     $('#mkcg-generate-questions').on('click', function() {
         const selectedTopic = $('#mkcg-selected-topic-id').val();
         const topicText = $('#mkcg-selected-topic-text').text();
@@ -720,13 +458,11 @@ jQuery(document).ready(function($) {
         questions.forEach((question, index) => {
             questionsHtml += `
                 <div class="mkcg-question-item">
-                    <div class="mkcg-question-number">
-                        <strong>Question ${index + 1}:</strong>
+                    <div class="mkcg-question-content">
+                        <div class="mkcg-question-number">Question ${index + 1}:</div>
+                        <div class="mkcg-question-text">${question}</div>
                     </div>
-                    <div class="mkcg-question-text">
-                        ${question}
-                    </div>
-                    <button class="mkcg-use-question-btn" data-question="${question}" data-position="${index + 1}">Use</button>
+                    <button class="mkcg-use-button" data-question="${question}" data-position="${index + 1}">Use</button>
                 </div>`;
         });
         
@@ -735,7 +471,7 @@ jQuery(document).ready(function($) {
     }
     
     // Handle "Use" button clicks
-    $(document).on('click', '.mkcg-use-question-btn', function() {
+    $(document).on('click', '.mkcg-use-button', function() {
         const question = $(this).data('question');
         const position = $(this).data('position');
         const selectedTopic = $('#mkcg-selected-topic-id').val();
@@ -747,6 +483,6 @@ jQuery(document).ready(function($) {
         alert(`Question ${position} has been added to Topic ${selectedTopic}.`);
     });
     
-    console.log('✅ Questions Generator Enhanced: Initialization complete');
+    console.log('✅ Questions Generator: Initialization complete');
 });
 </script>
