@@ -1061,75 +1061,131 @@ class MKCG_Formidable_Service {
     }
     
     /**
-     * ENHANCED: Save questions to both post meta AND Formidable entry fields
+     * BULLETPROOF: Save questions to both post meta AND Formidable entry fields with enhanced error handling
      */
     public function save_questions_to_post($post_id, $questions, $topic_number) {
-        error_log("MKCG DUAL SAVE: Starting save for topic {$topic_number} with " . count($questions) . " questions");
+        error_log("MKCG BULLETPROOF SAVE: Starting save for topic {$topic_number} with " . count($questions) . " questions");
         
         if (!$post_id || empty($questions)) {
-            error_log("MKCG DUAL SAVE: Early return - invalid parameters");
+            error_log("MKCG BULLETPROOF SAVE: Early return - invalid parameters");
             return false;
         }
         
         $saved_count = 0;
         $formidable_saved = 0;
+        $save_errors = [];
+        $save_summary = [];
         
         // Get Formidable field mappings for this topic
         $field_mappings = $this->get_formidable_field_mappings($topic_number);
-        error_log("MKCG DUAL SAVE: Field mappings for topic {$topic_number}: " . print_r($field_mappings, true));
+        error_log("MKCG BULLETPROOF SAVE: Field mappings for topic {$topic_number}: " . print_r($field_mappings, true));
         
-        // Get entry ID associated with this post
+        // ENHANCED: Get entry ID with comprehensive lookup
         $entry_id = $this->get_entry_id_from_post($post_id);
-        error_log("MKCG DUAL SAVE: Found entry ID: " . ($entry_id ?: 'NONE'));
         
-        // Save questions with global numbering
+        if ($entry_id) {
+            error_log("MKCG BULLETPROOF SAVE: ✅ Entry ID lookup successful: {$entry_id}");
+            $save_summary[] = "Entry ID found: {$entry_id}";
+        } else {
+            error_log("MKCG BULLETPROOF SAVE: ⚠️ Entry ID lookup failed - Formidable saves will be skipped");
+            $save_errors[] = "No entry ID found for post {$post_id} - questions will only save to WordPress post meta";
+        }
+        
+        // Save questions with global numbering and enhanced error tracking
         foreach ($questions as $index => $question) {
             $question_trimmed = trim($question);
             $question_number = (($topic_number - 1) * 5) + ($index + 1); // Calculate global question number
             $meta_key = 'question_' . $question_number;
             
-            error_log("MKCG DUAL SAVE: Processing Q{$question_number} (topic {$topic_number}, index {$index}): '{$question_trimmed}'");
+            error_log("MKCG BULLETPROOF SAVE: Processing Q{$question_number} (topic {$topic_number}, index {$index}): '{$question_trimmed}'");
             
             if (!empty($question_trimmed)) {
-                // SAVE 1: WordPress Post Meta (existing functionality)
-                $meta_result = update_post_meta($post_id, $meta_key, $question_trimmed);
-                
-                if ($meta_result !== false) {
-                    $saved_count++;
-                    error_log("MKCG DUAL SAVE: ✅ Saved to post meta: {$meta_key}");
-                } else {
-                    error_log("MKCG DUAL SAVE: ❌ Failed to save to post meta: {$meta_key}");
+                // SAVE 1: WordPress Post Meta (primary save location)
+                try {
+                    $meta_result = update_post_meta($post_id, $meta_key, $question_trimmed);
+                    
+                    if ($meta_result !== false) {
+                        $saved_count++;
+                        error_log("MKCG BULLETPROOF SAVE: ✅ Saved to post meta: {$meta_key}");
+                        $save_summary[] = "Q{$question_number}: Post meta ✓";
+                    } else {
+                        error_log("MKCG BULLETPROOF SAVE: ❌ Failed to save to post meta: {$meta_key}");
+                        $save_errors[] = "Q{$question_number}: Post meta save failed";
+                    }
+                } catch (Exception $e) {
+                    error_log("MKCG BULLETPROOF SAVE: ❌ Exception saving to post meta {$meta_key}: " . $e->getMessage());
+                    $save_errors[] = "Q{$question_number}: Post meta exception - " . $e->getMessage();
                 }
                 
-                // SAVE 2: Formidable Entry Field (NEW FUNCTIONALITY)
+                // SAVE 2: Formidable Entry Field (secondary save location)
                 if ($entry_id && isset($field_mappings[$index])) {
                     $formidable_field_id = $field_mappings[$index];
-                    $formidable_result = $this->save_to_formidable_field($entry_id, $formidable_field_id, $question_trimmed);
                     
-                    if ($formidable_result) {
-                        $formidable_saved++;
-                        error_log("MKCG DUAL SAVE: ✅ Saved to Formidable field {$formidable_field_id} (Q{$question_number})");
-                    } else {
-                        error_log("MKCG DUAL SAVE: ❌ Failed to save to Formidable field {$formidable_field_id} (Q{$question_number})");
+                    try {
+                        $formidable_result = $this->save_to_formidable_field($entry_id, $formidable_field_id, $question_trimmed);
+                        
+                        if ($formidable_result) {
+                            $formidable_saved++;
+                            error_log("MKCG BULLETPROOF SAVE: ✅ Saved to Formidable field {$formidable_field_id} (Q{$question_number})");
+                            $save_summary[] = "Q{$question_number}: Formidable field {$formidable_field_id} ✓";
+                        } else {
+                            error_log("MKCG BULLETPROOF SAVE: ❌ Failed to save to Formidable field {$formidable_field_id} (Q{$question_number})");
+                            $save_errors[] = "Q{$question_number}: Formidable field {$formidable_field_id} save failed";
+                        }
+                    } catch (Exception $e) {
+                        error_log("MKCG BULLETPROOF SAVE: ❌ Exception saving to Formidable field {$formidable_field_id}: " . $e->getMessage());
+                        $save_errors[] = "Q{$question_number}: Formidable exception - " . $e->getMessage();
                     }
                 } else {
                     if (!$entry_id) {
-                        error_log("MKCG DUAL SAVE: ⚠️ No entry ID - skipping Formidable save for Q{$question_number}");
+                        $save_summary[] = "Q{$question_number}: Formidable save skipped (no entry ID)";
                     } else {
-                        error_log("MKCG DUAL SAVE: ⚠️ No field mapping for index {$index} - skipping Formidable save for Q{$question_number}");
+                        error_log("MKCG BULLETPROOF SAVE: ⚠️ No field mapping for index {$index} - skipping Formidable save for Q{$question_number}");
+                        $save_errors[] = "Q{$question_number}: No field mapping for index {$index}";
                     }
                 }
+            } else {
+                $save_summary[] = "Q{$question_number}: Empty question - skipped";
             }
         }
         
-        error_log("MKCG DUAL SAVE: Summary - Post meta: {$saved_count}/" . count($questions) . ", Formidable: {$formidable_saved}/" . count($questions));
+        // Comprehensive logging
+        error_log("MKCG BULLETPROOF SAVE: Summary - Post meta: {$saved_count}/" . count($questions) . ", Formidable: {$formidable_saved}/" . count($questions));
         
-        // Return true if either save method worked
-        return ($saved_count > 0 || $formidable_saved > 0);
+        if (!empty($save_errors)) {
+            error_log("MKCG BULLETPROOF SAVE: Errors encountered: " . implode('; ', $save_errors));
+        }
+        
+        if (!empty($save_summary)) {
+            error_log("MKCG BULLETPROOF SAVE: Save summary: " . implode('; ', $save_summary));
+        }
+        
+        // Update save timestamp and statistics
+        update_post_meta($post_id, '_mkcg_questions_updated', time());
+        update_post_meta($post_id, '_mkcg_last_save_summary', [
+            'timestamp' => time(),
+            'topic_number' => $topic_number,
+            'post_meta_saved' => $saved_count,
+            'formidable_saved' => $formidable_saved,
+            'total_questions' => count($questions),
+            'errors' => $save_errors,
+            'entry_id' => $entry_id
+        ]);
+        
+        // Return true if AT LEAST the post meta save worked (primary requirement)
+        $success = ($saved_count > 0);
+        
+        if ($success) {
+            error_log("MKCG BULLETPROOF SAVE: ✅ SUCCESS - At least {$saved_count} questions saved to post meta");
+        } else {
+            error_log("MKCG BULLETPROOF SAVE: ❌ FAILED - No questions saved successfully");
+        }
+        
+        return $success;
     }
     
     /**
-     * Get Formidable field mappings for a specific topic
+     * ENHANCED: Get Formidable field mappings for a specific topic with validation
      */
     private function get_formidable_field_mappings($topic_number) {
         // Field mapping for Questions Generator (from the PHP code)
@@ -1141,31 +1197,126 @@ class MKCG_Formidable_Service {
             5 => ['10380', '10381', '10382', '10383', '10384']  // Topic 5 → Questions 21-25
         ];
         
-        return $field_mappings[$topic_number] ?? [];
+        // Validate topic number
+        if ($topic_number < 1 || $topic_number > 5) {
+            error_log("MKCG Field Mappings: Invalid topic number: {$topic_number}");
+            return [];
+        }
+        
+        $mappings = $field_mappings[$topic_number] ?? [];
+        
+        if (empty($mappings)) {
+            error_log("MKCG Field Mappings: No mappings found for topic {$topic_number}");
+        } else {
+            error_log("MKCG Field Mappings: Found " . count($mappings) . " field mappings for topic {$topic_number}: " . implode(', ', $mappings));
+        }
+        
+        return $mappings;
     }
     
     /**
-     * Get entry ID from post ID (reverse lookup)
+     * ENHANCED: Get entry ID from post ID (reverse lookup) with multiple strategies
      */
     private function get_entry_id_from_post($post_id) {
         global $wpdb;
         
-        // Look for entry that created this post
+        error_log('MKCG Enhanced Lookup: Starting entry ID lookup for post ' . $post_id);
+        
+        // Method 1: Direct post_id lookup (primary method)
         $entry_id = $wpdb->get_var($wpdb->prepare(
             "SELECT id FROM {$wpdb->prefix}frm_items WHERE post_id = %d",
             $post_id
         ));
         
-        return $entry_id ? intval($entry_id) : null;
+        if ($entry_id) {
+            error_log('MKCG Enhanced Lookup: SUCCESS via frm_items.post_id: ' . $entry_id);
+            return intval($entry_id);
+        }
+        
+        // Method 2: Search in post meta for _mkcg_entry_id (backup association)
+        $entry_id = get_post_meta($post_id, '_mkcg_entry_id', true);
+        if ($entry_id && is_numeric($entry_id)) {
+            error_log('MKCG Enhanced Lookup: SUCCESS via post meta _mkcg_entry_id: ' . $entry_id);
+            return intval($entry_id);
+        }
+        
+        // Method 3: Search in item_metas for post_id reference (advanced lookup)
+        $entry_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT item_id FROM {$wpdb->prefix}frm_item_metas 
+             WHERE meta_value = %s 
+             AND field_id IN (
+                 SELECT id FROM {$wpdb->prefix}frm_fields 
+                 WHERE (field_key LIKE '%post_id%' OR name LIKE '%post%' OR type = 'hidden')
+             )",
+            $post_id
+        ));
+        
+        if ($entry_id) {
+            error_log('MKCG Enhanced Lookup: SUCCESS via item_metas reverse lookup: ' . $entry_id);
+            // Save this association for future use
+            update_post_meta($post_id, '_mkcg_entry_id', $entry_id);
+            return intval($entry_id);
+        }
+        
+        // Method 4: Search by creation time correlation (last resort)
+        $post_date = get_post_field('post_date', $post_id);
+        if ($post_date) {
+            $post_timestamp = strtotime($post_date);
+            $time_window = 300; // 5 minutes window
+            
+            $entry_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}frm_items 
+                 WHERE created_date BETWEEN %s AND %s 
+                 AND post_id IS NULL
+                 ORDER BY created_date DESC
+                 LIMIT 1",
+                date('Y-m-d H:i:s', $post_timestamp - $time_window),
+                date('Y-m-d H:i:s', $post_timestamp + $time_window)
+            ));
+            
+            if ($entry_id) {
+                error_log('MKCG Enhanced Lookup: SUCCESS via time correlation: ' . $entry_id);
+                // Create the association for future use
+                $wpdb->update(
+                    $wpdb->prefix . 'frm_items',
+                    ['post_id' => $post_id],
+                    ['id' => $entry_id],
+                    ['%d'],
+                    ['%d']
+                );
+                update_post_meta($post_id, '_mkcg_entry_id', $entry_id);
+                return intval($entry_id);
+            }
+        }
+        
+        error_log('MKCG Enhanced Lookup: FAILED - No entry ID found for post ' . $post_id);
+        return null;
     }
     
     /**
-     * Save data directly to Formidable entry field
+     * ENHANCED: Save data directly to Formidable entry field with validation
      */
     private function save_to_formidable_field($entry_id, $field_id, $value) {
         global $wpdb;
         
+        // Input validation
+        if (!$entry_id || !$field_id || $value === null) {
+            error_log("MKCG Formidable Field Save: Invalid parameters - entry_id: {$entry_id}, field_id: {$field_id}, value: " . (string)$value);
+            return false;
+        }
+        
         $table = $wpdb->prefix . 'frm_item_metas';
+        
+        // Validate that the entry exists
+        $entry_exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}frm_items WHERE id = %d",
+            $entry_id
+        ));
+        
+        if (!$entry_exists) {
+            error_log("MKCG Formidable Field Save: Entry {$entry_id} does not exist");
+            return false;
+        }
         
         // Check if field already exists
         $existing = $wpdb->get_var($wpdb->prepare(
@@ -1182,6 +1333,12 @@ class MKCG_Formidable_Service {
                 ['%s'],
                 ['%d', '%d']
             );
+            
+            if ($result !== false) {
+                error_log("MKCG Formidable Field Save: ✅ UPDATED field {$field_id} for entry {$entry_id}: '" . substr($value, 0, 50) . "'");
+            } else {
+                error_log("MKCG Formidable Field Save: ❌ UPDATE FAILED for field {$field_id} entry {$entry_id}: " . $wpdb->last_error);
+            }
         } else {
             // Insert new field
             $result = $wpdb->insert(
@@ -1193,6 +1350,12 @@ class MKCG_Formidable_Service {
                 ],
                 ['%d', '%d', '%s']
             );
+            
+            if ($result !== false) {
+                error_log("MKCG Formidable Field Save: ✅ INSERTED field {$field_id} for entry {$entry_id}: '" . substr($value, 0, 50) . "'");
+            } else {
+                error_log("MKCG Formidable Field Save: ❌ INSERT FAILED for field {$field_id} entry {$entry_id}: " . $wpdb->last_error);
+            }
         }
         
         return $result !== false;

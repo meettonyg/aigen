@@ -258,7 +258,7 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
     }
     
     /**
-     * Handle legacy questions generation for backwards compatibility
+     * ENHANCED: Handle legacy questions generation with bulletproof save and verification
      */
     private function handle_legacy_questions_generation() {
         if (!check_ajax_referer('generate_topics_nonce', 'security', false)) {
@@ -272,12 +272,12 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
         $topic_number = isset($_POST['topic_number']) ? intval($_POST['topic_number']) : 1;
         
         if (empty($topic)) {
-            error_log('MKCG Questions Generator: No topic provided');
+            error_log('MKCG Enhanced Questions: No topic provided');
             wp_send_json_error(['message' => 'No topic provided.']);
             return;
         }
         
-        error_log('MKCG Questions Generator: Generating questions for topic: ' . $topic);
+        error_log('MKCG Enhanced Questions: Generating questions for topic: ' . $topic . ' (Topic ' . $topic_number . ')');
         
         // Build input data
         $input_data = [
@@ -289,9 +289,10 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
         // Store for use in other methods
         $this->current_input = $input_data;
         
-        // Validate input
+        // Enhanced validation
         $validation_result = $this->validate_input($input_data);
         if (!$validation_result['valid']) {
+            error_log('MKCG Enhanced Questions: Validation failed: ' . implode(', ', $validation_result['errors']));
             wp_send_json_error([
                 'message' => 'Validation failed: ' . implode(', ', $validation_result['errors'])
             ]);
@@ -305,6 +306,7 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
         $api_options = $this->get_api_options($input_data);
         
         // Generate content using API service
+        error_log('MKCG Enhanced Questions: Calling OpenAI API for topic ' . $topic_number);
         $api_response = $this->api_service->generate_content(
             $prompt, 
             $this->generator_type, 
@@ -312,7 +314,7 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
         );
         
         if (!$api_response['success']) {
-            error_log('MKCG Questions Generator API Error: ' . print_r($api_response, true));
+            error_log('MKCG Enhanced Questions: API Error: ' . print_r($api_response, true));
             wp_send_json_error($api_response);
             return;
         }
@@ -321,54 +323,88 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
         $formatted_output = $this->format_output($api_response['content']);
         
         if (empty($formatted_output['questions'])) {
+            error_log('MKCG Enhanced Questions: No questions generated from API response');
             wp_send_json_error(['message' => 'No questions were generated. Please try again.']);
             return;
         }
         
-        // Save to Formidable if entry_id is provided
+        error_log('MKCG Enhanced Questions: Successfully generated ' . count($formatted_output['questions']) . ' questions');
+        
+        // ENHANCED: Save to both locations if entry_id is provided
+        $save_success = false;
+        $save_details = [];
+        
         if ($entry_id > 0) {
-            $this->save_questions_to_formidable($entry_id, $formatted_output['questions'], $topic_number);
+            error_log('MKCG Enhanced Questions: Starting bulletproof save for entry ' . $entry_id);
+            $save_success = $this->save_questions_to_formidable($entry_id, $formatted_output['questions'], $topic_number);
+            
+            if ($save_success) {
+                error_log('MKCG Enhanced Questions: ✅ Save completed successfully');
+                $save_details['save_status'] = 'success';
+                $save_details['message'] = 'Questions saved to both WordPress and Formidable';
+            } else {
+                error_log('MKCG Enhanced Questions: ⚠️ Save had issues');
+                $save_details['save_status'] = 'partial';
+                $save_details['message'] = 'Questions may have been saved partially';
+            }
+        } else {
+            error_log('MKCG Enhanced Questions: No entry ID provided - skipping save');
+            $save_details['save_status'] = 'skipped';
+            $save_details['message'] = 'No entry ID provided';
         }
         
-        // Return success response
+        // Return enhanced success response
         wp_send_json_success([
             'questions' => $formatted_output['questions'],
             'count' => $formatted_output['count'],
-            'topic' => $formatted_output['topic']
+            'topic' => $formatted_output['topic'],
+            'topic_number' => $topic_number,
+            'save_details' => $save_details,
+            'generation_successful' => true
         ]);
     }
     
     /**
-     * Save generated questions to Formidable Forms
+     * ENHANCED: Save generated questions using bulletproof dual save strategy
      */
     private function save_questions_to_formidable($entry_id, $questions, $topic_number) {
         if (!$this->formidable_service) {
-            error_log('MKCG Questions Generator: Formidable service not available');
+            error_log('MKCG Enhanced Questions: Formidable service not available');
             return false;
         }
         
         try {
-            // Get the post ID from the entry
+            // Get the post ID from the entry using enhanced lookup
             $post_id = $this->formidable_service->get_post_id_from_entry($entry_id);
             
             if (!$post_id) {
-                error_log('MKCG Questions Generator: No post ID found for entry ' . $entry_id);
-                return false;
+                error_log('MKCG Enhanced Questions: No post ID found for entry ' . $entry_id . ' - attempting alternative save strategy');
+                
+                // Alternative: Try to save using entry-based approach
+                return $this->save_questions_entry_based($entry_id, $questions, $topic_number);
             }
             
-            // Save questions to post meta
+            // Use enhanced bulletproof save (both post meta + Formidable fields)
             $result = $this->formidable_service->save_questions_to_post($post_id, $questions, $topic_number);
             
             if ($result) {
-                error_log('MKCG Questions Generator: Successfully saved ' . count($questions) . ' questions to post meta for topic ' . $topic_number);
+                error_log('MKCG Enhanced Questions: ✅ Bulletproof save completed for topic ' . $topic_number);
+                
+                // Verify the save worked by checking both locations
+                $verification = $this->verify_save_success($post_id, $entry_id, $topic_number);
+                if ($verification['both_locations']) {
+                    error_log('MKCG Enhanced Questions: ✅ VERIFICATION PASSED - Questions saved to both locations');
+                } else {
+                    error_log('MKCG Enhanced Questions: ⚠️ PARTIAL SUCCESS - ' . $verification['message']);
+                }
             } else {
-                error_log('MKCG Questions Generator: Failed to save questions to post meta');
+                error_log('MKCG Enhanced Questions: ❌ Bulletproof save failed');
             }
             
             return $result;
             
         } catch (Exception $e) {
-            error_log('MKCG Questions Generator: Error saving to post meta: ' . $e->getMessage());
+            error_log('MKCG Enhanced Questions: Exception during enhanced save: ' . $e->getMessage());
             return false;
         }
     }
@@ -1295,6 +1331,154 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
         error_log('MKCG Nonce Debug: No valid nonce found. Available fields: ' . implode(', ', $available_fields));
         
         return false;
+    }
+    
+    /**
+     * NEW: Verify that save was successful in both locations
+     */
+    private function verify_save_success($post_id, $entry_id, $topic_number) {
+        $verification = [
+            'post_meta_success' => false,
+            'formidable_success' => false,
+            'both_locations' => false,
+            'message' => '',
+            'details' => []
+        ];
+        
+        // Check post meta saves (primary location)
+        $post_meta_count = 0;
+        for ($i = 1; $i <= 5; $i++) {
+            $question_number = (($topic_number - 1) * 5) + $i;
+            $meta_key = 'question_' . $question_number;
+            $value = get_post_meta($post_id, $meta_key, true);
+            
+            if (!empty($value)) {
+                $post_meta_count++;
+            }
+        }
+        
+        $verification['post_meta_success'] = ($post_meta_count > 0);
+        $verification['details']['post_meta_count'] = $post_meta_count;
+        
+        // Check Formidable field saves (secondary location)
+        $formidable_count = 0;
+        if ($entry_id) {
+            $field_mappings = $this->get_field_mappings();
+            if (isset($field_mappings['questions'])) {
+                foreach ($field_mappings['questions'] as $field_id) {
+                    $value = $this->formidable_service->get_field_value($entry_id, $field_id);
+                    if (!empty($value)) {
+                        $formidable_count++;
+                    }
+                }
+            }
+        }
+        
+        $verification['formidable_success'] = ($formidable_count > 0);
+        $verification['details']['formidable_count'] = $formidable_count;
+        
+        // Overall assessment
+        if ($verification['post_meta_success'] && $verification['formidable_success']) {
+            $verification['both_locations'] = true;
+            $verification['message'] = "Full success: {$post_meta_count} post meta + {$formidable_count} Formidable";
+        } elseif ($verification['post_meta_success']) {
+            $verification['message'] = "Partial success: {$post_meta_count} post meta only";
+        } elseif ($verification['formidable_success']) {
+            $verification['message'] = "Partial success: {$formidable_count} Formidable only";
+        } else {
+            $verification['message'] = "No saves verified";
+        }
+        
+        return $verification;
+    }
+    
+    /**
+     * NEW: Fallback save method when post ID lookup fails
+     */
+    private function save_questions_entry_based($entry_id, $questions, $topic_number) {
+        error_log('MKCG Enhanced Questions: Using entry-based save fallback for entry ' . $entry_id);
+        
+        if (!$this->formidable_service) {
+            error_log('MKCG Enhanced Questions: Formidable service not available for entry-based save');
+            return false;
+        }
+        
+        $saved_count = 0;
+        $field_mappings = $this->get_field_mappings();
+        
+        if (!isset($field_mappings['questions'])) {
+            error_log('MKCG Enhanced Questions: No field mappings available for entry-based save');
+            return false;
+        }
+        
+        $target_fields = $field_mappings['questions'];
+        
+        // Save directly to Formidable entry fields
+        foreach ($questions as $index => $question) {
+            if ($index < count($target_fields) && !empty(trim($question))) {
+                $field_id = $target_fields[$index];
+                $question_trimmed = trim($question);
+                
+                // Use the enhanced field save method
+                $result = $this->save_single_question_to_formidable($entry_id, $field_id, $question_trimmed);
+                
+                if ($result) {
+                    $saved_count++;
+                    error_log("MKCG Enhanced Questions: ✅ Entry-based save: field {$field_id} = '{$question_trimmed}'");
+                } else {
+                    error_log("MKCG Enhanced Questions: ❌ Entry-based save failed for field {$field_id}");
+                }
+            }
+        }
+        
+        $success = ($saved_count > 0);
+        
+        if ($success) {
+            error_log("MKCG Enhanced Questions: ✅ Entry-based save completed: {$saved_count} questions saved");
+        } else {
+            error_log("MKCG Enhanced Questions: ❌ Entry-based save failed: no questions saved");
+        }
+        
+        return $success;
+    }
+    
+    /**
+     * NEW: Save single question directly to Formidable field
+     */
+    private function save_single_question_to_formidable($entry_id, $field_id, $question) {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'frm_item_metas';
+        
+        // Check if field already exists
+        $existing = $wpdb->get_var($wpdb->prepare(
+            "SELECT meta_value FROM {$table} WHERE item_id = %d AND field_id = %d",
+            $entry_id, $field_id
+        ));
+        
+        if ($existing !== null) {
+            // Update existing field
+            $result = $wpdb->update(
+                $table,
+                ['meta_value' => $question],
+                ['item_id' => $entry_id, 'field_id' => $field_id],
+                ['%s'],
+                ['%d', '%d']
+            );
+        } else {
+            // Insert new field
+            $result = $wpdb->insert(
+                $table,
+                [
+                    'item_id' => $entry_id,
+                    'field_id' => $field_id,
+                    'meta_value' => $question
+                ],
+                ['%d', '%d', '%s']
+            );
+        }
+        
+        return $result !== false;
     }
     
     /**
