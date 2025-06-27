@@ -265,13 +265,73 @@ const QuestionsGenerator = {
     },
     
     /**
-     * Update the selected topic display
+     * NEW: Force update all topic references throughout the page
+     */
+    forceUpdateTopicReferences: function() {
+        const currentTopic = this.selectedTopicText;
+        console.log('MKCG: Force updating all topic references to:', currentTopic);
+        
+        // Find all elements that might contain topic text
+        const possibleSelectors = [
+            'h1, h2, h3, h4, h5, h6',
+            '.topic-heading',
+            '.mkcg-section-title',
+            '.questions-header',
+            '[data-topic-text]'
+        ];
+        
+        possibleSelectors.forEach(selector => {
+            document.querySelectorAll(selector).forEach(element => {
+                if (element.textContent.includes('Interview Questions for') && 
+                    element.textContent.includes('Topic 5 - Click to add')) {
+                    
+                    const newText = `Interview Questions for "${currentTopic}"`;
+                    element.textContent = newText;
+                    console.log('MKCG: Force updated element:', element.tagName, 'to:', newText);
+                }
+            });
+        });
+    },
+    
+    /**
+     * ENHANCED: Update selected topic with comprehensive state management
      */
     updateSelectedTopic: function() {
+        console.log('MKCG: Updating selected topic display to:', this.selectedTopicText);
+        
         const selectedTopicElement = document.querySelector(this.elements.selectedTopicText);
         if (selectedTopicElement) {
             selectedTopicElement.textContent = this.selectedTopicText;
+            console.log('MKCG: Selected topic element updated successfully');
+        } else {
+            console.warn('MKCG: Selected topic element not found:', this.elements.selectedTopicText);
         }
+        
+        // CRITICAL FIX: Also update the topic data in any forms or hidden fields
+        this.syncTopicDataToForms();
+    },
+    
+    /**
+     * NEW: Sync topic data to forms and hidden fields
+     */
+    syncTopicDataToForms: function() {
+        // Update any hidden topic fields
+        const topicFields = document.querySelectorAll('[name*="topic"], [id*="topic"]');
+        topicFields.forEach(field => {
+            if (field.type === 'hidden' && field.value.includes('Topic 5 - Click to add')) {
+                field.value = this.selectedTopicText;
+                console.log('MKCG: Updated hidden field:', field.name || field.id, 'to:', this.selectedTopicText);
+            }
+        });
+        
+        // Update any data attributes
+        const elementsWithTopicData = document.querySelectorAll('[data-topic]');
+        elementsWithTopicData.forEach(element => {
+            if (element.dataset.topic && element.dataset.topic.includes('Topic 5 - Click to add')) {
+                element.dataset.topic = this.selectedTopicText;
+                console.log('MKCG: Updated data-topic attribute to:', this.selectedTopicText);
+            }
+        });
     },
     
     /**
@@ -407,92 +467,270 @@ const QuestionsGenerator = {
     },
     
     /**
-     * ENHANCED: Edit topic inline with backend save functionality
+     * FIXED: Edit topic inline with NO duplication and consistent styling
      */
     editTopicInline: function(topicId, card) {
+        // CRITICAL FIX: Prevent duplication by checking if already editing
+        const existingEditor = card.querySelector('.mkcg-topic-edit-container');
+        if (existingEditor) {
+            console.log('MKCG: Edit already in progress for topic', topicId);
+            return; // Don't create another editor
+        }
+        
+        // CRITICAL FIX: Remove any other active editors first
+        document.querySelectorAll('.mkcg-topic-edit-container').forEach(editor => {
+            editor.remove();
+        });
+        
         const textElement = card.querySelector('.mkcg-topic-text');
         const currentText = this.topicsData[topicId] || '';
         
-        // Create input field with enhanced styling
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.value = currentText;
-        input.className = 'mkcg-topic-editor';
-        input.style.cssText = `
+        console.log('MKCG: Starting edit for topic', topicId, 'with text:', currentText);
+        
+        // Create enhanced editing container
+        const editContainer = document.createElement('div');
+        editContainer.className = 'mkcg-topic-edit-container';
+        editContainer.setAttribute('data-topic-id', topicId); // Track which topic is being edited
+        editContainer.style.cssText = `
+            position: relative;
             width: 100%;
-            padding: 8px 12px;
-            border: 1px solid #1a9bdc;
-            border-radius: 4px;
-            font-size: 15px;
-            font-family: inherit;
-            background: white;
-            color: #333;
-            transition: border-color 0.2s ease;
+            background: #f8f9ff;
+            border: 2px solid #1a9bdc;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 5px 0;
+            box-shadow: 0 4px 12px rgba(26, 155, 220, 0.15);
+            transition: all 0.3s ease;
+            z-index: 100;
         `;
         
-        // Add save indicator
-        const saveIndicator = document.createElement('div');
-        saveIndicator.className = 'mkcg-save-indicator';
-        saveIndicator.style.cssText = `
-            position: absolute;
-            top: -5px;
-            right: -5px;
+        // Create enhanced input field
+        const input = document.createElement('textarea');
+        input.value = currentText;
+        input.placeholder = 'Enter your interview topic (e.g., "How to build authority in your niche through strategic content creation")';
+        input.className = 'mkcg-topic-editor-enhanced';
+        input.style.cssText = `
+            width: 100%;
+            min-height: 60px;
+            padding: 12px 15px;
+            border: 1px solid #e1e8ed;
+            border-radius: 6px;
+            font-size: 15px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: white;
+            color: #333;
+            resize: vertical;
+            transition: all 0.2s ease;
+            line-height: 1.4;
+            box-sizing: border-box;
+            outline: none;
+        `;
+        
+        // Create action buttons container
+        const actionsContainer = document.createElement('div');
+        actionsContainer.className = 'mkcg-edit-actions';
+        actionsContainer.style.cssText = `
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            align-items: center;
+        `;
+        
+        // FIXED: Consistent Save button styling
+        const saveButton = document.createElement('button');
+        saveButton.className = 'mkcg-save-btn';
+        saveButton.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20,6 9,17 4,12"></polyline>
+            </svg>
+            Save Topic
+        `;
+        saveButton.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 6px;
             background: #27ae60;
             color: white;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 10px;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(39, 174, 96, 0.3);
+            min-width: 120px;
+            justify-content: center;
+        `;
+        
+        // FIXED: Consistent Cancel button styling
+        const cancelButton = document.createElement('button');
+        cancelButton.className = 'mkcg-cancel-btn';
+        cancelButton.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+            Cancel
+        `;
+        cancelButton.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(231, 76, 60, 0.3);
+            min-width: 100px;
+            justify-content: center;
+        `;
+        
+        // Character counter
+        const charCounter = document.createElement('div');
+        charCounter.className = 'mkcg-char-counter';
+        charCounter.style.cssText = `
+            margin-left: auto;
+            font-size: 12px;
+            color: #666;
+            font-weight: 600;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        `;
+        
+        // Status indicator
+        const statusIndicator = document.createElement('div');
+        statusIndicator.className = 'mkcg-save-status';
+        statusIndicator.style.cssText = `
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #27ae60;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
             font-weight: bold;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             opacity: 0;
             transition: opacity 0.3s ease;
             pointer-events: none;
             z-index: 10;
         `;
-        saveIndicator.textContent = 'SAVED';
+        statusIndicator.textContent = 'SAVED';
         
-        // Position container relatively for indicator
-        textElement.parentNode.style.position = 'relative';
+        // Help text
+        const helpText = document.createElement('div');
+        helpText.className = 'mkcg-edit-help';
+        helpText.style.cssText = `
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+            font-style: italic;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        `;
+        helpText.innerHTML = `
+            💡 <strong>Tip:</strong> Write a clear, engaging topic that would interest podcast hosts and their audience.
+        `;
         
-        // Replace text with input
+        // Build the edit interface
+        editContainer.appendChild(input);
+        editContainer.appendChild(actionsContainer);
+        editContainer.appendChild(helpText);
+        editContainer.appendChild(statusIndicator);
+        
+        actionsContainer.appendChild(saveButton);
+        actionsContainer.appendChild(cancelButton);
+        actionsContainer.appendChild(charCounter);
+        
+        // FIXED: Better insertion - hide original and insert cleanly
         textElement.style.display = 'none';
-        textElement.parentNode.insertBefore(input, textElement.nextSibling);
-        textElement.parentNode.appendChild(saveIndicator);
+        
+        // Insert after the text element
+        if (textElement.nextSibling) {
+            textElement.parentNode.insertBefore(editContainer, textElement.nextSibling);
+        } else {
+            textElement.parentNode.appendChild(editContainer);
+        }
         
         // Focus and select
-        input.focus();
-        input.select();
+        setTimeout(() => {
+            input.focus();
+            input.select();
+        }, 100);
         
-        // ENHANCED: Save with backend integration
+        // Update character counter
+        const updateCounter = () => {
+            const length = input.value.length;
+            charCounter.textContent = `${length}/200 characters`;
+            
+            // Color coding
+            if (length > 200) {
+                charCounter.style.color = '#e74c3c';
+                input.style.borderColor = '#e74c3c';
+            } else if (length > 150) {
+                charCounter.style.color = '#f39c12';
+                input.style.borderColor = '#f39c12';
+            } else if (length >= 10) {
+                charCounter.style.color = '#27ae60';
+                input.style.borderColor = '#27ae60';
+            } else {
+                charCounter.style.color = '#e74c3c';
+                input.style.borderColor = '#e74c3c';
+            }
+        };
+        
+        updateCounter();
+        input.addEventListener('input', updateCounter);
+        
+        // Enhanced save function
         const save = () => {
             const newText = input.value.trim();
             
-            // Validate input
+            // Enhanced validation
             if (!newText) {
-                this.showNotification('Topic cannot be empty', 'error');
-                input.focus();
+                this.showValidationError('Topic cannot be empty', input);
                 return;
             }
             
-            if (newText.length < 5) {
-                this.showNotification('Topic must be at least 5 characters', 'error');
-                input.focus();
+            if (newText.length < 10) {
+                this.showValidationError('Topic must be at least 10 characters', input);
+                return;
+            }
+            
+            if (newText.length > 200) {
+                this.showValidationError('Topic cannot exceed 200 characters', input);
                 return;
             }
             
             // Check if actually changed
             if (newText === currentText) {
-                this.cleanup();
+                cleanup();
                 return;
             }
             
-            // Show saving state
-            input.disabled = true;
-            input.style.opacity = '0.7';
-            saveIndicator.textContent = 'SAVING...';
-            saveIndicator.style.background = '#f39c12';
-            saveIndicator.style.opacity = '1';
+            // Show saving state with consistent styling
+            saveButton.disabled = true;
+            saveButton.innerHTML = `
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z"></path>
+                </svg>
+                Saving...
+            `;
+            saveButton.style.background = '#f39c12';
             
-            // Update frontend state immediately for responsiveness
+            statusIndicator.textContent = 'SAVING...';
+            statusIndicator.style.background = '#f39c12';
+            statusIndicator.style.opacity = '1';
+            
+            // Update frontend state immediately
             this.topicsData[topicId] = newText;
             textElement.textContent = newText;
             
@@ -502,13 +740,13 @@ const QuestionsGenerator = {
                 this.updateSelectedTopicHeading();
             }
             
-            // CRITICAL FIX: Save to backend via AJAX
+            // Save to backend
             const postId = document.getElementById('mkcg-post-id')?.value;
             
             if (!postId) {
-                console.warn('MKCG Inline Edit: No post ID available, saving to frontend only');
-                this.showSaveSuccess();
-                this.cleanup();
+                console.warn('MKCG Enhanced Edit: No post ID available, saving to frontend only');
+                showSaveSuccess();
+                setTimeout(cleanup, 1500);
                 return;
             }
             
@@ -518,116 +756,180 @@ const QuestionsGenerator = {
                 topic_text: newText
             };
             
-            console.log('MKCG Inline Edit: Saving topic', topicId, 'to backend:', saveData);
+            console.log('MKCG: Saving topic', topicId, 'to backend');
             
-            // Make AJAX request to save topic
             this.makeAjaxRequest('mkcg_save_topic', saveData)
                 .then(response => {
                     if (response.success) {
-                        console.log('MKCG Inline Edit: Successfully saved topic', topicId, 'to backend');
-                        this.showSaveSuccess();
-                        
-                        // Update data quality tracking
-                        this.dataQuality.topics = 'good'; // Assume good quality after successful save
-                        this.dataQuality.last_check = Date.now();
-                        
+                        console.log('MKCG: Topic', topicId, 'saved successfully');
+                        showSaveSuccess();
                     } else {
-                        console.error('MKCG Inline Edit: Backend save failed:', response.data);
-                        this.showSaveError(response.data?.message || 'Save failed');
+                        console.error('MKCG: Save failed:', response.data);
+                        showSaveError(response.data?.message || 'Save failed');
                     }
                 })
                 .catch(error => {
-                    console.error('MKCG Inline Edit: AJAX error:', error);
-                    this.showSaveError('Network error - topic saved locally only');
+                    console.error('MKCG: AJAX error:', error);
+                    showSaveError('Network error - topic saved locally only');
                 })
                 .finally(() => {
-                    this.cleanup();
+                    setTimeout(cleanup, 2000);
                 });
         };
         
-        // Enhanced cleanup function
-        this.cleanup = () => {
-            input.remove();
-            saveIndicator.remove();
-            textElement.style.display = '';
-            textElement.parentNode.style.position = '';
-        };
-        
-        // Save success indicator
-        this.showSaveSuccess = () => {
-            saveIndicator.textContent = 'SAVED';
-            saveIndicator.style.background = '#27ae60';
-            saveIndicator.style.opacity = '1';
+        // FIXED: Enhanced cleanup with proper removal
+        const cleanup = () => {
+            console.log('MKCG: Cleaning up edit interface for topic', topicId);
+            
+            // Smooth fadeout
+            editContainer.style.opacity = '0';
+            editContainer.style.transform = 'scale(0.95)';
             
             setTimeout(() => {
-                if (saveIndicator.parentNode) {
-                    saveIndicator.style.opacity = '0';
+                if (editContainer.parentNode) {
+                    editContainer.remove();
                 }
-            }, 2000);
+                textElement.style.display = '';
+            }, 200);
         };
         
-        // Save error indicator
-        this.showSaveError = (message) => {
-            saveIndicator.textContent = 'ERROR';
-            saveIndicator.style.background = '#e74c3c';
-            saveIndicator.style.opacity = '1';
+        // Success indicator with consistent styling
+        const showSaveSuccess = () => {
+            statusIndicator.textContent = 'SAVED ✓';
+            statusIndicator.style.background = '#27ae60';
+            statusIndicator.style.opacity = '1';
             
-            this.showNotification(message, 'warning');
+            saveButton.innerHTML = `
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20,6 9,17 4,12"></polyline>
+                </svg>
+                Saved!
+            `;
+            saveButton.style.background = '#27ae60';
+            saveButton.disabled = false;
             
-            setTimeout(() => {
-                if (saveIndicator.parentNode) {
-                    saveIndicator.style.opacity = '0';
-                }
-            }, 3000);
+            this.showNotification('Topic saved successfully!', 'success');
         };
         
-        // Cancel on Escape
-        const cancel = () => {
-            this.cleanup();
+        // Error indicator
+        const showSaveError = (message) => {
+            statusIndicator.textContent = 'ERROR';
+            statusIndicator.style.background = '#e74c3c';
+            statusIndicator.style.opacity = '1';
+            
+            saveButton.innerHTML = `
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+                Try Again
+            `;
+            saveButton.style.background = '#e74c3c';
+            saveButton.disabled = false;
+            
+            this.showNotification(message, 'error');
         };
         
-        // Enhanced event handling
-        input.addEventListener('blur', save);
+        // Event handlers
+        saveButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            save();
+        });
+        
+        cancelButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            cleanup();
+        });
+        
+        // Keyboard shortcuts
         input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
                 save();
             } else if (e.key === 'Escape') {
                 e.preventDefault();
-                cancel();
+                cleanup();
             }
         });
         
-        // Visual feedback on input
-        input.addEventListener('input', () => {
-            const length = input.value.trim().length;
-            if (length === 0) {
-                input.style.borderColor = '#e74c3c';
-            } else if (length < 5) {
-                input.style.borderColor = '#f39c12';
-            } else {
-                input.style.borderColor = '#27ae60';
+        // FIXED: Consistent hover effects
+        saveButton.addEventListener('mouseenter', () => {
+            if (!saveButton.disabled) {
+                saveButton.style.background = '#229954';
+                saveButton.style.transform = 'translateY(-1px)';
+                saveButton.style.boxShadow = '0 4px 8px rgba(39, 174, 96, 0.4)';
             }
+        });
+        
+        saveButton.addEventListener('mouseleave', () => {
+            if (!saveButton.disabled) {
+                saveButton.style.background = '#27ae60';
+                saveButton.style.transform = 'translateY(0)';
+                saveButton.style.boxShadow = '0 2px 4px rgba(39, 174, 96, 0.3)';
+            }
+        });
+        
+        cancelButton.addEventListener('mouseenter', () => {
+            cancelButton.style.background = '#c0392b';
+            cancelButton.style.transform = 'translateY(-1px)';
+            cancelButton.style.boxShadow = '0 4px 8px rgba(231, 76, 60, 0.4)';
+        });
+        
+        cancelButton.addEventListener('mouseleave', () => {
+            cancelButton.style.background = '#e74c3c';
+            cancelButton.style.transform = 'translateY(0)';
+            cancelButton.style.boxShadow = '0 2px 4px rgba(231, 76, 60, 0.3)';
         });
     },
     
     /**
-     * Update the selected topic heading in the Questions Generator
+     * FIXED: Update the selected topic heading with proper data synchronization
      */
     updateSelectedTopicHeading: function() {
+        console.log('MKCG: Updating heading for topic', this.selectedTopicId, 'with text:', this.selectedTopicText);
+        
         // Update the heading in the Questions for Topic section
         const questionsHeading = document.querySelector('#mkcg-questions-heading');
         if (questionsHeading) {
-            questionsHeading.textContent = `Interview Questions for "${this.selectedTopicText}"`;
+            const newHeadingText = `Interview Questions for "${this.selectedTopicText}"`;
+            questionsHeading.textContent = newHeadingText;
+            console.log('MKCG: Updated questions heading to:', newHeadingText);
+        } else {
+            console.warn('MKCG: Questions heading element not found (#mkcg-questions-heading)');
         }
         
-        // Also update the selected topic text display
+        // CRITICAL FIX: Also update any other heading elements that might exist
+        const alternativeHeadings = [
+            '.mkcg-questions-header h3',
+            '.mkcg-questions-title', 
+            '[data-questions-heading]',
+            'h3:contains("Interview Questions for")',
+            '.mkcg-section-title'
+        ];
+        
+        alternativeHeadings.forEach(selector => {
+            const element = document.querySelector(selector);
+            if (element && element.textContent.includes('Interview Questions for')) {
+                const newText = `Interview Questions for "${this.selectedTopicText}"`;
+                element.textContent = newText;
+                console.log('MKCG: Updated alternative heading:', selector, 'to:', newText);
+            }
+        });
+        
+        // Update the selected topic text display
         const selectedTopicElement = document.querySelector(this.elements.selectedTopicText);
         if (selectedTopicElement) {
             selectedTopicElement.textContent = this.selectedTopicText;
+            console.log('MKCG: Updated selected topic display to:', this.selectedTopicText);
         }
         
-        // Hide all question sets and show only the selected one
+        // CRITICAL FIX: Force update any dynamic elements that show topic text
+        this.forceUpdateTopicReferences();
+        
+        // Show questions for the selected topic
         this.showQuestionsForTopic(this.selectedTopicId);
     },
     
@@ -1130,6 +1432,27 @@ const QuestionsGenerator = {
             };
             updateText();
         }
+    },
+    
+    /**
+     * NEW: Show validation error with field highlighting
+     */
+    showValidationError: function(message, field) {
+        // Highlight the field with error styling
+        field.style.borderColor = '#e74c3c';
+        field.style.boxShadow = '0 0 0 2px rgba(231, 76, 60, 0.2)';
+        
+        // Show error notification
+        this.showNotification(message, 'error');
+        
+        // Focus the field
+        field.focus();
+        
+        // Remove error styling after a delay
+        setTimeout(() => {
+            field.style.borderColor = '';
+            field.style.boxShadow = '';
+        }, 3000);
     },
     
     /**
