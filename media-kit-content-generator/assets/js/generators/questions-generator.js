@@ -54,10 +54,13 @@ const QuestionsGenerator = {
      * ENHANCED INITIALIZATION with data validation and health monitoring
      */
     init: function() {
-        console.log('MKCG Enhanced Questions: Initializing with data validation');
+        console.log('MKCG Enhanced Questions: Initializing with centralized data manager');
         this.performance.loadStartTime = performance.now();
         
         try {
+            // CRITICAL FIX: Initialize centralized data manager first
+            this.initializeCentralizedDataManager();
+            
             // Initialize with enhanced data validation
             this.loadAndValidateTopicsData();
             this.bindEnhancedEvents();
@@ -77,6 +80,70 @@ const QuestionsGenerator = {
         } catch (error) {
             this.performance.errorCount++;
             this.handleError(error, 'initialization', () => this.init());
+        }
+    },
+    
+    /**
+     * CRITICAL FIX: Initialize centralized data manager
+     */
+    initializeCentralizedDataManager: function() {
+        if (typeof MKCG_DataManager === 'undefined') {
+            console.error('❌ MKCG Data Manager not available! Topic sync will be limited.');
+            return;
+        }
+        
+        // Set up listeners for topic updates from Topics Generator
+        MKCG_DataManager.on('topic:updated', (data) => {
+            console.log('🔄 Questions Generator: Received topic update', data);
+            this.handleTopicUpdate(data);
+        });
+        
+        MKCG_DataManager.on('topic:selected', (data) => {
+            console.log('🎯 Questions Generator: Topic selection changed', data);
+            this.handleTopicSelectionFromOtherGenerator(data);
+        });
+        
+        console.log('✅ Questions Generator: Centralized data manager integrated');
+    },
+    
+    /**
+     * CRITICAL FIX: Handle topic updates from centralized data manager
+     */
+    handleTopicUpdate: function(data) {
+        const { topicId, newText, oldText } = data;
+        
+        // Update our local topics data
+        this.topicsData[topicId] = newText;
+        
+        // If this is the currently selected topic, update the UI immediately
+        if (topicId === this.selectedTopicId) {
+            console.log('🔄 Updating selected topic UI for topic', topicId);
+            this.selectedTopicText = newText;
+            this.updateSelectedTopic();
+            this.updateSelectedTopicHeading();
+        }
+        
+        // Update topic card if it exists
+        const topicCard = document.querySelector(`[data-topic="${topicId}"]`);
+        if (topicCard) {
+            const textElement = topicCard.querySelector('.mkcg-topic-text');
+            if (textElement) {
+                textElement.textContent = newText;
+                console.log(`🔄 Updated topic card ${topicId} display`);
+            }
+        }
+    },
+    
+    /**
+     * CRITICAL FIX: Handle topic selection from other generators
+     */
+    handleTopicSelectionFromOtherGenerator: function(data) {
+        const { topicId, topicText } = data;
+        
+        // Update our selection if it's different
+        if (topicId !== this.selectedTopicId) {
+            console.log('🎯 Questions Generator: Auto-selecting topic', topicId, 'from external source');
+            this.selectTopic(topicId);
         }
     },
     
@@ -730,6 +797,16 @@ const QuestionsGenerator = {
             statusIndicator.style.background = '#f39c12';
             statusIndicator.style.opacity = '1';
             
+            // CRITICAL FIX: Update centralized data manager first
+            if (window.MKCG_DataManager) {
+                try {
+                    MKCG_DataManager.setTopic(topicId, newText);
+                    console.log('✅ Updated centralized data manager for topic', topicId);
+                } catch (error) {
+                    console.error('❌ Failed to update centralized data:', error);
+                }
+            }
+            
             // Update frontend state immediately
             this.topicsData[topicId] = newText;
             textElement.textContent = newText;
@@ -886,15 +963,26 @@ const QuestionsGenerator = {
     },
     
     /**
-     * FIXED: Update the selected topic heading with proper data synchronization
+     * CRITICAL FIX: Update the selected topic heading with proper data synchronization
      */
     updateSelectedTopicHeading: function() {
         console.log('MKCG: Updating heading for topic', this.selectedTopicId, 'with text:', this.selectedTopicText);
         
+        // CRITICAL FIX: Get the latest topic text from centralized data manager
+        let currentTopicText = this.selectedTopicText;
+        if (window.MKCG_DataManager) {
+            const latestTopic = MKCG_DataManager.getTopic(this.selectedTopicId);
+            if (latestTopic && latestTopic.length > 0) {
+                currentTopicText = latestTopic;
+                this.selectedTopicText = latestTopic;
+                console.log('✅ Using latest topic text from data manager:', latestTopic);
+            }
+        }
+        
         // Update the heading in the Questions for Topic section
         const questionsHeading = document.querySelector('#mkcg-questions-heading');
         if (questionsHeading) {
-            const newHeadingText = `Interview Questions for "${this.selectedTopicText}"`;
+            const newHeadingText = `Interview Questions for "${currentTopicText}"`;
             questionsHeading.textContent = newHeadingText;
             console.log('MKCG: Updated questions heading to:', newHeadingText);
         } else {
@@ -906,24 +994,32 @@ const QuestionsGenerator = {
             '.mkcg-questions-header h3',
             '.mkcg-questions-title', 
             '[data-questions-heading]',
-            'h3:contains("Interview Questions for")',
             '.mkcg-section-title'
         ];
         
         alternativeHeadings.forEach(selector => {
             const element = document.querySelector(selector);
             if (element && element.textContent.includes('Interview Questions for')) {
-                const newText = `Interview Questions for "${this.selectedTopicText}"`;
+                const newText = `Interview Questions for "${currentTopicText}"`;
                 element.textContent = newText;
                 console.log('MKCG: Updated alternative heading:', selector, 'to:', newText);
+            }
+        });
+        
+        // CRITICAL FIX: Find and update ALL h3 elements containing "Interview Questions for"
+        document.querySelectorAll('h3').forEach(h3 => {
+            if (h3.textContent.includes('Interview Questions for')) {
+                const newText = `Interview Questions for "${currentTopicText}"`;
+                h3.textContent = newText;
+                console.log('✅ FORCE UPDATED H3 heading to:', newText);
             }
         });
         
         // Update the selected topic text display
         const selectedTopicElement = document.querySelector(this.elements.selectedTopicText);
         if (selectedTopicElement) {
-            selectedTopicElement.textContent = this.selectedTopicText;
-            console.log('MKCG: Updated selected topic display to:', this.selectedTopicText);
+            selectedTopicElement.textContent = currentTopicText;
+            console.log('MKCG: Updated selected topic display to:', currentTopicText);
         }
         
         // CRITICAL FIX: Force update any dynamic elements that show topic text
@@ -1599,13 +1695,43 @@ const QuestionsGenerator = {
     // =============================================================
     
     /**
+     * CRITICAL FIX: Sync latest topic data from centralized data manager before save
+     */
+    syncLatestTopicData: function() {
+        if (window.MKCG_DataManager) {
+            console.log('🔄 Syncing latest topic data from centralized data manager');
+            
+            // Get latest data for all topics
+            for (let topicId = 1; topicId <= 5; topicId++) {
+                const latestTopic = MKCG_DataManager.getTopic(topicId);
+                if (latestTopic && latestTopic.length > 0) {
+                    this.topicsData[topicId] = latestTopic;
+                    console.log(`✅ Updated local topic ${topicId} to:`, latestTopic.substring(0, 50) + '...');
+                }
+            }
+            
+            // Update selected topic if needed
+            const selectedLatest = MKCG_DataManager.getTopic(this.selectedTopicId);
+            if (selectedLatest && selectedLatest !== this.selectedTopicText) {
+                this.selectedTopicText = selectedLatest;
+                console.log('✅ Updated selected topic text to latest:', selectedLatest);
+            }
+        } else {
+            console.warn('❌ MKCG Data Manager not available for sync');
+        }
+    },
+    
+    /**
      * ENHANCED: Save all questions with comprehensive validation and error handling
      */
     saveAllQuestions: function() {
+        // CRITICAL FIX: Sync latest topic data before saving
+        this.syncLatestTopicData();
+        
         const postId = document.getElementById('mkcg-post-id')?.value;
         const entryId = document.getElementById('mkcg-entry-id')?.value;
         
-        console.log('MKCG Enhanced Save: Starting save process');
+        console.log('MKCG Enhanced Save: Starting save process with latest data');
         console.log('MKCG Enhanced Save: postId:', postId, 'entryId:', entryId);
         
         if (!postId) {

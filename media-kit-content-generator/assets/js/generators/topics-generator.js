@@ -53,13 +53,86 @@
      * Initialize the Topics Generator
      */
     init: function() {
-      console.log('🎯 Topics Generator: Initializing with BEM methodology');
+      console.log('🎯 Topics Generator: Initializing with centralized data manager');
+      
+      // CRITICAL FIX: Initialize centralized data manager first
+      this.initializeDataManager();
       
       // Load existing data FIRST before doing anything else
       this.loadExistingData();
       
       this.bindEvents();
       // Don't call updateAuthorityHook() here - let loadExistingData() handle it
+    },
+    
+    /**
+     * CRITICAL FIX: Initialize centralized data manager
+     */
+    initializeDataManager: function() {
+      if (typeof MKCG_DataManager === 'undefined') {
+        console.error('❌ MKCG Data Manager not loaded! Topic sync will not work.');
+        return;
+      }
+      
+      // Get initial data for data manager
+      const initialData = {
+        topics: {},
+        selectedTopicId: 1,
+        postId: window.MKCG_Topics_Data?.entryId || 0,
+        entryId: window.MKCG_Topics_Data?.entryId || 0
+      };
+      
+      // Load topics from PHP data if available
+      if (window.MKCG_Topics_Data && window.MKCG_Topics_Data.topics) {
+        Object.assign(initialData.topics, window.MKCG_Topics_Data.topics);
+      }
+      
+      // Initialize the data manager
+      MKCG_DataManager.init(initialData);
+      
+      // Set up event listeners for data synchronization
+      this.setupDataSyncListeners();
+      
+      console.log('✅ Topics Generator: Data Manager initialized');
+    },
+    
+    /**
+     * CRITICAL FIX: Set up data synchronization listeners
+     */
+    setupDataSyncListeners: function() {
+      // Listen for topic updates from other generators
+      MKCG_DataManager.on('topic:updated', (data) => {
+        console.log('🔄 Topics Generator: Received topic update', data);
+        this.handleExternalTopicUpdate(data);
+      });
+      
+      // Listen for topic selection changes
+      MKCG_DataManager.on('topic:selected', (data) => {
+        console.log('🎯 Topics Generator: Topic selection changed', data);
+        this.handleTopicSelectionChange(data);
+      });
+    },
+    
+    /**
+     * CRITICAL FIX: Handle external topic updates
+     */
+    handleExternalTopicUpdate: function(data) {
+      const { topicId, newText } = data;
+      
+      // Update form field if it exists
+      const fieldElement = document.querySelector(`#topics-generator-topic-field-${topicId}`);
+      if (fieldElement && fieldElement.value !== newText) {
+        fieldElement.value = newText;
+        console.log(`🔄 Updated form field ${topicId} to:`, newText);
+      }
+    },
+    
+    /**
+     * CRITICAL FIX: Handle topic selection changes
+     */
+    handleTopicSelectionChange: function(data) {
+      // This will be used when Questions Generator selects topics
+      console.log('🎯 Topics Generator: Topic selection changed to', data.topicId, data.topicText);
     },
     
     /**
@@ -392,6 +465,20 @@
       const fieldValue = inputElement.value;
       
       if (!fieldName || !fieldValue.trim()) return;
+      
+      // CRITICAL FIX: Extract topic number and update centralized data manager
+      const topicMatch = inputElement.id.match(/topic-field-(\d+)/);
+      if (topicMatch) {
+        const topicId = parseInt(topicMatch[1]);
+        if (window.MKCG_DataManager) {
+          try {
+            MKCG_DataManager.setTopic(topicId, fieldValue);
+            console.log('✅ Auto-save updated centralized data for topic', topicId);
+          } catch (error) {
+            console.error('❌ Auto-save failed to update centralized data:', error);
+          }
+        }
+      }
       
       // Use MKCG_FormUtils to make AJAX request
       if (window.MKCG_FormUtils) {
@@ -738,22 +825,32 @@
       const inputElement = document.querySelector(fieldSelector);
       
       if (inputElement) {
-      inputElement.value = this.selectedTopic.text;
-      this.autoSaveField(inputElement);
-      
-      // Broadcast topic selection event using FormUtils
-      if (window.MKCG_FormUtils && MKCG_FormUtils.events) {
-      MKCG_FormUtils.events.trigger('topic:selected', {
-      topicId: this.selectedTopic.number,
-      topicText: this.selectedTopic.text
-      });
-      
-      // Also store in data cache for cross-generator use
-      MKCG_FormUtils.data.set('selected_topic', {
-      id: this.selectedTopic.number,
-      text: this.selectedTopic.text
-      });
-      }
+        inputElement.value = this.selectedTopic.text;
+        this.autoSaveField(inputElement);
+        
+        // CRITICAL FIX: Update centralized data manager
+        if (window.MKCG_DataManager) {
+          try {
+            MKCG_DataManager.setTopic(fieldNumber, this.selectedTopic.text);
+            console.log('✅ Updated centralized data for topic', fieldNumber);
+          } catch (error) {
+            console.error('❌ Failed to update centralized data:', error);
+          }
+        }
+        
+        // Broadcast topic selection event using FormUtils (legacy support)
+        if (window.MKCG_FormUtils && MKCG_FormUtils.events) {
+          MKCG_FormUtils.events.trigger('topic:selected', {
+            topicId: this.selectedTopic.number,
+            topicText: this.selectedTopic.text
+          });
+          
+          // Also store in data cache for cross-generator use
+          MKCG_FormUtils.data.set('selected_topic', {
+            id: this.selectedTopic.number,
+            text: this.selectedTopic.text
+          });
+        }
       }
       
       this.closeModal();

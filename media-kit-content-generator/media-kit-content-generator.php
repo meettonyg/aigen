@@ -220,11 +220,20 @@ class Media_Kit_Content_Generator {
         // Enqueue jQuery
         wp_enqueue_script('jquery');
         
+        // CRITICAL FIX: Enqueue centralized data manager FIRST
+        wp_enqueue_script(
+            'mkcg-data-manager', 
+            MKCG_PLUGIN_URL . 'assets/js/mkcg-data-manager.js', 
+            [], // No dependencies - pure vanilla JS
+            MKCG_VERSION, 
+            true
+        );
+        
         // Enqueue enhanced FormUtils
         wp_enqueue_script(
             'mkcg-form-utils', 
             MKCG_PLUGIN_URL . 'assets/js/mkcg-form-utils.js', 
-            ['jquery'], 
+            ['jquery', 'mkcg-data-manager'], // Add data manager dependency
             MKCG_VERSION, 
             true
         );
@@ -238,20 +247,20 @@ class Media_Kit_Content_Generator {
             true
         );
         
-        // Enqueue Topics Generator (depends on Authority Hook Builder)
+        // Enqueue Topics Generator (depends on Authority Hook Builder and Data Manager)
         wp_enqueue_script(
             'mkcg-topics-generator', 
             MKCG_PLUGIN_URL . 'assets/js/generators/topics-generator.js', 
-            ['mkcg-authority-hook-builder'], 
+            ['mkcg-authority-hook-builder', 'mkcg-data-manager'], 
             MKCG_VERSION, 
             true
         );
         
-        // Enqueue Questions Generator (depends on FormUtils)
+        // Enqueue Questions Generator (depends on FormUtils and Data Manager)
         wp_enqueue_script(
             'mkcg-questions-generator', 
             MKCG_PLUGIN_URL . 'assets/js/generators/questions-generator.js', 
-            ['mkcg-form-utils'], 
+            ['mkcg-form-utils', 'mkcg-data-manager'], 
             MKCG_VERSION, 
             true
         );
