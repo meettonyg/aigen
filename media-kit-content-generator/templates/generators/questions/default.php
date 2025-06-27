@@ -1,4 +1,13 @@
-<?php
+<style>
+    /* Add style for the subheading */
+    .mkcg-topic-questions-subheading {
+      font-size: 14px;
+      color: #5a6d7e;
+      margin-top: 5px;
+      margin-bottom: 15px;
+      font-style: italic;
+    }
+  </style><?php
 /**
  * Questions Generator Template - Enhanced with Inline Topic Editing
  * Matches original Topics Generator design with editing functionality
@@ -106,6 +115,16 @@ if (empty($available_topics)) {
 ?>
 
 <div class="mkcg-questions-generator-wrapper">
+    <style>
+    /* Add style for the subheading */
+    .mkcg-topic-questions-subheading {
+      font-size: 14px;
+      color: #5a6d7e;
+      margin-top: 5px;
+      margin-bottom: 15px;
+      font-style: italic;
+    }
+    </style>
     <div class="mkcg-container">
         <div class="mkcg-onboard-header">
             <h1 class="mkcg-tool-title">Create Your Interview Questions</h1>
@@ -217,7 +236,8 @@ if (empty($available_topics)) {
                     <?php for ($topic_num = 1; $topic_num <= 5; $topic_num++): ?>
                         <div class="mkcg-topic-questions" id="mkcg-topic-<?php echo $topic_num; ?>-questions" style="<?php echo $topic_num === 1 ? 'display: block;' : 'display: none;'; ?>">
                             <div class="mkcg-topic-questions-header">
-                                <h3 id="mkcg-questions-heading">Questions for Topic <?php echo $topic_num; ?>: <span class="topic-title"><?php echo !empty($all_topics[$topic_num]) ? esc_html($all_topics[$topic_num]) : 'Add topic above'; ?></span></h3>
+                                <h3 id="mkcg-questions-heading">Interview Questions for "<?php echo !empty($all_topics[$topic_num]) ? esc_html($all_topics[$topic_num]) : 'Add topic above'; ?>"</h3>
+                                <p class="mkcg-topic-questions-subheading">Each topic has 5 interview questions</p>
                             </div>
                             
                             <?php 
@@ -228,14 +248,17 @@ if (empty($available_topics)) {
                             <?php for ($q = 1; $q <= 5; $q++): ?>
                                 <div class="mkcg-form-field">
                                     <div class="mkcg-form-field-label">
-                                        <div class="mkcg-form-field-number"><?php echo $q; ?></div>
-                                        <div class="mkcg-form-field-title">Question <?php echo $q; ?></div>
-                                    </div>
+                                    <div class="mkcg-form-field-number"><?php echo $q; ?></div>
+                                    <div class="mkcg-form-field-title"><?php 
+                                    $ordinals = ['First', 'Second', 'Third', 'Fourth', 'Fifth'];
+                                    echo $ordinals[$q-1] . ' Interview Question'; 
+                                    ?></div>
+                                </div>
                                     <textarea 
                                         class="mkcg-form-field-input" 
                                         id="mkcg-question-field-<?php echo $topic_num; ?>-<?php echo $q; ?>" 
                                         name="field_question_<?php echo $topic_num; ?>_<?php echo $q; ?>" 
-                                        placeholder="Enter question <?php echo $q; ?> for this topic..."
+                                        placeholder="Enter the <?php echo $ordinals[$q-1]; ?> interview question for this topic..."
                                         rows="3"
                                     ><?php echo isset($topic_questions[$q]) ? esc_textarea($topic_questions[$q]) : ''; ?></textarea>
                                     

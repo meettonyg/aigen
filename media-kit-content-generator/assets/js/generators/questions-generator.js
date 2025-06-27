@@ -254,7 +254,7 @@ const QuestionsGenerator = {
         // Update the heading in the Questions for Topic section
         const questionsHeading = document.querySelector('#mkcg-questions-heading');
         if (questionsHeading) {
-            questionsHeading.textContent = `Questions for Topic ${this.selectedTopicId}: ${this.selectedTopicText}`;
+            questionsHeading.textContent = `Interview Questions for "${this.selectedTopicText}"`;
         }
         
         // Also update the selected topic text display
@@ -375,7 +375,10 @@ const QuestionsGenerator = {
             
             const numberDiv = document.createElement('div');
             numberDiv.className = 'mkcg-question-number';
-            numberDiv.textContent = `Question ${questionNumber}:`;
+            
+            // Use ordinal names instead of "Question X"
+            const ordinals = ['First', 'Second', 'Third', 'Fourth', 'Fifth'];
+            numberDiv.textContent = `${ordinals[questionNumber-1]} Interview Question:`;
             
             const textDiv = document.createElement('div');
             textDiv.className = 'mkcg-question-text';

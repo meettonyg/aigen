@@ -4,16 +4,17 @@
 git add .
 
 # Commit with a detailed message
-git commit -m "Fix Questions Generator Topic Question Sets
+git commit -m "Update Questions Generator Field Labels
 
-Implemented topic-based question set switching:
-- Added showQuestionsForTopic method to show/hide question sets
-- Enhanced selectTopic method to update both heading and question fields
-- Simplified code to work as standalone generator without dependencies
-- Improved user experience by showing relevant questions for each topic
+Changed question labels to use ordinal naming:
+- Renamed 'Question 1, 2, 3' to 'First, Second, Third Interview Question'
+- Updated the section heading to 'Interview Questions for \"Topic Name\"'
+- Added explanatory subheading 'Each topic has 5 interview questions'
+- Updated placeholders in text fields to match the new naming scheme
+- Fixed heading updates when selecting different topics
 
-This fixes the issue where changing topics didn't update the displayed
-question fields (questions 1-5 for Topic 1, 6-10 for Topic 2, etc.)."
+This provides better clarity about the question hierarchy
+and improves the user experience when filling out the form."
 
 # Show commit details
 git show --stat
