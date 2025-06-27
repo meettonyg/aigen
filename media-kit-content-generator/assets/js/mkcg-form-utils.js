@@ -12,6 +12,84 @@ const MKCG_FormUtils = {
         retryAttempts: 2
     },
     
+    // Event system for cross-generator communication
+    events: {
+        listeners: {},
+        
+        // Add event listener
+        on: function(event, callback) {
+            if (!this.listeners[event]) {
+                this.listeners[event] = [];
+            }
+            this.listeners[event].push(callback);
+            MKCG_FormUtils.log('Event listener added for: ' + event);
+            return this;
+        },
+        
+        // Remove event listener
+        off: function(event, callback) {
+            if (!this.listeners[event]) return this;
+            
+            if (callback) {
+                this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
+            } else {
+                delete this.listeners[event];
+            }
+            
+            return this;
+        },
+        
+        // Trigger event
+        trigger: function(event, data) {
+            MKCG_FormUtils.log('Event triggered: ' + event, data);
+            if (!this.listeners[event]) return;
+            
+            this.listeners[event].forEach(callback => {
+                try {
+                    callback(data);
+                } catch (error) {
+                    console.error('Error in event listener:', error);
+                }
+            });
+            
+            return this;
+        }
+    },
+    
+    // Cross-generator data sharing
+    data: {
+        cache: {},
+        
+        // Set data
+        set: function(key, value) {
+            this.cache[key] = value;
+            
+            // Trigger data change event
+            MKCG_FormUtils.events.trigger('data:change:' + key, value);
+            MKCG_FormUtils.events.trigger('data:change', { key: key, value: value });
+            
+            return this;
+        },
+        
+        // Get data
+        get: function(key, defaultValue = null) {
+            // Return from memory cache
+            return (this.cache[key] !== undefined) ? this.cache[key] : defaultValue;
+        },
+        
+        // Remove data
+        remove: function(key) {
+            delete this.cache[key];
+            return this;
+        },
+        
+        // Clear all data
+        clear: function() {
+            this.cache = {};
+            return this;
+        }
+    },
+    
     // Initialize the FormUtils
     init: function() {
         this.log('MKCG FormUtils initialized with BEM support');

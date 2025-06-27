@@ -217,7 +217,7 @@ if (empty($available_topics)) {
                     <?php for ($topic_num = 1; $topic_num <= 5; $topic_num++): ?>
                         <div class="mkcg-topic-questions" id="mkcg-topic-<?php echo $topic_num; ?>-questions" style="<?php echo $topic_num === 1 ? 'display: block;' : 'display: none;'; ?>">
                             <div class="mkcg-topic-questions-header">
-                                <h3>Questions for Topic <?php echo $topic_num; ?>: <span class="topic-title"><?php echo !empty($all_topics[$topic_num]) ? esc_html($all_topics[$topic_num]) : 'Add topic above'; ?></span></h3>
+                                <h3 id="mkcg-questions-heading">Questions for Topic <?php echo $topic_num; ?>: <span class="topic-title"><?php echo !empty($all_topics[$topic_num]) ? esc_html($all_topics[$topic_num]) : 'Add topic above'; ?></span></h3>
                             </div>
                             
                             <?php 
@@ -348,8 +348,13 @@ const MKCG_TopicsData = <?php echo json_encode($all_topics); ?>;
 const MKCG_ExistingQuestions = <?php echo json_encode($existing_questions); ?>;
 const MKCG_PostId = <?php echo json_encode($post_id); ?>;
 
-// Initialize when external script loads
-if (typeof QuestionsGenerator !== 'undefined') {
-    QuestionsGenerator.init();
-}
+// Initialize directly when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Questions Generator: DOM ready, initializing');
+    if (typeof QuestionsGenerator !== 'undefined') {
+        QuestionsGenerator.init();
+    } else {
+        console.error('Questions Generator script not loaded correctly');
+    }
+});
 </script>

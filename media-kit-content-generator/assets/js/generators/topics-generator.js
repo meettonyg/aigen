@@ -738,8 +738,22 @@
       const inputElement = document.querySelector(fieldSelector);
       
       if (inputElement) {
-        inputElement.value = this.selectedTopic.text;
-        this.autoSaveField(inputElement);
+      inputElement.value = this.selectedTopic.text;
+      this.autoSaveField(inputElement);
+      
+      // Broadcast topic selection event using FormUtils
+      if (window.MKCG_FormUtils && MKCG_FormUtils.events) {
+      MKCG_FormUtils.events.trigger('topic:selected', {
+      topicId: this.selectedTopic.number,
+      topicText: this.selectedTopic.text
+      });
+      
+      // Also store in data cache for cross-generator use
+      MKCG_FormUtils.data.set('selected_topic', {
+      id: this.selectedTopic.number,
+      text: this.selectedTopic.text
+      });
+      }
       }
       
       this.closeModal();

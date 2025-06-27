@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Topic Syncing Test</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f7fa;
+      color: #333;
+      line-height: 1.5;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      gap: 20px;
+    }
+    
+    .panel {
+      flex: 1;
+      padding: 20px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .heading {
+      font-size: 24px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
+    
+    .topic-card {
+      background-color: #f0f5fa;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    .topic-card:hover {
+      background-color: #e1ebf5;
+    }
+    
+    .topic-card.active {
+      border-left: 4px solid #1a9bdc;
+      background-color: #e1ebf5;
+    }
+    
+    .topic-number {
+      font-weight: bold;
+      color: #1a9bdc;
+      margin-right: 10px;
+    }
+    
+    .heading-display {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #f9fafb;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+    }
+    
+    .log {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #f0f0f0;
+      border-radius: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    
+    .log-entry {
+      margin-bottom: 5px;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Topics Panel -->
+    <div class="panel">
+      <h2 class="heading">Topics Generator</h2>
+      
+      <div id="topics-list">
+        <div class="topic-card active" data-topic="1">
+          <span class="topic-number">1</span>
+          <span class="topic-text">The Authority Positioning Framework: How to Become the Go-To Expert in Your Niche</span>
+        </div>
+        <div class="topic-card" data-topic="2">
+          <span class="topic-number">2</span>
+          <span class="topic-text">Creating Content That Converts: A Strategic Approach to Audience Building</span>
+        </div>
+        <div class="topic-card" data-topic="3">
+          <span class="topic-number">3</span>
+          <span class="topic-text">Systems for Success: Automating Your Business to Create More Freedom</span>
+        </div>
+        <div class="topic-card" data-topic="4">
+          <span class="topic-number">4</span>
+          <span class="topic-text">Simple Ways to Improve Cash Flow in Your Business</span>
+        </div>
+        <div class="topic-card" data-topic="5">
+          <span class="topic-number">5</span>
+          <span class="topic-text">Building a Sustainable Business Model That Serves Your Lifestyle Goals</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Questions Panel -->
+    <div class="panel">
+      <h2 class="heading">Questions Generator</h2>
+      
+      <div id="mkcg-questions-heading" class="heading-display">
+        Questions for Topic 1: The Authority Positioning Framework: How to Become the Go-To Expert in Your Niche
+      </div>
+      
+      <div class="log" id="event-log">
+        <div class="log-entry">[System] Event log initialized</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Mock FormUtils implementation
+    const MKCG_FormUtils = {
+      config: {
+        debug: true
+      },
+      
+      log: function(message, data = null) {
+        if (this.config.debug) {
+          console.log('[MKCG FormUtils]', message, data || '');
+          
+          // Also log to UI
+          const logEl = document.getElementById('event-log');
+          if (logEl) {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = `[FormUtils] ${message} ${data ? JSON.stringify(data) : ''}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+          }
+        }
+      },
+      
+      // Event system
+      events: {
+        listeners: {},
+        
+        on: function(event, callback) {
+          if (!this.listeners[event]) {
+            this.listeners[event] = [];
+          }
+          this.listeners[event].push(callback);
+          MKCG_FormUtils.log('Event listener added for: ' + event);
+          return this;
+        },
+        
+        off: function(event, callback) {
+          if (!this.listeners[event]) return this;
+          
+          if (callback) {
+            this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
+          } else {
+            delete this.listeners[event];
+          }
+          
+          return this;
+        },
+        
+        trigger: function(event, data) {
+          MKCG_FormUtils.log('Event triggered: ' + event, data);
+          if (!this.listeners[event]) return;
+          
+          this.listeners[event].forEach(callback => {
+            try {
+              callback(data);
+            } catch (error) {
+              console.error('Error in event listener:', error);
+            }
+          });
+          
+          return this;
+        }
+      },
+      
+      // Data sharing
+      data: {
+        cache: {},
+        
+        set: function(key, value) {
+          this.cache[key] = value;
+          
+          // Trigger data change event
+          MKCG_FormUtils.events.trigger('data:change:' + key, value);
+          MKCG_FormUtils.events.trigger('data:change', { key: key, value: value });
+          
+          return this;
+        },
+        
+        get: function(key, defaultValue = null) {
+          if (this.cache[key] !== undefined) {
+            return this.cache[key];
+          }
+          
+          return defaultValue;
+        }
+      }
+    };
+
+    // Initialize test environment
+    document.addEventListener('DOMContentLoaded', function() {
+      // Log to UI
+      const log = function(message) {
+        const logEl = document.getElementById('event-log');
+        if (logEl) {
+          const entry = document.createElement('div');
+          entry.className = 'log-entry';
+          entry.textContent = message;
+          logEl.appendChild(entry);
+          logEl.scrollTop = logEl.scrollHeight;
+        }
+      };
+      
+      // Set up topic selection
+      const topicCards = document.querySelectorAll('.topic-card');
+      topicCards.forEach(card => {
+        card.addEventListener('click', function() {
+          // Update active state
+          topicCards.forEach(c => c.classList.remove('active'));
+          this.classList.add('active');
+          
+          // Get topic data
+          const topicId = parseInt(this.getAttribute('data-topic'));
+          const topicText = this.querySelector('.topic-text').textContent;
+          
+          log(`[Topics] Selected Topic ${topicId}: ${topicText}`);
+          
+          // Broadcast event using FormUtils
+          MKCG_FormUtils.events.trigger('topic:selected', {
+            topicId: topicId,
+            topicText: topicText
+          });
+          
+          // Also store in data cache
+          MKCG_FormUtils.data.set('selected_topic', {
+            id: topicId,
+            text: topicText
+          });
+        });
+      });
+      
+      // Set up event listener for Questions heading
+      MKCG_FormUtils.events.on('topic:selected', function(data) {
+        log(`[Questions] Received topic selection: ${data.topicId} - ${data.topicText}`);
+        
+        // Update the heading
+        const headingEl = document.getElementById('mkcg-questions-heading');
+        if (headingEl) {
+          headingEl.textContent = `Questions for Topic ${data.topicId}: ${data.topicText}`;
+          log(`[Questions] Updated heading display`);
+        }
+      });
+      
+      log('[System] Test environment initialized');
+    });
+  </script>
+</body>
+</html>
