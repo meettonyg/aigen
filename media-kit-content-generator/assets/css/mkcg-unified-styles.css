@@ -842,7 +842,7 @@ body {
 
 .mkcg-section-title {
   font-size: 18px;
-  font-weight: var(--font-weight-semibold);
+  font-weight: bold;
   color: var(--text-primary);
   margin: 0;
 }
@@ -906,11 +906,36 @@ body {
   background-color: #f0f8ff;
 }
 
-.mkcg-topic-card.active {
-  background-color: #1a9bdc;
+/* Active Topic Card - Enhanced specificity */
+body .mkcg-topics-grid .mkcg-topic-card.active {
+  background-color: #e1f5fe;
   border-color: #1a9bdc;
-  color: white;
+  color: #333;
   box-shadow: 0 2px 8px rgba(26, 155, 220, 0.25);
+}
+
+body .mkcg-topics-grid .mkcg-topic-card.active .mkcg-topic-text {
+  color: #333;
+  font-weight: normal;
+}
+
+body .mkcg-topics-grid .mkcg-topic-card.active .mkcg-topic-number {
+  background-color: #1a9bdc;
+  color: white;
+  box-shadow: none;
+}
+
+body .mkcg-topics-grid .mkcg-topic-card.active .mkcg-topic-edit-icon {
+  background-color: rgba(26, 155, 220, 0.1);
+  opacity: 1;
+}
+
+body .mkcg-topics-grid .mkcg-topic-card.active .mkcg-topic-edit-icon svg {
+  stroke: #1a9bdc;
+}
+
+body .mkcg-topics-grid .mkcg-topic-card.active .mkcg-topic-edit-icon:hover {
+  background-color: rgba(26, 155, 220, 0.2);
 }
 
 /* Topic Card Number */
@@ -928,27 +953,14 @@ body {
   flex-shrink: 0;
 }
 
-.mkcg-topic-card.active .mkcg-topic-number {
-  background-color: rgba(255, 255, 255, 0.2);
-  color: white;
-  box-shadow: none;
-}
-
 /* Topic Card Text */
 .mkcg-topic-text {
   flex-grow: 1;
   font-size: 15px;
   line-height: 1.4;
   color: #495057;
-  font-weight: 500;
+  font-weight: normal;
 }
-
-.mkcg-topic-card.active .mkcg-topic-text {
-  color: white;
-  font-weight: 500;
-}
-
-/* Edit Icon */
 .mkcg-topic-edit-icon {
   position: absolute;
   top: 8px;
@@ -980,16 +992,16 @@ body {
 }
 
 .mkcg-topic-card.active .mkcg-topic-edit-icon {
-  background-color: rgba(255, 255, 255, 0.2);
-  opacity: 1;
+  background-color: rgba(26, 155, 220, 0.1) !important;
+  opacity: 1 !important;
 }
 
 .mkcg-topic-card.active .mkcg-topic-edit-icon svg {
-  stroke: white;
+  stroke: #1a9bdc !important;
 }
 
 .mkcg-topic-card.active .mkcg-topic-edit-icon:hover {
-  background-color: rgba(255, 255, 255, 0.3);
+  background-color: rgba(26, 155, 220, 0.2) !important;
 }
 
 /* =============================================================================
@@ -1022,7 +1034,7 @@ body {
   flex-grow: 1;
   font-size: 18px;
   color: var(--text-primary);
-  font-weight: var(--font-weight-semibold);
+  font-weight: bold;
 }
 
 .mkcg-ai-badge {
