@@ -1061,31 +1061,141 @@ class MKCG_Formidable_Service {
     }
     
     /**
-     * Save questions to custom post meta (for Questions Generator)
+     * ENHANCED: Save questions to both post meta AND Formidable entry fields
      */
     public function save_questions_to_post($post_id, $questions, $topic_number) {
+        error_log("MKCG DUAL SAVE: Starting save for topic {$topic_number} with " . count($questions) . " questions");
+        
         if (!$post_id || empty($questions)) {
+            error_log("MKCG DUAL SAVE: Early return - invalid parameters");
             return false;
         }
         
         $saved_count = 0;
+        $formidable_saved = 0;
+        
+        // Get Formidable field mappings for this topic
+        $field_mappings = $this->get_formidable_field_mappings($topic_number);
+        error_log("MKCG DUAL SAVE: Field mappings for topic {$topic_number}: " . print_r($field_mappings, true));
+        
+        // Get entry ID associated with this post
+        $entry_id = $this->get_entry_id_from_post($post_id);
+        error_log("MKCG DUAL SAVE: Found entry ID: " . ($entry_id ?: 'NONE'));
         
         // Save questions with global numbering
         foreach ($questions as $index => $question) {
-            if (!empty($question)) {
-                $question_number = (($topic_number - 1) * 5) + ($index + 1); // Calculate global question number
-                $meta_key = 'question_' . $question_number;
-                $result = update_post_meta($post_id, $meta_key, trim($question));
+            $question_trimmed = trim($question);
+            $question_number = (($topic_number - 1) * 5) + ($index + 1); // Calculate global question number
+            $meta_key = 'question_' . $question_number;
+            
+            error_log("MKCG DUAL SAVE: Processing Q{$question_number} (topic {$topic_number}, index {$index}): '{$question_trimmed}'");
+            
+            if (!empty($question_trimmed)) {
+                // SAVE 1: WordPress Post Meta (existing functionality)
+                $meta_result = update_post_meta($post_id, $meta_key, $question_trimmed);
                 
-                if ($result !== false) {
+                if ($meta_result !== false) {
                     $saved_count++;
-                    error_log("MKCG Formidable: Saved question {$question_number} (topic {$topic_number}, pos {$index}) to post meta: {$meta_key}");
+                    error_log("MKCG DUAL SAVE: ✅ Saved to post meta: {$meta_key}");
+                } else {
+                    error_log("MKCG DUAL SAVE: ❌ Failed to save to post meta: {$meta_key}");
+                }
+                
+                // SAVE 2: Formidable Entry Field (NEW FUNCTIONALITY)
+                if ($entry_id && isset($field_mappings[$index])) {
+                    $formidable_field_id = $field_mappings[$index];
+                    $formidable_result = $this->save_to_formidable_field($entry_id, $formidable_field_id, $question_trimmed);
+                    
+                    if ($formidable_result) {
+                        $formidable_saved++;
+                        error_log("MKCG DUAL SAVE: ✅ Saved to Formidable field {$formidable_field_id} (Q{$question_number})");
+                    } else {
+                        error_log("MKCG DUAL SAVE: ❌ Failed to save to Formidable field {$formidable_field_id} (Q{$question_number})");
+                    }
+                } else {
+                    if (!$entry_id) {
+                        error_log("MKCG DUAL SAVE: ⚠️ No entry ID - skipping Formidable save for Q{$question_number}");
+                    } else {
+                        error_log("MKCG DUAL SAVE: ⚠️ No field mapping for index {$index} - skipping Formidable save for Q{$question_number}");
+                    }
                 }
             }
         }
         
-        error_log("MKCG Formidable: Saved {$saved_count} questions for topic {$topic_number} to post {$post_id}");
-        return $saved_count > 0;
+        error_log("MKCG DUAL SAVE: Summary - Post meta: {$saved_count}/" . count($questions) . ", Formidable: {$formidable_saved}/" . count($questions));
+        
+        // Return true if either save method worked
+        return ($saved_count > 0 || $formidable_saved > 0);
+    }
+    
+    /**
+     * Get Formidable field mappings for a specific topic
+     */
+    private function get_formidable_field_mappings($topic_number) {
+        // Field mapping for Questions Generator (from the PHP code)
+        $field_mappings = [
+            1 => ['8505', '8506', '8507', '8508', '8509'], // Topic 1 → Questions 1-5
+            2 => ['8510', '8511', '8512', '8513', '8514'], // Topic 2 → Questions 6-10
+            3 => ['10370', '10371', '10372', '10373', '10374'], // Topic 3 → Questions 11-15
+            4 => ['10375', '10376', '10377', '10378', '10379'], // Topic 4 → Questions 16-20
+            5 => ['10380', '10381', '10382', '10383', '10384']  // Topic 5 → Questions 21-25
+        ];
+        
+        return $field_mappings[$topic_number] ?? [];
+    }
+    
+    /**
+     * Get entry ID from post ID (reverse lookup)
+     */
+    private function get_entry_id_from_post($post_id) {
+        global $wpdb;
+        
+        // Look for entry that created this post
+        $entry_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}frm_items WHERE post_id = %d",
+            $post_id
+        ));
+        
+        return $entry_id ? intval($entry_id) : null;
+    }
+    
+    /**
+     * Save data directly to Formidable entry field
+     */
+    private function save_to_formidable_field($entry_id, $field_id, $value) {
+        global $wpdb;
+        
+        $table = $wpdb->prefix . 'frm_item_metas';
+        
+        // Check if field already exists
+        $existing = $wpdb->get_var($wpdb->prepare(
+            "SELECT meta_value FROM {$table} WHERE item_id = %d AND field_id = %d",
+            $entry_id, $field_id
+        ));
+        
+        if ($existing !== null) {
+            // Update existing field
+            $result = $wpdb->update(
+                $table,
+                ['meta_value' => $value],
+                ['item_id' => $entry_id, 'field_id' => $field_id],
+                ['%s'],
+                ['%d', '%d']
+            );
+        } else {
+            // Insert new field
+            $result = $wpdb->insert(
+                $table,
+                [
+                    'item_id' => $entry_id,
+                    'field_id' => $field_id,
+                    'meta_value' => $value
+                ],
+                ['%d', '%d', '%s']
+            );
+        }
+        
+        return $result !== false;
     }
     
     /**

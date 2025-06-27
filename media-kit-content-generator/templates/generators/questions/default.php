@@ -126,7 +126,7 @@ if (defined('WP_DEBUG') && WP_DEBUG) {
     echo '<!-- TOPICS DEBUG: ' . implode(' | ', $topics_debug) . ' -->';
 }
 
-// ENHANCED ERROR HANDLING - Show detailed feedback with auto-healing options
+// ENHANCED FLEXIBILITY - Show data status but allow independent operation
 if (empty($available_topics) || count(array_filter($available_topics)) === 0) {
     $topics_url = '';
     if ($entry_key) {
@@ -135,8 +135,8 @@ if (empty($available_topics) || count(array_filter($available_topics)) === 0) {
         $topics_url = site_url('/topics/?entry_id=' . $entry_id);
     }
     
-    echo '<div class="mkcg-error-notice mkcg-enhanced-error">';
-    echo '<h3>⚠️ Topics Data Required</h3>';
+    echo '<div class="mkcg-info-notice mkcg-enhanced-info">';
+    echo '<h3>💡 Create Topics as You Go</h3>';
     
     // Show data quality information if available
     if (isset($topics_result)) {
@@ -148,24 +148,21 @@ if (empty($available_topics) || count(array_filter($available_topics)) === 0) {
         }
         
         if ($topics_result['auto_healed']) {
-            echo '<p class="mkcg-auto-healed">✨ <strong>Auto-healing attempted</strong> - Some placeholder data may have been added.</p>';
+            echo '<p class="mkcg-auto-healed">✨ <strong>Auto-healing applied</strong> - Some placeholder data may have been added.</p>';
         }
         echo '</div>';
     }
     
-    echo '<p>Please generate your interview topics first before creating questions. The Topics Generator will create the foundation content needed for question generation.</p>';
+    echo '<p><strong>No topics found yet.</strong> You can create topics directly here by clicking the edit icons below, or use the Topics Generator for a guided experience.</p>';
     
     if ($topics_url) {
         echo '<div class="mkcg-action-buttons">';
-        echo '<a href="' . esc_url($topics_url) . '" class="mkcg-button mkcg-primary-button">🚀 Generate Topics First</a>';
-        
-        if (isset($post_id) && $post_id) {
-            echo '<button onclick="location.reload()" class="mkcg-button mkcg-secondary-button">🔄 Refresh Page</button>';
-        }
+        echo '<a href="' . esc_url($topics_url) . '" class="mkcg-button mkcg-secondary-button">🚀 Use Topics Generator</a>';
+        echo '<button onclick="this.parentNode.parentNode.style.display=\'none\'" class="mkcg-button mkcg-primary-button">✏️ Create Topics Here</button>';
         echo '</div>';
     }
     
-    // Show debug info in development mode
+    // Show debug info in development mode (collapsed by default)
     if (defined('WP_DEBUG') && WP_DEBUG && !empty($topics_debug)) {
         echo '<details class="mkcg-debug-info">';
         echo '<summary>🔧 Debug Information</summary>';
@@ -178,7 +175,7 @@ if (empty($available_topics) || count(array_filter($available_topics)) === 0) {
     }
     
     echo '</div>';
-    return;
+    // ✨ CRITICAL CHANGE: Don't return here - continue with normal flow
 }
 ?>
 
@@ -200,6 +197,36 @@ if (empty($available_topics) || count(array_filter($available_topics)) === 0) {
         padding: 30px;
         margin: 20px 0;
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    /* ENHANCED: Friendly info notice for empty topics */
+    .mkcg-enhanced-info {
+        background: linear-gradient(135deg, #e3f2fd 0%, #f0f8ff 100%);
+        border: 2px solid #bbdefb;
+        border-radius: 12px;
+        padding: 25px;
+        margin: 20px 0;
+        box-shadow: 0 3px 10px rgba(33, 150, 243, 0.1);
+    }
+    
+    .mkcg-enhanced-info h3 {
+        color: #1976d2;
+        margin-top: 0;
+    }
+    
+    .mkcg-info-notice {
+        animation: slideInFade 0.4s ease-out;
+    }
+    
+    @keyframes slideInFade {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
     
     .mkcg-data-status {
@@ -305,6 +332,62 @@ if (empty($available_topics) || count(array_filter($available_topics)) === 0) {
     .mkcg-topic-card[data-quality="missing"] {
         border-left: 4px solid #ef5350;
     }
+    
+    /* Simple Save Section Styles */
+    .mkcg-save-section {
+        margin: 30px 0;
+        text-align: center;
+    }
+    
+    /* ENHANCED: Empty topic card styling */
+    .mkcg-topic-empty {
+        border: 2px dashed #e0e6ed !important;
+        background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%) !important;
+        opacity: 0.8;
+        transition: all 0.3s ease;
+    }
+    
+    .mkcg-topic-empty:hover {
+        border-color: #1a9bdc !important;
+        opacity: 1;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(26, 155, 220, 0.2);
+    }
+    
+    .mkcg-topic-placeholder {
+        font-style: italic;
+        color: #6c757d;
+    }
+    
+    .mkcg-placeholder-text {
+        display: inline-block;
+        padding: 2px 8px;
+        background: rgba(26, 155, 220, 0.1);
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #1a9bdc;
+        transition: all 0.2s ease;
+    }
+    
+    .mkcg-topic-empty:hover .mkcg-placeholder-text {
+        background: rgba(26, 155, 220, 0.2);
+        color: #0d7dad;
+    }
+    
+    /* Enhanced visual feedback for empty cards */
+    .mkcg-topic-empty .mkcg-topic-edit-icon {
+        color: #1a9bdc;
+        background: rgba(26, 155, 220, 0.1);
+        border-radius: 50%;
+        padding: 4px;
+        transition: all 0.2s ease;
+    }
+    
+    .mkcg-topic-empty:hover .mkcg-topic-edit-icon {
+        background: rgba(26, 155, 220, 0.2);
+        transform: scale(1.1);
+    }
     </style>
     <div class="mkcg-container">
         <div class="mkcg-onboard-header">
@@ -330,32 +413,47 @@ if (empty($available_topics) || count(array_filter($available_topics)) === 0) {
                     
                     <div class="mkcg-topics-grid" id="mkcg-topics-grid">
                         <?php 
-                        // Always show 5 topic slots
+                        // Always show 5 topic slots with enhanced empty state handling
                         for ($topic_id = 1; $topic_id <= 5; $topic_id++): 
                             $topic_text = isset($all_topics[$topic_id]) ? $all_topics[$topic_id] : '';
                             $is_active = ($topic_id === 1) ? 'active' : '';
-                            $is_empty = empty($topic_text);
+                            $is_empty = empty(trim($topic_text));
+                            
+                            // Enhanced styling for empty topics
+                            $card_classes = $is_active;
+                            if ($is_empty) {
+                                $card_classes .= ' mkcg-topic-empty';
+                            }
                         ?>
-                            <div class="mkcg-topic-card <?php echo $is_active; ?>" 
-                                 data-topic="<?php echo esc_attr($topic_id); ?>">
+                            <div class="mkcg-topic-card <?php echo trim($card_classes); ?>" 
+                                 data-topic="<?php echo esc_attr($topic_id); ?>"
+                                 data-empty="<?php echo $is_empty ? 'true' : 'false'; ?>"
+                                 title="<?php echo $is_empty ? 'Click to add your topic ' . $topic_id : 'Topic ' . $topic_id . ': ' . esc_attr($topic_text); ?>">
                                 
                                 <div class="mkcg-topic-number">
                                     <?php echo esc_html($topic_id); ?>
                                 </div>
                                 
-                                <div class="mkcg-topic-text">
+                                <div class="mkcg-topic-text <?php echo $is_empty ? 'mkcg-topic-placeholder' : ''; ?>">
                                     <?php if (!$is_empty): ?>
                                         <?php echo esc_html($topic_text); ?>
                                     <?php else: ?>
-                                        Click to add topic
+                                        <span class="mkcg-placeholder-text">Click to add your interview topic</span>
                                     <?php endif; ?>
                                 </div>
                                 
-                                <div class="mkcg-topic-edit-icon" title="Edit this topic">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                        <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                    </svg>
+                                <div class="mkcg-topic-edit-icon" title="<?php echo $is_empty ? 'Add topic' : 'Edit this topic'; ?>">
+                                    <?php if ($is_empty): ?>
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                                        </svg>
+                                    <?php else: ?>
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                            <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                        </svg>
+                                    <?php endif; ?>
                                 </div>
                                 
                             </div>
@@ -455,6 +553,13 @@ if (empty($available_topics) || count(array_filter($available_topics)) === 0) {
                     <input type="hidden" id="mkcg-questions-nonce" value="<?php echo wp_create_nonce('generate_topics_nonce'); ?>">
                     <input type="hidden" id="mkcg-selected-topic-id" value="1">
                     <input type="hidden" id="mkcg-post-id" value="<?php echo esc_attr($post_id); ?>">
+                    
+                    <!-- Simple Save Button -->
+                    <div class="mkcg-save-section">
+                        <button class="mkcg-generate-button" id="mkcg-save-all-questions" type="button">
+                            Save All Questions
+                        </button>
+                    </div>
                 </div>
 
             </div>

@@ -653,17 +653,17 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
         add_action('wp_ajax_mkcg_get_topics', [$this, 'handle_get_topics_ajax']);
         add_action('wp_ajax_nopriv_mkcg_get_topics', [$this, 'handle_get_topics_ajax']);
         
-        // Add auto-save AJAX actions
-        add_action('wp_ajax_mkcg_save_question', [$this, 'handle_save_question_ajax']);
-        add_action('wp_ajax_nopriv_mkcg_save_question', [$this, 'handle_save_question_ajax']);
+        // Add simple save AJAX handler
+        add_action('wp_ajax_mkcg_save_all_data', [$this, 'handle_save_all_data_ajax']);
+        add_action('wp_ajax_nopriv_mkcg_save_all_data', [$this, 'handle_save_all_data_ajax']);
         
-        // Add topic editing AJAX handlers
+        // CRITICAL FIX: Add inline topic editing AJAX handlers
         add_action('wp_ajax_mkcg_save_topic', [$this, 'handle_save_topic_ajax']);
         add_action('wp_ajax_nopriv_mkcg_save_topic', [$this, 'handle_save_topic_ajax']);
         
-        // Enhanced save with monitoring
-        add_action('wp_ajax_mkcg_save_all_data', [$this, 'handle_save_all_data_ajax']);
-        add_action('wp_ajax_nopriv_mkcg_save_all_data', [$this, 'handle_save_all_data_ajax']);
+        // Question auto-save handlers
+        add_action('wp_ajax_mkcg_save_question', [$this, 'handle_save_question_ajax']);
+        add_action('wp_ajax_nopriv_mkcg_save_question', [$this, 'handle_save_question_ajax']);
         
         // NEW: Health monitoring endpoints
         add_action('wp_ajax_mkcg_health_check', [$this, 'handle_health_check_ajax']);
@@ -731,182 +731,370 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
     }
     
     /**
-     * CRITICAL FIX: AJAX handler for saving individual topics (inline editing)
+     * ENHANCED: AJAX handler for saving individual topics (inline editing) with comprehensive validation
      */
     public function handle_save_topic_ajax() {
-        if (!check_ajax_referer('generate_topics_nonce', 'nonce', false)) {
-            wp_send_json_error(['message' => 'Security check failed']);
+        // Enhanced nonce verification - try multiple nonce fields
+        $nonce_verified = false;
+        $nonce_fields = ['nonce', 'security', 'mkcg_nonce'];
+        
+        foreach ($nonce_fields as $field) {
+            if (isset($_POST[$field]) && check_ajax_referer('generate_topics_nonce', $field, false)) {
+                $nonce_verified = true;
+                error_log("MKCG Topic Save: Nonce verified using field: {$field}");
+                break;
+            }
+        }
+        
+        if (!$nonce_verified) {
+            error_log('MKCG Topic Save: Security check failed - no valid nonce found');
+            wp_send_json_error([
+                'message' => 'Security check failed',
+                'debug' => 'Please refresh the page and try again'
+            ]);
             return;
         }
         
+        // Extract and validate parameters
         $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
         $topic_number = isset($_POST['topic_number']) ? intval($_POST['topic_number']) : 0;
         $topic_text = isset($_POST['topic_text']) ? sanitize_textarea_field($_POST['topic_text']) : '';
         
-        if (!$post_id || !$topic_number || ($topic_number < 1 || $topic_number > 5)) {
-            wp_send_json_error(['message' => 'Missing or invalid parameters']);
-            return;
+        error_log("MKCG Topic Save: Processing request - post_id: {$post_id}, topic_number: {$topic_number}, text_length: " . strlen($topic_text));
+        
+        // Enhanced parameter validation
+        $validation_errors = [];
+        
+        if (!$post_id) {
+            $validation_errors[] = 'Post ID is required';
         }
         
-        // Save topic to post meta using Formidable service
-        if (!$this->formidable_service) {
-            wp_send_json_error(['message' => 'Formidable service not available']);
-            return;
+        if (!$topic_number || $topic_number < 1 || $topic_number > 5) {
+            $validation_errors[] = 'Topic number must be between 1 and 5';
         }
         
-        $result = $this->formidable_service->save_single_topic_to_post($post_id, $topic_number, $topic_text);
+        if (empty(trim($topic_text))) {
+            $validation_errors[] = 'Topic text cannot be empty';
+        } elseif (strlen(trim($topic_text)) < 5) {
+            $validation_errors[] = 'Topic text must be at least 5 characters';
+        } elseif (strlen(trim($topic_text)) > 500) {
+            $validation_errors[] = 'Topic text cannot exceed 500 characters';
+        }
         
-        if ($result) {
-            error_log("MKCG Questions: Saved topic {$topic_number} to post {$post_id}: " . substr($topic_text, 0, 50));
-            wp_send_json_success([
-                'message' => 'Topic saved successfully',
-                'post_id' => $post_id,
-                'topic_number' => $topic_number,
-                'topic_text' => $topic_text
+        if (!empty($validation_errors)) {
+            error_log('MKCG Topic Save: Validation failed: ' . implode(', ', $validation_errors));
+            wp_send_json_error([
+                'message' => 'Validation failed: ' . implode(', ', $validation_errors),
+                'errors' => $validation_errors
             ]);
-        } else {
-            wp_send_json_error(['message' => 'Failed to save topic']);
+            return;
+        }
+        
+        // Verify post exists and is accessible
+        $post = get_post($post_id);
+        if (!$post) {
+            error_log("MKCG Topic Save: Post {$post_id} does not exist");
+            wp_send_json_error([
+                'message' => 'Post not found',
+                'debug' => "Post ID {$post_id} does not exist"
+            ]);
+            return;
+        }
+        
+        // Check Formidable service availability
+        if (!$this->formidable_service) {
+            error_log('MKCG Topic Save: Formidable service not available');
+            wp_send_json_error([
+                'message' => 'Backend service not available',
+                'debug' => 'Formidable service initialization failed'
+            ]);
+            return;
+        }
+        
+        // Trim and prepare final text
+        $final_topic_text = trim($topic_text);
+        
+        try {
+            // Save topic to post meta using Formidable service
+            $result = $this->formidable_service->save_single_topic_to_post($post_id, $topic_number, $final_topic_text);
+            
+            if ($result) {
+                // Also update topics timestamp for sync tracking
+                update_post_meta($post_id, '_mkcg_topics_updated', time());
+                
+                error_log("MKCG Topic Save: SUCCESS - Saved topic {$topic_number} to post {$post_id}: '" . substr($final_topic_text, 0, 50) . (strlen($final_topic_text) > 50 ? '...' : '') . "'");
+                
+                wp_send_json_success([
+                    'message' => 'Topic saved successfully',
+                    'post_id' => $post_id,
+                    'topic_number' => $topic_number,
+                    'topic_text' => $final_topic_text,
+                    'char_count' => strlen($final_topic_text),
+                    'timestamp' => time()
+                ]);
+            } else {
+                error_log("MKCG Topic Save: FAILED - save_single_topic_to_post returned false for topic {$topic_number}");
+                wp_send_json_error([
+                    'message' => 'Failed to save topic to database',
+                    'debug' => 'Backend save operation failed'
+                ]);
+            }
+            
+        } catch (Exception $e) {
+            error_log("MKCG Topic Save: EXCEPTION - " . $e->getMessage());
+            wp_send_json_error([
+                'message' => 'Save failed due to server error',
+                'debug' => 'Exception occurred during save: ' . $e->getMessage()
+            ]);
         }
     }
     
     /**
-     * ENHANCED AJAX handler for saving all topics and questions data with monitoring
+     * ENHANCED AJAX handler for saving all questions data with comprehensive validation
      */
     public function handle_save_all_data_ajax() {
-        if (!check_ajax_referer('generate_topics_nonce', 'nonce', false)) {
-            wp_send_json_error(['message' => 'Security check failed']);
-            return;
-        }
+        // Handle both JSON and form-encoded requests
+        $input_data = $this->get_request_data();
         
-        $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
-        $entry_id = isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0;
-        $topics_data = isset($_POST['topics']) ? $_POST['topics'] : [];
-        $questions_data = isset($_POST['questions']) ? $_POST['questions'] : [];
+        error_log('MKCG Enhanced Save: Starting save process');
+        error_log('MKCG Enhanced Save: Input data keys: ' . implode(', ', array_keys($input_data)));
         
-        if (!$post_id) {
-            wp_send_json_error(['message' => 'Post ID is required']);
-            return;
-        }
-        
-        if (!$this->formidable_service) {
-            wp_send_json_error(['message' => 'Formidable service not available']);
-            return;
-        }
-        
-        // Pre-save validation
-        $validation_result = $this->formidable_service->validate_post_association($entry_id, $post_id);
-        if (!$validation_result['valid']) {
+        if (!$this->verify_nonce($input_data)) {
+            error_log('MKCG Enhanced Save: Security check failed');
             wp_send_json_error([
-                'message' => 'Cannot save: Post validation failed',
-                'issues' => $validation_result['issues']
+                'message' => 'Security check failed',
+                'debug' => 'Nonce verification failed - please refresh the page'
             ]);
             return;
         }
         
-        $saved_topics = 0;
+        // Extract and validate basic parameters
+        $post_id = isset($input_data['post_id']) ? intval($input_data['post_id']) : 0;
+        $entry_id = isset($input_data['entry_id']) ? intval($input_data['entry_id']) : 0;
+        $questions_data = isset($input_data['questions']) ? $input_data['questions'] : null;
+        
+        error_log('MKCG Enhanced Save: post_id=' . $post_id . ', entry_id=' . $entry_id);
+        error_log('MKCG Enhanced Save: questions_data type=' . gettype($questions_data));
+        
+        if (!$post_id) {
+            error_log('MKCG Enhanced Save: Missing post_id');
+            wp_send_json_error([
+                'message' => 'Post ID is required',
+                'debug' => 'No post_id parameter found in request'
+            ]);
+            return;
+        }
+        
+        if (!$this->formidable_service) {
+            error_log('MKCG Enhanced Save: Formidable service not available');
+            wp_send_json_error([
+                'message' => 'Formidable service not available',
+                'debug' => 'Backend service initialization failed'
+            ]);
+            return;
+        }
+        
+        // COMPREHENSIVE QUESTIONS DATA VALIDATION
+        $validation_result = $this->validate_questions_data($questions_data);
+        
+        if (!$validation_result['valid']) {
+            error_log('MKCG Enhanced Save: Questions data validation failed: ' . implode(', ', $validation_result['errors']));
+            wp_send_json_error([
+                'message' => 'Questions data validation failed',
+                'errors' => $validation_result['errors'],
+                'debug' => $validation_result['debug_info']
+            ]);
+            return;
+        }
+        
+        // Use validated and normalized data
+        $normalized_questions = $validation_result['normalized_data'];
+        
+        error_log('MKCG Enhanced Save: Validation passed, proceeding with save');
+        error_log('MKCG Enhanced Save: Normalized data structure: ' . print_r(array_map(function($topic) { return count($topic) . ' questions'; }, $normalized_questions), true));
+        
         $saved_questions = 0;
-        $data_quality_before = null;
-        $data_quality_after = null;
+        $saved_topics = 0;
+        $save_errors = [];
         
-        // Get before state for comparison
-        $before_health = $this->get_data_health_status($post_id);
-        $data_quality_before = [
-            'topics' => $before_health['topics_health']['data_quality'],
-            'questions' => $before_health['questions_health']['integrity_status']
-        ];
-        
-        // Save topics with enhanced validation
-        if (!empty($topics_data) && is_array($topics_data)) {
-            $clean_topics = [];
-            foreach ($topics_data as $num => $text) {
-                $topic_num = intval($num);
-                if ($topic_num >= 1 && $topic_num <= 5) {
-                    $sanitized_text = sanitize_textarea_field($text);
-                    if (!empty($sanitized_text)) {
-                        // Validate topic quality before saving
-                        $validation = $this->formidable_service->validate_topic_content($sanitized_text);
-                        if ($validation['valid']) {
-                            $clean_topics[$topic_num] = $validation['cleaned_content'];
-                        } else {
-                            error_log("MKCG Enhanced Save: Topic {$topic_num} failed validation: " . implode(', ', $validation['issues']));
-                            // Save anyway but log the issue
-                            $clean_topics[$topic_num] = $sanitized_text;
-                        }
-                    }
-                }
-            }
+        // Save questions for all 5 topics with enhanced debugging
+        for ($topic_num = 1; $topic_num <= 5; $topic_num++) {
+            error_log("MKCG DEBUG: Processing topic {$topic_num}");
             
-            if (!empty($clean_topics)) {
-                $result = $this->formidable_service->save_topics_to_post($post_id, $clean_topics);
-                if ($result) {
-                    $saved_topics = count($clean_topics);
-                    // Update topics timestamp for sync tracking
-                    update_post_meta($post_id, '_mkcg_topics_updated', time());
-                }
-            }
-        }
-        
-        // Save questions with enhanced validation
-        if (!empty($questions_data) && is_array($questions_data)) {
-            foreach ($questions_data as $topic_num => $topic_questions) {
-                if (is_array($topic_questions)) {
-                    $clean_questions = [];
-                    foreach ($topic_questions as $q_num => $question) {
-                        $sanitized_question = sanitize_textarea_field($question);
-                        if (!empty($sanitized_question)) {
-                            // Validate question quality before saving
-                            $validation = $this->formidable_service->validate_question_content($sanitized_question);
-                            if ($validation['valid']) {
-                                $clean_questions[] = $validation['cleaned_content'];
-                            } else {
-                                error_log("MKCG Enhanced Save: Question for topic {$topic_num} failed validation: " . implode(', ', $validation['issues']));
-                                // Save anyway but log the issue
-                                $clean_questions[] = $sanitized_question;
-                            }
-                        }
-                    }
+            if (isset($normalized_questions[$topic_num])) {
+                $topic_questions = $normalized_questions[$topic_num];
+                
+                error_log("MKCG DEBUG: Topic {$topic_num} questions type: " . gettype($topic_questions));
+                error_log("MKCG DEBUG: Topic {$topic_num} questions count: " . (is_array($topic_questions) ? count($topic_questions) : 'not_array'));
+                error_log("MKCG DEBUG: Topic {$topic_num} questions content: " . print_r($topic_questions, true));
+                
+                try {
+                    $result = $this->formidable_service->save_questions_to_post($post_id, $topic_questions, $topic_num);
                     
-                    if (!empty($clean_questions)) {
-                        $result = $this->formidable_service->save_questions_to_post($post_id, $clean_questions, intval($topic_num));
-                        if ($result) {
-                            $saved_questions += count($clean_questions);
-                        }
+                    error_log("MKCG DEBUG: save_questions_to_post returned: " . ($result ? 'true' : 'false') . " for topic {$topic_num}");
+                    
+                    if ($result) {
+                        $non_empty_count = count(array_filter($topic_questions, function($q) { return !empty(trim($q)); }));
+                        $saved_questions += $non_empty_count;
+                        $saved_topics++;
+                        
+                        error_log("MKCG Enhanced Save: Topic {$topic_num} - saved {$non_empty_count} non-empty questions out of " . count($topic_questions) . " total");
+                    } else {
+                        $save_errors[] = "Failed to save questions for Topic {$topic_num}";
+                        error_log("MKCG Enhanced Save: Failed to save Topic {$topic_num}");
+                        
+                        // Additional debug for failed saves
+                        $non_empty_count = is_array($topic_questions) ? count(array_filter($topic_questions, function($q) { return !empty(trim($q)); })) : 0;
+                        error_log("MKCG DEBUG: Topic {$topic_num} had {$non_empty_count} non-empty questions but save failed");
                     }
+                } catch (Exception $e) {
+                    $save_errors[] = "Error saving Topic {$topic_num}: " . $e->getMessage();
+                    error_log("MKCG Enhanced Save: Exception saving Topic {$topic_num}: " . $e->getMessage());
                 }
-            }
-            
-            if ($saved_questions > 0) {
-                // Update questions timestamp for sync tracking
-                update_post_meta($post_id, '_mkcg_questions_updated', time());
+            } else {
+                error_log("MKCG Enhanced Save: No data for Topic {$topic_num}");
             }
         }
         
-        // Get after state for comparison
-        $after_health = $this->get_data_health_status($post_id);
-        $data_quality_after = [
-            'topics' => $after_health['topics_health']['data_quality'],
-            'questions' => $after_health['questions_health']['integrity_status']
+        if ($saved_questions > 0 || $saved_topics > 0) {
+            // Update questions timestamp for sync tracking
+            update_post_meta($post_id, '_mkcg_questions_updated', time());
+            
+            $success_message = "Successfully saved {$saved_questions} questions across {$saved_topics} topics";
+            if (!empty($save_errors)) {
+                $success_message .= " (with " . count($save_errors) . " warnings)";
+            }
+            
+            error_log("MKCG Enhanced Save: SUCCESS - {$success_message}");
+            
+            wp_send_json_success([
+                'message' => $success_message,
+                'saved_questions' => $saved_questions,
+                'saved_topics' => $saved_topics,
+                'total_topics' => 5,
+                'total_slots' => 25,
+                'post_id' => $post_id,
+                'warnings' => $save_errors,
+                'validation_info' => $validation_result['info']
+            ]);
+        } else {
+            $error_message = 'No questions were saved';
+            if (!empty($save_errors)) {
+                $error_message .= ': ' . implode(', ', $save_errors);
+            }
+            
+            error_log("MKCG Enhanced Save: FAILURE - {$error_message}");
+            
+            wp_send_json_error([
+                'message' => $error_message,
+                'errors' => $save_errors,
+                'debug' => 'All save operations failed'
+            ]);
+        }
+    }
+    
+    /**
+     * NEW: Comprehensive questions data validation with normalization
+     */
+    private function validate_questions_data($questions_data) {
+        $validation = [
+            'valid' => false,
+            'errors' => [],
+            'debug_info' => [],
+            'normalized_data' => [],
+            'info' => []
         ];
         
-        // Calculate improvement metrics
-        $quality_improved = [
-            'topics' => $this->compare_quality_levels($data_quality_before['topics'], $data_quality_after['topics']),
-            'questions' => $this->compare_quality_levels($data_quality_before['questions'], $data_quality_after['questions'])
-        ];
+        // Check if questions data exists
+        if ($questions_data === null || $questions_data === '') {
+            $validation['errors'][] = 'No questions data provided';
+            $validation['debug_info'][] = 'questions parameter is null or empty';
+            return $validation;
+        }
         
-        error_log("MKCG Enhanced Save: Saved {$saved_topics} topics and {$saved_questions} questions. Quality improvement - Topics: {$quality_improved['topics']}, Questions: {$quality_improved['questions']}");
+        // Handle different data types
+        if (is_string($questions_data)) {
+            // Try to parse as JSON if it's a string
+            $decoded = json_decode($questions_data, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $questions_data = $decoded;
+                $validation['info'][] = 'Converted JSON string to array';
+            } else {
+                $validation['errors'][] = 'Questions data is a string but not valid JSON';
+                $validation['debug_info'][] = 'String content: ' . substr($questions_data, 0, 100);
+                return $validation;
+            }
+        }
         
-        wp_send_json_success([
-            'message' => "Successfully saved {$saved_topics} topics and {$saved_questions} questions",
-            'saved_topics' => $saved_topics,
-            'saved_questions' => $saved_questions,
-            'post_id' => $post_id,
-            'data_quality_before' => $data_quality_before,
-            'data_quality_after' => $data_quality_after,
-            'quality_improved' => $quality_improved,
-            'overall_health' => $after_health['overall_health'],
-            'sync_status' => $this->verify_generator_sync($post_id)
-        ]);
+        // Convert object to array if needed
+        if (is_object($questions_data)) {
+            $questions_data = (array) $questions_data;
+            $validation['info'][] = 'Converted object to array';
+        }
+        
+        // Must be an array at this point
+        if (!is_array($questions_data)) {
+            $validation['errors'][] = 'Questions data must be an array or object';
+            $validation['debug_info'][] = 'Data type: ' . gettype($questions_data);
+            return $validation;
+        }
+        
+        // Validate and normalize structure
+        $total_questions = 0;
+        $total_topics = 0;
+        
+        for ($topic_num = 1; $topic_num <= 5; $topic_num++) {
+            $topic_questions = [];
+            
+            if (isset($questions_data[$topic_num])) {
+                $topic_data = $questions_data[$topic_num];
+                $total_topics++;
+                
+                if (is_array($topic_data)) {
+                    // Process each question in the topic
+                    for ($q_num = 0; $q_num < 5; $q_num++) {
+                        if (isset($topic_data[$q_num])) {
+                            $question = $topic_data[$q_num];
+                            
+                            if (is_string($question)) {
+                                $sanitized = sanitize_textarea_field(trim($question));
+                                $topic_questions[] = $sanitized;
+                                
+                                if (!empty($sanitized)) {
+                                    $total_questions++;
+                                }
+                            } else {
+                                $topic_questions[] = ''; // Invalid question type
+                                $validation['debug_info'][] = "Topic {$topic_num}, Question " . ($q_num + 1) . " is not a string";
+                            }
+                        } else {
+                            $topic_questions[] = ''; // Missing question
+                        }
+                    }
+                } else {
+                    // Topic data is not an array
+                    $validation['debug_info'][] = "Topic {$topic_num} data is not an array: " . gettype($topic_data);
+                    $topic_questions = ['', '', '', '', '']; // Fill with empty questions
+                }
+            } else {
+                // Topic not provided
+                $topic_questions = ['', '', '', '', '']; // Fill with empty questions
+            }
+            
+            $validation['normalized_data'][$topic_num] = $topic_questions;
+        }
+        
+        // Final validation
+        if ($total_questions === 0) {
+            $validation['errors'][] = 'No valid questions found in any topic';
+        } else {
+            $validation['valid'] = true;
+        }
+        
+        $validation['info'][] = "Found {$total_questions} non-empty questions across {$total_topics} topics";
+        $validation['debug_info'][] = "Total structure: 5 topics with 5 questions each (" . ($total_questions) . " non-empty)";
+        
+        return $validation;
     }
     
     /**
@@ -946,6 +1134,167 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
         $health_status = $this->get_data_health_status($post_id);
         
         wp_send_json_success($health_status);
+    }
+    
+    /**
+     * 🔄 MISSING SAVE HANDLERS - Complete Implementation
+     */
+     
+    /**
+     * AJAX handler for saving topic questions (current topic only)
+     */
+    public function handle_save_topic_questions_ajax() {
+        if (!check_ajax_referer('generate_topics_nonce', 'security', false)) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
+        
+        $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
+        $topic_id = isset($_POST['topic_id']) ? intval($_POST['topic_id']) : 0;
+        $questions = isset($_POST['questions']) ? $_POST['questions'] : [];
+        
+        if (!$post_id || !$topic_id || empty($questions)) {
+            wp_send_json_error(['message' => 'Missing required parameters']);
+            return;
+        }
+        
+        if ($topic_id < 1 || $topic_id > 5) {
+            wp_send_json_error(['message' => 'Invalid topic ID']);
+            return;
+        }
+        
+        try {
+            $saved_count = 0;
+            
+            // Save questions to post meta
+            if (is_array($questions)) {
+                $result = $this->formidable_service->save_questions_to_post($post_id, $questions, $topic_id);
+                
+                if ($result) {
+                    $saved_count = count($questions);
+                    
+                    // Update questions timestamp for sync tracking
+                    update_post_meta($post_id, '_mkcg_questions_updated', time());
+                    
+                    error_log("MKCG Questions: Saved {$saved_count} questions for topic {$topic_id} to post {$post_id}");
+                }
+            }
+            
+            if ($saved_count > 0) {
+                wp_send_json_success([
+                    'message' => "Successfully saved {$saved_count} questions for Topic {$topic_id}",
+                    'saved_count' => $saved_count,
+                    'topic_id' => $topic_id,
+                    'post_id' => $post_id
+                ]);
+            } else {
+                wp_send_json_error(['message' => 'No questions were saved']);
+            }
+            
+        } catch (Exception $e) {
+            error_log('MKCG Questions: Save topic questions error: ' . $e->getMessage());
+            wp_send_json_error(['message' => 'Save failed: ' . $e->getMessage()]);
+        }
+    }
+    
+    /**
+     * Get Formidable field mapping for a topic and question position
+     */
+    private function getFormidableFieldMapping($topic_id, $field_position) {
+        // Field mapping for Questions Generator
+        // Topic 1: Questions 1-5 → Fields 8505-8509
+        // Topic 2: Questions 6-10 → Fields 8510-8514
+        // Topic 3: Questions 11-15 → Fields 10370-10374
+        // Topic 4: Questions 16-20 → Fields 10375-10379
+        // Topic 5: Questions 21-25 → Fields 10380-10384
+        
+        $field_mappings = [
+            1 => ['8505', '8506', '8507', '8508', '8509'], // Topic 1 → Questions 1-5
+            2 => ['8510', '8511', '8512', '8513', '8514'], // Topic 2 → Questions 6-10
+            3 => ['10370', '10371', '10372', '10373', '10374'], // Topic 3 → Questions 11-15
+            4 => ['10375', '10376', '10377', '10378', '10379'], // Topic 4 → Questions 16-20
+            5 => ['10380', '10381', '10382', '10383', '10384']  // Topic 5 → Questions 21-25
+        ];
+        
+        if (isset($field_mappings[$topic_id]) && isset($field_mappings[$topic_id][$field_position - 1])) {
+            return $field_mappings[$topic_id][$field_position - 1];
+        }
+        
+        return false;
+    }
+    
+    /**
+     * ENHANCED: Get request data from either JSON or form-encoded request with better detection
+     */
+    private function get_request_data() {
+        $content_type = $_SERVER['CONTENT_TYPE'] ?? '';
+        $request_method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+        
+        error_log('MKCG Request Debug: Method=' . $request_method . ', Content-Type=' . $content_type);
+        
+        // Enhanced JSON detection (check multiple indicators)
+        $is_json_request = (
+            strpos($content_type, 'application/json') !== false ||
+            (isset($_SERVER['HTTP_CONTENT_TYPE']) && strpos($_SERVER['HTTP_CONTENT_TYPE'], 'application/json') !== false) ||
+            (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false)
+        );
+        
+        if ($is_json_request || ($request_method === 'POST' && empty($_POST))) {
+            // Handle JSON request or empty POST (likely JSON)
+            $raw_input = file_get_contents('php://input');
+            error_log('MKCG Request Debug: Raw input length: ' . strlen($raw_input));
+            error_log('MKCG Request Debug: Raw input preview: ' . substr($raw_input, 0, 200));
+            
+            if (!empty($raw_input)) {
+                $json_data = json_decode($raw_input, true);
+                
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    error_log('MKCG Request Debug: JSON decode error: ' . json_last_error_msg());
+                    error_log('MKCG Request Debug: Falling back to POST data');
+                    return $_POST; // Fallback to POST
+                }
+                
+                error_log('MKCG Request Debug: Successfully parsed JSON with ' . count($json_data) . ' keys');
+                return $json_data;
+            }
+        }
+        
+        // Handle form-encoded request or fallback
+        error_log('MKCG Request Debug: Using POST data with ' . count($_POST) . ' keys');
+        return $_POST;
+    }
+    
+    /**
+     * ENHANCED: Verify nonce from either JSON or form data with multiple nonce support
+     */
+    private function verify_nonce($input_data) {
+        // Check multiple possible nonce field names
+        $possible_nonces = [
+            'security' => 'generate_topics_nonce',
+            'nonce' => 'mkcg_nonce',
+            'mkcg_nonce' => 'mkcg_nonce',
+            '_wpnonce' => 'generate_topics_nonce'
+        ];
+        
+        foreach ($possible_nonces as $field_name => $nonce_action) {
+            if (isset($input_data[$field_name]) && !empty($input_data[$field_name])) {
+                $nonce = $input_data[$field_name];
+                $verified = wp_verify_nonce($nonce, $nonce_action);
+                
+                if ($verified) {
+                    error_log('MKCG Nonce Debug: Successfully verified nonce using field "' . $field_name . '" for action "' . $nonce_action . '"');
+                    return true;
+                } else {
+                    error_log('MKCG Nonce Debug: Failed verification for field "' . $field_name . '" (action: "' . $nonce_action . '"), nonce: ' . substr($nonce, 0, 10) . '...');
+                }
+            }
+        }
+        
+        // Log all available fields for debugging
+        $available_fields = array_keys($input_data);
+        error_log('MKCG Nonce Debug: No valid nonce found. Available fields: ' . implode(', ', $available_fields));
+        
+        return false;
     }
     
     /**
