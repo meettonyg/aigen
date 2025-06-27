@@ -90,6 +90,16 @@ const QuestionsGenerator = {
     },
     
     /**
+     * Update the selected topic display
+     */
+    updateSelectedTopic: function() {
+        const selectedTopicElement = document.querySelector(this.elements.selectedTopicText);
+        if (selectedTopicElement) {
+            selectedTopicElement.textContent = this.selectedTopicText;
+        }
+    },
+    
+    /**
      * Load topics data from PHP or fetch from server
      */
     loadTopicsData: function() {
@@ -187,14 +197,28 @@ const QuestionsGenerator = {
     },
     
     /**
-     * Bind events to DOM elements
+     * Bind events to DOM elements - SIMPLIFIED FOR CLEAN DESIGN
      */
     bindEvents: function() {
-        // Topic card click - simple selection only
+        // Simple topic card selection
         document.querySelectorAll(this.elements.topicCards).forEach(card => {
             card.addEventListener('click', (e) => {
+                // Don't select if clicking edit icon
+                if (e.target.closest('.mkcg-topic-edit-icon')) {
+                    return;
+                }
                 const topicId = parseInt(card.getAttribute('data-topic'));
                 this.selectTopic(topicId);
+            });
+        });
+        
+        // Edit icon clicks
+        document.querySelectorAll('.mkcg-topic-edit-icon').forEach(icon => {
+            icon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const card = e.target.closest('.mkcg-topic-card');
+                const topicId = parseInt(card.getAttribute('data-topic'));
+                this.editTopicInline(topicId, card);
             });
         });
         
@@ -215,8 +239,6 @@ const QuestionsGenerator = {
             });
         }
         
-
-        
         // Modal events
         const modalOkButton = document.querySelector(this.elements.modalOkButton);
         if (modalOkButton) {
@@ -231,19 +253,6 @@ const QuestionsGenerator = {
                 this.closeModal();
             });
         }
-        
-        // Click on form examples
-        document.querySelectorAll('.mkcg-form-example').forEach(example => {
-            example.addEventListener('click', (e) => {
-                const field = e.target.closest('.mkcg-form-field');
-                if (field) {
-                    const input = field.querySelector('.mkcg-form-field-input');
-                    if (input) {
-                        input.value = e.target.textContent.replace(/"/g, '');
-                    }
-                }
-            });
-        });
     },
     
     /**
@@ -280,13 +289,67 @@ const QuestionsGenerator = {
     },
     
     /**
-     * Update the selected topic display
+     * Edit topic inline
      */
-    updateSelectedTopic: function() {
-        const selectedTopicElement = document.querySelector(this.elements.selectedTopicText);
-        if (selectedTopicElement) {
-            selectedTopicElement.textContent = this.selectedTopicText;
-        }
+    editTopicInline: function(topicId, card) {
+        const textElement = card.querySelector('.mkcg-topic-text');
+        const currentText = this.topicsData[topicId] || '';
+        
+        // Create input field
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = currentText;
+        input.className = 'mkcg-topic-editor';
+        input.style.cssText = `
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #1a9bdc;
+            border-radius: 4px;
+            font-size: 15px;
+            font-family: inherit;
+            background: white;
+            color: #333;
+        `;
+        
+        // Replace text with input
+        textElement.style.display = 'none';
+        textElement.parentNode.insertBefore(input, textElement.nextSibling);
+        
+        // Focus and select
+        input.focus();
+        input.select();
+        
+        // Save on Enter or blur
+        const save = () => {
+            const newText = input.value.trim();
+            if (newText && newText !== currentText) {
+                this.topicsData[topicId] = newText;
+                textElement.textContent = newText;
+                if (this.selectedTopicId === topicId) {
+                    this.selectedTopicText = newText;
+                    this.updateSelectedTopic();
+                }
+            }
+            input.remove();
+            textElement.style.display = '';
+        };
+        
+        // Cancel on Escape
+        const cancel = () => {
+            input.remove();
+            textElement.style.display = '';
+        };
+        
+        input.addEventListener('blur', save);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                save();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancel();
+            }
+        });
     },
     
     /**

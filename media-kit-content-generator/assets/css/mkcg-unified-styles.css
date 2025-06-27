@@ -828,18 +828,16 @@ body {
 }
 
 /* =============================================================================
-   TOPIC SELECTOR HEADER
+   TOPIC SELECTOR HEADER  
    ============================================================================= */
-
-.mkcg-topic-selector {
-  margin-bottom: var(--spacing-lg);
-}
 
 .mkcg-selector-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--spacing-sm);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .mkcg-section-title {
@@ -870,24 +868,27 @@ body {
   text-decoration: none;
 }
 
-.mkcg-topics-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: var(--spacing-sm);
-}
-
 /* =============================================================================
-   CLEAN TOPIC CARDS (Questions Generator) - MATCHING IMAGE 1 DESIGN
+   CLEAN TOPIC SELECTOR (Questions Generator) - WHITE BACKGROUND WITH BLUE HIGHLIGHTS
    ============================================================================= */
+
+.mkcg-topic-selector {
+  background-color: white;
+  border: 1px solid var(--bg-border);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-md);
+  box-shadow: var(--shadow-small);
+  margin-bottom: var(--spacing-lg);
+}
 
 .mkcg-topics-grid {
   display: grid;
   gap: 8px;
-  margin-bottom: 20px;
+  margin-top: var(--spacing-sm);
 }
 
 .mkcg-topic-card {
-  background-color: #f8f9fa;
+  background-color: #f9fafb;
   border: 1px solid #e9ecef;
   border-radius: 8px;
   padding: 16px 20px;
@@ -906,7 +907,7 @@ body {
 }
 
 .mkcg-topic-card.active {
-  background: linear-gradient(135deg, #1a9bdc 0%, #1589c7 100%);
+  background-color: #1a9bdc;
   border-color: #1a9bdc;
   color: white;
   box-shadow: 0 2px 8px rgba(26, 155, 220, 0.25);
@@ -930,7 +931,7 @@ body {
 .mkcg-topic-card.active .mkcg-topic-number {
   background-color: rgba(255, 255, 255, 0.2);
   color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: none;
 }
 
 /* Topic Card Text */
@@ -944,9 +945,10 @@ body {
 
 .mkcg-topic-card.active .mkcg-topic-text {
   color: white;
+  font-weight: 500;
 }
 
-/* Edit Icon - Shows on hover */
+/* Edit Icon */
 .mkcg-topic-edit-icon {
   position: absolute;
   top: 8px;
@@ -955,88 +957,39 @@ body {
   height: 20px;
   background-color: rgba(26, 155, 220, 0.1);
   border-radius: 50%;
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
+  opacity: 0;
+}
+
+.mkcg-topic-edit-icon svg {
+  width: 10px;
+  height: 10px;
+  stroke: #1a9bdc;
+}
+
+.mkcg-topic-card:hover .mkcg-topic-edit-icon {
+  opacity: 1;
 }
 
 .mkcg-topic-edit-icon:hover {
   background-color: rgba(26, 155, 220, 0.2);
 }
 
-.mkcg-topic-card:hover .mkcg-topic-edit-icon {
-  display: flex;
-}
-
 .mkcg-topic-card.active .mkcg-topic-edit-icon {
   background-color: rgba(255, 255, 255, 0.2);
-  display: flex;
+  opacity: 1;
+}
+
+.mkcg-topic-card.active .mkcg-topic-edit-icon svg {
+  stroke: white;
 }
 
 .mkcg-topic-card.active .mkcg-topic-edit-icon:hover {
   background-color: rgba(255, 255, 255, 0.3);
-}
-
-/* Inline Editing Styles */
-.mkcg-topic-card--editing {
-  background-color: white;
-  border-color: #1a9bdc;
-  box-shadow: 0 0 0 2px rgba(26, 155, 220, 0.2);
-}
-
-.mkcg-topic-editor {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #1a9bdc;
-  border-radius: 4px;
-  font-size: 15px;
-  font-family: inherit;
-  line-height: 1.4;
-  outline: none;
-  background: white;
-}
-
-.mkcg-topic-editor:focus {
-  border-color: #0d8ecf;
-  box-shadow: 0 0 0 2px rgba(26, 155, 220, 0.2);
-}
-
-/* Topic Actions */
-.mkcg-topic-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.mkcg-topic-save,
-.mkcg-topic-cancel {
-  padding: 4px 12px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.mkcg-topic-save {
-  background-color: #28a745;
-  color: white;
-}
-
-.mkcg-topic-save:hover {
-  background-color: #218838;
-}
-
-.mkcg-topic-cancel {
-  background-color: #6c757d;
-  color: white;
-}
-
-.mkcg-topic-cancel:hover {
-  background-color: #5a6268;
 }
 
 /* =============================================================================

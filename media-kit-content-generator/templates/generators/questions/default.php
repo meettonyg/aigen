@@ -119,7 +119,7 @@ if (empty($available_topics)) {
                     Generate compelling interview questions based on your selected topic. Questions will be crafted to showcase your expertise while providing maximum value to podcast listeners.
                 </p>
                 
-                <!-- Topic Selector with Clean Design -->
+                <!-- Clean Topic Selector -->
                 <div class="mkcg-topic-selector">
                     <div class="mkcg-selector-header">
                         <h3 class="mkcg-section-title">Choose Your Topic</h3>
@@ -143,25 +143,12 @@ if (empty($available_topics)) {
                                     <?php echo esc_html($topic_id); ?>
                                 </div>
                                 
-                                <div class="mkcg-topic-content">
-                                    <div class="mkcg-topic-text" data-original="<?php echo esc_attr($topic_text); ?>">
-                                        <?php if (!$is_empty): ?>
-                                            <?php echo esc_html($topic_text); ?>
-                                        <?php else: ?>
-                                            Click to add topic
-                                        <?php endif; ?>
-                                    </div>
-                                    
-                                    <input type="text" 
-                                           class="mkcg-topic-editor" 
-                                           value="<?php echo esc_attr($topic_text); ?>"
-                                           style="display: none;"
-                                           placeholder="Enter topic here...">
-                                    
-                                    <div class="mkcg-topic-actions" style="display: none;">
-                                        <button class="mkcg-topic-save" type="button">Save</button>
-                                        <button class="mkcg-topic-cancel" type="button">Cancel</button>
-                                    </div>
+                                <div class="mkcg-topic-text">
+                                    <?php if (!$is_empty): ?>
+                                        <?php echo esc_html($topic_text); ?>
+                                    <?php else: ?>
+                                        Click to add topic
+                                    <?php endif; ?>
                                 </div>
                                 
                                 <div class="mkcg-topic-edit-icon" title="Edit this topic">
@@ -252,14 +239,7 @@ if (empty($available_topics)) {
                                         rows="3"
                                     ><?php echo isset($topic_questions[$q]) ? esc_textarea($topic_questions[$q]) : ''; ?></textarea>
                                     
-                                    <?php if ($q === 1): // Only show examples for first question ?>
-                                    <div class="mkcg-form-examples">
-                                        <p>Examples:</p>
-                                        <div class="mkcg-form-example">"What led you to develop this approach to [topic area]?"</div>
-                                        <div class="mkcg-form-example">"Can you walk us through your step-by-step process for [topic implementation]?"</div>
-                                        <div class="mkcg-form-example">"What's the biggest mistake you see people make with [topic area]?"</div>
-                                    </div>
-                                    <?php endif; ?>
+                                    <?php // Examples removed as requested ?>
                                 </div>
                             <?php endfor; ?>
                         </div>
@@ -361,128 +341,15 @@ if (empty($available_topics)) {
     </div>
 </div>
 
-<!-- Simplified JavaScript for Topic Selection -->
+<!-- Clean JavaScript - Uses External File -->
 <script type="text/javascript">
 // Topics data from PHP
 const MKCG_TopicsData = <?php echo json_encode($all_topics); ?>;
-
-// Existing questions data from PHP
 const MKCG_ExistingQuestions = <?php echo json_encode($existing_questions); ?>;
-
-// Post ID for saving
 const MKCG_PostId = <?php echo json_encode($post_id); ?>;
 
-// Simple Questions Generator with Clean Topic Selection
-jQuery(document).ready(function($) {
-    console.log('🎯 Questions Generator: Initializing with clean topic selection');
-    console.log('Topics data:', MKCG_TopicsData);
-    
-    // Simple topic card selection
-    $('.mkcg-topic-card').on('click', function(e) {
-        const $card = $(this);
-        const topicId = parseInt($card.data('topic'));
-        selectTopic(topicId);
-    });
-    
-    // Select topic function
-    function selectTopic(topicId) {
-        console.log('Selecting topic:', topicId);
-        
-        // Update active state
-        $('.mkcg-topic-card').removeClass('active');
-        $(`.mkcg-topic-card[data-topic="${topicId}"]`).addClass('active');
-        
-        // Show selected topic questions, hide others
-        $('.mkcg-topic-questions').hide();
-        $(`#mkcg-topic-${topicId}-questions`).show();
-        
-        // Update selected topic display
-        const topicText = MKCG_TopicsData[topicId] || 'Click to add topic';
-        $('#mkcg-selected-topic-text').text(topicText);
-        $('#mkcg-selected-topic-id').val(topicId);
-        
-        // Update question section title
-        $(`.mkcg-topic-questions .topic-title`).text(topicText);
-    }
-    
-    // Initialize: Select first topic
-    selectTopic(1);
-    
-    // AI generation functionality
-    $('#mkcg-generate-questions').on('click', function() {
-        const selectedTopic = $('#mkcg-selected-topic-id').val();
-        const topicText = $('#mkcg-selected-topic-text').text();
-        const entryId = $('#mkcg-entry-id').val();
-        const nonce = $('#mkcg-questions-nonce').val();
-        
-        if (!selectedTopic || !topicText || topicText === 'Click to add topic') {
-            alert('Please select a topic first.');
-            return;
-        }
-        
-        // Show loading
-        $('#mkcg-loading').show();
-        $('#mkcg-questions-result').hide();
-        
-        // Make AJAX request
-        $.ajax({
-            type: 'POST',
-            url: ajaxurl,
-            data: {
-                action: 'generate_interview_questions',
-                security: nonce,
-                entry_id: entryId,
-                topic: topicText,
-                topic_number: selectedTopic
-            },
-            success: function(response) {
-                $('#mkcg-loading').hide();
-                
-                if (response.success && response.data.questions) {
-                    displayGeneratedQuestions(response.data.questions, selectedTopic);
-                } else {
-                    alert('Error generating questions: ' + (response.data?.message || 'Unknown error'));
-                }
-            },
-            error: function(xhr, status, error) {
-                $('#mkcg-loading').hide();
-                alert('Failed to generate questions: ' + error);
-            }
-        });
-    });
-    
-    // Display generated questions
-    function displayGeneratedQuestions(questions, topicNumber) {
-        let questionsHtml = '';
-        
-        questions.forEach((question, index) => {
-            questionsHtml += `
-                <div class="mkcg-question-item">
-                    <div class="mkcg-question-content">
-                        <div class="mkcg-question-number">Question ${index + 1}:</div>
-                        <div class="mkcg-question-text">${question}</div>
-                    </div>
-                    <button class="mkcg-use-button" data-question="${question}" data-position="${index + 1}">Use</button>
-                </div>`;
-        });
-        
-        $('#mkcg-questions-list').html(questionsHtml);
-        $('#mkcg-questions-result').show();
-    }
-    
-    // Handle "Use" button clicks
-    $(document).on('click', '.mkcg-use-button', function() {
-        const question = $(this).data('question');
-        const position = $(this).data('position');
-        const selectedTopic = $('#mkcg-selected-topic-id').val();
-        
-        // Set the question in the appropriate field
-        const fieldId = `#mkcg-question-field-${selectedTopic}-${position}`;
-        $(fieldId).val(question);
-        
-        alert(`Question ${position} has been added to Topic ${selectedTopic}.`);
-    });
-    
-    console.log('✅ Questions Generator: Initialization complete');
-});
+// Initialize when external script loads
+if (typeof QuestionsGenerator !== 'undefined') {
+    QuestionsGenerator.init();
+}
 </script>
