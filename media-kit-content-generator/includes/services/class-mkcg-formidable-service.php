@@ -490,22 +490,40 @@ class MKCG_Formidable_Service {
     }
     
     /**
-     * Get topics from custom post meta fields
-     * This is where the Topics Generator saves the generated topics
+     * ENHANCED BULLETPROOF DATA RETRIEVAL - Get topics with comprehensive validation
      */
-    public function get_topics_from_post($post_id) {
-        $topics = [];
-        
-        // Common topic meta field patterns
-        $topic_meta_patterns = [
-            'topic_%d',          // topic_1, topic_2, etc.
-            'interview_topic_%d', // interview_topic_1, etc.
-            'topic%d',           // topic1, topic2, etc.
-            'generated_topic_%d'  // generated_topic_1, etc.
+    public function get_topics_from_post_enhanced($post_id) {
+        $retrieval_result = [
+            'topics' => [],
+            'data_quality' => 'unknown',
+            'source_pattern' => 'none',
+            'validation_status' => [],
+            'auto_healed' => false,
+            'metadata' => []
         ];
         
+        if (!$post_id) {
+            $retrieval_result['validation_status'][] = 'No post ID provided';
+            return $retrieval_result;
+        }
+        
+        // Priority-ordered topic meta field patterns
+        $topic_meta_patterns = [
+            'topic_%d',          // topic_1, topic_2, etc. (PRIMARY)
+            'interview_topic_%d', // interview_topic_1, etc.
+            'generated_topic_%d', // generated_topic_1, etc.
+            'topic%d',           // topic1, topic2, etc.
+            'content_topic_%d'   // content_topic_1, etc.
+        ];
+        
+        $best_topics = [];
+        $best_quality_score = 0;
+        $best_pattern = 'none';
+        
+        // Try each pattern and score the results
         foreach ($topic_meta_patterns as $pattern) {
             $found_topics = [];
+            $quality_score = 0;
             
             // Check for 5 topics (1-5)
             for ($i = 1; $i <= 5; $i++) {
@@ -513,107 +531,294 @@ class MKCG_Formidable_Service {
                 $topic_value = get_post_meta($post_id, $meta_key, true);
                 
                 if (!empty($topic_value)) {
-                    $found_topics[$i] = trim($topic_value);
-                    error_log("MKCG Formidable: Found topic {$i} in meta key '{$meta_key}': " . substr($topic_value, 0, 50) . '...');
+                    $validated_topic = $this->validate_topic_content($topic_value);
+                    if ($validated_topic['valid']) {
+                        $found_topics[$i] = $validated_topic['cleaned_content'];
+                        $quality_score += $validated_topic['quality_score'];
+                        error_log("MKCG Enhanced: Found quality topic {$i} in '{$meta_key}': " . substr($validated_topic['cleaned_content'], 0, 50) . '...');
+                    }
                 }
             }
             
-            // If we found topics with this pattern, use them
-            if (!empty($found_topics)) {
-                error_log('MKCG Formidable: Using topic pattern: ' . $pattern);
-                return $found_topics;
+            // Use this pattern if it has better quality than previous
+            if ($quality_score > $best_quality_score) {
+                $best_topics = $found_topics;
+                $best_quality_score = $quality_score;
+                $best_pattern = $pattern;
+                error_log('MKCG Enhanced: New best pattern: ' . $pattern . ' (score: ' . $quality_score . ')');
             }
         }
         
-        // Try alternative: single meta field with all topics (like your field 10081 but in post meta)
-        $all_topics_patterns = [
-            'all_topics',
-            'generated_topics',
-            'interview_topics',
-            'topics_list'
-        ];
-        
-        foreach ($all_topics_patterns as $meta_key) {
-            $topics_data = get_post_meta($post_id, $meta_key, true);
+        // Try alternative: single meta field with all topics (enhanced parsing)
+        if (empty($best_topics) || $best_quality_score < 15) { // Minimum quality threshold
+            $all_topics_patterns = [
+                'all_topics',
+                'generated_topics', 
+                'interview_topics',
+                'topics_list',
+                'combined_topics'
+            ];
             
-            if (!empty($topics_data)) {
-                error_log('MKCG Formidable: Found combined topics in meta key: ' . $meta_key);
+            foreach ($all_topics_patterns as $meta_key) {
+                $topics_data = get_post_meta($post_id, $meta_key, true);
                 
-                // If it's an array, use it directly
-                if (is_array($topics_data)) {
-                    $parsed_topics = [];
-                    foreach ($topics_data as $index => $topic) {
-                        if (!empty($topic)) {
-                            $parsed_topics[$index + 1] = trim($topic);
+                if (!empty($topics_data)) {
+                    error_log('MKCG Enhanced: Found combined topics in meta key: ' . $meta_key);
+                    
+                    $parsed_topics = $this->parse_combined_topics_data($topics_data);
+                    if (!empty($parsed_topics)) {
+                        $combined_quality = $this->calculate_topics_quality($parsed_topics);
+                        
+                        if ($combined_quality > $best_quality_score) {
+                            $best_topics = $parsed_topics;
+                            $best_quality_score = $combined_quality;
+                            $best_pattern = 'combined_' . $meta_key;
+                            error_log('MKCG Enhanced: Using combined pattern: ' . $meta_key . ' (score: ' . $combined_quality . ')');
                         }
                     }
-                    if (!empty($parsed_topics)) {
-                        return $parsed_topics;
-                    }
-                }
-                
-                // If it's a string, try to parse it
-                if (is_string($topics_data)) {
-                    $parsed_topics = $this->parse_topics_string($topics_data);
-                    if (!empty($parsed_topics)) {
-                        return $parsed_topics;
-                    }
                 }
             }
         }
         
-        error_log('MKCG Formidable: No topics found in post meta for post ' . $post_id);
-        return [];
+        // Ensure we always have 5 topic slots (data normalization)
+        $normalized_topics = [];
+        for ($i = 1; $i <= 5; $i++) {
+            if (isset($best_topics[$i]) && !empty(trim($best_topics[$i]))) {
+                $normalized_topics[$i] = trim($best_topics[$i]);
+            } else {
+                $normalized_topics[$i] = ''; // Empty slot - will be handled by frontend
+            }
+        }
+        
+        // Determine data quality level
+        $total_topics = count(array_filter($normalized_topics));
+        if ($total_topics >= 4) {
+            $data_quality = 'excellent';
+        } elseif ($total_topics >= 2) {
+            $data_quality = 'good';
+        } elseif ($total_topics >= 1) {
+            $data_quality = 'poor';
+        } else {
+            $data_quality = 'missing';
+        }
+        
+        // Auto-heal if data quality is poor
+        $auto_healed = false;
+        if ($data_quality === 'poor' || $data_quality === 'missing') {
+            $healing_result = $this->heal_missing_data($post_id, 5);
+            if ($healing_result['success']) {
+                $auto_healed = true;
+                error_log('MKCG Enhanced: Auto-healed missing topic data for post ' . $post_id);
+            }
+        }
+        
+        $retrieval_result = [
+            'topics' => $normalized_topics,
+            'data_quality' => $data_quality,
+            'source_pattern' => $best_pattern,
+            'validation_status' => ['Topics retrieved successfully'],
+            'auto_healed' => $auto_healed,
+            'metadata' => [
+                'total_topics' => $total_topics,
+                'quality_score' => $best_quality_score,
+                'timestamp' => time()
+            ]
+        ];
+        
+        if (empty($normalized_topics) || $total_topics === 0) {
+            $retrieval_result['validation_status'] = ['No valid topics found in post meta for post ' . $post_id];
+            error_log('MKCG Enhanced: No topics found in post meta for post ' . $post_id);
+        } else {
+            error_log('MKCG Enhanced: Retrieved ' . $total_topics . ' topics from post ' . $post_id . ' using pattern: ' . $best_pattern);
+        }
+        
+        return $retrieval_result;
     }
     
     /**
-     * Parse topics from string format (similar to field 10081 but more flexible)
+     * Legacy wrapper for backward compatibility
      */
-    private function parse_topics_string($topics_string) {
+    public function get_topics_from_post($post_id) {
+        $enhanced_result = $this->get_topics_from_post_enhanced($post_id);
+        return $enhanced_result['topics'];
+    }
+    
+    /**
+     * Enhanced topic content validation with quality scoring
+     */
+    private function validate_topic_content($topic_content) {
+        $validation = [
+            'valid' => false,
+            'cleaned_content' => '',
+            'quality_score' => 0,
+            'issues' => []
+        ];
+        
+        if (empty($topic_content)) {
+            $validation['issues'][] = 'Empty topic content';
+            return $validation;
+        }
+        
+        // Clean and sanitize the content
+        $cleaned = trim(strip_tags($topic_content));
+        $cleaned = preg_replace('/\s+/', ' ', $cleaned); // Normalize whitespace
+        $cleaned = preg_replace('/[\x00-\x1F\x7F]/', '', $cleaned); // Remove control characters
+        
+        if (empty($cleaned)) {
+            $validation['issues'][] = 'Topic content empty after cleaning';
+            return $validation;
+        }
+        
+        // Quality scoring (0-10 scale)
+        $quality_score = 0;
+        
+        // Length check (optimal: 20-150 characters)
+        $length = strlen($cleaned);
+        if ($length >= 20 && $length <= 150) {
+            $quality_score += 3;
+        } elseif ($length >= 10 && $length <= 200) {
+            $quality_score += 2;
+        } elseif ($length >= 5) {
+            $quality_score += 1;
+        }
+        
+        // Content quality checks
+        if (!preg_match('/^(Topic|Click|Add|Placeholder|Empty)/i', $cleaned)) {
+            $quality_score += 2; // Not a placeholder
+        }
+        
+        if (preg_match('/\b(how|what|why|when|guide|strategy|method|system|framework)\b/i', $cleaned)) {
+            $quality_score += 2; // Contains topic-relevant keywords
+        }
+        
+        if (preg_match('/\b(interview|podcast|discuss|talk|conversation)\b/i', $cleaned)) {
+            $quality_score += 1; // Interview-relevant content
+        }
+        
+        // Completeness check
+        if (!preg_match('/\.\.\.|click|add|placeholder|empty|todo/i', $cleaned)) {
+            $quality_score += 2; // Appears complete
+        }
+        
+        $validation['valid'] = ($quality_score >= 3); // Minimum quality threshold
+        $validation['cleaned_content'] = $cleaned;
+        $validation['quality_score'] = $quality_score;
+        
+        if (!$validation['valid']) {
+            $validation['issues'][] = 'Quality score too low: ' . $quality_score;
+        }
+        
+        return $validation;
+    }
+    
+    /**
+     * Enhanced combined topics data parsing
+     */
+    private function parse_combined_topics_data($topics_data) {
         $topics = [];
         
-        if (empty($topics_string)) {
+        if (empty($topics_data)) {
             return $topics;
         }
         
-        // Try JSON first
-        $json_decoded = json_decode($topics_string, true);
-        if (is_array($json_decoded)) {
-            foreach ($json_decoded as $index => $topic) {
+        // Try JSON first (enhanced)
+        if (is_string($topics_data)) {
+            $json_decoded = json_decode($topics_data, true);
+            if (is_array($json_decoded)) {
+                foreach ($json_decoded as $index => $topic) {
+                    if (!empty($topic)) {
+                        $validated = $this->validate_topic_content($topic);
+                        if ($validated['valid']) {
+                            $key = is_numeric($index) ? $index + 1 : count($topics) + 1;
+                            if ($key >= 1 && $key <= 5) {
+                                $topics[$key] = $validated['cleaned_content'];
+                            }
+                        }
+                    }
+                }
+                if (!empty($topics)) {
+                    return $topics;
+                }
+            }
+        }
+        
+        // Handle direct array
+        if (is_array($topics_data)) {
+            foreach ($topics_data as $index => $topic) {
                 if (!empty($topic)) {
-                    $topics[is_numeric($index) ? $index + 1 : count($topics) + 1] = trim($topic);
+                    $validated = $this->validate_topic_content($topic);
+                    if ($validated['valid']) {
+                        $key = is_numeric($index) ? $index + 1 : count($topics) + 1;
+                        if ($key >= 1 && $key <= 5) {
+                            $topics[$key] = $validated['cleaned_content'];
+                        }
+                    }
                 }
             }
             return $topics;
         }
         
-        // Parse line-by-line format (like field 10081)
-        $lines = explode("\n", $topics_string);
-        
-        foreach ($lines as $line) {
-            $line = trim($line);
+        // Parse string formats (enhanced)
+        if (is_string($topics_data)) {
+            $lines = explode("\n", $topics_data);
             
-            // Look for "Topic X:" or "* Topic X:" patterns
-            if (preg_match('/^\*?\s*Topic\s+(\d+):\s*(.+)$/i', $line, $matches)) {
-                $topic_number = intval($matches[1]);
-                $topic_text = trim($matches[2]);
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if (empty($line)) continue;
                 
-                if ($topic_number >= 1 && $topic_number <= 5 && !empty($topic_text)) {
-                    $topics[$topic_number] = $topic_text;
-                }
-            }
-            // Also try numbered list format "1. Topic text"
-            elseif (preg_match('/^\s*(\d+)\.\s*(.+)$/i', $line, $matches)) {
-                $topic_number = intval($matches[1]);
-                $topic_text = trim($matches[2]);
+                // Enhanced pattern matching
+                $patterns = [
+                    '/^\*?\s*Topic\s+(\d+):\s*(.+)$/i',           // "Topic 1: Content"
+                    '/^\s*(\d+)\.\s*(.+)$/i',                     // "1. Content"
+                    '/^\s*(\d+)\)\s*(.+)$/i',                     // "1) Content"
+                    '/^\s*-\s*Topic\s+(\d+):\s*(.+)$/i',          // "- Topic 1: Content"
+                    '/^\s*\[(\d+)\]\s*(.+)$/i'                   // "[1] Content"
+                ];
                 
-                if ($topic_number >= 1 && $topic_number <= 5 && !empty($topic_text)) {
-                    $topics[$topic_number] = $topic_text;
+                foreach ($patterns as $pattern) {
+                    if (preg_match($pattern, $line, $matches)) {
+                        $topic_number = intval($matches[1]);
+                        $topic_text = trim($matches[2]);
+                        
+                        if ($topic_number >= 1 && $topic_number <= 5 && !empty($topic_text)) {
+                            $validated = $this->validate_topic_content($topic_text);
+                            if ($validated['valid']) {
+                                $topics[$topic_number] = $validated['cleaned_content'];
+                            }
+                        }
+                        break; // Stop at first match
+                    }
                 }
             }
         }
         
         return $topics;
+    }
+    
+    /**
+     * Calculate overall quality score for a set of topics
+     */
+    private function calculate_topics_quality($topics) {
+        $total_score = 0;
+        $topic_count = 0;
+        
+        foreach ($topics as $topic) {
+            if (!empty($topic)) {
+                $validation = $this->validate_topic_content($topic);
+                $total_score += $validation['quality_score'];
+                $topic_count++;
+            }
+        }
+        
+        return $topic_count > 0 ? $total_score : 0;
+    }
+    
+    /**
+     * Legacy method - kept for backward compatibility
+     */
+    private function parse_topics_string($topics_string) {
+        $result = $this->parse_combined_topics_data($topics_string);
+        return $result;
     }
     
     /**
@@ -675,36 +880,184 @@ class MKCG_Formidable_Service {
     }
     
     /**
-     * Get questions from custom post meta for a specific topic
+     * ENHANCED QUESTIONS RETRIEVAL - Get questions with integrity validation
      */
-    public function get_questions_from_post($post_id, $topic_number = null) {
+    public function get_questions_with_integrity_check($post_id, $topic_number = null) {
+        $retrieval_result = [
+            'questions' => [],
+            'integrity_status' => 'unknown',
+            'gaps_detected' => [],
+            'validation_issues' => [],
+            'auto_healed' => false,
+            'metadata' => []
+        ];
+        
+        if (!$post_id) {
+            $retrieval_result['validation_issues'][] = 'No post ID provided';
+            return $retrieval_result;
+        }
+        
         $questions = [];
+        $gaps_detected = [];
+        $validation_issues = [];
         
         if ($topic_number) {
-            // Get questions for specific topic (1-5)
+            // Get questions for specific topic (1-5) with integrity checking
             for ($i = 1; $i <= 5; $i++) {
                 $question_number = (($topic_number - 1) * 5) + $i; // Calculate global question number
                 $meta_key = 'question_' . $question_number;
                 $question_value = get_post_meta($post_id, $meta_key, true);
                 
                 if (!empty($question_value)) {
-                    $questions[$i] = trim($question_value);
-                    error_log("MKCG Formidable: Found question {$i} for topic {$topic_number}: " . substr($question_value, 0, 50) . '...');
+                    $validated_question = $this->validate_question_content($question_value);
+                    if ($validated_question['valid']) {
+                        $questions[$i] = $validated_question['cleaned_content'];
+                        error_log("MKCG Enhanced: Found quality question {$i} for topic {$topic_number}: " . substr($validated_question['cleaned_content'], 0, 50) . '...');
+                    } else {
+                        $validation_issues[] = "Question {$i} for topic {$topic_number} failed validation";
+                        $gaps_detected[] = $meta_key;
+                    }
+                } else {
+                    $gaps_detected[] = $meta_key;
                 }
             }
         } else {
-            // Get all questions (1-25)
+            // Get all questions (1-25) with integrity checking
             for ($i = 1; $i <= 25; $i++) {
                 $meta_key = 'question_' . $i;
                 $question_value = get_post_meta($post_id, $meta_key, true);
                 
                 if (!empty($question_value)) {
-                    $questions[$i] = trim($question_value);
+                    $validated_question = $this->validate_question_content($question_value);
+                    if ($validated_question['valid']) {
+                        $questions[$i] = $validated_question['cleaned_content'];
+                    } else {
+                        $validation_issues[] = "Question {$i} failed validation";
+                        $gaps_detected[] = $meta_key;
+                    }
+                } else {
+                    $gaps_detected[] = $meta_key;
                 }
             }
         }
         
-        return $questions;
+        // Determine integrity status
+        $total_expected = $topic_number ? 5 : 25;
+        $total_found = count($questions);
+        $gap_count = count($gaps_detected);
+        
+        if ($gap_count === 0 && count($validation_issues) === 0) {
+            $integrity_status = 'excellent';
+        } elseif ($total_found >= ($total_expected * 0.8)) {
+            $integrity_status = 'good';
+        } elseif ($total_found >= ($total_expected * 0.5)) {
+            $integrity_status = 'fair';
+        } else {
+            $integrity_status = 'poor';
+        }
+        
+        // Auto-heal if integrity is poor
+        $auto_healed = false;
+        if ($integrity_status === 'poor' || $integrity_status === 'fair') {
+            $healing_result = $this->heal_missing_data($post_id, 5);
+            if ($healing_result['questions_healed'] > 0) {
+                $auto_healed = true;
+                error_log('MKCG Enhanced: Auto-healed ' . $healing_result['questions_healed'] . ' questions for post ' . $post_id);
+            }
+        }
+        
+        $retrieval_result = [
+            'questions' => $questions,
+            'integrity_status' => $integrity_status,
+            'gaps_detected' => $gaps_detected,
+            'validation_issues' => $validation_issues,
+            'auto_healed' => $auto_healed,
+            'metadata' => [
+                'total_found' => $total_found,
+                'total_expected' => $total_expected,
+                'gap_count' => $gap_count,
+                'timestamp' => time()
+            ]
+        ];
+        
+        return $retrieval_result;
+    }
+    
+    /**
+     * Legacy wrapper for backward compatibility
+     */
+    public function get_questions_from_post($post_id, $topic_number = null) {
+        $enhanced_result = $this->get_questions_with_integrity_check($post_id, $topic_number);
+        return $enhanced_result['questions'];
+    }
+    
+    /**
+     * Validate question content quality
+     */
+    private function validate_question_content($question_content) {
+        $validation = [
+            'valid' => false,
+            'cleaned_content' => '',
+            'quality_score' => 0,
+            'issues' => []
+        ];
+        
+        if (empty($question_content)) {
+            $validation['issues'][] = 'Empty question content';
+            return $validation;
+        }
+        
+        // Clean and sanitize
+        $cleaned = trim(strip_tags($question_content));
+        $cleaned = preg_replace('/\s+/', ' ', $cleaned);
+        $cleaned = preg_replace('/[\x00-\x1F\x7F]/', '', $cleaned);
+        
+        if (empty($cleaned)) {
+            $validation['issues'][] = 'Question content empty after cleaning';
+            return $validation;
+        }
+        
+        // Quality scoring for questions
+        $quality_score = 0;
+        
+        // Length check (optimal: 15-200 characters)
+        $length = strlen($cleaned);
+        if ($length >= 15 && $length <= 200) {
+            $quality_score += 3;
+        } elseif ($length >= 8 && $length <= 250) {
+            $quality_score += 2;
+        } elseif ($length >= 5) {
+            $quality_score += 1;
+        }
+        
+        // Question format checks
+        if (preg_match('/\?$/', $cleaned)) {
+            $quality_score += 2; // Ends with question mark
+        }
+        
+        if (preg_match('/^(what|how|why|when|where|which|who|can you|could you|would you|tell us|share|describe)/i', $cleaned)) {
+            $quality_score += 2; // Starts with question word
+        }
+        
+        // Not a placeholder
+        if (!preg_match('/^(Question|Click|Add|Placeholder|Empty|Todo)/i', $cleaned)) {
+            $quality_score += 2;
+        }
+        
+        // Interview relevance
+        if (preg_match('/\b(experience|story|example|advice|tip|strategy|approach|method)\b/i', $cleaned)) {
+            $quality_score += 1;
+        }
+        
+        $validation['valid'] = ($quality_score >= 4); // Minimum quality threshold
+        $validation['cleaned_content'] = $cleaned;
+        $validation['quality_score'] = $quality_score;
+        
+        if (!$validation['valid']) {
+            $validation['issues'][] = 'Question quality score too low: ' . $quality_score;
+        }
+        
+        return $validation;
     }
     
     /**
@@ -746,5 +1099,185 @@ class MKCG_Formidable_Service {
         }
         
         return $questions_by_topic;
+    }
+    
+    /**
+     * ENHANCED DATA VALIDATION - Validate post association integrity
+     */
+    public function validate_post_association($entry_id, $post_id) {
+        $validation_result = [
+            'valid' => false,
+            'post_exists' => false,
+            'post_accessible' => false,
+            'meta_writable' => false,
+            'issues' => [],
+            'auto_fixed' => []
+        ];
+        
+        // Check if post exists
+        if (!$post_id) {
+            $validation_result['issues'][] = 'No post ID provided';
+            return $validation_result;
+        }
+        
+        $post = get_post($post_id);
+        if (!$post) {
+            $validation_result['issues'][] = 'Post does not exist: ' . $post_id;
+            
+            // Attempt auto-creation if we have entry data
+            if ($entry_id) {
+                $created_post = $this->create_missing_post_for_entry($entry_id);
+                if ($created_post) {
+                    $validation_result['auto_fixed'][] = 'Created missing post: ' . $created_post;
+                    $post_id = $created_post;
+                    $post = get_post($post_id);
+                }
+            }
+        }
+        
+        if ($post) {
+            $validation_result['post_exists'] = true;
+            
+            // Check if post is accessible
+            if ($post->post_status === 'publish' || $post->post_status === 'draft' || $post->post_status === 'private') {
+                $validation_result['post_accessible'] = true;
+                
+                // Test meta field write capability
+                $test_meta_key = '_mkcg_test_' . time();
+                $test_result = update_post_meta($post_id, $test_meta_key, 'test_value');
+                if ($test_result !== false) {
+                    $validation_result['meta_writable'] = true;
+                    // Clean up test meta
+                    delete_post_meta($post_id, $test_meta_key);
+                } else {
+                    $validation_result['issues'][] = 'Cannot write to post meta for post: ' . $post_id;
+                }
+            } else {
+                $validation_result['issues'][] = 'Post not accessible (status: ' . $post->post_status . ')';
+            }
+        }
+        
+        // Overall validation
+        $validation_result['valid'] = $validation_result['post_exists'] && 
+                                    $validation_result['post_accessible'] && 
+                                    $validation_result['meta_writable'];
+        
+        // Log validation results
+        if (!$validation_result['valid']) {
+            error_log('MKCG Data Validation FAILED for entry ' . $entry_id . ', post ' . $post_id . ': ' . implode(', ', $validation_result['issues']));
+        } else {
+            error_log('MKCG Data Validation PASSED for entry ' . $entry_id . ', post ' . $post_id);
+        }
+        
+        if (!empty($validation_result['auto_fixed'])) {
+            error_log('MKCG Auto-fixes applied: ' . implode(', ', $validation_result['auto_fixed']));
+        }
+        
+        return $validation_result;
+    }
+    
+    /**
+     * Create missing post for entry (auto-healing)
+     */
+    private function create_missing_post_for_entry($entry_id) {
+        try {
+            $post_data = [
+                'post_title' => 'Media Kit Entry ' . $entry_id,
+                'post_content' => 'Auto-created post for Formidable entry ' . $entry_id,
+                'post_status' => 'draft',
+                'post_type' => 'post', // or your custom post type
+                'meta_input' => [
+                    '_mkcg_entry_id' => $entry_id,
+                    '_mkcg_auto_created' => time()
+                ]
+            ];
+            
+            $post_id = wp_insert_post($post_data);
+            
+            if ($post_id && !is_wp_error($post_id)) {
+                // Update Formidable entry to link to this post
+                global $wpdb;
+                $wpdb->update(
+                    $wpdb->prefix . 'frm_items',
+                    ['post_id' => $post_id],
+                    ['id' => $entry_id],
+                    ['%d'],
+                    ['%d']
+                );
+                
+                error_log('MKCG Auto-healing: Created post ' . $post_id . ' for entry ' . $entry_id);
+                return $post_id;
+            }
+        } catch (Exception $e) {
+            error_log('MKCG Auto-healing failed: ' . $e->getMessage());
+        }
+        
+        return false;
+    }
+    
+    /**
+     * ENHANCED DATA HEALING - Repair missing or corrupted data
+     */
+    public function heal_missing_data($post_id, $expected_topics = 5) {
+        $healing_result = [
+            'topics_healed' => 0,
+            'questions_healed' => 0,
+            'gaps_filled' => [],
+            'issues_found' => [],
+            'success' => false
+        ];
+        
+        if (!$post_id) {
+            $healing_result['issues_found'][] = 'No post ID provided';
+            return $healing_result;
+        }
+        
+        // Heal missing topic slots
+        $current_topics = $this->get_topics_from_post($post_id);
+        $topics_healed = 0;
+        
+        for ($i = 1; $i <= $expected_topics; $i++) {
+            if (!isset($current_topics[$i]) || empty(trim($current_topics[$i]))) {
+                $placeholder_topic = 'Topic ' . $i . ' - Click to add your interview topic';
+                $meta_key = 'topic_' . $i;
+                
+                if (update_post_meta($post_id, $meta_key, $placeholder_topic)) {
+                    $healing_result['gaps_filled'][] = 'topic_' . $i;
+                    $topics_healed++;
+                }
+            }
+        }
+        
+        $healing_result['topics_healed'] = $topics_healed;
+        
+        // Heal question numbering gaps
+        $questions_healed = 0;
+        for ($topic = 1; $topic <= 5; $topic++) {
+            for ($q = 1; $q <= 5; $q++) {
+                $question_number = (($topic - 1) * 5) + $q;
+                $meta_key = 'question_' . $question_number;
+                $existing_question = get_post_meta($post_id, $meta_key, true);
+                
+                if (empty($existing_question)) {
+                    // Check if topic exists to determine if we should add placeholder
+                    if (isset($current_topics[$topic]) && !empty(trim($current_topics[$topic]))) {
+                        $placeholder_question = 'Question ' . $q . ' for Topic ' . $topic . ' - Click to add';
+                        if (update_post_meta($post_id, $meta_key, $placeholder_question)) {
+                            $healing_result['gaps_filled'][] = $meta_key;
+                            $questions_healed++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        $healing_result['questions_healed'] = $questions_healed;
+        $healing_result['success'] = ($topics_healed > 0 || $questions_healed > 0);
+        
+        if ($healing_result['success']) {
+            error_log('MKCG Data Healing: Healed ' . $topics_healed . ' topics and ' . $questions_healed . ' questions for post ' . $post_id);
+        }
+        
+        return $healing_result;
     }
 }

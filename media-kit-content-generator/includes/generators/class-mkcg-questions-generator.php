@@ -374,8 +374,7 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
     }
     
     /**
-     * CORRECTED: Get topics from custom post associated with Formidable entry
-     * Based on original working implementation
+     * ENHANCED SYNC VERIFICATION - Get topics with real-time validation
      */
     public function handle_get_topics_ajax() {
         if (!check_ajax_referer('mkcg_nonce', 'nonce', false)) {
@@ -400,28 +399,248 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
             $entry_id = $entry_data['entry_id'];
         }
         
-        // Get the post ID associated with this Formidable entry
+        // Enhanced validation: Get and validate post association
         $post_id = $this->formidable_service->get_post_id_from_entry($entry_id);
         
         if (!$post_id) {
-            wp_send_json_error(['message' => 'No custom post found for this entry']);
+            wp_send_json_error([
+                'message' => 'No custom post found for this entry',
+                'debug_info' => 'Entry ' . $entry_id . ' has no associated post',
+                'suggested_action' => 'Please check your Formidable form configuration'
+            ]);
             return;
         }
         
-        // Get topics from custom post meta fields
-        $topics = $this->formidable_service->get_topics_from_post($post_id);
-        
-        if (empty($topics)) {
-            wp_send_json_error(['message' => 'No topics found in custom post. Please generate topics first.']);
+        // Validate post association integrity
+        $validation_result = $this->formidable_service->validate_post_association($entry_id, $post_id);
+        if (!$validation_result['valid']) {
+            wp_send_json_error([
+                'message' => 'Post association validation failed',
+                'issues' => $validation_result['issues'],
+                'auto_fixed' => $validation_result['auto_fixed']
+            ]);
             return;
         }
         
-        error_log('MKCG Questions: Successfully found ' . count($topics) . ' topics from custom post ' . $post_id);
-        wp_send_json_success(['topics' => $topics]);
+        // Enhanced topic retrieval with quality validation
+        $topics_result = $this->formidable_service->get_topics_from_post_enhanced($post_id);
+        
+        if (empty($topics_result['topics']) || count(array_filter($topics_result['topics'])) === 0) {
+            // Attempt auto-healing
+            $healing_result = $this->formidable_service->heal_missing_data($post_id, 5);
+            
+            wp_send_json_error([
+                'message' => 'No topics found in custom post. Please generate topics first.',
+                'data_quality' => $topics_result['data_quality'],
+                'healing_attempted' => $healing_result['success'],
+                'suggested_action' => 'Generate topics using the Topics Generator first'
+            ]);
+            return;
+        }
+        
+        // Verify generator sync status
+        $sync_status = $this->verify_generator_sync($post_id);
+        
+        error_log('MKCG Enhanced Questions: Successfully found ' . count(array_filter($topics_result['topics'])) . ' topics from post ' . $post_id . ' (quality: ' . $topics_result['data_quality'] . ')');
+        
+        wp_send_json_success([
+            'topics' => $topics_result['topics'],
+            'data_quality' => $topics_result['data_quality'],
+            'source_pattern' => $topics_result['source_pattern'],
+            'sync_status' => $sync_status,
+            'validation_status' => $validation_result,
+            'auto_healed' => $topics_result['auto_healed'],
+            'metadata' => $topics_result['metadata']
+        ]);
     }
     
     /**
-     * Initialize Questions Generator with AJAX handlers
+     * REAL-TIME SYNC VERIFICATION - Check data consistency between generators
+     */
+    public function verify_generator_sync($post_id) {
+        $sync_status = [
+            'in_sync' => false,
+            'topics_updated' => null,
+            'questions_updated' => null,
+            'sync_lag' => 0,
+            'issues' => [],
+            'recommendations' => []
+        ];
+        
+        if (!$post_id) {
+            $sync_status['issues'][] = 'No post ID provided';
+            return $sync_status;
+        }
+        
+        // Get timestamps for data modification
+        $topics_timestamp = get_post_meta($post_id, '_mkcg_topics_updated', true);
+        $questions_timestamp = get_post_meta($post_id, '_mkcg_questions_updated', true);
+        
+        $sync_status['topics_updated'] = $topics_timestamp ? intval($topics_timestamp) : null;
+        $sync_status['questions_updated'] = $questions_timestamp ? intval($questions_timestamp) : null;
+        
+        // Calculate sync lag
+        if ($sync_status['topics_updated'] && $sync_status['questions_updated']) {
+            $sync_status['sync_lag'] = abs($sync_status['topics_updated'] - $sync_status['questions_updated']);
+            
+            // Consider in sync if updated within 5 minutes of each other
+            $sync_status['in_sync'] = ($sync_status['sync_lag'] <= 300);
+            
+            if (!$sync_status['in_sync']) {
+                if ($sync_status['topics_updated'] > $sync_status['questions_updated']) {
+                    $sync_status['issues'][] = 'Topics are newer than questions';
+                    $sync_status['recommendations'][] = 'Consider regenerating questions for updated topics';
+                } else {
+                    $sync_status['issues'][] = 'Questions are newer than topics';
+                    $sync_status['recommendations'][] = 'Topics may have been updated after questions were generated';
+                }
+            }
+        } else {
+            if (!$sync_status['topics_updated']) {
+                $sync_status['issues'][] = 'No topics timestamp found';
+                $sync_status['recommendations'][] = 'Topics may need to be regenerated';
+            }
+            
+            if (!$sync_status['questions_updated']) {
+                $sync_status['issues'][] = 'No questions timestamp found';
+                $sync_status['recommendations'][] = 'Questions have not been generated yet';
+            }
+        }
+        
+        // Check data completeness
+        $topics_result = $this->formidable_service->get_topics_from_post_enhanced($post_id);
+        $questions_result = $this->formidable_service->get_questions_with_integrity_check($post_id);
+        
+        if ($topics_result['data_quality'] === 'poor' || $topics_result['data_quality'] === 'missing') {
+            $sync_status['issues'][] = 'Topics data quality is ' . $topics_result['data_quality'];
+            $sync_status['recommendations'][] = 'Regenerate topics to improve data quality';
+        }
+        
+        if ($questions_result['integrity_status'] === 'poor' || $questions_result['integrity_status'] === 'fair') {
+            $sync_status['issues'][] = 'Questions integrity is ' . $questions_result['integrity_status'];
+            $sync_status['recommendations'][] = 'Regenerate questions to improve data integrity';
+        }
+        
+        return $sync_status;
+    }
+    
+    /**
+     * DATA HEALTH MONITORING - Get comprehensive system status
+     */
+    public function get_data_health_status($post_id) {
+        $health_status = [
+            'overall_health' => 'unknown',
+            'post_association' => [],
+            'topics_health' => [],
+            'questions_health' => [],
+            'sync_health' => [],
+            'recommendations' => [],
+            'timestamp' => time()
+        ];
+        
+        if (!$post_id) {
+            $health_status['overall_health'] = 'critical';
+            $health_status['recommendations'][] = 'No post ID provided';
+            return $health_status;
+        }
+        
+        // Check post association health
+        $validation_result = $this->formidable_service->validate_post_association(0, $post_id);
+        $health_status['post_association'] = $validation_result;
+        
+        // Check topics health
+        $topics_result = $this->formidable_service->get_topics_from_post_enhanced($post_id);
+        $health_status['topics_health'] = [
+            'data_quality' => $topics_result['data_quality'],
+            'total_topics' => $topics_result['metadata']['total_topics'],
+            'quality_score' => $topics_result['metadata']['quality_score'],
+            'auto_healed' => $topics_result['auto_healed']
+        ];
+        
+        // Check questions health
+        $questions_result = $this->formidable_service->get_questions_with_integrity_check($post_id);
+        $health_status['questions_health'] = [
+            'integrity_status' => $questions_result['integrity_status'],
+            'total_found' => $questions_result['metadata']['total_found'],
+            'gap_count' => $questions_result['metadata']['gap_count'],
+            'auto_healed' => $questions_result['auto_healed']
+        ];
+        
+        // Check sync health
+        $sync_status = $this->verify_generator_sync($post_id);
+        $health_status['sync_health'] = $sync_status;
+        
+        // Calculate overall health score
+        $health_scores = [];
+        
+        // Post association score (0-25)
+        $health_scores['post'] = $validation_result['valid'] ? 25 : 0;
+        
+        // Topics score (0-25)
+        $topics_scores = [
+            'excellent' => 25,
+            'good' => 20,
+            'poor' => 10,
+            'missing' => 0
+        ];
+        $health_scores['topics'] = $topics_scores[$topics_result['data_quality']] ?? 0;
+        
+        // Questions score (0-25)
+        $questions_scores = [
+            'excellent' => 25,
+            'good' => 20,
+            'fair' => 15,
+            'poor' => 5
+        ];
+        $health_scores['questions'] = $questions_scores[$questions_result['integrity_status']] ?? 0;
+        
+        // Sync score (0-25)
+        $health_scores['sync'] = $sync_status['in_sync'] ? 25 : (count($sync_status['issues']) <= 1 ? 15 : 5);
+        
+        $total_score = array_sum($health_scores);
+        
+        // Determine overall health
+        if ($total_score >= 90) {
+            $health_status['overall_health'] = 'excellent';
+        } elseif ($total_score >= 75) {
+            $health_status['overall_health'] = 'good';
+        } elseif ($total_score >= 50) {
+            $health_status['overall_health'] = 'fair';
+        } elseif ($total_score >= 25) {
+            $health_status['overall_health'] = 'poor';
+        } else {
+            $health_status['overall_health'] = 'critical';
+        }
+        
+        // Generate recommendations
+        if ($health_status['overall_health'] === 'critical' || $health_status['overall_health'] === 'poor') {
+            $health_status['recommendations'][] = 'Immediate attention required';
+        }
+        
+        if (!$validation_result['valid']) {
+            $health_status['recommendations'][] = 'Fix post association issues';
+        }
+        
+        if ($topics_result['data_quality'] === 'poor' || $topics_result['data_quality'] === 'missing') {
+            $health_status['recommendations'][] = 'Regenerate topics to improve quality';
+        }
+        
+        if ($questions_result['integrity_status'] === 'poor' || $questions_result['integrity_status'] === 'fair') {
+            $health_status['recommendations'][] = 'Regenerate questions to improve integrity';
+        }
+        
+        if (!$sync_status['in_sync']) {
+            $health_status['recommendations'] = array_merge($health_status['recommendations'], $sync_status['recommendations']);
+        }
+        
+        $health_status['score_breakdown'] = $health_scores;
+        $health_status['total_score'] = $total_score;
+        
+        return $health_status;
+    }
+    
+    /**
+     * Initialize Questions Generator with enhanced AJAX handlers and monitoring
      */
     public function init() {
         parent::init();
@@ -430,20 +649,50 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
         add_action('wp_ajax_generate_interview_questions', [$this, 'handle_ajax_generation']);
         add_action('wp_ajax_nopriv_generate_interview_questions', [$this, 'handle_ajax_generation']);
         
-        // Add new unified AJAX actions
+        // Add enhanced unified AJAX actions
         add_action('wp_ajax_mkcg_get_topics', [$this, 'handle_get_topics_ajax']);
         add_action('wp_ajax_nopriv_mkcg_get_topics', [$this, 'handle_get_topics_ajax']);
         
-        // Add auto-save AJAX action
+        // Add auto-save AJAX actions
         add_action('wp_ajax_mkcg_save_question', [$this, 'handle_save_question_ajax']);
         add_action('wp_ajax_nopriv_mkcg_save_question', [$this, 'handle_save_question_ajax']);
         
-        // CRITICAL FIX: Add topic editing AJAX handlers
+        // Add topic editing AJAX handlers
         add_action('wp_ajax_mkcg_save_topic', [$this, 'handle_save_topic_ajax']);
         add_action('wp_ajax_nopriv_mkcg_save_topic', [$this, 'handle_save_topic_ajax']);
         
+        // Enhanced save with monitoring
         add_action('wp_ajax_mkcg_save_all_data', [$this, 'handle_save_all_data_ajax']);
         add_action('wp_ajax_nopriv_mkcg_save_all_data', [$this, 'handle_save_all_data_ajax']);
+        
+        // NEW: Health monitoring endpoints
+        add_action('wp_ajax_mkcg_health_check', [$this, 'handle_health_check_ajax']);
+        add_action('wp_ajax_nopriv_mkcg_health_check', [$this, 'handle_health_check_ajax']);
+        
+        // NEW: Sync verification endpoint
+        add_action('wp_ajax_mkcg_verify_sync', [$this, 'handle_verify_sync_ajax']);
+        add_action('wp_ajax_nopriv_mkcg_verify_sync', [$this, 'handle_verify_sync_ajax']);
+    }
+    
+    /**
+     * AJAX endpoint for sync verification
+     */
+    public function handle_verify_sync_ajax() {
+        if (!check_ajax_referer('mkcg_nonce', 'nonce', false)) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
+        
+        $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
+        
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID is required']);
+            return;
+        }
+        
+        $sync_status = $this->verify_generator_sync($post_id);
+        
+        wp_send_json_success($sync_status);
     }
     
     /**
@@ -521,7 +770,7 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
     }
     
     /**
-     * AJAX handler for saving all topics and questions data
+     * ENHANCED AJAX handler for saving all topics and questions data with monitoring
      */
     public function handle_save_all_data_ajax() {
         if (!check_ajax_referer('generate_topics_nonce', 'nonce', false)) {
@@ -544,52 +793,159 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
             return;
         }
         
+        // Pre-save validation
+        $validation_result = $this->formidable_service->validate_post_association($entry_id, $post_id);
+        if (!$validation_result['valid']) {
+            wp_send_json_error([
+                'message' => 'Cannot save: Post validation failed',
+                'issues' => $validation_result['issues']
+            ]);
+            return;
+        }
+        
         $saved_topics = 0;
         $saved_questions = 0;
+        $data_quality_before = null;
+        $data_quality_after = null;
         
-        // Save topics
+        // Get before state for comparison
+        $before_health = $this->get_data_health_status($post_id);
+        $data_quality_before = [
+            'topics' => $before_health['topics_health']['data_quality'],
+            'questions' => $before_health['questions_health']['integrity_status']
+        ];
+        
+        // Save topics with enhanced validation
         if (!empty($topics_data) && is_array($topics_data)) {
-            // Sanitize topics data
             $clean_topics = [];
             foreach ($topics_data as $num => $text) {
                 $topic_num = intval($num);
                 if ($topic_num >= 1 && $topic_num <= 5) {
-                    $clean_topics[$topic_num] = sanitize_textarea_field($text);
+                    $sanitized_text = sanitize_textarea_field($text);
+                    if (!empty($sanitized_text)) {
+                        // Validate topic quality before saving
+                        $validation = $this->formidable_service->validate_topic_content($sanitized_text);
+                        if ($validation['valid']) {
+                            $clean_topics[$topic_num] = $validation['cleaned_content'];
+                        } else {
+                            error_log("MKCG Enhanced Save: Topic {$topic_num} failed validation: " . implode(', ', $validation['issues']));
+                            // Save anyway but log the issue
+                            $clean_topics[$topic_num] = $sanitized_text;
+                        }
+                    }
                 }
             }
             
-            $result = $this->formidable_service->save_topics_to_post($post_id, $clean_topics);
-            if ($result) {
-                $saved_topics = count($clean_topics);
-            }
-        }
-        
-        // Save questions
-        if (!empty($questions_data) && is_array($questions_data)) {
-            foreach ($questions_data as $topic_num => $topic_questions) {
-                if (is_array($topic_questions)) {
-                    // Sanitize questions
-                    $clean_questions = [];
-                    foreach ($topic_questions as $q_num => $question) {
-                        $clean_questions[] = sanitize_textarea_field($question);
-                    }
-                    
-                    $result = $this->formidable_service->save_questions_to_post($post_id, $clean_questions, intval($topic_num));
-                    if ($result) {
-                        $saved_questions += count($clean_questions);
-                    }
+            if (!empty($clean_topics)) {
+                $result = $this->formidable_service->save_topics_to_post($post_id, $clean_topics);
+                if ($result) {
+                    $saved_topics = count($clean_topics);
+                    // Update topics timestamp for sync tracking
+                    update_post_meta($post_id, '_mkcg_topics_updated', time());
                 }
             }
         }
         
-        error_log("MKCG Questions: Save all data - Topics: {$saved_topics}, Questions: {$saved_questions}");
+        // Save questions with enhanced validation
+        if (!empty($questions_data) && is_array($questions_data)) {
+            foreach ($questions_data as $topic_num => $topic_questions) {
+                if (is_array($topic_questions)) {
+                    $clean_questions = [];
+                    foreach ($topic_questions as $q_num => $question) {
+                        $sanitized_question = sanitize_textarea_field($question);
+                        if (!empty($sanitized_question)) {
+                            // Validate question quality before saving
+                            $validation = $this->formidable_service->validate_question_content($sanitized_question);
+                            if ($validation['valid']) {
+                                $clean_questions[] = $validation['cleaned_content'];
+                            } else {
+                                error_log("MKCG Enhanced Save: Question for topic {$topic_num} failed validation: " . implode(', ', $validation['issues']));
+                                // Save anyway but log the issue
+                                $clean_questions[] = $sanitized_question;
+                            }
+                        }
+                    }
+                    
+                    if (!empty($clean_questions)) {
+                        $result = $this->formidable_service->save_questions_to_post($post_id, $clean_questions, intval($topic_num));
+                        if ($result) {
+                            $saved_questions += count($clean_questions);
+                        }
+                    }
+                }
+            }
+            
+            if ($saved_questions > 0) {
+                // Update questions timestamp for sync tracking
+                update_post_meta($post_id, '_mkcg_questions_updated', time());
+            }
+        }
+        
+        // Get after state for comparison
+        $after_health = $this->get_data_health_status($post_id);
+        $data_quality_after = [
+            'topics' => $after_health['topics_health']['data_quality'],
+            'questions' => $after_health['questions_health']['integrity_status']
+        ];
+        
+        // Calculate improvement metrics
+        $quality_improved = [
+            'topics' => $this->compare_quality_levels($data_quality_before['topics'], $data_quality_after['topics']),
+            'questions' => $this->compare_quality_levels($data_quality_before['questions'], $data_quality_after['questions'])
+        ];
+        
+        error_log("MKCG Enhanced Save: Saved {$saved_topics} topics and {$saved_questions} questions. Quality improvement - Topics: {$quality_improved['topics']}, Questions: {$quality_improved['questions']}");
         
         wp_send_json_success([
             'message' => "Successfully saved {$saved_topics} topics and {$saved_questions} questions",
             'saved_topics' => $saved_topics,
             'saved_questions' => $saved_questions,
-            'post_id' => $post_id
+            'post_id' => $post_id,
+            'data_quality_before' => $data_quality_before,
+            'data_quality_after' => $data_quality_after,
+            'quality_improved' => $quality_improved,
+            'overall_health' => $after_health['overall_health'],
+            'sync_status' => $this->verify_generator_sync($post_id)
         ]);
+    }
+    
+    /**
+     * Compare quality levels and return improvement status
+     */
+    private function compare_quality_levels($before, $after) {
+        $quality_levels = ['missing' => 0, 'poor' => 1, 'fair' => 2, 'good' => 3, 'excellent' => 4];
+        
+        $before_score = $quality_levels[$before] ?? 0;
+        $after_score = $quality_levels[$after] ?? 0;
+        
+        if ($after_score > $before_score) {
+            return 'improved';
+        } elseif ($after_score < $before_score) {
+            return 'degraded';
+        } else {
+            return 'unchanged';
+        }
+    }
+    
+    /**
+     * AJAX endpoint for health monitoring
+     */
+    public function handle_health_check_ajax() {
+        if (!check_ajax_referer('mkcg_nonce', 'nonce', false)) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
+        
+        $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
+        
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID is required']);
+            return;
+        }
+        
+        $health_status = $this->get_data_health_status($post_id);
+        
+        wp_send_json_success($health_status);
     }
     
     /**
