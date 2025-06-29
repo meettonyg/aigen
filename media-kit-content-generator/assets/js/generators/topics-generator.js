@@ -11,7 +11,7 @@
    * Topics Generator - Main functionality
    */
   const TopicsGenerator = {
-    // DOM elements mapping (BEM selectors)
+    // DOM elements mapping (BEM selectors) - FIXED to match template IDs
     elements: {
       toggleBuilder: '#topics-generator-toggle-builder',
       authorityHookBuilder: '#topics-generator-authority-hook-builder',
@@ -34,7 +34,9 @@
       fieldModal: '#topics-generator-field-modal',
       fieldNumberInput: '#topics-generator-field-number',
       modalOkButton: '#topics-generator-modal-ok',
-      modalCancelButton: '#topics-generator-modal-cancel'
+      modalCancelButton: '#topics-generator-modal-cancel',
+      entryIdField: '#topics-generator-entry-id',
+      nonceField: '#topics-generator-nonce'
     },
     
     // Field values - Initialize from existing data, not hardcoded
@@ -311,17 +313,23 @@
      * Update input fields with current field values
      */
     updateInputFields: function() {
+      console.log('📝 Updating input fields with values:', this.fields);
+      
       const fieldMappings = [
-        { field: 'who', selector: '#topics-generator-who-input' },
-        { field: 'result', selector: '#topics-generator-result-input' },
-        { field: 'when', selector: '#topics-generator-when-input' },
-        { field: 'how', selector: '#topics-generator-how-input' }
+        { field: 'who', selector: this.elements.whoInput },
+        { field: 'result', selector: this.elements.resultInput },
+        { field: 'when', selector: this.elements.whenInput },
+        { field: 'how', selector: this.elements.howInput }
       ];
       
       fieldMappings.forEach(({ field, selector }) => {
         const input = document.querySelector(selector);
-        if (input && this.fields[field]) {
-          input.value = this.fields[field];
+        if (input) {
+          const value = this.fields[field] || '';
+          input.value = value;
+          console.log(`✅ Updated ${field} input (${selector}) with: "${value}"`);
+        } else {
+          console.error(`❌ Input field not found: ${selector}`);
         }
       });
     },
@@ -330,9 +338,19 @@
      * Update authority hook display with specific text
      */
     updateAuthorityHookText: function(hookText) {
+      console.log('🎯 Updating Authority Hook text to:', hookText);
       const hookElement = document.querySelector(this.elements.authorityHookText);
       if (hookElement) {
         hookElement.textContent = hookText;
+        console.log('✅ Authority Hook text updated successfully');
+      } else {
+        console.error('❌ Authority Hook text element not found:', this.elements.authorityHookText);
+        // Try fallback selector
+        const fallbackElement = document.getElementById('topics-generator-authority-hook-text');
+        if (fallbackElement) {
+          fallbackElement.textContent = hookText;
+          console.log('✅ Authority Hook text updated via fallback');
+        }
       }
     },
     
@@ -349,7 +367,7 @@
         if (window.MKCG_FormUtils) {
           MKCG_FormUtils.wp.makeAjaxRequest('mkcg_load_topics_data', {
             entry_id: entryId,
-            nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || ''
+            nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || document.querySelector(this.elements.nonceField)?.value || ''
           }, {
             onSuccess: (data) => {
               this.populateFields(data);
@@ -553,7 +571,7 @@
       result: this.fields.result,
       when: this.fields.when,
       how: this.fields.how,
-      nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || ''
+      nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || document.querySelector(this.elements.nonceField)?.value || ''
       }, {
           onSuccess: (data) => {
             console.log('✅ Authority hook components saved:', data);
@@ -568,8 +586,11 @@
      * Auto-save field to Formidable (if entry exists)
      */
     autoSaveField: function(inputElement) {
-      const entryId = document.querySelector('#topics-generator-entry-id')?.value;
-      if (!entryId || entryId === '0') return;
+      const entryId = document.querySelector(this.elements.entryIdField)?.value;
+      if (!entryId || entryId === '0') {
+        console.log('⚠️ No entry ID available for auto-save');
+        return;
+      }
       
       const fieldName = inputElement.getAttribute('name');
       const fieldValue = inputElement.value;
@@ -592,23 +613,28 @@
       
       // Use MKCG_FormUtils to make AJAX request
       if (window.MKCG_FormUtils) {
+        console.log('💾 Auto-saving field:', fieldName, 'with value:', fieldValue);
+        
         MKCG_FormUtils.wp.makeAjaxRequest('mkcg_save_topic_field', {
           entry_id: entryId,
           field_name: fieldName,
           field_value: fieldValue,
-          nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || ''
+          nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || document.querySelector(this.elements.nonceField)?.value || ''
         }, {
           onSuccess: (response) => {
+            console.log('✅ Auto-save successful for field:', fieldName);
             // Visual feedback for successful save
             inputElement.style.borderColor = '#27ae60';
             setTimeout(() => {
               inputElement.style.borderColor = '';
             }, 1000);
           },
-          onError: () => {
-            console.log('Auto-save failed for field:', fieldName);
+          onError: (error) => {
+            console.log('❌ Auto-save failed for field:', fieldName, error);
           }
         });
+      } else {
+        console.log('⚠️ MKCG_FormUtils not available for auto-save');
       }
     },
     
@@ -616,17 +642,28 @@
      * Toggle the Authority Hook Builder visibility
      */
     toggleBuilder: function() {
+      console.log('🔄 Toggling Authority Hook Builder');
       const builderEl = document.querySelector(this.elements.authorityHookBuilder);
       const toggleBtn = document.querySelector(this.elements.toggleBuilder);
       
-      if (!builderEl || !toggleBtn) return;
+      if (!builderEl) {
+        console.error('❌ Builder element not found:', this.elements.authorityHookBuilder);
+        return;
+      }
+      
+      if (!toggleBtn) {
+        console.error('❌ Toggle button not found:', this.elements.toggleBuilder);
+        return;
+      }
       
       if (builderEl.classList.contains('topics-generator__builder--hidden')) {
         builderEl.classList.remove('topics-generator__builder--hidden');
         toggleBtn.textContent = 'Hide Builder';
+        console.log('✅ Builder shown');
       } else {
         builderEl.classList.add('topics-generator__builder--hidden');
         toggleBtn.textContent = 'Edit Components';
+        console.log('✅ Builder hidden');
       }
     },
     
@@ -698,8 +735,11 @@
      * Save the complete authority hook to Formidable
      */
     saveCompleteAuthorityHook: function(hookText) {
-      const entryId = document.querySelector('#topics-generator-entry-id')?.value;
-      if (!entryId || entryId === '0') return;
+      const entryId = document.querySelector(this.elements.entryIdField)?.value;
+      if (!entryId || entryId === '0') {
+        console.log('⚠️ No entry ID available for saving complete authority hook');
+        return;
+      }
       
       // Debounce the save
       clearTimeout(this.hookSaveTimer);
@@ -709,7 +749,7 @@
             entry_id: entryId,
             field_id: '10358',
             value: hookText,
-            nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || ''
+            nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || document.querySelector(this.elements.nonceField)?.value || ''
           }, {
             onSuccess: () => {
               console.log('✅ Complete authority hook saved to field 10358');
@@ -745,8 +785,8 @@
           result: this.fields.result,
           when: this.fields.when,
           how: this.fields.how,
-          entry_id: document.querySelector('#topics-generator-entry-id')?.value,
-          nonce: document.querySelector('#topics-generator-topics-nonce')?.value
+          entry_id: document.querySelector(this.elements.entryIdField)?.value,
+          nonce: document.querySelector(this.elements.nonceField)?.value
         }, {
           onStart: () => {
             this.showLoading();

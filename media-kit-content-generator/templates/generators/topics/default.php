@@ -350,7 +350,9 @@ if (empty($authority_hook_components['complete'])) {
                     
                     <!-- Hidden fields for AJAX -->
                     <input type="hidden" id="topics-generator-entry-id" value="<?php echo esc_attr($entry_id); ?>">
+                    <input type="hidden" id="topics-generator-entry-key" value="<?php echo esc_attr($entry_key); ?>">
                     <input type="hidden" id="topics-generator-nonce" value="<?php echo wp_create_nonce('mkcg_nonce'); ?>">
+                    <input type="hidden" id="topics-generator-topics-nonce" value="<?php echo wp_create_nonce('mkcg_nonce'); ?>">
                 </div>
             </div>
             
