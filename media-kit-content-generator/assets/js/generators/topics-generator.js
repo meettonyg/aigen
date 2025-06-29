@@ -136,64 +136,176 @@
     },
     
     /**
-     * Load existing data from PHP (prioritize over all other sources)
-     */
+    * STANDALONE: Load existing data from Formidable/Custom Post (independent operation)
+    */
     loadExistingData: function() {
-      console.log('📝 Loading existing data from PHP...');
-      
-      // Check if PHP data was passed to JavaScript
-      if (window.MKCG_Topics_Data && window.MKCG_Topics_Data.hasEntry) {
-        console.log('✅ Found existing data:', window.MKCG_Topics_Data);
+    console.log('📝 Topics Generator: Loading existing data independently...');
+    
+    // First check if PHP data was passed to JavaScript
+    if (window.MKCG_Topics_Data && window.MKCG_Topics_Data.hasEntry) {
+    console.log('✅ Found existing PHP data:', window.MKCG_Topics_Data);
+    this.populateFromPHPData(window.MKCG_Topics_Data);
+    return;
+    }
+    
+    // If no PHP data, try to load via AJAX (standalone mode)
+    const entryId = document.querySelector('#topics-generator-entry-id')?.value;
+    const urlParams = new URLSearchParams(window.location.search);
+    const entryKey = urlParams.get('entry');
+    
+    if ((entryId && entryId !== '0') || entryKey) {
+    console.log('📡 Topics Generator: Loading data via AJAX...', { entryId, entryKey });
+    this.loadDataViaAJAX(entryId, entryKey);
+    } else {
+    console.log('⚠️ Topics Generator: No entry data found, using defaults');
+    this.setDefaultData();
+    }
+    },
+    
+    /**
+    * STANDALONE: Populate from PHP data
+    */
+    populateFromPHPData: function(phpData) {
+    // Load authority hook components
+    if (phpData.authorityHook) {
+    this.fields.who = phpData.authorityHook.who || '';
+    this.fields.result = phpData.authorityHook.result || '';
+    this.fields.when = phpData.authorityHook.when || '';
+    this.fields.how = phpData.authorityHook.how || '';
+    
+    this.updateInputFields();
+    
+    // Use complete hook if available, otherwise build from components
+    if (phpData.authorityHook.complete) {
+    this.updateAuthorityHookText(phpData.authorityHook.complete);
+    } else {
+    this.updateAuthorityHook();
+    }
+    }
+    
+    // Load existing topics into form fields
+    if (phpData.topics) {
+    Object.keys(phpData.topics).forEach(key => {
+        if (phpData.topics[key]) {
+            const fieldNum = key.split('_')[1];
+            const field = document.querySelector(`#topics-generator-topic-field-${fieldNum}`);
+            if (field) {
+                field.value = phpData.topics[key];
+                console.log(`✅ Loaded topic ${fieldNum}: ${phpData.topics[key].substring(0, 50)}...`);
+                }
+                }
+            });
+        }
         
+        console.log('✅ Topics Generator: PHP data loaded successfully');
+    },
+    
+    /**
+     * STANDALONE: Load data via AJAX (independent operation)
+     */
+    loadDataViaAJAX: function(entryId, entryKey) {
+        if (!window.MKCG_FormUtils) {
+            console.error('❌ MKCG FormUtils not available for AJAX data loading');
+            this.setDefaultData();
+            return;
+        }
+        
+        const requestData = {};
+        if (entryId && entryId !== '0') {
+            requestData.entry_id = entryId;
+        }
+        if (entryKey) {
+            requestData.entry_key = entryKey;
+        }
+        
+        MKCG_FormUtils.wp.makeAjaxRequest('mkcg_get_topics_data', requestData, {
+            onSuccess: (data) => {
+                console.log('✅ Topics Generator: AJAX data loaded:', data);
+                this.populateFromAJAXData(data);
+            },
+            onError: (error) => {
+                console.log('⚠️ Topics Generator: AJAX load failed:', error);
+                this.setDefaultData();
+            }
+        });
+    },
+    
+    /**
+     * STANDALONE: Populate from AJAX data
+     */
+    populateFromAJAXData: function(ajaxData) {
         // Load authority hook components
-        const authorityHook = window.MKCG_Topics_Data.authorityHook;
-        if (authorityHook) {
-          this.fields.who = authorityHook.who || '';
-          this.fields.result = authorityHook.result || '';
-          this.fields.when = authorityHook.when || '';
-          this.fields.how = authorityHook.how || '';
-          
-          // Update the input fields
-          this.updateInputFields();
-          
-          // Always build from components if we have component data (components take precedence)
-          const hasComponentData = this.fields.who || this.fields.result || this.fields.when || this.fields.how;
-          
-          if (hasComponentData) {
-            console.log('✅ Building authority hook from components:', this.fields);
-            this.updateAuthorityHook();
-          } else if (authorityHook.complete) {
-            console.log('✅ Using stored complete authority hook:', authorityHook.complete);
-            this.updateAuthorityHookText(authorityHook.complete);
-          } else {
-            console.log('⚠️ No authority hook data found, using defaults');
-            this.updateAuthorityHook();
-          }
+        if (ajaxData.authority_hook) {
+            this.fields.who = ajaxData.authority_hook.who || '';
+            this.fields.result = ajaxData.authority_hook.result || '';
+            this.fields.when = ajaxData.authority_hook.when || '';
+            this.fields.how = ajaxData.authority_hook.how || '';
+            
+            this.updateInputFields();
+            this.updateAuthorityHookText(ajaxData.authority_hook.complete);
         }
         
         // Load existing topics
-        const topics = window.MKCG_Topics_Data.topics;
-        if (topics) {
-          Object.keys(topics).forEach(key => {
-            if (topics[key]) {
-              const fieldNum = key.split('_')[1];
-              const field = document.querySelector(`#topics-generator-topic-field-${fieldNum}`);
-              if (field) {
-                field.value = topics[key];
-              }
-            }
-          });
+        if (ajaxData.topics) {
+            Object.keys(ajaxData.topics).forEach(key => {
+                if (ajaxData.topics[key]) {
+                    const fieldNum = key.split('_')[1];
+                    const field = document.querySelector(`#topics-generator-topic-field-${fieldNum}`);
+                    if (field) {
+                        field.value = ajaxData.topics[key];
+                        console.log(`✅ AJAX loaded topic ${fieldNum}: ${ajaxData.topics[key].substring(0, 50)}...`);
+                    }
+                }
+            });
         }
-      } else {
-        console.log('⚠️ No existing data found, using defaults');
-        // Set fallback defaults only if no PHP data
+        
+        // Show data quality status if available
+        if (ajaxData.data_quality && ajaxData.data_quality === 'missing') {
+            this.showDataQualityWarning('No topics data available');
+        }
+        
+        console.log('✅ Topics Generator: AJAX data populated successfully');
+    },
+    
+    /**
+     * Set default data when no existing data found
+     */
+    setDefaultData: function() {
         this.fields.who = this.fields.who || 'your audience';
         this.fields.result = this.fields.result || 'achieve their goals';
         this.fields.when = this.fields.when || 'they need help';
         this.fields.how = this.fields.how || 'through your method';
         this.updateAuthorityHook();
-      }
+        console.log('✅ Topics Generator: Default data set');
     },
+    
+    /**
+     * Show data quality warning
+     */
+    showDataQualityWarning: function(message) {
+        // Create or update warning banner
+        let warningBanner = document.querySelector('.topics-generator__warning');
+        if (!warningBanner) {
+            warningBanner = document.createElement('div');
+            warningBanner.className = 'topics-generator__warning';
+            warningBanner.style.cssText = `
+                background-color: #f39c12;
+                color: white;
+                padding: 10px 15px;
+                border-radius: 4px;
+                margin-bottom: 15px;
+                font-weight: 500;
+            `;
+            
+            const container = document.querySelector('.topics-generator__panel--left');
+            if (container) {
+                container.insertBefore(warningBanner, container.firstChild);
+            }
+        }
+        
+        warningBanner.textContent = message;
+        console.log('⚠️ Topics Generator: Data quality warning:', message);
+    }
     
     /**
      * Update input fields with current field values
@@ -434,16 +546,15 @@
     saveComponentToFormidable: function(component, fieldId, value) {
       const entryId = document.querySelector('#topics-generator-entry-id')?.value;
       
-      // Use our AJAX handlers to save the component
-      if (window.MKCG_FormUtils) {
-        MKCG_FormUtils.wp.makeAjaxRequest('mkcg_update_authority_hook', {
-          entry_id: entryId,
-          who: this.fields.who,
-          result: this.fields.result,
-          when: this.fields.when,
-          how: this.fields.how,
-          nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || ''
-        }, {
+      // CRITICAL FIX: Use unified nonce for authority hook save
+      MKCG_FormUtils.wp.makeAjaxRequest('mkcg_save_authority_hook', {
+      entry_id: entryId,
+      who: this.fields.who,
+      result: this.fields.result,
+      when: this.fields.when,
+      how: this.fields.how,
+      nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || ''
+      }, {
           onSuccess: (data) => {
             console.log('✅ Authority hook components saved:', data);
           },
