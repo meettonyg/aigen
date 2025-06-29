@@ -287,6 +287,56 @@ abstract class MKCG_Base_Generator {
         return $template_path;
     }
     
+    /**
+     * Validate AJAX request security with multiple nonce checks
+     * @param array $required_fields List of required POST fields
+     * @return bool|WP_Error True if valid, WP_Error if invalid
+     */
+    protected function validate_ajax_security(array $required_fields = ['security', 'nonce']) {
+        $nonce_verified = false;
+        $nonce_value = '';
+        
+        // Try multiple nonce fields with correct actions
+        $nonce_checks = [
+            ['field' => 'security', 'action' => 'mkcg_nonce'],
+            ['field' => 'nonce', 'action' => 'mkcg_nonce'], 
+            ['field' => 'save_nonce', 'action' => 'mkcg_save_nonce'],
+            ['field' => 'mkcg_nonce', 'action' => 'mkcg_nonce']
+        ];
+        
+        foreach ($nonce_checks as $check) {
+            if (isset($_POST[$check['field']]) && !empty($_POST[$check['field']])) {
+                $nonce_value = $_POST[$check['field']];
+                if (wp_verify_nonce($nonce_value, $check['action'])) {
+                    $nonce_verified = true;
+                    error_log("MKCG {$this->generator_type}: ✅ Nonce verified using field '{$check['field']}' with action '{$check['action']}'");
+                    break;
+                }
+            }
+        }
+        
+        if (!$nonce_verified) {
+            error_log("MKCG {$this->generator_type}: ❌ Security check failed - no valid nonce found");
+            error_log("MKCG {$this->generator_type}: Available POST fields: " . implode(', ', array_keys($_POST)));
+            return new WP_Error('nonce_failed', 'Security check failed - please refresh the page');
+        }
+        
+        // Validate required fields
+        $missing_fields = [];
+        foreach ($required_fields as $field) {
+            if (!isset($_POST[$field]) || empty($_POST[$field])) {
+                $missing_fields[] = $field;
+            }
+        }
+        
+        if (!empty($missing_fields)) {
+            error_log("MKCG {$this->generator_type}: ❌ Missing required fields: " . implode(', ', $missing_fields));
+            return new WP_Error('missing_fields', 'Missing required fields: ' . implode(', ', $missing_fields));
+        }
+        
+        return true;
+    }
+    
     // Abstract methods that each generator must implement
     
     /**

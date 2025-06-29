@@ -39,6 +39,14 @@
       nonceField: '#topics-generator-nonce'
     },
     
+    /**
+     * Handle topic selection changes
+     */
+    handleTopicSelectionChange: function(data) {
+      // This will be used when Questions Generator selects topics
+      console.log('🎯 Topics Generator: Topic selection changed to', data.topicId, data.topicText);
+    },
+    
     // Field values - Initialize from existing data, not hardcoded
     fields: {
       who: '',
@@ -68,11 +76,13 @@
     },
     
     /**
-     * CRITICAL FIX: Initialize centralized data manager
+     * CRITICAL FIX: Initialize centralized data manager with fallback
      */
     initializeDataManager: function() {
+      // Make data manager optional - Topics Generator should work independently
       if (typeof MKCG_DataManager === 'undefined') {
-        console.error('❌ MKCG Data Manager not loaded! Topic sync will not work.');
+        console.log('⚠️ MKCG Data Manager not loaded - Topics Generator will work independently');
+        this.dataManagerAvailable = false;
         return;
       }
       
@@ -89,19 +99,30 @@
         Object.assign(initialData.topics, window.MKCG_Topics_Data.topics);
       }
       
-      // Initialize the data manager
-      MKCG_DataManager.init(initialData);
-      
-      // Set up event listeners for data synchronization
-      this.setupDataSyncListeners();
-      
-      console.log('✅ Topics Generator: Data Manager initialized');
+      try {
+        // Initialize the data manager
+        MKCG_DataManager.init(initialData);
+        
+        // Set up event listeners for data synchronization
+        this.setupDataSyncListeners();
+        
+        this.dataManagerAvailable = true;
+        console.log('✅ Topics Generator: Data Manager initialized');
+      } catch (error) {
+        console.log('⚠️ Data Manager initialization failed:', error);
+        this.dataManagerAvailable = false;
+      }
     },
     
     /**
-     * CRITICAL FIX: Set up data synchronization listeners
+     * CRITICAL FIX: Set up data synchronization listeners with fallback
      */
     setupDataSyncListeners: function() {
+      if (!this.dataManagerAvailable) {
+        console.log('⚠️ Data Manager not available - skipping sync listeners');
+        return;
+      }
+      
       // Listen for topic updates from other generators
       MKCG_DataManager.on('topic:updated', (data) => {
         console.log('🔄 Topics Generator: Received topic update', data);
@@ -130,11 +151,20 @@
     },
     
     /**
-     * CRITICAL FIX: Handle topic selection changes
+     * CRITICAL FIX: Update centralized data manager with fallback
      */
-    handleTopicSelectionChange: function(data) {
-      // This will be used when Questions Generator selects topics
-      console.log('🎯 Topics Generator: Topic selection changed to', data.topicId, data.topicText);
+    updateDataManager: function(topicId, topicText) {
+      if (!this.dataManagerAvailable || typeof MKCG_DataManager === 'undefined') {
+        console.log('⚠️ Data Manager not available - skipping update');
+        return;
+      }
+      
+      try {
+        MKCG_DataManager.setTopic(topicId, topicText);
+        console.log('✅ Updated centralized data for topic', topicId);
+      } catch (error) {
+        console.error('❌ Failed to update centralized data:', error);
+      }
     },
     
     /**
@@ -601,14 +631,7 @@
       const topicMatch = inputElement.id.match(/topic-field-(\d+)/);
       if (topicMatch) {
         const topicId = parseInt(topicMatch[1]);
-        if (window.MKCG_DataManager) {
-          try {
-            MKCG_DataManager.setTopic(topicId, fieldValue);
-            console.log('✅ Auto-save updated centralized data for topic', topicId);
-          } catch (error) {
-            console.error('❌ Auto-save failed to update centralized data:', error);
-          }
-        }
+        this.updateDataManager(topicId, fieldValue);
       }
       
       // Use MKCG_FormUtils to make AJAX request
@@ -979,14 +1002,7 @@
         this.autoSaveField(inputElement);
         
         // CRITICAL FIX: Update centralized data manager
-        if (window.MKCG_DataManager) {
-          try {
-            MKCG_DataManager.setTopic(fieldNumber, this.selectedTopic.text);
-            console.log('✅ Updated centralized data for topic', fieldNumber);
-          } catch (error) {
-            console.error('❌ Failed to update centralized data:', error);
-          }
-        }
+        this.updateDataManager(fieldNumber, this.selectedTopic.text);
         
         // Broadcast topic selection event using FormUtils (legacy support)
         if (window.MKCG_FormUtils && MKCG_FormUtils.events) {

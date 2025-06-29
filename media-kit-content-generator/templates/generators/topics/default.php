@@ -26,8 +26,15 @@ $authority_hook_components = [
 if (isset($_GET['entry'])) {
     $entry_key = sanitize_text_field($_GET['entry']);
     
+    // CRITICAL FIX: Ensure Formidable service is available - get from global if needed
+    if (!isset($formidable_service) && class_exists('MKCG_Formidable_Service')) {
+        $formidable_service = new MKCG_Formidable_Service();
+        error_log('MKCG Topics Template: Created Formidable service instance');
+    }
+    
     // Use the Formidable service to get data using the correct field IDs
     if (isset($formidable_service)) {
+        error_log('MKCG Topics Template: Loading data for entry key: ' . $entry_key);
         $entry_data = $formidable_service->get_entry_data($entry_key);
         if ($entry_data['success']) {
             $entry_id = $entry_data['entry_id'];
@@ -65,7 +72,12 @@ if (isset($_GET['entry'])) {
         } else {
             error_log('MKCG Topics: Failed to load entry data for key: ' . $entry_key);
         }
+    } else {
+        error_log('MKCG Topics Template: ERROR - Formidable service not available');
+        error_log('MKCG Topics Template: Available classes: ' . implode(', ', get_declared_classes()));
     }
+} else {
+    error_log('MKCG Topics Template: No entry parameter in URL - using defaults');
 }
 
 // Fallback for authority hook if still empty
@@ -447,6 +459,14 @@ if (empty($authority_hook_components['complete'])) {
 
 <!-- Pass PHP data to JavaScript -->
 <script type="text/javascript">
+    // MKCG Debug Info
+    console.log('🎯 MKCG Topics: Template data loading...', {
+        entryId: <?php echo intval($entry_id); ?>,
+        entryKey: '<?php echo esc_js($entry_key); ?>',
+        hasEntry: <?php echo $entry_id > 0 ? 'true' : 'false'; ?>,
+        templateLoadTime: new Date().toISOString()
+    });
+    
     window.MKCG_Topics_Data = {
         entryId: <?php echo intval($entry_id); ?>,
         entryKey: '<?php echo esc_js($entry_key); ?>',
@@ -467,7 +487,32 @@ if (empty($authority_hook_components['complete'])) {
         }
     };
     
-    console.log('MKCG Topics: Loaded data', window.MKCG_Topics_Data);
+    console.log('✅ MKCG Topics: Final data loaded', window.MKCG_Topics_Data);
+    
+    // CRITICAL DEBUG: Check for immediate population
+    if (window.MKCG_Topics_Data.hasEntry) {
+        console.log('📋 MKCG Topics: Entry found - should populate automatically');
+        
+        // Check if authority hook text element exists and has content
+        const hookText = document.getElementById('topics-generator-authority-hook-text');
+        if (hookText) {
+            console.log('✅ Authority hook element found with text:', hookText.textContent);
+        } else {
+            console.error('❌ Authority hook element not found - check selector mismatch');
+        }
+        
+        // Check if topic fields exist and have values
+        for (let i = 1; i <= 5; i++) {
+            const field = document.getElementById(`topics-generator-topic-field-${i}`);
+            if (field) {
+                console.log(`✅ Topic ${i} field found with value:`, field.value);
+            } else {
+                console.error(`❌ Topic ${i} field not found`);
+            }
+        }
+    } else {
+        console.log('⚠️ MKCG Topics: No entry data - using defaults');
+    }
 </script>
 
 <!-- JavaScript functionality loaded separately -->

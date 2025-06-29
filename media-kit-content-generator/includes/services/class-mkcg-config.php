@@ -79,6 +79,22 @@ class MKCG_Config {
     }
     
     /**
+     * Get a specific field ID for cleaner code access
+     * @param string $data_type The data type (topics, questions, etc.)
+     * @param string|int $field_key The field key
+     * @return string|null The field ID or null if not found
+     */
+    public static function get_field_id(string $data_type, string|int $field_key) {
+        $field_mappings = self::get_field_mappings();
+        
+        if (!isset($field_mappings[$data_type]['fields'])) {
+            return null;
+        }
+        
+        return $field_mappings[$data_type]['fields'][$field_key] ?? null;
+    }
+    
+    /**
      * 🔑 META KEY PATTERNS - WordPress post meta key generation
      */
     public static function get_meta_key_pattern($data_type) {

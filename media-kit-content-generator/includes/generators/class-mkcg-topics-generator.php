@@ -149,6 +149,13 @@ The expert's area of expertise is: \"$authority_hook\".
     }
     
     /**
+     * Get specific field ID using centralized helper
+     */
+    protected function get_field_id($field_key) {
+        return MKCG_Config::get_field_id('topics', $field_key);
+    }
+    
+    /**
      * Get authority hook component field mappings using centralized configuration
      */
     public function get_authority_hook_field_mappings() {
@@ -156,26 +163,24 @@ The expert's area of expertise is: \"$authority_hook\".
     }
     
     /**
-     * Build authority hook from components
+     * Build authority hook from components - DELEGATED TO SERVICE
      */
     public function build_authority_hook_from_components($entry_id) {
         $field_mappings = $this->get_authority_hook_field_mappings();
         
-        $who = $this->formidable_service->get_field_value($entry_id, $field_mappings['who']) ?: 'your audience';
-        $result = $this->formidable_service->get_field_value($entry_id, $field_mappings['result']) ?: 'achieve their goals';
-        $when = $this->formidable_service->get_field_value($entry_id, $field_mappings['when']) ?: 'they need help';
-        $how = $this->formidable_service->get_field_value($entry_id, $field_mappings['how']) ?: 'through your method';
+        $components = [];
+        foreach (['who', 'result', 'when', 'how'] as $component) {
+            $components[$component] = $this->formidable_service->get_field_value($entry_id, $field_mappings[$component]) ?: '';
+        }
         
-        return "I help {$who} {$result} when {$when} {$how}.";
+        // Delegate to centralized Authority Hook Service
+        return $this->authority_hook_service->build_authority_hook($components);
     }
     
     /**
-     * Save authority hook components to Formidable
+     * Save authority hook components to Formidable - DELEGATED TO SERVICE
      */
     public function save_authority_hook_components($entry_id, $who, $result, $when, $how) {
-        $field_mappings = $this->get_authority_hook_field_mappings();
-        
-        // Save individual components
         $components = [
             'who' => $who,
             'result' => $result,
@@ -183,37 +188,33 @@ The expert's area of expertise is: \"$authority_hook\".
             'how' => $how
         ];
         
-        $saved_fields = [];
-        foreach ($components as $component => $value) {
-            if (isset($field_mappings[$component])) {
-                $result = $this->formidable_service->save_generated_content(
-                    $entry_id,
-                    [$component => $value],
-                    [$component => $field_mappings[$component]]
-                );
-                
-                if ($result['success']) {
-                    $saved_fields[$component] = $field_mappings[$component];
-                }
+        // Build complete authority hook using centralized service
+        $complete_hook = $this->authority_hook_service->build_authority_hook($components);
+        
+        // Save using Formidable service with proper field mappings
+        $field_mappings = $this->get_authority_hook_field_mappings();
+        
+        $data_to_save = $components;
+        $data_to_save['complete'] = $complete_hook;
+        
+        $field_mapping_for_save = [];
+        foreach ($data_to_save as $key => $value) {
+            if (isset($field_mappings[$key])) {
+                $field_mapping_for_save[$key] = $field_mappings[$key];
             }
         }
         
-        // Build and save complete authority hook
-        $complete_hook = "I help {$who} {$result} when {$when} {$how}.";
-        $complete_result = $this->formidable_service->save_generated_content(
+        $result = $this->formidable_service->save_generated_content(
             $entry_id,
-            ['complete' => $complete_hook],
-            ['complete' => $field_mappings['complete']]
+            $data_to_save,
+            $field_mapping_for_save
         );
         
-        if ($complete_result['success']) {
-            $saved_fields['complete'] = $field_mappings['complete'];
-        }
-        
         return [
-            'success' => count($saved_fields) > 0,
-            'saved_fields' => $saved_fields,
-            'authority_hook' => $complete_hook
+            'success' => $result['success'],
+            'saved_fields' => $field_mapping_for_save,
+            'authority_hook' => $complete_hook,
+            'errors' => $result['errors'] ?? []
         ];
     }
     
@@ -245,9 +246,10 @@ The expert's area of expertise is: \"$authority_hook\".
      * Handle legacy topics generation (for backwards compatibility)
      */
     private function handle_legacy_topics_generation() {
-        // Use the original Topics generator logic for existing implementations
-        if (!check_ajax_referer('generate_topics_nonce', 'security', false)) {
-            wp_send_json_error(['message' => 'Security check failed']);
+        // Use centralized security validation
+        $security_check = $this->validate_ajax_security(['entry_id']);
+        if (is_wp_error($security_check)) {
+            wp_send_json_error(['message' => $security_check->get_error_message()]);
             return;
         }
         
@@ -346,8 +348,10 @@ The expert's area of expertise is: \"$authority_hook\".
      * Handle legacy fetch authority hook request
      */
     public function handle_fetch_authority_hook() {
-        if (!check_ajax_referer('generate_topics_nonce', 'security', false)) {
-            wp_send_json_error(['message' => 'Security check failed']);
+        // Use centralized security validation
+        $security_check = $this->validate_ajax_security(['entry_id']);
+        if (is_wp_error($security_check)) {
+            wp_send_json_error(['message' => $security_check->get_error_message()]);
             return;
         }
         
