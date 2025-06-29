@@ -237,7 +237,7 @@
         if (window.MKCG_FormUtils) {
           MKCG_FormUtils.wp.makeAjaxRequest('mkcg_load_topics_data', {
             entry_id: entryId,
-            nonce: document.querySelector('#topics-generator-topics-nonce')?.value
+            nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || ''
           }, {
             onSuccess: (data) => {
               this.populateFields(data);
@@ -442,7 +442,7 @@
           result: this.fields.result,
           when: this.fields.when,
           how: this.fields.how,
-          nonce: window.topics_vars?.topics_nonce || ''
+          nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || ''
         }, {
           onSuccess: (data) => {
             console.log('✅ Authority hook components saved:', data);
@@ -486,7 +486,7 @@
           entry_id: entryId,
           field_name: fieldName,
           field_value: fieldValue,
-          nonce: document.querySelector('#topics-generator-topics-nonce')?.value
+          nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || ''
         }, {
           onSuccess: (response) => {
             // Visual feedback for successful save
@@ -599,7 +599,7 @@
             entry_id: entryId,
             field_id: '10358',
             value: hookText,
-            nonce: window.topics_vars?.topics_nonce || ''
+            nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || ''
           }, {
             onSuccess: () => {
               console.log('✅ Complete authority hook saved to field 10358');

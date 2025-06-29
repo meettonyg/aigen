@@ -38,8 +38,8 @@ class MKCG_Topics_AJAX_Handlers {
      * Save individual field value
      */
     public function save_field() {
-        // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'mkcg_topics_nonce')) {
+        // Verify nonce - UNIFIED STRATEGY
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'mkcg_nonce')) {
             wp_send_json_error('Security check failed');
         }
         
@@ -85,8 +85,8 @@ class MKCG_Topics_AJAX_Handlers {
      * Save topic to specific topic field
      */
     public function save_topic() {
-        // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'mkcg_topics_nonce')) {
+        // Verify nonce - UNIFIED STRATEGY
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'mkcg_nonce')) {
             wp_send_json_error('Security check failed');
         }
         
@@ -143,8 +143,8 @@ class MKCG_Topics_AJAX_Handlers {
      * Update authority hook when components change
      */
     public function update_authority_hook() {
-        // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'mkcg_topics_nonce')) {
+        // Verify nonce - UNIFIED STRATEGY
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'mkcg_nonce')) {
             wp_send_json_error('Security check failed');
         }
         
@@ -190,8 +190,8 @@ class MKCG_Topics_AJAX_Handlers {
      * Load entry data for a given entry key or ID
      */
     public function load_entry_data() {
-        // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'mkcg_topics_nonce')) {
+        // Verify nonce - UNIFIED STRATEGY
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'mkcg_nonce')) {
             wp_send_json_error('Security check failed');
         }
         

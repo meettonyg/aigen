@@ -232,13 +232,10 @@ Format each version with clear headers.";
      * Handle legacy biography generation for backwards compatibility
      */
     public function handle_legacy_biography_generation() {
-        // Check for biography-specific nonce first
-        if (!check_ajax_referer('biography_form_nonce', 'security', false)) {
-            // Fallback to unified nonce
-            if (!check_ajax_referer('mkcg_nonce', 'security', false)) {
-                wp_send_json_error(['message' => 'Security check failed']);
-                return;
-            }
+        // UNIFIED NONCE STRATEGY - Use unified nonce for all generators
+        if (!check_ajax_referer('mkcg_nonce', 'security', false)) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
         }
         
         // Get form data

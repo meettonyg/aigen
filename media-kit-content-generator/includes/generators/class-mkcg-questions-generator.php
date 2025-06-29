@@ -744,7 +744,8 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
      * AJAX handler for auto-saving individual questions
      */
     public function handle_save_question_ajax() {
-        if (!check_ajax_referer('generate_topics_nonce', 'nonce', false)) {
+        // UNIFIED NONCE STRATEGY
+        if (!check_ajax_referer('mkcg_nonce', 'nonce', false)) {
             wp_send_json_error(['message' => 'Security check failed']);
             return;
         }
@@ -1201,7 +1202,8 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
      * AJAX handler for saving topic questions (current topic only)
      */
     public function handle_save_topic_questions_ajax() {
-        if (!check_ajax_referer('generate_topics_nonce', 'security', false)) {
+        // UNIFIED NONCE STRATEGY  
+        if (!check_ajax_referer('mkcg_nonce', 'security', false)) {
             wp_send_json_error(['message' => 'Security check failed']);
             return;
         }
@@ -1325,12 +1327,12 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
      * ENHANCED: Verify nonce from either JSON or form data with multiple nonce support
      */
     private function verify_nonce($input_data) {
-        // Check multiple possible nonce field names
+        // Check multiple possible nonce field names - UNIFIED STRATEGY
         $possible_nonces = [
-            'security' => 'generate_topics_nonce',
+            'security' => 'mkcg_nonce',
             'nonce' => 'mkcg_nonce',
             'mkcg_nonce' => 'mkcg_nonce',
-            '_wpnonce' => 'generate_topics_nonce'
+            '_wpnonce' => 'mkcg_nonce'
         ];
         
         foreach ($possible_nonces as $field_name => $nonce_action) {
@@ -1517,11 +1519,11 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
             true
         );
         
-        // Pass data to JavaScript
+        // Pass data to JavaScript - UNIFIED NONCE STRATEGY
         wp_localize_script('mkcg-questions-generator', 'mkcg_questions_ajax', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('mkcg_nonce'),
-            'topics_nonce' => wp_create_nonce('generate_topics_nonce')
+            'security' => wp_create_nonce('mkcg_nonce')
         ]);
     }
 }
