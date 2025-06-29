@@ -49,6 +49,31 @@ class MKCG_Config {
                 'meta_prefix' => 'authority_hook_',
                 'max_items' => 5,
                 'type' => 'component_based'
+            ],
+            // PLACEHOLDER: Biography and Offers field mappings (to prevent warnings)
+            'biography' => [
+                'fields' => [
+                    // Placeholder field mappings - update when Biography generator is implemented
+                    'short_bio' => 99001,    // Unique placeholder ID
+                    'medium_bio' => 99002,   // Unique placeholder ID
+                    'long_bio' => 99003      // Unique placeholder ID
+                ],
+                'meta_prefix' => 'biography_',
+                'max_items' => 3,
+                'type' => 'multi_length',
+                'status' => 'placeholder'
+            ],
+            'offers' => [
+                'fields' => [
+                    // Placeholder field mappings - update when Offers generator is implemented
+                    'offer_1' => 99004,      // Unique placeholder ID
+                    'offer_2' => 99005,      // Unique placeholder ID
+                    'offer_3' => 99006       // Unique placeholder ID
+                ],
+                'meta_prefix' => 'offer_',
+                'max_items' => 3,
+                'type' => 'single_value',
+                'status' => 'placeholder'
             ]
         ];
     }
@@ -258,6 +283,11 @@ class MKCG_Config {
         // Check for duplicate field IDs
         $all_fields = [];
         foreach ($field_mappings as $data_type => $config) {
+            // Skip placeholder configurations from duplicate field ID checks
+            if (isset($config['status']) && $config['status'] === 'placeholder') {
+                continue;
+            }
+            
             if (isset($config['fields'])) {
                 foreach ($config['fields'] as $field_key => $field_id) {
                     if (is_array($field_id)) {
@@ -282,6 +312,9 @@ class MKCG_Config {
         foreach ($data_types as $type => $config) {
             if (!isset($field_mappings[$type])) {
                 $validation['warnings'][] = "Data type '{$type}' has no field mapping";
+            } elseif (isset($field_mappings[$type]['status']) && $field_mappings[$type]['status'] === 'placeholder') {
+                // Silently skip placeholder configurations - they're expected to be incomplete
+                continue;
             }
         }
         

@@ -1,8 +1,0 @@
-[29-Jun-2025 01:45:04 UTC] MKCG Unified Service: Configuration warnings: Data type 'biography' has no field mapping, Data type 'offers' has no field mapping
-[29-Jun-2025 01:45:04 UTC] PHP Fatal error:  Uncaught Error: Class 'MKCG_Topics_Data_Service' not found in /home/1378770.cloudwaysapps.com/hgysczkcuu/public_html/wp-content/plugins/media-kit-content-generator/includes/generators/class-mkcg-questions-generator.php:24
-Stack trace:
-#0 /home/1378770.cloudwaysapps.com/hgysczkcuu/public_html/wp-content/plugins/media-kit-content-generator/media-kit-content-generator.php(106): MKCG_Questions_Generator->__construct()
-#1 /home/1378770.cloudwaysapps.com/hgysczkcuu/public_html/wp-content/plugins/media-kit-content-generator/media-kit-content-generator.php(41): Media_Kit_Content_Generator->init_generators()
-#2 /home/1378770.cloudwaysapps.com/hgysczkcuu/public_html/wp-content/plugins/media-kit-content-generator/media-kit-content-generator.php(32): Media_Kit_Content_Generator->__construct()
-#3 /home/1378770.cloudwaysapps.com/hgysczkcuu/public_html/wp-content/plugins/media-kit-content-generator/media-kit-content-generator.php(428): Media_Kit_Content_Generator::get_instance()
-#4 /home/1378770.cloudwaysapps.com/hgysczkcuu in /home/1378770.cloudwaysapps.com/hgysczkcuu/public_html/wp-content/plugins/media-kit-content-generator/includes/generators/class-mkcg-questions-generator.php on line 24
