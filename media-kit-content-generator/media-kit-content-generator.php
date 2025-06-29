@@ -272,11 +272,12 @@ class Media_Kit_Content_Generator {
             'plugin_url' => MKCG_PLUGIN_URL
         ]);
         
-        // Also pass topics-specific data with enhanced nonces
+        // Also pass topics-specific data with unified nonce strategy
         wp_localize_script('mkcg-topics-generator', 'topics_vars', [
             'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('generate_topics_nonce'),
-            'topics_nonce' => wp_create_nonce('mkcg_topics_nonce'),
+            'nonce' => wp_create_nonce('mkcg_nonce'),
+            'topics_nonce' => wp_create_nonce('mkcg_nonce'),
+            'save_nonce' => wp_create_nonce('mkcg_save_nonce'),
             'plugin_url' => MKCG_PLUGIN_URL,
             'entry_id' => $this->get_current_entry_id(),
             'entry_key' => $this->get_current_entry_key(),
@@ -298,11 +299,12 @@ class Media_Kit_Content_Generator {
             ]
         ]);
         
-        // Pass questions-specific data
+        // Pass questions-specific data with unified nonce strategy
         wp_localize_script('mkcg-questions-generator', 'questions_vars', [
             'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('generate_topics_nonce'),
-            'questions_nonce' => wp_create_nonce('mkcg_questions_nonce'),
+            'nonce' => wp_create_nonce('mkcg_nonce'),
+            'topics_nonce' => wp_create_nonce('mkcg_nonce'),
+            'save_nonce' => wp_create_nonce('mkcg_save_nonce'),
             'plugin_url' => MKCG_PLUGIN_URL,
             'entry_id' => $this->get_current_entry_id(),
             'entry_key' => $this->get_current_entry_key(),

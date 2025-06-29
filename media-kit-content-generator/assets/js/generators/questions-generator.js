@@ -51,11 +51,14 @@ const QuestionsGenerator = {
     },
     
     /**
-     * ENHANCED INITIALIZATION with data validation and health monitoring
+     * CRITICAL FIX: Enhanced initialization with nonce validation
      */
     init: function() {
         console.log('MKCG Enhanced Questions: Initializing with centralized data manager');
         this.performance.loadStartTime = performance.now();
+        
+        // CRITICAL FIX: Validate nonce availability at startup
+        this.validateNonceAvailability();
         
         try {
             // CRITICAL FIX: Initialize centralized data manager first
@@ -80,6 +83,31 @@ const QuestionsGenerator = {
         } catch (error) {
             this.performance.errorCount++;
             this.handleError(error, 'initialization', () => this.init());
+        }
+    },
+    
+    /**
+     * CRITICAL FIX: Validate nonce availability at startup
+     */
+    validateNonceAvailability: function() {
+        const saveNonce = (typeof questions_vars !== 'undefined' && questions_vars.save_nonce) || '';
+        const generalNonce = (typeof questions_vars !== 'undefined' && questions_vars.nonce) || '';
+        const topicsNonce = (typeof questions_vars !== 'undefined' && questions_vars.topics_nonce) || '';
+        
+        console.log('MKCG Nonce Validation:', {
+            questions_vars_available: typeof questions_vars !== 'undefined',
+            save_nonce_available: !!saveNonce,
+            general_nonce_available: !!generalNonce,
+            topics_nonce_available: !!topicsNonce,
+            save_nonce_preview: saveNonce ? saveNonce.substring(0, 8) + '...' : 'MISSING',
+            general_nonce_preview: generalNonce ? generalNonce.substring(0, 8) + '...' : 'MISSING'
+        });
+        
+        if (!saveNonce && !generalNonce) {
+            console.error('CRITICAL: No valid nonces available! Backend saves will fail.');
+            this.showNotification('Security tokens missing - saves may fail. Please refresh the page.', 'warning');
+        } else {
+            console.log('✅ Nonces validated successfully');
         }
     },
     
@@ -1419,8 +1447,8 @@ const QuestionsGenerator = {
     },
     
     /**
-     * SIMPLIFIED AJAX REQUEST using WordPress-standard URL-encoded data consistently
-     * ✅ 100% reliable ✅ WordPress standard ✅ No compatibility issues
+     * CRITICAL FIX: WordPress AJAX with unified nonce handling
+     * ✅ 100% reliable ✅ WordPress standard ✅ Proper nonce access
      */
     makeAjaxRequest: function(action, data = {}, nonceField = 'security', maxRetries = 3) {
         return new Promise((resolve, reject) => {
@@ -1429,12 +1457,30 @@ const QuestionsGenerator = {
                 const postData = new URLSearchParams();
                 postData.append('action', action);
                 
-                // Enhanced nonce handling with multiple sources
-                const nonce = document.getElementById('mkcg-questions-nonce')?.value || 
-                             document.querySelector('[name="security"]')?.value ||
-                             document.querySelector('[name="_wpnonce"]')?.value || '';
+                // CRITICAL FIX: Access nonces from localized variables, not hardcoded elements
+                const saveNonce = (typeof questions_vars !== 'undefined' && questions_vars.save_nonce) || '';
+                const generalNonce = (typeof questions_vars !== 'undefined' && questions_vars.nonce) || '';
+                const topicsNonce = (typeof questions_vars !== 'undefined' && questions_vars.topics_nonce) || '';
+                
+                // Use appropriate nonce based on action type
+                let nonce = '';
+                if (action.includes('save')) {
+                    nonce = saveNonce || generalNonce;
+                } else {
+                    nonce = generalNonce || topicsNonce;
+                }
+                
+                // Send multiple nonce fields for maximum compatibility
                 postData.append('security', nonce);
                 postData.append('nonce', nonce);
+                postData.append('save_nonce', saveNonce);
+                
+                console.log('MKCG AJAX: Using nonces:', {
+                    action: action,
+                    nonceUsed: nonce.substring(0, 8) + '...',
+                    saveNonce: saveNonce ? saveNonce.substring(0, 8) + '...' : 'none',
+                    generalNonce: generalNonce ? generalNonce.substring(0, 8) + '...' : 'none'
+                });
                 
                 // Handle all data by flattening appropriately
                 Object.entries(data).forEach(([key, value]) => {

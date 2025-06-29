@@ -258,10 +258,19 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
     }
     
     /**
-     * ENHANCED: Handle legacy questions generation with bulletproof save and verification
+     * CRITICAL FIX: Legacy questions generation with unified nonce validation
      */
     private function handle_legacy_questions_generation() {
-        if (!check_ajax_referer('generate_topics_nonce', 'security', false)) {
+        // CRITICAL FIX: Use unified nonce validation for legacy generation
+        $nonce_verified = false;
+        if (isset($_POST['security']) && wp_verify_nonce($_POST['security'], 'mkcg_nonce')) {
+            $nonce_verified = true;
+        } elseif (isset($_POST['nonce']) && wp_verify_nonce($_POST['nonce'], 'mkcg_nonce')) {
+            $nonce_verified = true;
+        }
+        
+        if (!$nonce_verified) {
+            error_log('MKCG Legacy Generation: ❌ Security check failed');
             wp_send_json_error(['message' => 'Security check failed']);
             return;
         }
@@ -767,26 +776,38 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
     }
     
     /**
-     * ENHANCED: AJAX handler for saving individual topics (inline editing) with comprehensive validation
+     * CRITICAL FIX: AJAX handler for saving individual topics with proper nonce validation
      */
     public function handle_save_topic_ajax() {
-        // Enhanced nonce verification - try multiple nonce fields
+        // CRITICAL FIX: Use unified nonce strategy with proper validation
         $nonce_verified = false;
-        $nonce_fields = ['nonce', 'security', 'mkcg_nonce'];
+        $nonce_value = '';
         
-        foreach ($nonce_fields as $field) {
-            if (isset($_POST[$field]) && check_ajax_referer('generate_topics_nonce', $field, false)) {
-                $nonce_verified = true;
-                error_log("MKCG Topic Save: Nonce verified using field: {$field}");
-                break;
+        // Try multiple nonce fields with correct actions
+        $nonce_checks = [
+            ['field' => 'security', 'action' => 'mkcg_save_nonce'],
+            ['field' => 'nonce', 'action' => 'mkcg_nonce'], 
+            ['field' => 'save_nonce', 'action' => 'mkcg_save_nonce'],
+            ['field' => 'mkcg_nonce', 'action' => 'mkcg_nonce']
+        ];
+        
+        foreach ($nonce_checks as $check) {
+            if (isset($_POST[$check['field']]) && !empty($_POST[$check['field']])) {
+                $nonce_value = $_POST[$check['field']];
+                if (wp_verify_nonce($nonce_value, $check['action'])) {
+                    $nonce_verified = true;
+                    error_log("MKCG Topic Save: ✅ Nonce verified using field '{$check['field']}' with action '{$check['action']}'");
+                    break;
+                }
             }
         }
         
         if (!$nonce_verified) {
-            error_log('MKCG Topic Save: Security check failed - no valid nonce found');
+            error_log('MKCG Topic Save: ❌ Security check failed - no valid nonce found');
+            error_log('MKCG Topic Save: Available POST fields: ' . implode(', ', array_keys($_POST)));
             wp_send_json_error([
-                'message' => 'Security check failed',
-                'debug' => 'Please refresh the page and try again'
+                'message' => 'Security check failed', 
+                'debug' => 'Nonce verification failed - please refresh the page'
             ]);
             return;
         }
@@ -896,7 +917,7 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
         error_log('MKCG Enhanced Save: Input data keys: ' . implode(', ', array_keys($input_data)));
         
         if (!$this->verify_nonce($input_data)) {
-            error_log('MKCG Enhanced Save: Security check failed');
+            error_log('MKCG Save All: Security check failed');
             wp_send_json_error([
                 'message' => 'Security check failed',
                 'debug' => 'Nonce verification failed - please refresh the page'
