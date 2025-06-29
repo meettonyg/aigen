@@ -51,31 +51,94 @@ class Media_Kit_Content_Generator {
     }
     
     private function load_dependencies() {
-        // Load centralized configuration first
-        require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-config.php';
+        // Enhanced dependency loading with error checking and logging
+        $required_files = [
+            // Core services first
+            'includes/services/class-mkcg-config.php' => 'MKCG_Config',
+            'includes/services/class-mkcg-api-service.php' => 'MKCG_API_Service',
+            'includes/services/class-mkcg-formidable-service.php' => 'MKCG_Formidable_Service',
+            'includes/services/class-mkcg-authority-hook-service.php' => 'MKCG_Authority_Hook_Service',
+            
+            // CRITICAL: Topics Data Service MUST be loaded before generators
+            'includes/services/class-mkcg-topics-data-service.php' => 'MKCG_Topics_Data_Service',
+            'includes/services/class-mkcg-unified-data-service.php' => 'MKCG_Unified_Data_Service',
+            
+            // Base generator
+            'includes/generators/class-mkcg-base-generator.php' => 'MKCG_Base_Generator',
+            
+            // Specific generators (Topics Data Service dependency already loaded)
+            'includes/generators/class-mkcg-biography-generator.php' => 'MKCG_Biography_Generator',
+            'includes/generators/class-mkcg-offers-generator.php' => 'MKCG_Offers_Generator',
+            'includes/generators/class-mkcg-topics-generator.php' => 'MKCG_Topics_Generator',
+            'includes/generators/class-mkcg-questions-generator.php' => 'MKCG_Questions_Generator',
+            
+            // AJAX handlers
+            'includes/generators/class-mkcg-topics-ajax-handlers.php' => 'MKCG_Topics_AJAX_Handlers'
+        ];
         
-        // Load shared services
-        require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-api-service.php';
-        require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-formidable-service.php';
-        require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-authority-hook-service.php';
+        $loading_errors = [];
         
-        // Load unified data service
-        require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-unified-data-service.php';
+        foreach ($required_files as $file_path => $expected_class) {
+            $full_path = MKCG_PLUGIN_PATH . $file_path;
+            
+            // Check file existence
+            if (!file_exists($full_path)) {
+                $loading_errors[] = "File not found: {$file_path}";
+                error_log("MKCG: CRITICAL - File not found: {$full_path}");
+                continue;
+            }
+            
+            // Check file readability
+            if (!is_readable($full_path)) {
+                $loading_errors[] = "File not readable: {$file_path}";
+                error_log("MKCG: CRITICAL - File not readable: {$full_path}");
+                continue;
+            }
+            
+            // Include file with error catching
+            try {
+                require_once $full_path;
+                
+                // Verify class was successfully loaded
+                if (!class_exists($expected_class)) {
+                    $loading_errors[] = "Class {$expected_class} not found after loading {$file_path}";
+                    error_log("MKCG: CRITICAL - Class {$expected_class} not defined after loading {$full_path}");
+                } else {
+                    error_log("MKCG: ✅ Successfully loaded {$expected_class} from {$file_path}");
+                }
+                
+            } catch (ParseError $e) {
+                $loading_errors[] = "Parse error in {$file_path}: " . $e->getMessage();
+                error_log("MKCG: CRITICAL - Parse error in {$full_path}: " . $e->getMessage());
+            } catch (Error $e) {
+                $loading_errors[] = "Fatal error in {$file_path}: " . $e->getMessage();
+                error_log("MKCG: CRITICAL - Fatal error in {$full_path}: " . $e->getMessage());
+            } catch (Exception $e) {
+                $loading_errors[] = "Exception in {$file_path}: " . $e->getMessage();
+                error_log("MKCG: CRITICAL - Exception in {$full_path}: " . $e->getMessage());
+            }
+        }
         
-        // CRITICAL FIX: Load Topics Data Service (unified service for topics/questions)
-        require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-topics-data-service.php';
+        // Report loading status
+        if (empty($loading_errors)) {
+            error_log('MKCG: ✅ All dependencies loaded successfully');
+        } else {
+            error_log('MKCG: ❌ Dependency loading errors: ' . implode('; ', $loading_errors));
+            
+            // Add admin notice for critical errors
+            add_action('admin_notices', function() use ($loading_errors) {
+                echo '<div class="notice notice-error"><p><strong>Media Kit Content Generator:</strong> Critical loading errors detected. Check error logs for details.</p></div>';
+            });
+        }
         
-        // Load base generator
-        require_once MKCG_PLUGIN_PATH . 'includes/generators/class-mkcg-base-generator.php';
-        
-        // Load specific generators
-        require_once MKCG_PLUGIN_PATH . 'includes/generators/class-mkcg-biography-generator.php';
-        require_once MKCG_PLUGIN_PATH . 'includes/generators/class-mkcg-offers-generator.php';
-        require_once MKCG_PLUGIN_PATH . 'includes/generators/class-mkcg-topics-generator.php';
-        require_once MKCG_PLUGIN_PATH . 'includes/generators/class-mkcg-questions-generator.php';
-        
-        // Load AJAX handlers
-        require_once MKCG_PLUGIN_PATH . 'includes/generators/class-mkcg-topics-ajax-handlers.php';
+        // Final verification of critical classes
+        $critical_classes = ['MKCG_Topics_Data_Service', 'MKCG_API_Service', 'MKCG_Formidable_Service'];
+        foreach ($critical_classes as $class) {
+            if (!class_exists($class)) {
+                error_log("MKCG: FATAL - Critical class {$class} is not available");
+                wp_die("Media Kit Content Generator: Critical dependency {$class} failed to load. Please check file permissions and paths.");
+            }
+        }
     }
     
     private function init_services() {

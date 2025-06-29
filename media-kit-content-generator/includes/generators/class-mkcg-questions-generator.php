@@ -15,13 +15,71 @@ class MKCG_Questions_Generator extends MKCG_Base_Generator {
     protected $cache_duration = 3600; // 1 hour
     
     /**
-     * Constructor - Initialize with unified data service
+     * Constructor - ROOT LEVEL FIX with defensive programming
      */
     public function __construct($api_service, $formidable_service, $authority_hook_service = null) {
+        // CRITICAL: Initialize parent first
         parent::__construct($api_service, $formidable_service, $authority_hook_service);
         
-        // Use existing unified service (renamed for consistency with Topics Generator)
-        $this->topics_data_service = new MKCG_Topics_Data_Service($formidable_service);
+        // ROOT LEVEL FIX: Defensive initialization with comprehensive error handling
+        $this->topics_data_service = null;
+        
+        try {
+            // Verify critical class availability before instantiation
+            if (!class_exists('MKCG_Topics_Data_Service')) {
+                throw new Exception('MKCG_Topics_Data_Service class not found');
+            }
+            
+            // Verify formidable service is available
+            if (!$formidable_service) {
+                throw new Exception('Formidable service not provided');
+            }
+            
+            // Attempt to initialize Topics Data Service
+            $this->topics_data_service = new MKCG_Topics_Data_Service($formidable_service);
+            
+            // Verify the service was properly initialized
+            if (!$this->topics_data_service) {
+                throw new Exception('Topics Data Service failed to initialize');
+            }
+            
+            error_log('MKCG Questions Generator: ✅ Topics Data Service initialized successfully');
+            
+        } catch (Error $e) {
+            error_log('MKCG Questions Generator: ❌ FATAL ERROR during Topics Data Service initialization: ' . $e->getMessage());
+            $this->topics_data_service = null;
+            $this->add_admin_error_notice('Fatal error initializing Topics Data Service: ' . $e->getMessage());
+            
+        } catch (Exception $e) {
+            error_log('MKCG Questions Generator: ❌ EXCEPTION during Topics Data Service initialization: ' . $e->getMessage());
+            $this->topics_data_service = null;
+            $this->add_admin_error_notice('Exception initializing Topics Data Service: ' . $e->getMessage());
+            
+        } catch (Throwable $e) {
+            error_log('MKCG Questions Generator: ❌ THROWABLE during Topics Data Service initialization: ' . $e->getMessage());
+            $this->topics_data_service = null;
+            $this->add_admin_error_notice('Critical error initializing Topics Data Service: ' . $e->getMessage());
+        }
+        
+        // Log final initialization status
+        $status = $this->topics_data_service ? 'SUCCESS' : 'FAILED';
+        error_log("MKCG Questions Generator: Initialization completed with status: {$status}");
+    }
+    
+    /**
+     * Add admin error notice for initialization failures
+     */
+    private function add_admin_error_notice($message) {
+        add_action('admin_notices', function() use ($message) {
+            echo '<div class="notice notice-error"><p><strong>Questions Generator Error:</strong> ' . esc_html($message) . '</p></div>';
+        });
+    }
+    
+    /**
+     * Check if Topics Data Service is available
+     */
+    private function is_topics_service_available() {
+        return ($this->topics_data_service !== null);
     }
     
     /**
@@ -343,37 +401,70 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
         
         error_log('MKCG Enhanced Questions: Successfully generated ' . count($formatted_output['questions']) . ' questions');
         
-        // ENHANCED: Save using unified service if entry_id is provided
+        // ENHANCED: Save using unified service if available, with comprehensive fallback
         $save_success = false;
         $save_details = [];
         
         if ($entry_id > 0) {
-            error_log('MKCG Enhanced Questions: Starting unified save for entry ' . $entry_id);
+            error_log('MKCG Enhanced Questions: Starting save process for entry ' . $entry_id);
             
-            // Prepare questions data for unified service (organized by topic)
-            $questions_data = [$topic_number => $formatted_output['questions']];
-            
-            // Get post_id for saving
-            $post_id = $this->formidable_service->get_post_id_from_entry($entry_id);
-            
-            if ($post_id) {
-                $save_result = $this->topics_data_service->save_questions_data($questions_data, $post_id, $entry_id);
-                $save_success = $save_result['success'];
+            // ROOT LEVEL FIX: Check if unified service is available
+            if ($this->is_topics_service_available()) {
+                error_log('MKCG Enhanced Questions: Using unified save service');
                 
-                if ($save_success) {
-                    error_log('MKCG Enhanced Questions: ✅ Unified save completed successfully');
-                    $save_details['save_status'] = 'success';
-                    $save_details['message'] = 'Questions saved via unified service';
-                    $save_details['saved_count'] = $save_result['saved_count'] ?? 0;
-                } else {
-                    error_log('MKCG Enhanced Questions: ⚠️ Unified save failed: ' . implode(', ', $save_result['errors'] ?? []));
+                try {
+                    // Prepare questions data for unified service (organized by topic)
+                    $questions_data = [$topic_number => $formatted_output['questions']];
+                    
+                    // Get post_id for saving
+                    $post_id = $this->formidable_service->get_post_id_from_entry($entry_id);
+                    
+                    if ($post_id) {
+                        $save_result = $this->topics_data_service->save_questions_data($questions_data, $post_id, $entry_id);
+                        $save_success = $save_result['success'];
+                        
+                        if ($save_success) {
+                            error_log('MKCG Enhanced Questions: ✅ Unified save completed successfully');
+                            $save_details['save_status'] = 'success';
+                            $save_details['message'] = 'Questions saved via unified service';
+                            $save_details['saved_count'] = $save_result['saved_count'] ?? 0;
+                        } else {
+                            error_log('MKCG Enhanced Questions: ⚠️ Unified save failed: ' . implode(', ', $save_result['errors'] ?? []));
+                            $save_details['save_status'] = 'failed';
+                            $save_details['message'] = 'Unified save failed: ' . implode(', ', $save_result['errors'] ?? []);
+                        }
+                    } else {
+                        error_log('MKCG Enhanced Questions: No post ID found for entry ' . $entry_id);
+                        $save_details['save_status'] = 'failed';
+                        $save_details['message'] = 'No post ID found for entry';
+                    }
+                } catch (Exception $e) {
+                    error_log('MKCG Enhanced Questions: Exception during unified save: ' . $e->getMessage());
                     $save_details['save_status'] = 'failed';
-                    $save_details['message'] = 'Unified save failed: ' . implode(', ', $save_result['errors'] ?? []);
+                    $save_details['message'] = 'Exception during unified save: ' . $e->getMessage();
                 }
             } else {
-                error_log('MKCG Enhanced Questions: No post ID found for entry ' . $entry_id);
-                $save_details['save_status'] = 'failed';
-                $save_details['message'] = 'No post ID found for entry';
+                error_log('MKCG Enhanced Questions: Unified service not available - using fallback save method');
+                
+                // ROOT LEVEL FALLBACK: Try to save directly using entry-based method
+                try {
+                    $fallback_result = $this->save_questions_entry_based($entry_id, $formatted_output['questions'], $topic_number);
+                    
+                    if ($fallback_result) {
+                        $save_success = true;
+                        $save_details['save_status'] = 'success';
+                        $save_details['message'] = 'Questions saved via fallback method';
+                        error_log('MKCG Enhanced Questions: ✅ Fallback save completed successfully');
+                    } else {
+                        $save_details['save_status'] = 'failed';
+                        $save_details['message'] = 'Fallback save method failed';
+                        error_log('MKCG Enhanced Questions: ❌ Fallback save failed');
+                    }
+                } catch (Exception $e) {
+                    $save_details['save_status'] = 'failed';
+                    $save_details['message'] = 'Exception during fallback save: ' . $e->getMessage();
+                    error_log('MKCG Enhanced Questions: ❌ Exception during fallback save: ' . $e->getMessage());
+                }
             }
         } else {
             error_log('MKCG Enhanced Questions: No entry ID provided - skipping save');
@@ -403,7 +494,7 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
     }
     
     /**
-     * UNIFIED: Get topics data using unified service
+     * UNIFIED: Get topics data using unified service with fallback
      */
     public function handle_get_topics_unified() {
         // Use unified nonce validation
@@ -419,22 +510,38 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
             return;
         }
         
-        // Delegate to unified service
-        $result = $this->topics_data_service->get_topics_data(
-            $_POST['entry_id'] ?? 0,
-            $_POST['entry_key'] ?? '',
-            $_POST['post_id'] ?? 0
-        );
-        
-        if ($result['success']) {
-            wp_send_json_success($result);
+        // ROOT LEVEL FIX: Check if unified service is available
+        if ($this->is_topics_service_available()) {
+            try {
+                // Delegate to unified service
+                $result = $this->topics_data_service->get_topics_data(
+                    $_POST['entry_id'] ?? 0,
+                    $_POST['entry_key'] ?? '',
+                    $_POST['post_id'] ?? 0
+                );
+                
+                if ($result['success']) {
+                    wp_send_json_success($result);
+                } else {
+                    wp_send_json_error($result);
+                }
+            } catch (Exception $e) {
+                error_log('MKCG Questions: Exception in handle_get_topics_unified: ' . $e->getMessage());
+                wp_send_json_error(['message' => 'Service error: ' . $e->getMessage()]);
+            }
         } else {
-            wp_send_json_error($result);
+            // FALLBACK: Return basic structure if service not available
+            error_log('MKCG Questions: Topics service not available, using fallback');
+            wp_send_json_error([
+                'message' => 'Topics service not available',
+                'fallback' => true,
+                'topics' => ['topic_1' => '', 'topic_2' => '', 'topic_3' => '', 'topic_4' => '', 'topic_5' => '']
+            ]);
         }
     }
     
     /**
-     * UNIFIED: Save questions data using unified service
+     * UNIFIED: Save questions data using unified service with fallback
      */
     public function handle_save_questions_unified() {
         // Use unified nonce validation
@@ -450,22 +557,50 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
             return;
         }
         
-        // Delegate to unified service
-        $result = $this->topics_data_service->save_questions_data(
-            $_POST['questions'] ?? null,
-            $_POST['post_id'] ?? 0,
-            $_POST['entry_id'] ?? 0
-        );
-        
-        if ($result['success']) {
-            wp_send_json_success($result);
+        // ROOT LEVEL FIX: Check if unified service is available
+        if ($this->is_topics_service_available()) {
+            try {
+                // Delegate to unified service
+                $result = $this->topics_data_service->save_questions_data(
+                    $_POST['questions'] ?? null,
+                    $_POST['post_id'] ?? 0,
+                    $_POST['entry_id'] ?? 0
+                );
+                
+                if ($result['success']) {
+                    wp_send_json_success($result);
+                } else {
+                    wp_send_json_error($result);
+                }
+            } catch (Exception $e) {
+                error_log('MKCG Questions: Exception in handle_save_questions_unified: ' . $e->getMessage());
+                wp_send_json_error(['message' => 'Service error: ' . $e->getMessage()]);
+            }
         } else {
-            wp_send_json_error($result);
+            // FALLBACK: Try direct database save
+            error_log('MKCG Questions: Unified service not available, using fallback save');
+            try {
+                $entry_id = $_POST['entry_id'] ?? 0;
+                $questions = $_POST['questions'] ?? [];
+                
+                if ($entry_id && !empty($questions)) {
+                    $result = $this->save_questions_entry_based($entry_id, $questions, 1);
+                    if ($result) {
+                        wp_send_json_success(['message' => 'Questions saved via fallback method']);
+                    } else {
+                        wp_send_json_error(['message' => 'Fallback save failed']);
+                    }
+                } else {
+                    wp_send_json_error(['message' => 'Missing required data for fallback save']);
+                }
+            } catch (Exception $e) {
+                wp_send_json_error(['message' => 'Fallback save error: ' . $e->getMessage()]);
+            }
         }
     }
     
     /**
-     * UNIFIED: Save single topic using unified service
+     * UNIFIED: Save single topic using unified service with fallback
      */
     public function handle_save_topic_unified() {
         // Use unified nonce validation
@@ -481,18 +616,49 @@ Please provide the questions as a numbered list (1., 2., etc.), with each questi
             return;
         }
         
-        // Delegate to unified service
-        $result = $this->topics_data_service->save_single_topic(
-            $_POST['topic_number'] ?? 0,
-            $_POST['topic_text'] ?? '',
-            $_POST['post_id'] ?? 0,
-            $_POST['entry_id'] ?? 0
-        );
-        
-        if ($result['success']) {
-            wp_send_json_success($result);
+        // ROOT LEVEL FIX: Check if unified service is available
+        if ($this->is_topics_service_available()) {
+            try {
+                // Delegate to unified service
+                $result = $this->topics_data_service->save_single_topic(
+                    $_POST['topic_number'] ?? 0,
+                    $_POST['topic_text'] ?? '',
+                    $_POST['post_id'] ?? 0,
+                    $_POST['entry_id'] ?? 0
+                );
+                
+                if ($result['success']) {
+                    wp_send_json_success($result);
+                } else {
+                    wp_send_json_error($result);
+                }
+            } catch (Exception $e) {
+                error_log('MKCG Questions: Exception in handle_save_topic_unified: ' . $e->getMessage());
+                wp_send_json_error(['message' => 'Service error: ' . $e->getMessage()]);
+            }
         } else {
-            wp_send_json_error($result);
+            // FALLBACK: Try direct post meta save
+            error_log('MKCG Questions: Unified service not available, using fallback topic save');
+            try {
+                $post_id = $_POST['post_id'] ?? 0;
+                $topic_number = $_POST['topic_number'] ?? 0;
+                $topic_text = $_POST['topic_text'] ?? '';
+                
+                if ($post_id && $topic_number && !empty($topic_text)) {
+                    $meta_key = 'topic_' . $topic_number;
+                    $result = update_post_meta($post_id, $meta_key, sanitize_textarea_field($topic_text));
+                    
+                    if ($result !== false) {
+                        wp_send_json_success(['message' => 'Topic saved via fallback method']);
+                    } else {
+                        wp_send_json_error(['message' => 'Fallback topic save failed']);
+                    }
+                } else {
+                    wp_send_json_error(['message' => 'Missing required data for fallback topic save']);
+                }
+            } catch (Exception $e) {
+                wp_send_json_error(['message' => 'Fallback topic save error: ' . $e->getMessage()]);
+            }
         }
     }
     
