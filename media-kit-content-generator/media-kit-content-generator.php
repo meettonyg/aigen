@@ -212,9 +212,18 @@ class Media_Kit_Content_Generator {
         
         ob_start();
         
-        // Set global variables for template
-        global $formidable_service;
+        // CRITICAL FIX: Set ALL required global variables for template
+        global $formidable_service, $generator_instance, $generator_type;
         $formidable_service = $this->formidable_service;
+        $generator_instance = $this->generators['topics'];
+        $generator_type = 'topics';
+        
+        // Also make services available
+        global $api_service, $authority_hook_service;
+        $api_service = $this->api_service;
+        $authority_hook_service = $this->authority_hook_service;
+        
+        error_log('MKCG Shortcode: Loading topics template with generator_instance available: ' . (is_object($generator_instance) ? 'YES' : 'NO'));
         
         // Include the template
         include MKCG_PLUGIN_PATH . 'templates/generators/topics/default.php';
@@ -250,9 +259,18 @@ class Media_Kit_Content_Generator {
         
         ob_start();
         
-        // Set global variables for template
-        global $formidable_service;
+        // CRITICAL FIX: Set ALL required global variables for template
+        global $formidable_service, $generator_instance, $generator_type;
         $formidable_service = $this->formidable_service;
+        $generator_instance = $this->generators['questions'];
+        $generator_type = 'questions';
+        
+        // Also make services available
+        global $api_service, $authority_hook_service;
+        $api_service = $this->api_service;
+        $authority_hook_service = $this->authority_hook_service;
+        
+        error_log('MKCG Shortcode: Loading questions template with generator_instance available: ' . (is_object($generator_instance) ? 'YES' : 'NO'));
         
         // Include the template
         include MKCG_PLUGIN_PATH . 'templates/generators/questions/default.php';

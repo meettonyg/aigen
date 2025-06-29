@@ -219,6 +219,115 @@ The expert's area of expertise is: \"$authority_hook\".
     }
     
     /**
+     * Get template data for rendering
+     * ARCHITECTURAL FIX: Move data loading logic from template to generator class
+     */
+    public function get_template_data($entry_key = '') {
+        // Initialize empty data structure
+        $template_data = [
+            'entry_id' => 0,
+            'entry_key' => $entry_key,
+            'authority_hook_components' => [
+                'who' => '',
+                'result' => '',
+                'when' => '',
+                'how' => '',
+                'complete' => ''
+            ],
+            'form_field_values' => [
+                'topic_1' => '',
+                'topic_2' => '',
+                'topic_3' => '',
+                'topic_4' => '',
+                'topic_5' => ''
+            ],
+            'has_entry' => false
+        ];
+        
+        // If no entry key provided, try to get from URL
+        if (empty($entry_key) && isset($_GET['entry'])) {
+            $entry_key = sanitize_text_field($_GET['entry']);
+            $template_data['entry_key'] = $entry_key;
+        }
+        
+        // Load data from Formidable if entry key exists
+        if (!empty($entry_key) && $this->formidable_service) {
+            error_log('MKCG Topics Generator: Attempting to load data for entry_key: ' . $entry_key);
+            error_log('MKCG Topics Generator: Formidable service available: ' . (is_object($this->formidable_service) ? 'YES' : 'NO'));
+            
+            $entry_data = $this->formidable_service->get_entry_data($entry_key);
+            
+            error_log('MKCG Topics Generator: Entry data result: ' . print_r($entry_data, true));
+            
+            if ($entry_data['success']) {
+                $entry_id = $entry_data['entry_id'];
+                $all_fields = $entry_data['fields'];
+                
+                $template_data['entry_id'] = $entry_id;
+                $template_data['has_entry'] = true;
+                
+                // Helper function to safely get field values
+                $get_field = function($field_id) use ($all_fields) {
+                    return isset($all_fields[$field_id]['value']) ? $all_fields[$field_id]['value'] : '';
+                };
+                
+                // Load authority hook components using centralized config
+                $auth_field_mappings = MKCG_Config::get_field_mappings()['authority_hook']['fields'];
+                $template_data['authority_hook_components']['who'] = $get_field($auth_field_mappings['who']);
+                $template_data['authority_hook_components']['result'] = $get_field($auth_field_mappings['result']);
+                $template_data['authority_hook_components']['when'] = $get_field($auth_field_mappings['when']);
+                $template_data['authority_hook_components']['how'] = $get_field($auth_field_mappings['how']);
+                $template_data['authority_hook_components']['complete'] = $get_field($auth_field_mappings['complete']);
+                
+                // Load topics using centralized config
+                $topics_field_mappings = MKCG_Config::get_field_mappings()['topics']['fields'];
+                $template_data['form_field_values']['topic_1'] = $get_field($topics_field_mappings['topic_1']);
+                $template_data['form_field_values']['topic_2'] = $get_field($topics_field_mappings['topic_2']);
+                $template_data['form_field_values']['topic_3'] = $get_field($topics_field_mappings['topic_3']);
+                $template_data['form_field_values']['topic_4'] = $get_field($topics_field_mappings['topic_4']);
+                $template_data['form_field_values']['topic_5'] = $get_field($topics_field_mappings['topic_5']);
+                
+                // Build complete authority hook if needed
+                $has_components = !empty($template_data['authority_hook_components']['who']) || 
+                                 !empty($template_data['authority_hook_components']['result']) || 
+                                 !empty($template_data['authority_hook_components']['when']) || 
+                                 !empty($template_data['authority_hook_components']['how']);
+                
+                if (empty($template_data['authority_hook_components']['complete']) && $has_components) {
+                    // Delegate to Authority Hook Service for building
+                    $template_data['authority_hook_components']['complete'] = $this->authority_hook_service->build_authority_hook($template_data['authority_hook_components']);
+                }
+                
+                error_log('MKCG Topics Generator: Loaded template data for entry ' . $entry_id);
+                error_log('MKCG Topics Generator: Authority Hook - ' . $template_data['authority_hook_components']['complete']);
+                error_log('MKCG Topics Generator: Topics count - ' . count(array_filter($template_data['form_field_values'])));
+            } else {
+                error_log('MKCG Topics Generator: Failed to load entry data for key: ' . $entry_key . ' - Error: ' . ($entry_data['message'] ?? 'Unknown error'));
+            }
+        } elseif (!empty($entry_key) && !$this->formidable_service) {
+            error_log('MKCG Topics Generator: CRITICAL ERROR - Formidable service not available for entry_key: ' . $entry_key);
+        } elseif (empty($entry_key)) {
+            error_log('MKCG Topics Generator: No entry_key provided - using defaults');
+        }
+        
+        // Apply defaults ONLY for new entries (no entry_id)
+        if ($template_data['entry_id'] === 0) {
+            $template_data['authority_hook_components']['who'] = 'your audience';
+            $template_data['authority_hook_components']['result'] = 'achieve their goals';
+            $template_data['authority_hook_components']['when'] = 'they need help';
+            $template_data['authority_hook_components']['how'] = 'through your method';
+            $template_data['authority_hook_components']['complete'] = 'I help your audience achieve their goals when they need help through your method.';
+            error_log('MKCG Topics Generator: New entry - applied defaults');
+        } elseif (empty($template_data['authority_hook_components']['complete'])) {
+            // Minimal fallback for existing entries
+            $template_data['authority_hook_components']['complete'] = 'I help my audience achieve their goals.';
+            error_log('MKCG Topics Generator: Existing entry - applied minimal fallback');
+        }
+        
+        return $template_data;
+    }
+    
+    /**
      * Get API options
      */
     protected function get_api_options($input_data) {
@@ -331,12 +440,22 @@ The expert's area of expertise is: \"$authority_hook\".
     }
     
     /**
-     * Initialize with reduced AJAX actions - most handled by unified service
+     * Initialize with all required AJAX actions
      */
     public function init() {
         parent::init();
         
-        // Legacy AJAX actions for backwards compatibility only
+        // CRITICAL FIX: Add back missing AJAX handlers that JavaScript depends on
+        add_action('wp_ajax_mkcg_get_topics_data', [$this, 'handle_get_topics_data_ajax']);
+        add_action('wp_ajax_nopriv_mkcg_get_topics_data', [$this, 'handle_get_topics_data_ajax']);
+        
+        add_action('wp_ajax_mkcg_save_topics_data', [$this, 'handle_save_topics_data_ajax']);
+        add_action('wp_ajax_nopriv_mkcg_save_topics_data', [$this, 'handle_save_topics_data_ajax']);
+        
+        add_action('wp_ajax_mkcg_save_topic', [$this, 'handle_save_topic_ajax']);
+        add_action('wp_ajax_nopriv_mkcg_save_topic', [$this, 'handle_save_topic_ajax']);
+        
+        // Legacy AJAX actions for backwards compatibility
         add_action('wp_ajax_generate_interview_topics', [$this, 'handle_ajax_generation']);
         add_action('wp_ajax_nopriv_generate_interview_topics', [$this, 'handle_ajax_generation']);
         
@@ -373,11 +492,136 @@ The expert's area of expertise is: \"$authority_hook\".
         }
     }
     
-    // REMOVED: handle_get_topics_data_ajax - now handled by unified service
+    /**
+     * CRITICAL FIX: Handle get topics data AJAX request
+     */
+    public function handle_get_topics_data_ajax() {
+        // Use centralized security validation
+        $security_check = $this->validate_ajax_security([]);
+        if (is_wp_error($security_check)) {
+            wp_send_json_error(['message' => $security_check->get_error_message()]);
+            return;
+        }
+        
+        $entry_id = isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0;
+        $entry_key = isset($_POST['entry_key']) ? sanitize_text_field($_POST['entry_key']) : '';
+        $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
+        
+        error_log('MKCG Topics AJAX: Get topics data request - entry_id=' . $entry_id . ', entry_key=' . $entry_key . ', post_id=' . $post_id);
+        
+        // If we have entry_key but no entry_id, try to resolve it
+        if (!$entry_id && $entry_key) {
+            $entry_data = $this->formidable_service->get_entry_data($entry_key);
+            if ($entry_data['success']) {
+                $entry_id = $entry_data['entry_id'];
+                error_log('MKCG Topics AJAX: Resolved entry_key ' . $entry_key . ' to entry_id ' . $entry_id);
+            } else {
+                error_log('MKCG Topics AJAX: Failed to resolve entry_key ' . $entry_key . ': ' . $entry_data['message']);
+                wp_send_json_error([
+                    'message' => 'Failed to find entry: ' . $entry_data['message'],
+                    'entry_key' => $entry_key
+                ]);
+                return;
+            }
+        }
+        
+        if (!$entry_id) {
+            wp_send_json_error(['message' => 'No valid entry ID or key provided']);
+            return;
+        }
+        
+        // Get template data using our centralized method
+        $template_data = $this->get_template_data($entry_key);
+        
+        if ($template_data['has_entry']) {
+            wp_send_json_success([
+                'entry_id' => $template_data['entry_id'],
+                'authority_hook' => $template_data['authority_hook_components'],
+                'topics' => $template_data['form_field_values'],
+                'has_entry' => true
+            ]);
+        } else {
+            wp_send_json_error([
+                'message' => 'Entry not found or no data available',
+                'entry_key' => $entry_key,
+                'entry_id' => $entry_id
+            ]);
+        }
+    }
     
-    // REMOVED: handle_save_topics_data_ajax - now handled by unified service
+    /**
+     * CRITICAL FIX: Handle save topics data AJAX request
+     */
+    public function handle_save_topics_data_ajax() {
+        // Use centralized security validation
+        $security_check = $this->validate_ajax_security(['post_id', 'topics']);
+        if (is_wp_error($security_check)) {
+            wp_send_json_error(['message' => $security_check->get_error_message()]);
+            return;
+        }
+        
+        $post_id = intval($_POST['post_id']);
+        $topics = $_POST['topics'];
+        $entry_id = isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0;
+        
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID is required']);
+            return;
+        }
+        
+        // Delegate to unified service if available
+        if ($this->unified_data_service) {
+            $topics_service = $this->unified_data_service->get_topics_service();
+            $result = $topics_service->save_topics_data($topics, $post_id, $entry_id);
+            
+            if ($result['success']) {
+                wp_send_json_success($result);
+            } else {
+                wp_send_json_error($result);
+            }
+        } else {
+            wp_send_json_error(['message' => 'Unified data service not available']);
+        }
+    }
     
-    // REMOVED: handle_save_topic_ajax - now handled by unified service
-    
-    // REMOVED: handle_save_authority_hook_unified - now handled by unified service
+    /**
+     * CRITICAL FIX: Handle save single topic AJAX request
+     */
+    public function handle_save_topic_ajax() {
+        // Use centralized security validation
+        $security_check = $this->validate_ajax_security(['post_id', 'topic_number', 'topic_text']);
+        if (is_wp_error($security_check)) {
+            wp_send_json_error(['message' => $security_check->get_error_message()]);
+            return;
+        }
+        
+        $post_id = intval($_POST['post_id']);
+        $topic_number = intval($_POST['topic_number']);
+        $topic_text = sanitize_textarea_field($_POST['topic_text']);
+        $entry_id = isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0;
+        
+        if (!$post_id || !$topic_number || empty($topic_text)) {
+            wp_send_json_error(['message' => 'Missing required parameters']);
+            return;
+        }
+        
+        if ($topic_number < 1 || $topic_number > 5) {
+            wp_send_json_error(['message' => 'Topic number must be between 1 and 5']);
+            return;
+        }
+        
+        // Delegate to unified service if available
+        if ($this->unified_data_service) {
+            $topics_service = $this->unified_data_service->get_topics_service();
+            $result = $topics_service->save_single_topic($topic_number, $topic_text, $post_id, $entry_id);
+            
+            if ($result['success']) {
+                wp_send_json_success($result);
+            } else {
+                wp_send_json_error($result);
+            }
+        } else {
+            wp_send_json_error(['message' => 'Unified data service not available']);
+        }
+    }
 }

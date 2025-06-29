@@ -9,81 +9,53 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Get entry information
-$entry_id = 0;
-$entry_key = '';
-$entry_data = null;
-$form_field_values = [];
-$authority_hook_components = [
-    'who' => '',
-    'result' => '',
-    'when' => '',
-    'how' => '',
-    'complete' => ''
-];
+// ARCHITECTURAL FIX: Use generator class for data loading instead of inline logic
+$template_data = [];
 
-// Try to get entry from URL parameters
-if (isset($_GET['entry'])) {
-    $entry_key = sanitize_text_field($_GET['entry']);
-    
-    // CRITICAL FIX: Ensure Formidable service is available - get from global if needed
-    if (!isset($formidable_service) && class_exists('MKCG_Formidable_Service')) {
-        $formidable_service = new MKCG_Formidable_Service();
-        error_log('MKCG Topics Template: Created Formidable service instance');
+if (isset($generator_instance) && method_exists($generator_instance, 'get_template_data')) {
+    // Use the Topics Generator instance to get template data
+    $template_data = $generator_instance->get_template_data();
+} elseif (isset($generator_type) && $generator_type === 'topics') {
+    // Fallback: Try to get generator from global scope
+    global $mkcg_topics_generator;
+    if (isset($mkcg_topics_generator)) {
+        $template_data = $mkcg_topics_generator->get_template_data();
     }
-    
-    // Use the Formidable service to get data using the correct field IDs
-    if (isset($formidable_service)) {
-        error_log('MKCG Topics Template: Loading data for entry key: ' . $entry_key);
-        $entry_data = $formidable_service->get_entry_data($entry_key);
-        if ($entry_data['success']) {
-            $entry_id = $entry_data['entry_id'];
-            
-            // Get authority hook components using Form 515 field IDs
-            $authority_hook_components['who'] = $formidable_service->get_field_value($entry_id, 10296) ?: 'your audience';
-            $authority_hook_components['result'] = $formidable_service->get_field_value($entry_id, 10297) ?: 'achieve their goals';
-            $authority_hook_components['when'] = $formidable_service->get_field_value($entry_id, 10387) ?: 'they need help';
-            $authority_hook_components['how'] = $formidable_service->get_field_value($entry_id, 10298) ?: 'through your method';
-            $authority_hook_components['complete'] = $formidable_service->get_field_value($entry_id, 10358);
-            
-            // If no complete authority hook, build from components
-            if (empty($authority_hook_components['complete'])) {
-            $authority_hook_components['complete'] = "I help {$authority_hook_components['who']} {$authority_hook_components['result']} when {$authority_hook_components['when']} {$authority_hook_components['how']}.";
-            }
-        
-        // However, if we have component data, always rebuild from components (components take precedence)
-        $has_component_data = !empty($authority_hook_components['who']) || !empty($authority_hook_components['result']) || 
-                             !empty($authority_hook_components['when']) || !empty($authority_hook_components['how']);
-        
-        if ($has_component_data) {
-            $authority_hook_components['complete'] = "I help {$authority_hook_components['who']} {$authority_hook_components['result']} when {$authority_hook_components['when']} {$authority_hook_components['how']}.";
-        }
-            
-            // Get existing topics using Form 515 field IDs
-            $form_field_values['topic_1'] = $formidable_service->get_field_value($entry_id, 8498);
-            $form_field_values['topic_2'] = $formidable_service->get_field_value($entry_id, 8499);
-            $form_field_values['topic_3'] = $formidable_service->get_field_value($entry_id, 8500);
-            $form_field_values['topic_4'] = $formidable_service->get_field_value($entry_id, 8501);
-            $form_field_values['topic_5'] = $formidable_service->get_field_value($entry_id, 8502);
-            
-            error_log('MKCG Topics: Loaded entry ' . $entry_id . ' - Authority Hook: ' . $authority_hook_components['complete']);
-            error_log('MKCG Topics: Components - ' . json_encode($authority_hook_components));
-            error_log('MKCG Topics: Topics - ' . json_encode($form_field_values));
-        } else {
-            error_log('MKCG Topics: Failed to load entry data for key: ' . $entry_key);
-        }
-    } else {
-        error_log('MKCG Topics Template: ERROR - Formidable service not available');
-        error_log('MKCG Topics Template: Available classes: ' . implode(', ', get_declared_classes()));
-    }
-} else {
-    error_log('MKCG Topics Template: No entry parameter in URL - using defaults');
 }
 
-// Fallback for authority hook if still empty
-if (empty($authority_hook_components['complete'])) {
-    $authority_hook_components['complete'] = "I help {$authority_hook_components['who']} {$authority_hook_components['result']} when {$authority_hook_components['when']} {$authority_hook_components['how']}.";
+// Fallback: If generator not available, create minimal structure
+if (empty($template_data)) {
+    $entry_key = isset($_GET['entry']) ? sanitize_text_field($_GET['entry']) : '';
+    $template_data = [
+        'entry_id' => 0,
+        'entry_key' => $entry_key,
+        'authority_hook_components' => [
+            'who' => 'your audience',
+            'result' => 'achieve their goals',
+            'when' => 'they need help',
+            'how' => 'through your method',
+            'complete' => 'I help your audience achieve their goals when they need help through your method.'
+        ],
+        'form_field_values' => [
+            'topic_1' => '',
+            'topic_2' => '',
+            'topic_3' => '',
+            'topic_4' => '',
+            'topic_5' => ''
+        ],
+        'has_entry' => false
+    ];
+    error_log('MKCG Topics Template: Using fallback data - generator not available');
 }
+
+// Extract data for easier access in template
+$entry_id = $template_data['entry_id'];
+$entry_key = $template_data['entry_key'];
+$authority_hook_components = $template_data['authority_hook_components'];
+$form_field_values = $template_data['form_field_values'];
+$has_entry = $template_data['has_entry'];
+
+error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_entry=' . ($has_entry ? 'true' : 'false'));
 ?>
 
 <div class="topics-generator">
@@ -470,7 +442,7 @@ if (empty($authority_hook_components['complete'])) {
     window.MKCG_Topics_Data = {
         entryId: <?php echo intval($entry_id); ?>,
         entryKey: '<?php echo esc_js($entry_key); ?>',
-        hasEntry: <?php echo $entry_id > 0 ? 'true' : 'false'; ?>,
+        hasEntry: <?php echo $has_entry ? 'true' : 'false'; ?>,
         authorityHook: {
             who: '<?php echo esc_js($authority_hook_components['who']); ?>',
             result: '<?php echo esc_js($authority_hook_components['result']); ?>',
@@ -484,7 +456,8 @@ if (empty($authority_hook_components['complete'])) {
             topic_3: '<?php echo esc_js($form_field_values['topic_3'] ?? ''); ?>',
             topic_4: '<?php echo esc_js($form_field_values['topic_4'] ?? ''); ?>',
             topic_5: '<?php echo esc_js($form_field_values['topic_5'] ?? ''); ?>'
-        }
+        },
+        dataSource: '<?php echo isset($generator_instance) ? 'generator_instance' : (isset($mkcg_topics_generator) ? 'global_generator' : 'fallback'); ?>'
     };
     
     console.log('✅ MKCG Topics: Final data loaded', window.MKCG_Topics_Data);

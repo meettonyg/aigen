@@ -261,6 +261,7 @@ abstract class MKCG_Base_Generator {
         if (file_exists($template_path)) {
             // Make variables available to template
             $generator_type = $this->generator_type;
+            $generator_instance = $this; // ARCHITECTURAL FIX: Pass generator instance
             $form_fields = $this->get_form_fields();
             $authority_hook_service = $this->authority_hook_service;
             $formidable_service = $this->formidable_service;
