@@ -305,7 +305,7 @@
         
         warningBanner.textContent = message;
         console.log('⚠️ Topics Generator: Data quality warning:', message);
-    }
+    },
     
     /**
      * Update input fields with current field values
@@ -562,7 +562,6 @@
             console.log('⚠️ Failed to save authority hook components:', error);
           }
         });
-      }
     },
     
     /**

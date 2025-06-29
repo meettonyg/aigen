@@ -51,10 +51,19 @@ class Media_Kit_Content_Generator {
     }
     
     private function load_dependencies() {
+        // Load centralized configuration first
+        require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-config.php';
+        
         // Load shared services
         require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-api-service.php';
         require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-formidable-service.php';
         require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-authority-hook-service.php';
+        
+        // Load unified data service
+        require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-unified-data-service.php';
+        
+        // CRITICAL FIX: Load Topics Data Service (unified service for topics/questions)
+        require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-topics-data-service.php';
         
         // Load base generator
         require_once MKCG_PLUGIN_PATH . 'includes/generators/class-mkcg-base-generator.php';
