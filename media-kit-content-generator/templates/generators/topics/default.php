@@ -90,10 +90,10 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
                     </div>
                 </div>
                 
-                <!-- Authority Hook Builder - USES SHARED COMPONENT -->
+                <!-- Authority Hook Builder - ENHANCED SHARED COMPONENT -->
                 <div class="topics-generator__builder topics-generator__builder--hidden" id="topics-generator-authority-hook-builder">
                     <?php 
-                    // Use the shared Authority Hook component
+                    // Use the enhanced shared Authority Hook component
                     $generator_type = 'topics'; // Specify generator type
                     $current_values = [
                         'who' => $authority_hook_components['who'],
@@ -104,14 +104,35 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
                     ];
                     $entry_id = $entry_id; // Pass entry ID to shared component
                     
-                    // Debug: Check if shared component exists
+                    // Include the enhanced shared component
                     $shared_component_path = MKCG_PLUGIN_PATH . 'templates/shared/authority-hook-component.php';
+                    
+                    // DEBUG: Show what's happening
+                    echo '<div style="background: #e3f2fd; border: 1px solid #2196f3; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace; font-size: 12px;">';
+                    echo '<strong>🔍 DEBUG:</strong><br>';
+                    echo 'MKCG_PLUGIN_PATH: ' . (defined('MKCG_PLUGIN_PATH') ? MKCG_PLUGIN_PATH : 'NOT DEFINED') . '<br>';
+                    echo 'Full path: ' . $shared_component_path . '<br>';
+                    echo 'File exists: ' . (file_exists($shared_component_path) ? 'YES' : 'NO') . '<br>';
+                    echo '</div>';
+                    
                     if (file_exists($shared_component_path)) {
+                        echo '<div style="background: #e8f5e8; border: 1px solid #4caf50; padding: 10px; margin: 10px 0; border-radius: 4px;">✅ Including enhanced Authority Hook component...</div>';
                         include $shared_component_path;
-                        error_log('MKCG Topics: Shared Authority Hook component included successfully');
+                        error_log('MKCG Topics: Enhanced Authority Hook component included successfully');
                     } else {
-                        error_log('MKCG Topics: ERROR - Shared component not found at: ' . $shared_component_path);
-                        echo '<div style="background: #ffebee; border: 1px solid #f44336; padding: 15px; margin: 10px 0; border-radius: 4px;"><strong>⚠️ Development Notice:</strong> Enhanced Authority Hook component not found. Please check file path.</div>';
+                        error_log('MKCG Topics: ERROR - Enhanced component not found at: ' . $shared_component_path);
+                        echo '<div style="background: #ffebee; border: 1px solid #f44336; padding: 15px; margin: 10px 0; border-radius: 4px;"><strong>❌ ERROR:</strong> Enhanced Authority Hook component not found at: ' . htmlspecialchars($shared_component_path) . '</div>';
+                        
+                        // Fallback: Try relative path
+                        $fallback_path = __DIR__ . '/../../shared/authority-hook-component.php';
+                        echo '<div style="background: #fff3e0; border: 1px solid #ff9800; padding: 10px; margin: 10px 0; border-radius: 4px;">🔄 Trying fallback path: ' . htmlspecialchars($fallback_path) . '</div>';
+                        
+                        if (file_exists($fallback_path)) {
+                            echo '<div style="background: #e8f5e8; border: 1px solid #4caf50; padding: 10px; margin: 10px 0; border-radius: 4px;">✅ Fallback path found! Including...</div>';
+                            include $fallback_path;
+                        } else {
+                            echo '<div style="background: #ffebee; border: 1px solid #f44336; padding: 10px; margin: 10px 0; border-radius: 4px;">❌ Fallback path also failed.</div>';
+                        }
                     }
                     ?>
                 </div>
@@ -360,3 +381,22 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
 </script>
 
 <!-- Authority Hook Builder functionality is now handled by topics-generator.js - duplicate script removed -->
+
+<!-- TEMPORARY DEBUG: Manual include if needed -->
+<script>
+// Check if enhanced elements loaded
+setTimeout(() => {
+    const credentialsManager = document.querySelector('.credentials-manager');
+    const addToListButtons = document.querySelectorAll('.add-to-list');
+    
+    console.log('🔍 Enhanced elements check after 1 second:');
+    console.log('credentials-manager found:', !!credentialsManager);
+    console.log('add-to-list buttons found:', addToListButtons.length);
+    
+    if (!credentialsManager && addToListButtons.length === 0) {
+        console.log('❌ Enhanced elements still missing - include may have failed');
+    } else {
+        console.log('✅ Enhanced elements found - include worked!');
+    }
+}, 1000);
+</script>
