@@ -1,13 +1,19 @@
 <?php
 /**
- * Shared Authority Hook Component Template - BEM Methodology
+ * Shared Authority Hook Component Template - BEM Methodology - ENHANCED v2.0
  * Used across all generators for consistent Authority Hook functionality
+ * FORCE RELOAD: <?php echo time(); ?>
  */
 
 // Prevent direct access
 if (!defined('ABSPATH')) {
     exit;
 }
+
+// FORCE NO CACHE
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
+header('Expires: 0');
 
 // Set default values
 $generator_type = isset($generator_type) ? $generator_type : 'default';

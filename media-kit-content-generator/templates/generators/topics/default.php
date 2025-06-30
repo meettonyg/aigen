@@ -84,158 +84,36 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
                         <button class="topics-generator__button topics-generator__button--generate" id="topics-generator-generate-topics">
                             Generate Topics with AI
                         </button>
-                        <button class="topics-generator__button topics-generator__button--edit" id="topics-generator-toggle-builder">
+                        <button type="button" class="topics-generator__button topics-generator__button--edit" id="topics-generator-toggle-builder">
                             Edit Components
                         </button>
                     </div>
                 </div>
                 
-                <!-- Authority Hook Builder - HIDDEN BY DEFAULT -->
+                <!-- Authority Hook Builder - USES SHARED COMPONENT -->
                 <div class="topics-generator__builder topics-generator__builder--hidden" id="topics-generator-authority-hook-builder">
-                    <div class="topics-generator__builder-header">
-                        <h3 class="topics-generator__builder-title">Authority Hook Builder</h3>
-                        
-                        <p class="topics-generator__builder-description">
-                            Build your authority statement using the WHO-WHAT-WHEN-HOW framework. 
-                            This will be used to generate your topics.
-                        </p>
-                        
-                        <!-- Framework tabs -->
-                        <div class="topics-generator__tabs">
-                            <button class="topics-generator__tab" data-tab="who">WHO</button>
-                            <button class="topics-generator__tab" data-tab="result">RESULT</button>
-                            <button class="topics-generator__tab topics-generator__tab--active" data-tab="when">WHEN</button>
-                            <button class="topics-generator__tab" data-tab="how">HOW</button>
-                        </div>
-                    </div>
+                    <?php 
+                    // Use the shared Authority Hook component
+                    $generator_type = 'topics'; // Specify generator type
+                    $current_values = [
+                        'who' => $authority_hook_components['who'],
+                        'result' => $authority_hook_components['result'],
+                        'when' => $authority_hook_components['when'],
+                        'how' => $authority_hook_components['how'],
+                        'authority_hook' => $authority_hook_components['complete']
+                    ];
+                    $entry_id = $entry_id; // Pass entry ID to shared component
                     
-                    <!-- WHO Tab Content -->
-                    <div class="topics-generator__tab-content" id="topics-generator-who-tab">
-                        <div class="topics-generator__builder-number">
-                            <span class="topics-generator__circle-number">1</span>
-                        </div>
-                        <h4 class="field__label">WHO do you help?</h4>
-                        
-                        <div class="topics-generator__input-group">
-                            <input type="text" class="topics-generator__input" id="topics-generator-who-input" 
-                                   data-field-id="10296" data-component="who"
-                                   value="<?php echo esc_attr($authority_hook_components['who']); ?>"
-                                   placeholder="e.g. SaaS founders, course creators, consultants">
-                            <button class="topics-generator__clear-button" id="topics-generator-clear-who">×</button>
-                        </div>
-                        
-                        <div class="topics-generator__examples">
-                            <p class="topics-generator__examples-label">Examples:</p>
-                            <div class="topics-generator__examples-list">
-                                <div class="topics-generator__example">
-                                    <span class="topics-generator__example-text">SaaS founders</span>
-                                    <button class="topics-generator__add-button" data-field="who" data-example="SaaS founders">+ Add</button>
-                                </div>
-                                <div class="topics-generator__example">
-                                    <span class="topics-generator__example-text">course creators</span>
-                                    <button class="topics-generator__add-button" data-field="who" data-example="course creators">+ Add</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- RESULT Tab Content -->
-                    <div class="topics-generator__tab-content" id="topics-generator-result-tab">
-                        <div class="topics-generator__builder-number">
-                            <span class="topics-generator__circle-number">2</span>
-                        </div>
-                        <h4 class="field__label">What RESULT do you help them achieve?</h4>
-                        
-                        <div class="topics-generator__input-group">
-                            <input type="text" class="topics-generator__input" id="topics-generator-result-input" 
-                                   data-field-id="10297" data-component="result"
-                                   value="<?php echo esc_attr($authority_hook_components['result']); ?>"
-                                   placeholder="e.g. increase revenue by 40%, save 10+ hours per week">
-                            <button class="topics-generator__clear-button" id="topics-generator-clear-result">×</button>
-                        </div>
-                        
-                        <div class="topics-generator__examples">
-                            <p class="topics-generator__examples-label">Examples:</p>
-                            <div class="topics-generator__examples-list">
-                                <div class="topics-generator__example">
-                                    <span class="topics-generator__example-text">double their revenue</span>
-                                    <button class="topics-generator__add-button" data-field="result" data-example="double their revenue">+ Add</button>
-                                </div>
-                                <div class="topics-generator__example">
-                                    <span class="topics-generator__example-text">save 10+ hours weekly</span>
-                                    <button class="topics-generator__add-button" data-field="result" data-example="save 10+ hours weekly">+ Add</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- WHEN Tab Content -->
-                    <div class="topics-generator__tab-content topics-generator__tab-content--active" id="topics-generator-when-tab">
-                        <div class="topics-generator__builder-number">
-                            <span class="topics-generator__circle-number">3</span>
-                        </div>
-                        <h4 class="field__label">WHEN do they need this help?</h4>
-                        
-                        <div class="topics-generator__input-group">
-                            <input type="text" class="topics-generator__input" id="topics-generator-when-input" 
-                                   data-field-id="10387" data-component="when"
-                                   value="<?php echo esc_attr($authority_hook_components['when']); ?>"
-                                   placeholder="e.g. during rapid growth, when scaling their team">
-                            <button class="topics-generator__clear-button" id="topics-generator-clear-when">×</button>
-                        </div>
-                        
-                        <div class="topics-generator__examples">
-                            <p class="topics-generator__examples-label">Examples:</p>
-                            <div class="topics-generator__examples-list">
-                                <div class="topics-generator__example">
-                                    <span class="topics-generator__example-text">they're scaling rapidly</span>
-                                    <button class="topics-generator__add-button" data-field="when" data-example="they're scaling rapidly">+ Add</button>
-                                </div>
-                                <div class="topics-generator__example">
-                                    <span class="topics-generator__example-text">facing cash flow challenges</span>
-                                    <button class="topics-generator__add-button" data-field="when" data-example="facing cash flow challenges">+ Add</button>
-                                </div>
-                                <div class="topics-generator__example">
-                                    <span class="topics-generator__example-text">ready to expand their team</span>
-                                    <button class="topics-generator__add-button" data-field="when" data-example="ready to expand their team">+ Add</button>
-                                </div>
-                                <div class="topics-generator__example">
-                                    <span class="topics-generator__example-text">launching a new product</span>
-                                    <button class="topics-generator__add-button" data-field="when" data-example="launching a new product">+ Add</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- HOW Tab Content -->
-                    <div class="topics-generator__tab-content" id="topics-generator-how-tab">
-                        <div class="topics-generator__builder-number">
-                            <span class="topics-generator__circle-number">4</span>
-                        </div>
-                        <h4 class="field__label">HOW do you help them?</h4>
-                        
-                        <div class="topics-generator__input-group">
-                            <input type="text" class="topics-generator__input" id="topics-generator-how-input" 
-                                   data-field-id="10298" data-component="how"
-                                   value="<?php echo esc_attr($authority_hook_components['how']); ?>"
-                                   placeholder="e.g. through your method, with your framework">
-                            <button class="topics-generator__clear-button" id="topics-generator-clear-how">×</button>
-                        </div>
-                        
-                        <div class="topics-generator__examples">
-                            <p class="topics-generator__examples-label">Examples:</p>
-                            <div class="topics-generator__examples-list">
-                                <div class="topics-generator__example">
-                                    <span class="topics-generator__example-text">through your proven system</span>
-                                    <button class="topics-generator__add-button" data-field="how" data-example="through your proven system">+ Add</button>
-                                </div>
-                                <div class="topics-generator__example">
-                                    <span class="topics-generator__example-text">with your 3-step framework</span>
-                                    <button class="topics-generator__add-button" data-field="how" data-example="with your 3-step framework">+ Add</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    // Debug: Check if shared component exists
+                    $shared_component_path = MKCG_PLUGIN_PATH . 'templates/shared/authority-hook-component.php';
+                    if (file_exists($shared_component_path)) {
+                        include $shared_component_path;
+                        error_log('MKCG Topics: Shared Authority Hook component included successfully');
+                    } else {
+                        error_log('MKCG Topics: ERROR - Shared component not found at: ' . $shared_component_path);
+                        echo '<div style="background: #ffebee; border: 1px solid #f44336; padding: 15px; margin: 10px 0; border-radius: 4px;"><strong>⚠️ Development Notice:</strong> Enhanced Authority Hook component not found. Please check file path.</div>';
+                    }
+                    ?>
                 </div>
                 
                 <!-- Loading indicator -->
@@ -482,3 +360,61 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
 </script>
 
 <!-- JavaScript functionality loaded separately -->
+<script type="text/javascript">
+// Toggle Authority Hook Builder visibility
+function toggleAuthorityHookBuilder() {
+    const builder = document.getElementById('topics-generator-authority-hook-builder');
+    const button = document.getElementById('topics-generator-toggle-builder');
+    
+    if (builder && button) {
+        const isHidden = builder.classList.contains('topics-generator__builder--hidden');
+        
+        if (isHidden) {
+            builder.classList.remove('topics-generator__builder--hidden');
+            button.textContent = 'Hide Builder';
+            // Scroll to builder for better UX
+            builder.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            console.log('✅ Authority Hook Builder shown');
+        } else {
+            builder.classList.add('topics-generator__builder--hidden');
+            button.textContent = 'Edit Components';
+            console.log('✅ Authority Hook Builder hidden');
+        }
+    } else {
+        console.error('❌ Authority Hook Builder elements not found');
+    }
+}
+
+// Auto-show builder if there's no authority hook data
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔧 Topics Generator: DOM loaded, checking Authority Hook Builder...');
+    
+    // Debug: Check if elements exist
+    const builder = document.getElementById('topics-generator-authority-hook-builder');
+    const button = document.getElementById('topics-generator-toggle-builder');
+    const authorityHookText = document.getElementById('topics-generator-authority-hook-text');
+    
+    console.log('Builder element found:', !!builder);
+    console.log('Toggle button found:', !!button);
+    console.log('Authority hook text found:', !!authorityHookText);
+    
+    if (authorityHookText) {
+        console.log('Current authority hook text:', authorityHookText.textContent.trim());
+        
+        // Auto-show builder for default/empty authority hooks
+        if (authorityHookText.textContent.trim() === 'I help your audience achieve results when they need help through your method.' ||
+            authorityHookText.textContent.trim() === 'I help your audience achieve their goals when they need help through your method.') {
+            console.log('🔧 Auto-showing Authority Hook Builder for first-time users');
+            setTimeout(() => toggleAuthorityHookBuilder(), 500); // Small delay to ensure everything is loaded
+        }
+    }
+    
+    // Check if shared component loaded
+    const authorityHookDiv = document.querySelector('.authority-hook');
+    if (authorityHookDiv) {
+        console.log('✅ Shared Authority Hook component detected');
+    } else {
+        console.warn('⚠️ Shared Authority Hook component not found');
+    }
+});
+</script>
