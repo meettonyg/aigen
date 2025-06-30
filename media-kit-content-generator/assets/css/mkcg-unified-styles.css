@@ -312,6 +312,39 @@
 }
 
 /* =============================================================================
+   AUTHORITY HOOK COMPONENT STYLES
+   ============================================================================= */
+
+/* Authority Hook Edit Link/Button Styling */
+.authority-hook__edit-link {
+  display: inline-flex;
+  align-items: center;
+  color: var(--primary-color);
+  text-decoration: none;
+  font-size: 14px;
+  padding: 8px 12px;
+  border: 1px solid var(--primary-color);
+  border-radius: var(--border-radius-small);
+  background: transparent;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  font-family: inherit;
+  font-weight: 500;
+}
+
+.authority-hook__edit-link:hover {
+  background-color: var(--primary-color);
+  color: var(--bg-primary);
+  text-decoration: none;
+}
+
+.authority-hook__edit-link svg {
+  margin-right: 6px;
+  width: 16px;
+  height: 16px;
+}
+
+/* =============================================================================
    ROOT VARIABLES & RESET
    ============================================================================= */
 
@@ -807,10 +840,26 @@ body {
   background: var(--bg-primary);
   color: var(--primary-color);
   border: 1px solid var(--primary-color);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .topics-generator__button--edit:hover {
   background-color: #f0f8ff;
+  text-decoration: none;
+}
+
+.topics-generator__button--edit:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.topics-generator__button--edit:active {
+  transform: translateY(1px);
+  background-color: #e1f5fe;
 }
 
 .topics-generator__button--use {

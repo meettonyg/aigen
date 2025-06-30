@@ -361,37 +361,122 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
 
 <!-- JavaScript functionality loaded separately -->
 <script type="text/javascript">
-// Toggle Authority Hook Builder visibility
-function toggleAuthorityHookBuilder() {
-    const builder = document.getElementById('topics-generator-authority-hook-builder');
+// IMMEDIATE DEBUG TEST
+console.log('🚀 MKCG JavaScript: Script block started loading');
+console.log('🔍 Current page URL:', window.location.href);
+console.log('🔍 DOM ready state:', document.readyState);
+
+// Test if basic elements exist immediately
+setTimeout(() => {
     const button = document.getElementById('topics-generator-toggle-builder');
+    const builder = document.getElementById('topics-generator-authority-hook-builder');
+    console.log('🔍 IMMEDIATE TEST:');
+    console.log('- Toggle button exists:', !!button);
+    console.log('- Builder exists:', !!builder);
+    if (button) {
+        console.log('- Button classes:', button.className);
+        console.log('- Button text:', button.textContent);
+    }
+    if (builder) {
+        console.log('- Builder classes:', builder.className);
+        console.log('- Builder hidden:', builder.classList.contains('topics-generator__builder--hidden'));
+    }
+}, 100);
+// Toggle Authority Hook Builder visibility
+function toggleAuthorityHookBuilder(event) {
+    // Prevent any default behavior
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
     
-    if (builder && button) {
+    const builder = document.getElementById('topics-generator-authority-hook-builder');
+    const topicsButton = document.getElementById('topics-generator-toggle-builder');
+    const sharedButton = document.getElementById('edit-authority-components');
+    
+    console.log('🔧 Toggle function called:', {
+        builder: !!builder,
+        topicsButton: !!topicsButton,
+        sharedButton: !!sharedButton,
+        builderHidden: builder ? builder.classList.contains('topics-generator__builder--hidden') : 'N/A'
+    });
+    
+    if (builder) {
         const isHidden = builder.classList.contains('topics-generator__builder--hidden');
         
         if (isHidden) {
             builder.classList.remove('topics-generator__builder--hidden');
-            button.textContent = 'Hide Builder';
+            
+            // Update both button texts if they exist
+            if (topicsButton) topicsButton.textContent = 'Hide Builder';
+            if (sharedButton) sharedButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>Hide Builder';
+            
             // Scroll to builder for better UX
-            builder.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            setTimeout(() => {
+                builder.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
             console.log('✅ Authority Hook Builder shown');
         } else {
             builder.classList.add('topics-generator__builder--hidden');
-            button.textContent = 'Edit Components';
+            
+            // Update both button texts if they exist
+            if (topicsButton) topicsButton.textContent = 'Edit Components';
+            if (sharedButton) sharedButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>Edit Components';
+            
             console.log('✅ Authority Hook Builder hidden');
         }
+        
+        // Also try to trigger Authority Hook Builder initialization if present
+        setTimeout(() => {
+            if (window.authorityHookBuilder && typeof window.authorityHookBuilder.updateAuthorityHook === 'function') {
+                window.authorityHookBuilder.updateAuthorityHook();
+                console.log('✅ Authority Hook Builder re-initialized');
+            }
+        }, 200);
+        
     } else {
-        console.error('❌ Authority Hook Builder elements not found');
+        console.error('❌ Authority Hook Builder element not found:', {
+            builder: !!builder
+        });
     }
+    
+    return false; // Prevent any navigation
 }
 
-// Auto-show builder if there's no authority hook data
+// Initialize event handlers and check for auto-show
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🔧 Topics Generator: DOM loaded, checking Authority Hook Builder...');
+    console.log('🔧 Topics Generator: DOM loaded, initializing Authority Hook Builder...');
+    
+    // CRITICAL: Set up event listeners for BOTH toggle buttons
+    const button = document.getElementById('topics-generator-toggle-builder');
+    const sharedButton = document.getElementById('edit-authority-components');
+    
+    if (button) {
+        // Remove any existing event listeners and add new one
+        button.removeEventListener('click', toggleAuthorityHookBuilder);
+        button.addEventListener('click', function(event) {
+            console.log('🔧 Topics Generator toggle button clicked!');
+            toggleAuthorityHookBuilder(event);
+        });
+        console.log('✅ Topics Generator toggle button event listener attached');
+    } else {
+        console.error('❌ Topics Generator toggle button not found!');
+    }
+    
+    if (sharedButton) {
+        // Remove any existing event listeners and add new one
+        sharedButton.removeEventListener('click', toggleAuthorityHookBuilder);
+        sharedButton.addEventListener('click', function(event) {
+            console.log('🔧 Shared component toggle button clicked!');
+            toggleAuthorityHookBuilder(event);
+        });
+        console.log('✅ Shared component toggle button event listener attached');
+    } else {
+        console.warn('⚠️ Shared component toggle button not found (may not be visible yet)');
+    }
     
     // Debug: Check if elements exist
     const builder = document.getElementById('topics-generator-authority-hook-builder');
-    const button = document.getElementById('topics-generator-toggle-builder');
     const authorityHookText = document.getElementById('topics-generator-authority-hook-text');
     
     console.log('Builder element found:', !!builder);
@@ -416,5 +501,71 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         console.warn('⚠️ Shared Authority Hook component not found');
     }
+    
+    // Make toggle function globally available for debugging
+    window.toggleAuthorityHookBuilder = toggleAuthorityHookBuilder;
+    
+    // Additional debug: Check if Authority Hook Builder JS is loaded
+    if (typeof window.authorityHookBuilder !== 'undefined') {
+        console.log('✅ Authority Hook Builder JS is loaded');
+    } else {
+        console.warn('⚠️ Authority Hook Builder JS not detected - this is expected for Topics Generator');
+    }
+    
+    console.log('✅ Authority Hook Builder initialization complete');
+    
+    // Test the toggle function immediately for debugging
+    setTimeout(() => {
+        console.log('🗋 Testing toggle function availability...');
+        if (typeof toggleAuthorityHookBuilder === 'function') {
+            console.log('✅ Toggle function is available');
+            
+    // Add a temporary debug helper
+            window.debugToggle = function() {
+                console.log('🔧 Manual debug toggle triggered');
+                toggleAuthorityHookBuilder();
+            };
+            
+            // Add a direct test function
+            window.testToggleNow = function() {
+                console.log('🗋 DIRECT TEST: Attempting to toggle builder...');
+                const builder = document.getElementById('topics-generator-authority-hook-builder');
+                if (builder) {
+                    const isHidden = builder.classList.contains('topics-generator__builder--hidden');
+                    console.log('Builder currently hidden:', isHidden);
+                    if (isHidden) {
+                        builder.classList.remove('topics-generator__builder--hidden');
+                        console.log('✅ DIRECT TEST: Builder should now be visible');
+                    } else {
+                        builder.classList.add('topics-generator__builder--hidden');
+                        console.log('✅ DIRECT TEST: Builder should now be hidden');
+                    }
+                    console.log('Updated builder classes:', builder.className);
+                } else {
+                    console.error('❌ DIRECT TEST: Builder element not found');
+                }
+            };
+            
+            // Add a button click simulation test
+            window.simulateButtonClick = function() {
+                console.log('🗋 SIMULATE CLICK: Testing button click event...');
+                const button = document.getElementById('topics-generator-toggle-builder');
+                if (button) {
+                    console.log('Found button, simulating click...');
+                    button.click();
+                } else {
+                    console.error('❌ Button not found for simulation');
+                }
+            };
+            
+            console.log('🗋 Debug commands available:');
+            console.log('- debugToggle() - Test the toggle function');
+            console.log('- testToggleNow() - Direct CSS class manipulation test');
+            console.log('- simulateButtonClick() - Simulate clicking the Edit Components button');
+            console.log('🗋 You can manually test with: testToggleNow() or simulateButtonClick()');
+        } else {
+            console.error('❌ Toggle function is NOT available');
+        }
+    }, 1000);
 });
 </script>
