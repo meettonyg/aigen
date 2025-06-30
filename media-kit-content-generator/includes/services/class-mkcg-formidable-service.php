@@ -641,27 +641,43 @@ class MKCG_Formidable_Service {
             }
         }
         
-        // Determine data quality level
+        // FIXED: More practical data quality assessment that matches display reality
         $total_topics = count(array_filter($normalized_topics));
-        if ($total_topics >= 4) {
+        $has_any_meaningful_content = false;
+        
+        // Check if any topics have meaningful content (not just placeholders)
+        foreach ($normalized_topics as $topic) {
+            if (!empty($topic) && !preg_match('/^(Topic \d+|Click|Add|Placeholder|Empty)/i', trim($topic))) {
+                $has_any_meaningful_content = true;
+                break;
+            }
+        }
+        
+        // ENHANCED: Base quality on usable content, not just presence
+        if ($total_topics >= 4 && $has_any_meaningful_content) {
             $data_quality = 'excellent';
-        } elseif ($total_topics >= 2) {
+        } elseif ($total_topics >= 2 && $has_any_meaningful_content) {
             $data_quality = 'good';
+        } elseif ($total_topics >= 1 && $has_any_meaningful_content) {
+            $data_quality = 'fair';  // Changed from 'poor' to be less harsh
         } elseif ($total_topics >= 1) {
-            $data_quality = 'poor';
+            $data_quality = 'placeholder'; // New category for placeholder content
         } else {
             $data_quality = 'missing';
         }
         
-        // Auto-heal if data quality is poor
+        // ENHANCED: Auto-heal based on new quality levels
         $auto_healed = false;
-        if ($data_quality === 'poor' || $data_quality === 'missing') {
+        if ($data_quality === 'missing') {
+            // Only auto-heal if there's genuinely no data at all
             $healing_result = $this->heal_missing_data($post_id, 5);
             if ($healing_result['success']) {
                 $auto_healed = true;
                 error_log('MKCG Enhanced: Auto-healed missing topic data for post ' . $post_id);
             }
         }
+        // Note: 'placeholder' quality indicates data exists but may be placeholders - don't auto-heal
+        // This prevents overwriting user's placeholder content with different placeholders
         
         $retrieval_result = [
             'topics' => $normalized_topics,

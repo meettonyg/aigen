@@ -110,7 +110,7 @@ if ($post_id) {
 }
 }
 
-// Always ensure we have 5 topic slots
+// UNIFIED: Always ensure we have 5 topic slots with consistent data source
 $all_topics = [];
 for ($i = 1; $i <= 5; $i++) {
     if (isset($available_topics[$i]) && !empty($available_topics[$i])) {
@@ -120,14 +120,27 @@ for ($i = 1; $i <= 5; $i++) {
     }
 }
 
+// CRITICAL FIX: Determine if we should show warning based on DISPLAY data, not validation data
+$displayable_topics = array_filter($all_topics);
+$has_meaningful_content = false;
+
+// Check if displayed topics have meaningful content (not just placeholders)
+foreach ($displayable_topics as $topic) {
+    if (!empty($topic) && !preg_match('/^(Topic \d+|Click|Add|Placeholder|Empty)/i', trim($topic))) {
+        $has_meaningful_content = true;
+        break;
+    }
+}
+
 // Debug output for development
 if (defined('WP_DEBUG') && WP_DEBUG) {
     echo '<!-- DEBUG INFO: ' . implode(' | ', $debug_info) . ' -->';
     echo '<!-- TOPICS DEBUG: ' . implode(' | ', $topics_debug) . ' -->';
+    echo '<!-- DISPLAY TOPICS: ' . count($displayable_topics) . ' topics, meaningful: ' . ($has_meaningful_content ? 'YES' : 'NO') . ' -->';
 }
 
-// ENHANCED FLEXIBILITY - Show data status but allow independent operation
-if (empty($available_topics) || count(array_filter($available_topics)) === 0) {
+// FIXED: Only show warning when there's genuinely no usable content for the user
+if (!$has_meaningful_content && count($displayable_topics) === 0) {
     $topics_url = '';
     if ($entry_key) {
         $topics_url = site_url('/topics/?entry=' . urlencode($entry_key));
@@ -136,24 +149,24 @@ if (empty($available_topics) || count(array_filter($available_topics)) === 0) {
     }
     
     echo '<div class="mkcg-info-notice mkcg-enhanced-info">';
-    echo '<h3>💡 Create Topics as You Go</h3>';
+    echo '<h3>🚀 Ready to Create Questions</h3>';
     
-    // Show data quality information if available
-    if (isset($topics_result)) {
+    echo '<p>You can add your interview topics directly here and generate questions right away. Use the topic cards below to get started.</p>';
+    
+    // Only show technical data quality info in debug mode
+    if (defined('WP_DEBUG') && WP_DEBUG && isset($topics_result)) {
         echo '<div class="mkcg-data-status">';
-        echo '<p><strong>Data Quality:</strong> ' . esc_html(ucfirst($topics_result['data_quality'])) . '</p>';
+        echo '<p><strong>Debug - Data Quality:</strong> ' . esc_html(ucfirst($topics_result['data_quality'])) . '</p>';
         
         if (!empty($topics_result['validation_status'])) {
-            echo '<p><strong>Status:</strong> ' . esc_html(implode(', ', $topics_result['validation_status'])) . '</p>';
+            echo '<p><strong>Debug - Status:</strong> ' . esc_html(implode(', ', $topics_result['validation_status'])) . '</p>';
         }
         
         if ($topics_result['auto_healed']) {
-            echo '<p class="mkcg-auto-healed">✨ <strong>Auto-healing applied</strong> - Some placeholder data may have been added.</p>';
+            echo '<p class="mkcg-auto-healed">✨ <strong>Debug - Auto-healing applied</strong></p>';
         }
         echo '</div>';
     }
-    
-    echo '<p><strong>No topics found yet.</strong> You can create topics directly here by clicking the edit icons below, or use the Topics Generator for a guided experience.</p>';
     
     if ($topics_url) {
         echo '<div class="mkcg-action-buttons">';

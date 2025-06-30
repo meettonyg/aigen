@@ -626,52 +626,70 @@ The expert's area of expertise is: \"$authority_hook\".
      * CRITICAL FIX: Handle save authority hook components AJAX request
      */
     public function handle_save_authority_hook_ajax() {
-        // Use centralized security validation
-        $security_check = $this->validate_ajax_security(['entry_id']);
-        if (is_wp_error($security_check)) {
-            wp_send_json_error(['message' => $security_check->get_error_message()]);
-            return;
-        }
-        
-        $entry_id = intval($_POST['entry_id']);
-        
-        if (!$entry_id) {
-            wp_send_json_error(['message' => 'Entry ID is required']);
-            return;
-        }
-        
-        // Get components from POST data
-        $who = isset($_POST['who']) ? sanitize_textarea_field($_POST['who']) : '';
-        $result = isset($_POST['result']) ? sanitize_textarea_field($_POST['result']) : '';
-        $when = isset($_POST['when']) ? sanitize_textarea_field($_POST['when']) : '';
-        $how = isset($_POST['how']) ? sanitize_textarea_field($_POST['how']) : '';
-        
-        // Use the existing save_authority_hook_components method from this class
+        // Enhanced error handling and debugging
         try {
-            $save_result = $this->save_authority_hook_components($entry_id, $who, $result, $when, $how);
+            error_log('MKCG Topics Generator: Starting handle_save_authority_hook_ajax');
             
-            if ($save_result['success']) {
-                wp_send_json_success([
-                    'message' => 'Authority hook components saved successfully',
-                    'authority_hook' => $save_result['authority_hook'],
-                    'saved_fields' => $save_result['saved_fields'],
-                    'components' => [
-                        'who' => $who,
-                        'result' => $result,
-                        'when' => $when,
-                        'how' => $how
-                    ]
-                ]);
-            } else {
+            // Use centralized security validation
+            $security_check = $this->validate_ajax_security(['entry_id']);
+            if (is_wp_error($security_check)) {
+                error_log('MKCG Topics Generator: Security validation failed: ' . $security_check->get_error_message());
+                wp_send_json_error(['message' => $security_check->get_error_message()]);
+                return;
+            }
+            
+            $entry_id = intval($_POST['entry_id']);
+            
+            if (!$entry_id) {
+                error_log('MKCG Topics Generator: Invalid entry_id: ' . print_r($_POST['entry_id'], true));
+                wp_send_json_error(['message' => 'Entry ID is required']);
+                return;
+            }
+            
+            // Get components from POST data with validation
+            $who = isset($_POST['who']) ? sanitize_textarea_field($_POST['who']) : '';
+            $result = isset($_POST['result']) ? sanitize_textarea_field($_POST['result']) : '';
+            $when = isset($_POST['when']) ? sanitize_textarea_field($_POST['when']) : '';
+            $how = isset($_POST['how']) ? sanitize_textarea_field($_POST['how']) : '';
+            
+            error_log('MKCG Topics Generator: Components - who: ' . strlen($who) . ', result: ' . strlen($result) . ', when: ' . strlen($when) . ', how: ' . strlen($how));
+            
+            // ENHANCED: Use safe authority hook building with fallbacks
+            try {
+                $save_result = $this->save_authority_hook_components_safe($entry_id, $who, $result, $when, $how);
+                
+                if ($save_result['success']) {
+                    error_log('MKCG Topics Generator: ✅ Authority hook saved successfully');
+                    wp_send_json_success([
+                        'message' => 'Authority hook components saved successfully',
+                        'authority_hook' => $save_result['authority_hook'],
+                        'saved_fields' => $save_result['saved_fields'],
+                        'components' => [
+                            'who' => $who,
+                            'result' => $result,
+                            'when' => $when,
+                            'how' => $how
+                        ]
+                    ]);
+                } else {
+                    error_log('MKCG Topics Generator: ❌ Save failed: ' . print_r($save_result, true));
+                    wp_send_json_error([
+                        'message' => 'Failed to save authority hook components',
+                        'details' => $save_result['errors'] ?? 'Unknown error'
+                    ]);
+                }
+            } catch (Exception $e) {
+                error_log('MKCG Topics Generator: ❌ Exception in save_authority_hook_components_safe: ' . $e->getMessage());
                 wp_send_json_error([
-                    'message' => 'Failed to save authority hook components',
-                    'details' => $save_result['errors'] ?? 'Unknown error'
+                    'message' => 'Server error while saving authority hook components',
+                    'details' => $e->getMessage()
                 ]);
             }
+            
         } catch (Exception $e) {
-            error_log('MKCG Topics Generator: Exception in handle_save_authority_hook_ajax: ' . $e->getMessage());
+            error_log('MKCG Topics Generator: ❌ Critical exception in handle_save_authority_hook_ajax: ' . $e->getMessage());
             wp_send_json_error([
-                'message' => 'Server error while saving authority hook components',
+                'message' => 'Critical server error',
                 'details' => $e->getMessage()
             ]);
         }
