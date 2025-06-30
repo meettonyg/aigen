@@ -70,18 +70,47 @@ class MKCG_Formidable_Service {
             error_log('MKCG Formidable Service: Method 2 found ' . count($all_meta_values) . ' fields');
         }
         
-        // Method 3: Check specifically for our topic fields
-        $topic_fields = ['8498', '8499', '8500', '8501', '8502'];
-        $specific_check = [];
+        // Method 3: Enhanced topic fields retrieval with comprehensive validation
+        $critical_fields = [
+            // Topic fields
+            '8498' => 'topic_1',
+            '8499' => 'topic_2', 
+            '8500' => 'topic_3',
+            '8501' => 'topic_4',
+            '8502' => 'topic_5',
+            // Authority hook fields for validation
+            '10296' => 'authority_who',
+            '10297' => 'authority_result',
+            '10387' => 'authority_when',
+            '10298' => 'authority_how',
+            '10358' => 'authority_complete'
+        ];
         
-        foreach ($topic_fields as $field_id) {
+        $specific_check = [];
+        $fields_found = 0;
+        
+        foreach ($critical_fields as $field_id => $field_name) {
+            // Try multiple retrieval strategies for each critical field
+            $value = null;
+            
+            // Strategy 1: Direct query
             $value = $wpdb->get_var($wpdb->prepare(
                 "SELECT meta_value FROM $item_metas_table WHERE item_id = %d AND field_id = %d",
                 $entry_id, $field_id
             ));
             
+            // Strategy 2: If not found, try with different data types
+            if ($value === null) {
+                $value = $wpdb->get_var($wpdb->prepare(
+                    "SELECT meta_value FROM $item_metas_table WHERE item_id = %d AND field_id = %s",
+                    $entry_id, $field_id
+                ));
+            }
+            
             if ($value !== null) {
-                $specific_check[] = "Field {$field_id}: '{$value}'";
+                $processed_value = $this->process_field_value_enhanced($value, $field_id);
+                $specific_check[] = "Field {$field_id} ({$field_name}): RAW='{$value}' → PROCESSED='{$processed_value}'";
+                $fields_found++;
                 
                 // Add to our results if not already there
                 $found = false;
@@ -96,14 +125,16 @@ class MKCG_Formidable_Service {
                     $all_meta_values[] = [
                         'field_id' => $field_id,
                         'meta_value' => $value,
-                        'name' => 'Topic Field ' . $field_id,
-                        'field_key' => 'topic_' . $field_id
+                        'name' => $field_name,
+                        'field_key' => $field_name
                     ];
                 }
+            } else {
+                $specific_check[] = "Field {$field_id} ({$field_name}): NOT FOUND";
             }
         }
         
-        error_log('MKCG Formidable Service: Specific topic field check: ' . implode(', ', $specific_check));
+        error_log('MKCG Formidable Service: Critical fields check (' . $fields_found . '/' . count($critical_fields) . ' found): ' . implode(', ', $specific_check));
         
         if (empty($all_meta_values)) {
             error_log('MKCG Formidable Service: No field data found for entry ID: ' . $entry_id);
@@ -113,15 +144,35 @@ class MKCG_Formidable_Service {
             ];
         }
         
-        // Organize the data
+        // CRITICAL FIX: Organize the data with enhanced field value processing
         $field_data = [];
+        $topic_field_summary = [];
+        
         foreach ($all_meta_values as $meta) {
+            // Use centralized enhanced processing for all field values
+            $processed_value = $this->process_field_value_enhanced($meta['meta_value'], $meta['field_id']);
+            
             $field_data[$meta['field_id']] = [
                 'id' => $meta['field_id'],
                 'name' => $meta['name'] ?: 'Unknown',
                 'key' => $meta['field_key'] ?: '',
-                'value' => $meta['meta_value']
+                'value' => $processed_value,
+                'raw_value' => $meta['meta_value'], // Keep original for debugging
+                'processing_success' => !empty($processed_value) || $meta['meta_value'] === '0'
             ];
+            
+            // Enhanced logging for topic fields
+            if (in_array($meta['field_id'], ['8498', '8499', '8500', '8501', '8502'])) {
+                $topic_number = $meta['field_id'] - 8497; // Convert to 1-5
+                $status = !empty($processed_value) ? 'SUCCESS' : 'EMPTY';
+                $topic_field_summary[] = "Topic {$topic_number} (field {$meta['field_id']}): {$status} - '" . substr($processed_value, 0, 50) . "'";
+                
+                error_log("MKCG Data Extraction: Topic field {$meta['field_id']} - Raw type: " . gettype($meta['meta_value']) . ", Raw length: " . (is_string($meta['meta_value']) ? strlen($meta['meta_value']) : 'N/A') . ", Processed: '" . $processed_value . "'");
+            }
+        }
+        
+        if (!empty($topic_field_summary)) {
+            error_log('MKCG Data Extraction: TOPIC FIELDS SUMMARY - ' . implode(' | ', $topic_field_summary));
         }
         
         // Debug: Log what we found
@@ -1552,5 +1603,243 @@ class MKCG_Formidable_Service {
         }
         
         return $healing_result;
+    }
+    
+    /**
+     * CRITICAL FIX: Simplified field value processing focused on Formidable data extraction
+     * Prioritizes direct string values and basic serialization handling
+     */
+    public function process_field_value_enhanced($raw_value, $field_id = null) {
+        // Return empty string for null or false values
+        if ($raw_value === null || $raw_value === false) {
+            if ($field_id) {
+                error_log("MKCG Simple Processing: Field {$field_id} - NULL/FALSE value, returning empty");
+            }
+            return '';
+        }
+        
+        // Debug logging for field processing
+        if ($field_id) {
+            error_log("MKCG Simple Processing: Field {$field_id} - Raw type: " . gettype($raw_value) . ", Length: " . (is_string($raw_value) ? strlen($raw_value) : 'N/A') . ", First 100 chars: " . substr(print_r($raw_value, true), 0, 100));
+        }
+        
+        // PRIORITY 1: If it's a non-empty string and doesn't look serialized, use it directly
+        if (is_string($raw_value)) {
+            $trimmed = trim($raw_value);
+            
+            // Check if it's obviously a plain string (not serialized or JSON)
+            if (!empty($trimmed) && !$this->looks_like_complex_data($trimmed)) {
+                if ($field_id) {
+                    error_log("MKCG Simple Processing: Field {$field_id} - Direct string value: '{$trimmed}'");
+                }
+                return $trimmed;
+            }
+            
+            // PRIORITY 2: Handle simple serialized strings (common in Formidable)
+            if ($this->is_serialized($trimmed)) {
+                $unserialized = @unserialize($trimmed);
+                
+                if ($unserialized !== false) {
+                    // If unserialization gives us a simple string, use it
+                    if (is_string($unserialized)) {
+                        $result = trim($unserialized);
+                        if ($field_id) {
+                            error_log("MKCG Simple Processing: Field {$field_id} - Unserialized string: '{$result}'");
+                        }
+                        return $result;
+                    }
+                    
+                    // If it's an array, get the first non-empty value
+                    if (is_array($unserialized)) {
+                        foreach ($unserialized as $value) {
+                            if (is_string($value) && !empty(trim($value))) {
+                                $result = trim($value);
+                                if ($field_id) {
+                                    error_log("MKCG Simple Processing: Field {$field_id} - First array value: '{$result}'");
+                                }
+                                return $result;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // PRIORITY 3: Return the trimmed string even if processing failed
+            if (!empty($trimmed)) {
+                if ($field_id) {
+                    error_log("MKCG Simple Processing: Field {$field_id} - Fallback to trimmed string: '{$trimmed}'");
+                }
+                return $trimmed;
+            }
+        }
+        
+        // PRIORITY 4: Handle arrays directly (simple extraction)
+        if (is_array($raw_value)) {
+            foreach ($raw_value as $value) {
+                if (is_string($value) && !empty(trim($value))) {
+                    $result = trim($value);
+                    if ($field_id) {
+                        error_log("MKCG Simple Processing: Field {$field_id} - Array value: '{$result}'");
+                    }
+                    return $result;
+                }
+            }
+        }
+        
+        // PRIORITY 5: Convert everything else to string
+        $result = trim((string)$raw_value);
+        if ($field_id) {
+            error_log("MKCG Simple Processing: Field {$field_id} - Final conversion: '{$result}'");
+        }
+        return $result;
+    }
+    
+    /**
+     * CRITICAL FIX: Simple check for complex data structures
+     */
+    private function looks_like_complex_data($data) {
+        if (!is_string($data) || empty($data)) {
+            return false;
+        }
+        
+        $trimmed = trim($data);
+        
+        // Check for serialized data patterns
+        if (strlen($trimmed) > 4) {
+            $prefix = substr($trimmed, 0, 2);
+            if (in_array($prefix, ['a:', 's:', 'i:', 'b:', 'O:'])) {
+                return true;
+            }
+        }
+        
+        // Check for JSON patterns
+        if ((substr($trimmed, 0, 1) === '{' && substr($trimmed, -1) === '}') ||
+            (substr($trimmed, 0, 1) === '[' && substr($trimmed, -1) === ']')) {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Check if string looks like serialized data
+     */
+    private function looks_like_serialized_data($data) {
+        if (!is_string($data) || empty($data)) {
+            return false;
+        }
+        
+        $trimmed = trim($data);
+        return (
+            (strlen($trimmed) > 4 && substr($trimmed, 0, 2) === 'a:') || // Array
+            (strlen($trimmed) > 4 && substr($trimmed, 0, 2) === 's:') || // String
+            (strlen($trimmed) > 4 && substr($trimmed, 0, 2) === 'i:') || // Integer
+            (strlen($trimmed) > 4 && substr($trimmed, 0, 2) === 'b:') || // Boolean
+            (strlen($trimmed) > 4 && substr($trimmed, 0, 2) === 'O:')    // Object
+        );
+    }
+    
+    /**
+     * Check if string looks like JSON
+     */
+    private function looks_like_json($data) {
+        if (!is_string($data)) {
+            return false;
+        }
+        
+        $trimmed = trim($data);
+        return (
+            (substr($trimmed, 0, 1) === '{' && substr($trimmed, -1) === '}') ||
+            (substr($trimmed, 0, 1) === '[' && substr($trimmed, -1) === ']')
+        );
+    }
+    
+    /**
+     * Extract meaningful value from unserialized data
+     */
+    private function extract_value_from_unserialized($unserialized) {
+        if (is_string($unserialized)) {
+            return trim($unserialized);
+        }
+        
+        if (is_array($unserialized)) {
+            return $this->extract_value_from_array($unserialized);
+        }
+        
+        if (is_numeric($unserialized)) {
+            return (string)$unserialized;
+        }
+        
+        if (is_bool($unserialized)) {
+            return $unserialized ? '1' : '0';
+        }
+        
+        return '';
+    }
+    
+    /**
+     * Extract meaningful value from array (prioritizes non-empty string values)
+     */
+    private function extract_value_from_array($array) {
+        if (!is_array($array)) {
+            return '';
+        }
+        
+        // Strategy 1: Look for non-empty string values
+        foreach ($array as $value) {
+            if (is_string($value) && !empty(trim($value))) {
+                return trim($value);
+            }
+        }
+        
+        // Strategy 2: Look for non-empty non-string values
+        foreach ($array as $value) {
+            if (!empty($value) && !is_array($value) && !is_object($value)) {
+                return trim((string)$value);
+            }
+        }
+        
+        // Strategy 3: Handle nested arrays
+        foreach ($array as $value) {
+            if (is_array($value)) {
+                $nested_result = $this->extract_value_from_array($value);
+                if (!empty($nested_result)) {
+                    return $nested_result;
+                }
+            }
+        }
+        
+        return '';
+    }
+    
+    /**
+     * Enhanced is_serialized check
+     */
+    private function is_serialized($data) {
+        // WordPress has this function, use it if available
+        if (function_exists('is_serialized')) {
+            return is_serialized($data);
+        }
+        
+        // Fallback implementation
+        if (!is_string($data) || empty($data)) {
+            return false;
+        }
+        
+        $trimmed = trim($data);
+        if (strlen($trimmed) < 4) {
+            return false;
+        }
+        
+        if ($trimmed === 'b:0;' || $trimmed === 'b:1;') {
+            return true;
+        }
+        
+        if (preg_match('/^[aOs]:[0-9]+:/', $trimmed) || preg_match('/^[sid]:[0-9]+:/', $trimmed)) {
+            $test = @unserialize($trimmed);
+            return $test !== false || $trimmed === 'b:0;';
+        }
+        
+        return false;
     }
 }

@@ -1,0 +1,181 @@
+<?php
+/**
+ * Direct Database Query to Check Raw Formidable Data
+ * Add this to wp-admin or run via WP-CLI to check actual database content
+ */
+
+if (!defined('ABSPATH')) {
+    require_once($_SERVER['DOCUMENT_ROOT'] . '/wp-config.php');
+}
+
+echo "<h1>Direct Database Check for Entry y8ver</h1>";
+
+global $wpdb;
+
+// First, get the entry ID
+$entry_key = 'y8ver';
+$entry_id = $wpdb->get_var($wpdb->prepare(
+    "SELECT id FROM {$wpdb->prefix}frm_items WHERE item_key = %s",
+    $entry_key
+));
+
+if (!$entry_id) {
+    echo "<p style='color: red;'>❌ Entry not found for key: {$entry_key}</p>";
+    exit;
+}
+
+echo "<p><strong>Entry ID:</strong> {$entry_id}</p>";
+
+// Get ALL meta values for this entry
+$meta_values = $wpdb->get_results($wpdb->prepare(
+    "SELECT fm.field_id, fm.meta_value, ff.name, ff.field_key 
+     FROM {$wpdb->prefix}frm_item_metas fm 
+     LEFT JOIN {$wpdb->prefix}frm_fields ff ON fm.field_id = ff.id
+     WHERE fm.item_id = %d
+     ORDER BY fm.field_id",
+    $entry_id
+), ARRAY_A);
+
+echo "<h2>Raw Database Content (" . count($meta_values) . " fields)</h2>";
+
+// Authority Hook field IDs
+$auth_fields = [
+    '10296' => 'WHO (Authority Hook)',
+    '10297' => 'RESULT (Authority Hook)', 
+    '10387' => 'WHEN (Authority Hook)',
+    '10298' => 'HOW (Authority Hook)',
+    '10358' => 'COMPLETE (Authority Hook)'
+];
+
+// Topic field IDs  
+$topic_fields = [
+    '8498' => 'Topic 1',
+    '8499' => 'Topic 2',
+    '8500' => 'Topic 3', 
+    '8501' => 'Topic 4',
+    '8502' => 'Topic 5'
+];
+
+echo "<h3>Authority Hook Fields:</h3>";
+foreach ($auth_fields as $field_id => $label) {
+    $found = false;
+    foreach ($meta_values as $meta) {
+        if ($meta['field_id'] == $field_id) {
+            $found = true;
+            echo "<p><strong>{$label} (Field {$field_id}):</strong><br>";
+            echo "&nbsp;&nbsp;Type: " . gettype($meta['meta_value']) . "<br>";
+            echo "&nbsp;&nbsp;Raw Value: <code>" . htmlspecialchars(print_r($meta['meta_value'], true)) . "</code><br>";
+            
+            // Test our processing method
+            echo "&nbsp;&nbsp;Length: " . strlen($meta['meta_value']) . " chars<br>";
+            
+            // Show first 100 chars if it's long
+            if (strlen($meta['meta_value']) > 100) {
+                echo "&nbsp;&nbsp;Preview: " . htmlspecialchars(substr($meta['meta_value'], 0, 100)) . "...<br>";
+            }
+            
+            // Check if it's serialized
+            if (is_string($meta['meta_value'])) {
+                $is_serialized = (function_exists('is_serialized') && is_serialized($meta['meta_value']));
+                echo "&nbsp;&nbsp;Serialized: " . ($is_serialized ? 'Yes' : 'No') . "<br>";
+                
+                if ($is_serialized) {
+                    $unserialized = @unserialize($meta['meta_value']);
+                    echo "&nbsp;&nbsp;Unserialized: <code>" . htmlspecialchars(print_r($unserialized, true)) . "</code><br>";
+                }
+            }
+            echo "</p>";
+            break;
+        }
+    }
+    
+    if (!$found) {
+        echo "<p><strong>{$label} (Field {$field_id}):</strong> <span style='color: red;'>NOT FOUND</span></p>";
+    }
+}
+
+echo "<h3>Topic Fields:</h3>";
+foreach ($topic_fields as $field_id => $label) {
+    $found = false;
+    foreach ($meta_values as $meta) {
+        if ($meta['field_id'] == $field_id) {
+            $found = true;
+            echo "<p><strong>{$label} (Field {$field_id}):</strong><br>";
+            echo "&nbsp;&nbsp;Type: " . gettype($meta['meta_value']) . "<br>";
+            
+            if (!empty($meta['meta_value'])) {
+                $preview = strlen($meta['meta_value']) > 100 ? 
+                    htmlspecialchars(substr($meta['meta_value'], 0, 100)) . "..." : 
+                    htmlspecialchars($meta['meta_value']);
+                echo "&nbsp;&nbsp;Value: <code>{$preview}</code><br>";
+            } else {
+                echo "&nbsp;&nbsp;Value: <span style='color: orange;'>EMPTY</span><br>";
+            }
+            break;
+        }
+    }
+    
+    if (!$found) {
+        echo "<p><strong>{$label} (Field {$field_id}):</strong> <span style='color: red;'>NOT FOUND</span></p>";
+    }
+}
+
+echo "<h3>All Other Fields (for reference):</h3>";
+echo "<table border='1' style='border-collapse: collapse; width: 100%;'>";
+echo "<tr><th>Field ID</th><th>Name</th><th>Type</th><th>Value Preview</th></tr>";
+
+foreach ($meta_values as $meta) {
+    $is_auth_or_topic = isset($auth_fields[$meta['field_id']]) || isset($topic_fields[$meta['field_id']]);
+    
+    if (!$is_auth_or_topic) {
+        $value_preview = '';
+        if (!empty($meta['meta_value'])) {
+            $value_preview = strlen($meta['meta_value']) > 50 ? 
+                htmlspecialchars(substr($meta['meta_value'], 0, 50)) . "..." : 
+                htmlspecialchars($meta['meta_value']);
+        } else {
+            $value_preview = '<em>empty</em>';
+        }
+        
+        echo "<tr>";
+        echo "<td>{$meta['field_id']}</td>";
+        echo "<td>" . htmlspecialchars($meta['name'] ?: 'Unknown') . "</td>";
+        echo "<td>" . gettype($meta['meta_value']) . "</td>";
+        echo "<td><code>{$value_preview}</code></td>";
+        echo "</tr>";
+    }
+}
+
+echo "</table>";
+
+echo "<h3>Diagnostic Summary</h3>";
+
+$auth_count = 0;
+$topic_count = 0;
+
+foreach ($meta_values as $meta) {
+    if (isset($auth_fields[$meta['field_id']]) && !empty($meta['meta_value'])) {
+        $auth_count++;
+    }
+    if (isset($topic_fields[$meta['field_id']]) && !empty($meta['meta_value'])) {
+        $topic_count++;
+    }
+}
+
+echo "<p><strong>Authority Hook Fields with Data:</strong> {$auth_count}/5</p>";
+echo "<p><strong>Topic Fields with Data:</strong> {$topic_count}/5</p>";
+
+if ($auth_count == 0 && $topic_count == 0) {
+    echo "<p style='color: red;'><strong>❌ NO DATA FOUND:</strong> The entry exists but has no authority hook or topic data.</p>";
+    echo "<p>This explains why the Topics Generator shows empty fields. The user needs to fill in their data first.</p>";
+} elseif ($auth_count > 0 && $topic_count == 0) {
+    echo "<p style='color: orange;'><strong>⚠️ PARTIAL DATA:</strong> Authority hook data exists but no topics.</p>";
+} elseif ($auth_count == 0 && $topic_count > 0) {
+    echo "<p style='color: orange;'><strong>⚠️ PARTIAL DATA:</strong> Topic data exists but no authority hook.</p>";
+} else {
+    echo "<p style='color: green;'><strong>✅ DATA FOUND:</strong> Both authority hook and topic data exist.</p>";
+    echo "<p>If the Topics Generator isn't showing this data, there's a processing issue in the PHP code.</p>";
+}
+
+echo "<p><em>Query completed at " . date('Y-m-d H:i:s') . "</em></p>";
+?>

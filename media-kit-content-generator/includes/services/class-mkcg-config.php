@@ -368,5 +368,76 @@ class MKCG_Config {
         
         return $legacy_mappings[$generator_type] ?? [];
     }
+    
+    /**
+     * 🔍 DATA FLOW VALIDATION - Validate that data extraction is working correctly
+     */
+    public static function validate_data_extraction($entry_id, $data_type = 'topics') {
+        $validation_result = [
+            'success' => false,
+            'entry_id' => $entry_id,
+            'data_type' => $data_type,
+            'fields_tested' => 0,
+            'fields_found' => 0,
+            'field_details' => [],
+            'errors' => [],
+            'timestamp' => time()
+        ];
+        
+        if (!$entry_id) {
+            $validation_result['errors'][] = 'No entry ID provided';
+            return $validation_result;
+        }
+        
+        // Get field mappings for the data type
+        $field_mappings = self::get_field_mappings();
+        if (!isset($field_mappings[$data_type])) {
+            $validation_result['errors'][] = "No field mappings found for data type: {$data_type}";
+            return $validation_result;
+        }
+        
+        $fields_to_test = $field_mappings[$data_type]['fields'];
+        $validation_result['fields_tested'] = count($fields_to_test);
+        
+        // Test database connectivity
+        global $wpdb;
+        $item_metas_table = $wpdb->prefix . 'frm_item_metas';
+        
+        foreach ($fields_to_test as $field_key => $field_id) {
+            $field_test = [
+                'field_key' => $field_key,
+                'field_id' => $field_id,
+                'found' => false,
+                'value_length' => 0,
+                'value_preview' => '',
+                'raw_type' => 'unknown'
+            ];
+            
+            try {
+                $raw_value = $wpdb->get_var($wpdb->prepare(
+                    "SELECT meta_value FROM {$item_metas_table} WHERE item_id = %d AND field_id = %d",
+                    $entry_id, $field_id
+                ));
+                
+                if ($raw_value !== null) {
+                    $field_test['found'] = true;
+                    $field_test['raw_type'] = gettype($raw_value);
+                    $field_test['value_length'] = is_string($raw_value) ? strlen($raw_value) : 0;
+                    $field_test['value_preview'] = substr((string)$raw_value, 0, 50);
+                    $validation_result['fields_found']++;
+                }
+                
+            } catch (Exception $e) {
+                $field_test['error'] = $e->getMessage();
+                $validation_result['errors'][] = "Field {$field_id} query failed: " . $e->getMessage();
+            }
+            
+            $validation_result['field_details'][$field_key] = $field_test;
+        }
+        
+        $validation_result['success'] = ($validation_result['fields_found'] > 0);
+        
+        return $validation_result;
+    }
 }
 ?>

@@ -8,6 +8,7 @@ class MKCG_Topics_Generator extends MKCG_Base_Generator {
     
     protected $generator_type = 'topics';
     protected $unified_data_service;
+    protected $topics_data_service; // CRITICAL FIX: Same service as Questions Generator
     
     // Enhanced configuration - same as Questions Generator
     protected $max_topics = 5;
@@ -15,13 +16,43 @@ class MKCG_Topics_Generator extends MKCG_Base_Generator {
     protected $cache_duration = 3600; // 1 hour
     
     /**
-     * Constructor - Initialize with unified data service
+     * Constructor - Initialize with Topics Data Service like Questions Generator
      */
     public function __construct($api_service, $formidable_service, $authority_hook_service = null) {
         parent::__construct($api_service, $formidable_service, $authority_hook_service);
         
-        // Initialize unified data service
+        // CRITICAL FIX: Use same Topics Data Service as Questions Generator
+        $this->topics_data_service = null;
+        
+        try {
+            // Verify critical class availability
+            if (!class_exists('MKCG_Topics_Data_Service')) {
+                throw new Exception('MKCG_Topics_Data_Service class not found');
+            }
+            
+            // Initialize Topics Data Service (same as Questions Generator)
+            $this->topics_data_service = new MKCG_Topics_Data_Service($formidable_service);
+            
+            if (!$this->topics_data_service) {
+                throw new Exception('Topics Data Service failed to initialize');
+            }
+            
+            error_log('MKCG Topics Generator: ✅ Topics Data Service initialized successfully');
+            
+        } catch (Exception $e) {
+            error_log('MKCG Topics Generator: ❌ EXCEPTION during Topics Data Service initialization: ' . $e->getMessage());
+            $this->topics_data_service = null;
+        }
+        
+        // Initialize unified data service for compatibility
         $this->unified_data_service = new MKCG_Unified_Data_Service($formidable_service);
+    }
+    
+    /**
+     * Check if Topics Data Service is available (same as Questions Generator)
+     */
+    private function is_topics_service_available() {
+        return ($this->topics_data_service !== null);
     }
     
     /**
@@ -218,9 +249,11 @@ The expert's area of expertise is: \"$authority_hook\".
         ];
     }
     
+    // REMOVED: Redundant field processing methods - now using centralized Formidable Service
+    
     /**
-     * Get template data for rendering
-     * ARCHITECTURAL FIX: Move data loading logic from template to generator class
+     * CRITICAL FIX: Get template data using Topics Data Service (same as Questions Generator)
+     * Loads data from WordPress custom post meta, NOT Formidable entry fields
      */
     public function get_template_data($entry_key = '') {
         // Initialize empty data structure
@@ -250,62 +283,38 @@ The expert's area of expertise is: \"$authority_hook\".
             $template_data['entry_key'] = $entry_key;
         }
         
-        // Load data from Formidable if entry key exists
-        if (!empty($entry_key) && $this->formidable_service) {
-            error_log('MKCG Topics Generator: Attempting to load data for entry_key: ' . $entry_key);
-            error_log('MKCG Topics Generator: Formidable service available: ' . (is_object($this->formidable_service) ? 'YES' : 'NO'));
+        // CRITICAL FIX: Use Topics Data Service (same as Questions Generator)
+        if (!empty($entry_key) && $this->topics_data_service) {
+            error_log('MKCG Topics Generator: Using Topics Data Service to load data for entry_key: ' . $entry_key);
             
-            $entry_data = $this->formidable_service->get_entry_data($entry_key);
-            
-            error_log('MKCG Topics Generator: Entry data result: ' . print_r($entry_data, true));
-            
-            if ($entry_data['success']) {
-                $entry_id = $entry_data['entry_id'];
-                $all_fields = $entry_data['fields'];
+            try {
+                // Get data using Topics Data Service (loads from custom post meta)
+                $topics_result = $this->topics_data_service->get_topics_data(null, $entry_key, null);
                 
-                $template_data['entry_id'] = $entry_id;
-                $template_data['has_entry'] = true;
-                
-                // Helper function to safely get field values
-                $get_field = function($field_id) use ($all_fields) {
-                    return isset($all_fields[$field_id]['value']) ? $all_fields[$field_id]['value'] : '';
-                };
-                
-                // Load authority hook components using centralized config
-                $auth_field_mappings = MKCG_Config::get_field_mappings()['authority_hook']['fields'];
-                $template_data['authority_hook_components']['who'] = $get_field($auth_field_mappings['who']);
-                $template_data['authority_hook_components']['result'] = $get_field($auth_field_mappings['result']);
-                $template_data['authority_hook_components']['when'] = $get_field($auth_field_mappings['when']);
-                $template_data['authority_hook_components']['how'] = $get_field($auth_field_mappings['how']);
-                $template_data['authority_hook_components']['complete'] = $get_field($auth_field_mappings['complete']);
-                
-                // Load topics using centralized config
-                $topics_field_mappings = MKCG_Config::get_field_mappings()['topics']['fields'];
-                $template_data['form_field_values']['topic_1'] = $get_field($topics_field_mappings['topic_1']);
-                $template_data['form_field_values']['topic_2'] = $get_field($topics_field_mappings['topic_2']);
-                $template_data['form_field_values']['topic_3'] = $get_field($topics_field_mappings['topic_3']);
-                $template_data['form_field_values']['topic_4'] = $get_field($topics_field_mappings['topic_4']);
-                $template_data['form_field_values']['topic_5'] = $get_field($topics_field_mappings['topic_5']);
-                
-                // Build complete authority hook if needed
-                $has_components = !empty($template_data['authority_hook_components']['who']) || 
-                                 !empty($template_data['authority_hook_components']['result']) || 
-                                 !empty($template_data['authority_hook_components']['when']) || 
-                                 !empty($template_data['authority_hook_components']['how']);
-                
-                if (empty($template_data['authority_hook_components']['complete']) && $has_components) {
-                    // Delegate to Authority Hook Service for building
-                    $template_data['authority_hook_components']['complete'] = $this->authority_hook_service->build_authority_hook($template_data['authority_hook_components']);
+                if ($topics_result['success']) {
+                    $template_data['entry_id'] = $topics_result['entry_id'];
+                    $template_data['has_entry'] = true;
+                    
+                    // Load topics data from custom post meta
+                    $template_data['form_field_values'] = $topics_result['topics'];
+                    
+                    // Load authority hook data
+                    $template_data['authority_hook_components'] = $topics_result['authority_hook'];
+                    
+                    error_log('MKCG Topics Generator: ✅ Successfully loaded data via Topics Data Service');
+                    error_log('MKCG Topics Generator: Entry ID: ' . $template_data['entry_id']);
+                    error_log('MKCG Topics Generator: Topics loaded: ' . json_encode($template_data['form_field_values']));
+                    error_log('MKCG Topics Generator: Authority Hook: ' . $template_data['authority_hook_components']['complete']);
+                    
+                } else {
+                    error_log('MKCG Topics Generator: ❌ Topics Data Service failed: ' . ($topics_result['message'] ?? 'Unknown error'));
                 }
                 
-                error_log('MKCG Topics Generator: Loaded template data for entry ' . $entry_id);
-                error_log('MKCG Topics Generator: Authority Hook - ' . $template_data['authority_hook_components']['complete']);
-                error_log('MKCG Topics Generator: Topics count - ' . count(array_filter($template_data['form_field_values'])));
-            } else {
-                error_log('MKCG Topics Generator: Failed to load entry data for key: ' . $entry_key . ' - Error: ' . ($entry_data['message'] ?? 'Unknown error'));
+            } catch (Exception $e) {
+                error_log('MKCG Topics Generator: ❌ Exception using Topics Data Service: ' . $e->getMessage());
             }
-        } elseif (!empty($entry_key) && !$this->formidable_service) {
-            error_log('MKCG Topics Generator: CRITICAL ERROR - Formidable service not available for entry_key: ' . $entry_key);
+        } elseif (!empty($entry_key) && !$this->topics_data_service) {
+            error_log('MKCG Topics Generator: ❌ CRITICAL ERROR - Topics Data Service not available for entry_key: ' . $entry_key);
         } elseif (empty($entry_key)) {
             error_log('MKCG Topics Generator: No entry_key provided - using defaults');
         }
@@ -493,7 +502,7 @@ The expert's area of expertise is: \"$authority_hook\".
     }
     
     /**
-     * CRITICAL FIX: Handle get topics data AJAX request
+     * CRITICAL FIX: Handle get topics data AJAX request using Topics Data Service
      */
     public function handle_get_topics_data_ajax() {
         // Use centralized security validation
@@ -509,42 +518,39 @@ The expert's area of expertise is: \"$authority_hook\".
         
         error_log('MKCG Topics AJAX: Get topics data request - entry_id=' . $entry_id . ', entry_key=' . $entry_key . ', post_id=' . $post_id);
         
-        // If we have entry_key but no entry_id, try to resolve it
-        if (!$entry_id && $entry_key) {
-            $entry_data = $this->formidable_service->get_entry_data($entry_key);
-            if ($entry_data['success']) {
-                $entry_id = $entry_data['entry_id'];
-                error_log('MKCG Topics AJAX: Resolved entry_key ' . $entry_key . ' to entry_id ' . $entry_id);
-            } else {
-                error_log('MKCG Topics AJAX: Failed to resolve entry_key ' . $entry_key . ': ' . $entry_data['message']);
+        // CRITICAL FIX: Use Topics Data Service (same as Questions Generator)
+        if ($this->is_topics_service_available()) {
+            try {
+                // Use Topics Data Service for consistent data loading
+                $result = $this->topics_data_service->get_topics_data($entry_id, $entry_key, $post_id);
+                
+                if ($result['success']) {
+                    wp_send_json_success([
+                        'entry_id' => $result['entry_id'],
+                        'authority_hook' => $result['authority_hook'],
+                        'topics' => $result['topics'],
+                        'has_entry' => true,
+                        'data_quality' => $result['data_quality'],
+                        'source' => $result['source']
+                    ]);
+                } else {
+                    wp_send_json_error([
+                        'message' => $result['message'] ?? 'Failed to load topics data',
+                        'entry_key' => $entry_key,
+                        'entry_id' => $entry_id
+                    ]);
+                }
+            } catch (Exception $e) {
+                error_log('MKCG Topics AJAX: Exception in Topics Data Service: ' . $e->getMessage());
                 wp_send_json_error([
-                    'message' => 'Failed to find entry: ' . $entry_data['message'],
-                    'entry_key' => $entry_key
+                    'message' => 'Service error: ' . $e->getMessage()
                 ]);
-                return;
             }
-        }
-        
-        if (!$entry_id) {
-            wp_send_json_error(['message' => 'No valid entry ID or key provided']);
-            return;
-        }
-        
-        // Get template data using our centralized method
-        $template_data = $this->get_template_data($entry_key);
-        
-        if ($template_data['has_entry']) {
-            wp_send_json_success([
-                'entry_id' => $template_data['entry_id'],
-                'authority_hook' => $template_data['authority_hook_components'],
-                'topics' => $template_data['form_field_values'],
-                'has_entry' => true
-            ]);
         } else {
+            error_log('MKCG Topics AJAX: Topics Data Service not available - using fallback');
             wp_send_json_error([
-                'message' => 'Entry not found or no data available',
-                'entry_key' => $entry_key,
-                'entry_id' => $entry_id
+                'message' => 'Topics Data Service not available',
+                'fallback' => true
             ]);
         }
     }
