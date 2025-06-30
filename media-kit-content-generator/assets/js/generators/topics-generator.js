@@ -160,7 +160,7 @@
     if (hasRealComponents) {
         // Build from components (they have real data)
         console.log('🔧 Building authority hook from real components:', this.fields);
-        this.updateAuthorityHook();
+        this.updateAuthorityHook(false); // false = no server save during initialization
     } else if (phpData.authorityHook.complete && phpData.authorityHook.complete !== 'I help your audience achieve their goals when they need help through your method.') {
         // Use complete hook only if it's not the default and components are default
         console.log('🔧 Using complete authority hook from database:', phpData.authorityHook.complete);
@@ -168,7 +168,7 @@
     } else {
         // Build from components (fallback)
         console.log('🔧 Building authority hook from default components');
-        this.updateAuthorityHook();
+        this.updateAuthorityHook(false); // false = no server save during initialization
     }
     }
     
@@ -269,7 +269,7 @@
         this.fields.result = this.fields.result || 'achieve their goals';
         this.fields.when = this.fields.when || 'they need help';
         this.fields.how = this.fields.how || 'through your method';
-        this.updateAuthorityHook();
+        this.updateAuthorityHook(false); // false = no server save during initialization
         console.log('✅ Topics Generator: Default data set');
     },
     
@@ -418,7 +418,7 @@
         }
       });
       
-      this.updateAuthorityHook();
+      this.updateAuthorityHook(false); // false = no server save during initialization
     },
     
     /**
@@ -468,7 +468,9 @@
           input.addEventListener('input', () => {
             // Update the field value (keep empty if user cleared it)
             this.fields[field] = input.value;
-            this.updateAuthorityHook();
+            
+            // CRITICAL FIX: Only save to server when user actively changes input
+            this.updateAuthorityHook(true); // true = save to server
             
             // Auto-save authority hook components to Formidable
             this.autoSaveAuthorityComponent(field, input.value);
@@ -685,7 +687,7 @@
       
       // Update field value and authority hook
       this.fields[field] = input.value;
-      this.updateAuthorityHook();
+      this.updateAuthorityHook(true); // true = save to server (user action)
       
       // Trigger input event
       input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -717,17 +719,22 @@
     },
     
     /**
-     * Update the Authority Hook text based on input fields
+     * Update the Authority Hook text based on input fields - ENHANCED
      */
-    updateAuthorityHook: function() {
+    updateAuthorityHook: function(saveToServer = false) {
       const hookText = `I help ${this.fields.who || 'your audience'} ${this.fields.result || 'achieve their goals'} when ${this.fields.when || 'they need help'} ${this.fields.how || 'through your method'}.`;
       const hookElement = document.querySelector(this.elements.authorityHookText);
       if (hookElement) {
         hookElement.textContent = hookText;
       }
       
-      // Also save the complete authority hook to Formidable (field 10358)
-      this.saveCompleteAuthorityHook(hookText);
+      // CRITICAL FIX: Only save to server when explicitly requested (not during initialization)
+      if (saveToServer) {
+        console.log('🔄 Saving authority hook to server:', hookText);
+        this.saveCompleteAuthorityHook(hookText);
+      } else {
+        console.log('📝 Authority hook updated locally only (no server save):', hookText);
+      }
     },
     
     /**

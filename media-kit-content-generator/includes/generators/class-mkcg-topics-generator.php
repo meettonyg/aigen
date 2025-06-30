@@ -12,13 +12,55 @@ class MKCG_Topics_Generator extends MKCG_Base_Generator {
     protected $max_retries = 3;
     protected $cache_duration = 3600; // 1 hour
     
+    // CRITICAL FIX: Add missing service properties
+    protected $unified_data_service;
+    protected $topics_data_service;
+    
     /**
-     * Constructor - Standalone mode (no external service dependencies)
+     * Constructor - ENHANCED with proper service initialization
      */
     public function __construct($api_service, $formidable_service, $authority_hook_service = null) {
         parent::__construct($api_service, $formidable_service, $authority_hook_service);
         
-        error_log('MKCG Topics Generator: 📋 Initialized in standalone mode');
+        // CRITICAL FIX: Initialize Topics Data Service if available
+        $this->init_data_services();
+        
+        error_log('MKCG Topics Generator: 📋 Initialized with enhanced service integration');
+    }
+    
+    /**
+     * CRITICAL FIX: Initialize data services with proper error handling
+     */
+    private function init_data_services() {
+        try {
+            // Initialize Topics Data Service
+            if (class_exists('MKCG_Topics_Data_Service')) {
+                $this->topics_data_service = new MKCG_Topics_Data_Service($this->formidable_service);
+                error_log('MKCG Topics Generator: ✅ Topics Data Service initialized');
+            } else {
+                error_log('MKCG Topics Generator: ⚠️ Topics Data Service class not available');
+            }
+            
+            // Initialize Unified Data Service if available
+            if (class_exists('MKCG_Unified_Data_Service')) {
+                $this->unified_data_service = new MKCG_Unified_Data_Service();
+                error_log('MKCG Topics Generator: ✅ Unified Data Service initialized');
+            } else {
+                error_log('MKCG Topics Generator: ⚠️ Unified Data Service class not available');
+            }
+            
+        } catch (Exception $e) {
+            error_log('MKCG Topics Generator: ❌ Exception initializing data services: ' . $e->getMessage());
+            $this->topics_data_service = null;
+            $this->unified_data_service = null;
+        }
+    }
+    
+    /**
+     * CRITICAL FIX: Check if Topics Data Service is available
+     */
+    public function is_topics_service_available() {
+        return ($this->topics_data_service !== null && is_object($this->topics_data_service));
     }
     
     /**
@@ -213,6 +255,81 @@ The expert's area of expertise is: \"$authority_hook\".
             'authority_hook' => $complete_hook,
             'errors' => $result['errors'] ?? []
         ];
+    }
+    
+    /**
+     * CRITICAL FIX: Safe authority hook components save with enhanced error handling
+     */
+    public function save_authority_hook_components_safe($entry_id, $who, $result, $when, $how) {
+        try {
+            error_log('MKCG Topics Generator: Starting safe authority hook save for entry ' . $entry_id);
+            
+            // Validate entry ID
+            if (!$entry_id || $entry_id <= 0) {
+                return [
+                    'success' => false,
+                    'errors' => ['Invalid entry ID provided'],
+                    'authority_hook' => '',
+                    'saved_fields' => []
+                ];
+            }
+            
+            // Sanitize components
+            $components = [
+                'who' => sanitize_textarea_field($who ?: 'your audience'),
+                'result' => sanitize_textarea_field($result ?: 'achieve their goals'),
+                'when' => sanitize_textarea_field($when ?: 'they need help'),
+                'how' => sanitize_textarea_field($how ?: 'through your method')
+            ];
+            
+            error_log('MKCG Topics Generator: Sanitized components: ' . json_encode($components));
+            
+            // Use the existing method but with enhanced error handling
+            $save_result = $this->save_authority_hook_components(
+                $entry_id, 
+                $components['who'], 
+                $components['result'], 
+                $components['when'], 
+                $components['how']
+            );
+            
+            // Enhanced error handling and logging
+            if ($save_result['success']) {
+                error_log('MKCG Topics Generator: ✅ Authority hook components saved successfully');
+                return $save_result;
+            } else {
+                error_log('MKCG Topics Generator: ❌ Authority hook save failed: ' . json_encode($save_result['errors'] ?? ['Unknown error']));
+                
+                // Return formatted error response
+                return [
+                    'success' => false,
+                    'errors' => $save_result['errors'] ?? ['Failed to save authority hook components'],
+                    'authority_hook' => $this->authority_hook_service->build_authority_hook($components),
+                    'saved_fields' => [],
+                    'debug_info' => [
+                        'entry_id' => $entry_id,
+                        'components_provided' => !empty($who) || !empty($result) || !empty($when) || !empty($how),
+                        'authority_hook_service_available' => is_object($this->authority_hook_service),
+                        'formidable_service_available' => is_object($this->formidable_service)
+                    ]
+                ];
+            }
+            
+        } catch (Exception $e) {
+            error_log('MKCG Topics Generator: ❌ Exception in save_authority_hook_components_safe: ' . $e->getMessage());
+            
+            return [
+                'success' => false,
+                'errors' => ['Server error: ' . $e->getMessage()],
+                'authority_hook' => '',
+                'saved_fields' => [],
+                'exception_details' => [
+                    'message' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine()
+                ]
+            ];
+        }
     }
     
     // REMOVED: Redundant field processing methods - now using centralized Formidable Service
@@ -623,18 +740,21 @@ The expert's area of expertise is: \"$authority_hook\".
     }
     
     /**
-     * CRITICAL FIX: Handle save authority hook components AJAX request
+     * CRITICAL FIX: Handle save authority hook components AJAX request - ENHANCED
      */
     public function handle_save_authority_hook_ajax() {
         // Enhanced error handling and debugging
         try {
-            error_log('MKCG Topics Generator: Starting handle_save_authority_hook_ajax');
+            error_log('MKCG Topics Generator: Starting enhanced handle_save_authority_hook_ajax');
             
-            // Use centralized security validation
-            $security_check = $this->validate_ajax_security(['entry_id']);
+            // ROBUST: Enhanced security validation with multiple fallbacks
+            $security_check = $this->validate_ajax_security_enhanced(['entry_id']);
             if (is_wp_error($security_check)) {
                 error_log('MKCG Topics Generator: Security validation failed: ' . $security_check->get_error_message());
-                wp_send_json_error(['message' => $security_check->get_error_message()]);
+                wp_send_json_error([
+                    'message' => $security_check->get_error_message(),
+                    'error_type' => 'security_validation_failed'
+                ]);
                 return;
             }
             
@@ -642,57 +762,130 @@ The expert's area of expertise is: \"$authority_hook\".
             
             if (!$entry_id) {
                 error_log('MKCG Topics Generator: Invalid entry_id: ' . print_r($_POST['entry_id'], true));
-                wp_send_json_error(['message' => 'Entry ID is required']);
+                wp_send_json_error([
+                    'message' => 'Entry ID is required',
+                    'error_type' => 'invalid_entry_id'
+                ]);
                 return;
             }
             
-            // Get components from POST data with validation
-            $who = isset($_POST['who']) ? sanitize_textarea_field($_POST['who']) : '';
-            $result = isset($_POST['result']) ? sanitize_textarea_field($_POST['result']) : '';
-            $when = isset($_POST['when']) ? sanitize_textarea_field($_POST['when']) : '';
-            $how = isset($_POST['how']) ? sanitize_textarea_field($_POST['how']) : '';
+            // Get components from POST data with enhanced validation
+            $components = $this->extract_authority_components_from_post();
             
-            error_log('MKCG Topics Generator: Components - who: ' . strlen($who) . ', result: ' . strlen($result) . ', when: ' . strlen($when) . ', how: ' . strlen($how));
+            error_log('MKCG Topics Generator: Processing components for entry ' . $entry_id . ': ' . json_encode($components));
             
-            // ENHANCED: Use safe authority hook building with fallbacks
-            try {
-                $save_result = $this->save_authority_hook_components_safe($entry_id, $who, $result, $when, $how);
-                
-                if ($save_result['success']) {
-                    error_log('MKCG Topics Generator: ✅ Authority hook saved successfully');
-                    wp_send_json_success([
-                        'message' => 'Authority hook components saved successfully',
-                        'authority_hook' => $save_result['authority_hook'],
-                        'saved_fields' => $save_result['saved_fields'],
-                        'components' => [
-                            'who' => $who,
-                            'result' => $result,
-                            'when' => $when,
-                            'how' => $how
-                        ]
-                    ]);
-                } else {
-                    error_log('MKCG Topics Generator: ❌ Save failed: ' . print_r($save_result, true));
-                    wp_send_json_error([
-                        'message' => 'Failed to save authority hook components',
-                        'details' => $save_result['errors'] ?? 'Unknown error'
-                    ]);
-                }
-            } catch (Exception $e) {
-                error_log('MKCG Topics Generator: ❌ Exception in save_authority_hook_components_safe: ' . $e->getMessage());
+            // ENHANCED: Use safe authority hook building with comprehensive error handling
+            $save_result = $this->save_authority_hook_components_safe(
+                $entry_id, 
+                $components['who'], 
+                $components['result'], 
+                $components['when'], 
+                $components['how']
+            );
+            
+            if ($save_result['success']) {
+                error_log('MKCG Topics Generator: ✅ Authority hook saved successfully');
+                wp_send_json_success([
+                    'message' => 'Authority hook components saved successfully',
+                    'authority_hook' => $save_result['authority_hook'],
+                    'saved_fields' => $save_result['saved_fields'],
+                    'components' => $components,
+                    'success_type' => 'authority_hook_saved'
+                ]);
+            } else {
+                error_log('MKCG Topics Generator: ❌ Save failed: ' . print_r($save_result, true));
                 wp_send_json_error([
-                    'message' => 'Server error while saving authority hook components',
-                    'details' => $e->getMessage()
+                    'message' => 'Failed to save authority hook components',
+                    'details' => $save_result['errors'] ?? ['Unknown error'],
+                    'debug_info' => $save_result['debug_info'] ?? [],
+                    'error_type' => 'save_failed'
                 ]);
             }
             
         } catch (Exception $e) {
             error_log('MKCG Topics Generator: ❌ Critical exception in handle_save_authority_hook_ajax: ' . $e->getMessage());
+            error_log('MKCG Topics Generator: Exception stack trace: ' . $e->getTraceAsString());
+            
             wp_send_json_error([
-                'message' => 'Critical server error',
-                'details' => $e->getMessage()
+                'message' => 'Critical server error during authority hook save',
+                'details' => $e->getMessage(),
+                'error_type' => 'critical_exception',
+                'exception_details' => [
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'trace' => $e->getTraceAsString()
+                ]
             ]);
         }
+    }
+    
+    /**
+     * CRITICAL FIX: Enhanced security validation with better error handling
+     */
+    private function validate_ajax_security_enhanced($required_fields = []) {
+        try {
+            // Use the base class validation first
+            $base_validation = $this->validate_ajax_security($required_fields);
+            
+            if (is_wp_error($base_validation)) {
+                return $base_validation;
+            }
+            
+            // Additional validation for Topics Generator specific requirements
+            if (!current_user_can('edit_posts')) {
+                return new WP_Error('insufficient_permissions', 'User does not have permission to edit content');
+            }
+            
+            return true;
+            
+        } catch (Exception $e) {
+            error_log('MKCG Topics Generator: Exception in validate_ajax_security_enhanced: ' . $e->getMessage());
+            return new WP_Error('security_validation_exception', 'Security validation failed due to server error');
+        }
+    }
+    
+    /**
+     * CRITICAL FIX: Extract and validate authority components from POST data
+     */
+    private function extract_authority_components_from_post() {
+        $components = [
+            'who' => '',
+            'result' => '',
+            'when' => '',
+            'how' => ''
+        ];
+        
+        try {
+            foreach ($components as $key => $default) {
+                if (isset($_POST[$key])) {
+                    $value = sanitize_textarea_field($_POST[$key]);
+                    $components[$key] = !empty($value) ? $value : $default;
+                } else {
+                    // Use defaults for missing components
+                    $defaults = [
+                        'who' => 'your audience',
+                        'result' => 'achieve their goals',
+                        'when' => 'they need help',
+                        'how' => 'through your method'
+                    ];
+                    $components[$key] = $defaults[$key];
+                }
+            }
+            
+            error_log('MKCG Topics Generator: Extracted components: ' . json_encode($components));
+            
+        } catch (Exception $e) {
+            error_log('MKCG Topics Generator: Exception extracting components: ' . $e->getMessage());
+            // Return defaults on error
+            $components = [
+                'who' => 'your audience',
+                'result' => 'achieve their goals',
+                'when' => 'they need help',
+                'how' => 'through your method'
+            ];
+        }
+        
+        return $components;
     }
     
     /**
