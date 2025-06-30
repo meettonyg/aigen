@@ -11,21 +11,22 @@
    * Topics Generator - Main functionality
    */
   const TopicsGenerator = {
-    // DOM elements mapping (BEM selectors) - FIXED to match template IDs
+    // DOM elements mapping - CORRECTED to match actual HTML IDs
     elements: {
       toggleBuilder: '#topics-generator-toggle-builder',
       authorityHookBuilder: '#topics-generator-authority-hook-builder',
-      whoInput: '#topics-generator-who-input',
-      clearWho: '#topics-generator-clear-who',
-      resultInput: '#topics-generator-result-input',
-      clearResult: '#topics-generator-clear-result',
-      whenInput: '#topics-generator-when-input',
-      clearWhen: '#topics-generator-clear-when',
-      howInput: '#topics-generator-how-input',
-      clearHow: '#topics-generator-clear-how',
+      whoInput: '#mkcg-who',
+      clearWho: '[data-field-id="mkcg-who"]',
+      resultInput: '#mkcg-result',
+      clearResult: '[data-field-id="mkcg-result"]',
+      whenInput: '#mkcg-when',
+      clearWhen: '[data-field-id="mkcg-when"]',
+      howInput: '#mkcg-how',
+      clearHow: '[data-field-id="mkcg-how"]',
+      editComponentsButton: '#edit-authority-components',
       addButtons: '.topics-generator__add-button',
       generateButton: '#topics-generator-generate-topics',
-      authorityHookText: '#topics-generator-authority-hook-text',
+      authorityHookText: '#authority-hook-content',
       loadingIndicator: '#topics-generator-loading',
       topicsResult: '#topics-generator-topics-result',
       topicsList: '#topics-generator-topics-list',
@@ -341,22 +342,32 @@
     },
     
     /**
-     * Update authority hook display with specific text
+     * Update authority hook display with specific text - ENHANCED with multiple fallbacks
      */
     updateAuthorityHookText: function(hookText) {
       console.log('🎯 Updating Authority Hook text to:', hookText);
-      const hookElement = document.querySelector(this.elements.authorityHookText);
-      if (hookElement) {
-        hookElement.textContent = hookText;
-        console.log('✅ Authority Hook text updated successfully');
-      } else {
-        console.error('❌ Authority Hook text element not found:', this.elements.authorityHookText);
-        // Try fallback selector
-        const fallbackElement = document.getElementById('topics-generator-authority-hook-text');
-        if (fallbackElement) {
-          fallbackElement.textContent = hookText;
-          console.log('✅ Authority Hook text updated via fallback');
+      
+      // Try multiple selectors for compatibility
+      const selectors = [
+        this.elements.authorityHookText,  // #authority-hook-content
+        '#topics-generator-authority-hook-text',  // Fallback 1
+        '.authority-hook__content',  // Fallback 2
+        '.topics-generator__authority-hook-content p'  // Fallback 3
+      ];
+      
+      let updated = false;
+      for (const selector of selectors) {
+        const element = document.querySelector(selector);
+        if (element) {
+          element.textContent = hookText;
+          console.log(`✅ Authority Hook text updated via: ${selector}`);
+          updated = true;
+          break;
         }
+      }
+      
+      if (!updated) {
+        console.error('❌ Authority Hook text element not found with any selector');
       }
     },
     
@@ -425,33 +436,40 @@
      * Bind events to DOM elements
      */
     bindEvents: function() {
-      // Toggle the Authority Hook Builder
+      // Toggle the Authority Hook Builder - BOTH buttons
       const toggleBtn = document.querySelector(this.elements.toggleBuilder);
+      const editBtn = document.querySelector(this.elements.editComponentsButton);
+      
       if (toggleBtn) {
-        toggleBtn.addEventListener('click', () => {
+        toggleBtn.addEventListener('click', (e) => {
+          e.preventDefault();
           this.toggleBuilder();
         });
+        console.log('✅ Topics Generator toggle button event bound');
       }
       
-      // Clear inputs
-      const clearButtons = [
-        { selector: this.elements.clearWho, target: this.elements.whoInput },
-        { selector: this.elements.clearResult, target: this.elements.resultInput },
-        { selector: this.elements.clearWhen, target: this.elements.whenInput },
-        { selector: this.elements.clearHow, target: this.elements.howInput }
-      ];
+      if (editBtn) {
+        editBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          this.toggleBuilder();
+        });
+        console.log('✅ Shared component edit button event bound');
+      }
       
-      clearButtons.forEach(({ selector, target }) => {
-        const btn = document.querySelector(selector);
-        if (btn) {
-          btn.addEventListener('click', () => {
-            const input = document.querySelector(target);
+      // Clear inputs - Updated for actual HTML structure
+      document.querySelectorAll('.field__clear').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const fieldId = btn.getAttribute('data-field-id');
+          if (fieldId) {
+            const input = document.getElementById(fieldId);
             if (input) {
               input.value = '';
               input.dispatchEvent(new Event('input', { bubbles: true }));
+              console.log(`✅ Cleared field: ${fieldId}`);
             }
-          });
-        }
+          }
+        });
       });
       
       // Input change events
@@ -640,42 +658,74 @@
     },
     
     /**
-     * Toggle the Authority Hook Builder visibility
+     * Toggle the Authority Hook Builder visibility - ENHANCED for dual button support
      */
     toggleBuilder: function() {
       console.log('🔄 Toggling Authority Hook Builder');
       const builderEl = document.querySelector(this.elements.authorityHookBuilder);
       const toggleBtn = document.querySelector(this.elements.toggleBuilder);
+      const editBtn = document.querySelector(this.elements.editComponentsButton);
       
       if (!builderEl) {
         console.error('❌ Builder element not found:', this.elements.authorityHookBuilder);
         return;
       }
       
-      if (!toggleBtn) {
-        console.error('❌ Toggle button not found:', this.elements.toggleBuilder);
-        return;
-      }
+      const isHidden = builderEl.classList.contains('topics-generator__builder--hidden');
       
-      if (builderEl.classList.contains('topics-generator__builder--hidden')) {
+      if (isHidden) {
+        // Show the builder
         builderEl.classList.remove('topics-generator__builder--hidden');
-        toggleBtn.textContent = 'Hide Builder';
-        console.log('✅ Builder shown');
+        
+        // Update button texts
+        if (toggleBtn) toggleBtn.textContent = 'Hide Builder';
+        if (editBtn) {
+          editBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>Hide Builder';
+        }
+        
+        // Scroll to builder for better UX
+        setTimeout(() => {
+          builderEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+        
+        console.log('✅ Authority Hook Builder shown');
       } else {
+        // Hide the builder
         builderEl.classList.add('topics-generator__builder--hidden');
-        toggleBtn.textContent = 'Edit Components';
-        console.log('✅ Builder hidden');
+        
+        // Update button texts
+        if (toggleBtn) toggleBtn.textContent = 'Edit Components';
+        if (editBtn) {
+          editBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>Edit Components';
+        }
+        
+        console.log('✅ Authority Hook Builder hidden');
       }
     },
     
     /**
-     * Add an example to a specific field
+     * Add an example to a specific field - FIXED selectors
      */
     addExample: function(field, exampleText) {
-      const inputSelector = `#topics-generator-${field}-input`;
-      const input = document.querySelector(inputSelector);
+      // Use correct field mapping
+      const fieldMap = {
+        'who': this.elements.whoInput,
+        'result': this.elements.resultInput,
+        'when': this.elements.whenInput,
+        'how': this.elements.howInput
+      };
       
-      if (!input) return;
+      const inputSelector = fieldMap[field];
+      if (!inputSelector) {
+        console.error(`❌ Unknown field: ${field}`);
+        return;
+      }
+      
+      const input = document.querySelector(inputSelector);
+      if (!input) {
+        console.error(`❌ Input not found for field ${field}: ${inputSelector}`);
+        return;
+      }
       
       const currentVal = input.value.trim();
       
@@ -691,6 +741,7 @@
       
       // Trigger input event
       input.dispatchEvent(new Event('input', { bubbles: true }));
+      console.log(`✅ Added example to ${field}: ${exampleText}`);
     },
     
     /**
@@ -719,14 +770,13 @@
     },
     
     /**
-     * Update the Authority Hook text based on input fields - ENHANCED
+     * Update the Authority Hook text based on input fields - ENHANCED with corrected selector
      */
     updateAuthorityHook: function(saveToServer = false) {
       const hookText = `I help ${this.fields.who || 'your audience'} ${this.fields.result || 'achieve their goals'} when ${this.fields.when || 'they need help'} ${this.fields.how || 'through your method'}.`;
-      const hookElement = document.querySelector(this.elements.authorityHookText);
-      if (hookElement) {
-        hookElement.textContent = hookText;
-      }
+      
+      // Use the enhanced updateAuthorityHookText method with multiple fallbacks
+      this.updateAuthorityHookText(hookText);
       
       // CRITICAL FIX: Only save to server when explicitly requested (not during initialization)
       if (saveToServer) {
