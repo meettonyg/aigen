@@ -279,7 +279,7 @@ class Media_Kit_Content_Generator {
     }
     
     public function enqueue_scripts() {
-        // Always load CSS and JS for now (for testing)
+        // Always load CSS and core shared scripts
         $css_file = MKCG_PLUGIN_PATH . 'assets/css/mkcg-unified-styles.css';
         
         // Debug: Check if CSS file exists
@@ -310,7 +310,12 @@ class Media_Kit_Content_Generator {
         // Enqueue jQuery
         wp_enqueue_script('jquery');
         
-        // CRITICAL FIX: Enqueue centralized data manager FIRST
+        // CRITICAL FIX: Detect which generator is being used
+        $current_generator = $this->detect_current_generator();
+        
+        error_log("MKCG Script Loading: Detected generator type: " . ($current_generator ?: 'none'));
+        
+        // Always load core shared scripts
         wp_enqueue_script(
             'mkcg-data-manager', 
             MKCG_PLUGIN_URL . 'assets/js/mkcg-data-manager.js', 
@@ -319,25 +324,134 @@ class Media_Kit_Content_Generator {
             true
         );
         
-        // Enqueue enhanced FormUtils
-        wp_enqueue_script(
-            'mkcg-form-utils', 
-            MKCG_PLUGIN_URL . 'assets/js/mkcg-form-utils.js', 
-            ['jquery', 'mkcg-data-manager'], // Add data manager dependency
-            MKCG_VERSION, 
-            true
-        );
+        // CONDITIONAL LOADING: Only load scripts for the detected generator
+        switch ($current_generator) {
+            case 'topics':
+                $this->enqueue_topics_scripts();
+                break;
+                
+            case 'questions':
+                $this->enqueue_questions_scripts();
+                break;
+                
+            case 'biography':
+                $this->enqueue_biography_scripts();
+                break;
+                
+            case 'offers':
+                $this->enqueue_offers_scripts();
+                break;
+                
+            default:
+                // No specific generator detected - load minimal shared scripts only
+                error_log('MKCG Script Loading: No specific generator detected, loading shared scripts only');
+                wp_enqueue_script(
+                    'mkcg-form-utils', 
+                    MKCG_PLUGIN_URL . 'assets/js/mkcg-form-utils.js', 
+                    ['jquery', 'mkcg-data-manager'], 
+                    MKCG_VERSION, 
+                    true
+                );
+                break;
+        }
         
-        // Enqueue Authority Hook Builder (vanilla JS)
+        // Pass base data to JavaScript (always needed)
+        wp_localize_script('mkcg-data-manager', 'mkcg_vars', [
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('mkcg_nonce'),
+            'plugin_url' => MKCG_PLUGIN_URL,
+            'current_generator' => $current_generator
+        ]);
+        
+        error_log('MKCG: Conditional script loading completed for generator: ' . ($current_generator ?: 'none'));
+    }
+    
+    /**
+     * CRITICAL FIX: Detect which generator is currently being used
+     */
+    private function detect_current_generator() {
+        global $post;
+        
+        // Method 1: Check for shortcodes in current post content
+        if ($post && !empty($post->post_content)) {
+            if (has_shortcode($post->post_content, 'mkcg_topics')) {
+                return 'topics';
+            }
+            if (has_shortcode($post->post_content, 'mkcg_questions')) {
+                return 'questions';
+            }
+            if (has_shortcode($post->post_content, 'mkcg_biography')) {
+                return 'biography';
+            }
+            if (has_shortcode($post->post_content, 'mkcg_offers')) {
+                return 'offers';
+            }
+        }
+        
+        // Method 2: Check URL parameters for generator hints
+        if (isset($_GET['generator'])) {
+            $generator = sanitize_text_field($_GET['generator']);
+            if (in_array($generator, ['topics', 'questions', 'biography', 'offers'])) {
+                return $generator;
+            }
+        }
+        
+        // Method 3: Check page/post slug or title for generator hints
+        if ($post) {
+            $content_to_check = strtolower($post->post_title . ' ' . $post->post_name . ' ' . $post->post_content);
+            
+            if (strpos($content_to_check, 'topics') !== false && strpos($content_to_check, 'interview') !== false) {
+                return 'topics';
+            }
+            if (strpos($content_to_check, 'questions') !== false && strpos($content_to_check, 'interview') !== false) {
+                return 'questions';
+            }
+            if (strpos($content_to_check, 'biography') !== false) {
+                return 'biography';
+            }
+            if (strpos($content_to_check, 'offers') !== false) {
+                return 'offers';
+            }
+        }
+        
+        // Method 4: Check for generator-specific URI patterns
+        if (isset($_SERVER['REQUEST_URI'])) {
+            $uri = strtolower($_SERVER['REQUEST_URI']);
+            if (strpos($uri, 'topics') !== false) {
+                return 'topics';
+            }
+            if (strpos($uri, 'questions') !== false) {
+                return 'questions';
+            }
+        }
+        
+        return null; // No specific generator detected
+    }
+    
+    /**
+     * Load Topics Generator specific scripts
+     */
+    private function enqueue_topics_scripts() {
+        error_log('MKCG: Loading Topics Generator scripts');
+        
+        // Topics needs Authority Hook Builder and Form Utils
         wp_enqueue_script(
             'mkcg-authority-hook-builder', 
             MKCG_PLUGIN_URL . 'assets/js/authority-hook-builder.js', 
-            [], // No dependencies - vanilla JS
+            [], 
             MKCG_VERSION, 
             true
         );
         
-        // Enqueue Topics Generator (depends on Authority Hook Builder and Data Manager)
+        wp_enqueue_script(
+            'mkcg-form-utils', 
+            MKCG_PLUGIN_URL . 'assets/js/mkcg-form-utils.js', 
+            ['jquery', 'mkcg-data-manager'], 
+            MKCG_VERSION, 
+            true
+        );
+        
+        // ONLY load Topics Generator script
         wp_enqueue_script(
             'mkcg-topics-generator', 
             MKCG_PLUGIN_URL . 'assets/js/generators/topics-generator.js', 
@@ -346,23 +460,7 @@ class Media_Kit_Content_Generator {
             true
         );
         
-        // Enqueue Questions Generator (depends on FormUtils and Data Manager)
-        wp_enqueue_script(
-            'mkcg-questions-generator', 
-            MKCG_PLUGIN_URL . 'assets/js/generators/questions-generator.js', 
-            ['mkcg-form-utils', 'mkcg-data-manager'], 
-            MKCG_VERSION, 
-            true
-        );
-        
-        // Pass data to JavaScript
-        wp_localize_script('mkcg-form-utils', 'mkcg_vars', [
-            'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('mkcg_nonce'),
-            'plugin_url' => MKCG_PLUGIN_URL
-        ]);
-        
-        // Also pass topics-specific data with unified nonce strategy
+        // Topics-specific data
         wp_localize_script('mkcg-topics-generator', 'topics_vars', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('mkcg_nonce'),
@@ -388,8 +486,33 @@ class Media_Kit_Content_Generator {
                 ]
             ]
         ]);
+    }
+    
+    /**
+     * Load Questions Generator specific scripts
+     */
+    private function enqueue_questions_scripts() {
+        error_log('MKCG: Loading Questions Generator scripts');
         
-        // Pass questions-specific data with unified nonce strategy
+        // Questions needs Form Utils (for enhanced FormUtils)
+        wp_enqueue_script(
+            'mkcg-form-utils', 
+            MKCG_PLUGIN_URL . 'assets/js/mkcg-form-utils.js', 
+            ['jquery', 'mkcg-data-manager'], 
+            MKCG_VERSION, 
+            true
+        );
+        
+        // ONLY load Questions Generator script
+        wp_enqueue_script(
+            'mkcg-questions-generator', 
+            MKCG_PLUGIN_URL . 'assets/js/generators/questions-generator.js', 
+            ['mkcg-form-utils', 'mkcg-data-manager'], 
+            MKCG_VERSION, 
+            true
+        );
+        
+        // Questions-specific data
         wp_localize_script('mkcg-questions-generator', 'questions_vars', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('mkcg_nonce'),
@@ -415,6 +538,41 @@ class Media_Kit_Content_Generator {
                 ]
             ]
         ]);
+    }
+    
+    /**
+     * Load Biography Generator specific scripts (placeholder)
+     */
+    private function enqueue_biography_scripts() {
+        error_log('MKCG: Loading Biography Generator scripts (placeholder)');
+        
+        wp_enqueue_script(
+            'mkcg-form-utils', 
+            MKCG_PLUGIN_URL . 'assets/js/mkcg-form-utils.js', 
+            ['jquery', 'mkcg-data-manager'], 
+            MKCG_VERSION, 
+            true
+        );
+        
+        // Biography generator script would go here when implemented
+    }
+    
+    /**
+     * Load Offers Generator specific scripts (placeholder)
+     */
+    private function enqueue_offers_scripts() {
+        error_log('MKCG: Loading Offers Generator scripts (placeholder)');
+        
+        wp_enqueue_script(
+            'mkcg-form-utils', 
+            MKCG_PLUGIN_URL . 'assets/js/mkcg-form-utils.js', 
+            ['jquery', 'mkcg-data-manager'], 
+            MKCG_VERSION, 
+            true
+        );
+        
+        // Offers generator script would go here when implemented
+    }
         
         // Debug output
         error_log('MKCG: Scripts enqueued. CSS URL: ' . MKCG_PLUGIN_URL . 'assets/css/mkcg-unified-styles.css');
