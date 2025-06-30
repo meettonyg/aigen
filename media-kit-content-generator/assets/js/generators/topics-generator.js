@@ -207,11 +207,27 @@
     
     this.updateInputFields();
     
-    // Use complete hook if available, otherwise build from components
-    if (phpData.authorityHook.complete) {
-    this.updateAuthorityHookText(phpData.authorityHook.complete);
+    // CRITICAL FIX: Always rebuild from components if they have actual data
+    // Check if components contain non-default values
+    const hasRealComponents = (
+        this.fields.who && this.fields.who !== 'your audience' ||
+        this.fields.result && this.fields.result !== 'achieve their goals' ||
+        this.fields.when && this.fields.when !== 'they need help' ||
+        this.fields.how && this.fields.how !== 'through your method'
+    );
+    
+    if (hasRealComponents) {
+        // Build from components (they have real data)
+        console.log('🔧 Building authority hook from real components:', this.fields);
+        this.updateAuthorityHook();
+    } else if (phpData.authorityHook.complete && phpData.authorityHook.complete !== 'I help your audience achieve their goals when they need help through your method.') {
+        // Use complete hook only if it's not the default and components are default
+        console.log('🔧 Using complete authority hook from database:', phpData.authorityHook.complete);
+        this.updateAuthorityHookText(phpData.authorityHook.complete);
     } else {
-    this.updateAuthorityHook();
+        // Build from components (fallback)
+        console.log('🔧 Building authority hook from default components');
+        this.updateAuthorityHook();
     }
     }
     
@@ -291,9 +307,14 @@
             });
         }
         
-        // Show data quality status if available
-        if (ajaxData.data_quality && ajaxData.data_quality === 'missing') {
+        // CRITICAL FIX: Only show data quality warning if topics are actually missing
+        const hasAnyTopics = ajaxData.topics && Object.values(ajaxData.topics).some(topic => topic && topic.trim());
+        
+        if (ajaxData.data_quality === 'missing' && !hasAnyTopics) {
             this.showDataQualityWarning('No topics data available');
+        } else if (hasAnyTopics && ajaxData.data_quality === 'missing') {
+            // Data quality might be wrong - topics are actually present
+            console.log('⚠️ Data quality status incorrect - topics are present but marked as missing');
         }
         
         console.log('✅ Topics Generator: AJAX data populated successfully');
@@ -358,6 +379,20 @@
           const value = this.fields[field] || '';
           input.value = value;
           console.log(`✅ Updated ${field} input (${selector}) with: "${value}"`);
+          
+          // CRITICAL DEBUG: Check if this is a default value vs real data
+          const isDefaultValue = (
+            (field === 'who' && value === 'your audience') ||
+            (field === 'result' && value === 'achieve their goals') ||
+            (field === 'when' && value === 'they need help') ||
+            (field === 'how' && value === 'through your method')
+          );
+          
+          if (isDefaultValue) {
+            console.log(`⚠️ ${field} field has default value - might need real data`);
+          } else if (value) {
+            console.log(`🎯 ${field} field has real data: "${value}"`);
+          }
         } else {
           console.error(`❌ Input field not found: ${selector}`);
         }

@@ -319,18 +319,47 @@ The expert's area of expertise is: \"$authority_hook\".
             error_log('MKCG Topics Generator: No entry_key provided - using defaults');
         }
         
-        // Apply defaults ONLY for new entries (no entry_id)
+        // CRITICAL FIX: Only apply defaults for completely new entries (no entry_id AND no data)
         if ($template_data['entry_id'] === 0) {
-            $template_data['authority_hook_components']['who'] = 'your audience';
-            $template_data['authority_hook_components']['result'] = 'achieve their goals';
-            $template_data['authority_hook_components']['when'] = 'they need help';
-            $template_data['authority_hook_components']['how'] = 'through your method';
-            $template_data['authority_hook_components']['complete'] = 'I help your audience achieve their goals when they need help through your method.';
-            error_log('MKCG Topics Generator: New entry - applied defaults');
-        } elseif (empty($template_data['authority_hook_components']['complete'])) {
-            // Minimal fallback for existing entries
-            $template_data['authority_hook_components']['complete'] = 'I help my audience achieve their goals.';
-            error_log('MKCG Topics Generator: Existing entry - applied minimal fallback');
+            // Only set defaults if we have no data at all
+            if (empty($template_data['authority_hook_components']['complete'])) {
+                $template_data['authority_hook_components']['who'] = 'your audience';
+                $template_data['authority_hook_components']['result'] = 'achieve their goals';
+                $template_data['authority_hook_components']['when'] = 'they need help';
+                $template_data['authority_hook_components']['how'] = 'through your method';
+                $template_data['authority_hook_components']['complete'] = 'I help your audience achieve their goals when they need help through your method.';
+                error_log('MKCG Topics Generator: New entry - applied defaults');
+            } else {
+                error_log('MKCG Topics Generator: New entry but has existing data - keeping it');
+            }
+        } else {
+            // CRITICAL FIX: For existing entries, extract components from complete hook if components are missing
+            $complete_hook = $template_data['authority_hook_components']['complete'];
+            
+            // Check if components are empty/default but we have a complete hook
+            $has_default_components = (
+                $template_data['authority_hook_components']['who'] === 'your audience' ||
+                empty($template_data['authority_hook_components']['who'])
+            ) && (
+                $template_data['authority_hook_components']['result'] === 'achieve their goals' ||
+                empty($template_data['authority_hook_components']['result'])
+            );
+            
+            if ($has_default_components && !empty($complete_hook) && $complete_hook !== 'I help your audience achieve their goals when they need help through your method.') {
+                // Try to extract real components from the complete hook
+                error_log('MKCG Topics Generator: Existing entry - extracting components from complete hook: ' . $complete_hook);
+                
+                // Simple extraction - this is a fallback to prevent showing defaults
+                if (preg_match('/I help (.+?) (\w[^\s]*.*?) when (.+?) (.+)\./', $complete_hook, $matches)) {
+                    $template_data['authority_hook_components']['who'] = trim($matches[1]);
+                    $template_data['authority_hook_components']['result'] = trim($matches[2]);
+                    $template_data['authority_hook_components']['when'] = trim($matches[3]);
+                    $template_data['authority_hook_components']['how'] = trim($matches[4]);
+                    error_log('MKCG Topics Generator: Components extracted - who: ' . $template_data['authority_hook_components']['who']);
+                }
+            }
+            
+            error_log('MKCG Topics Generator: Existing entry - using stored data');
         }
         
         return $template_data;
@@ -463,6 +492,16 @@ The expert's area of expertise is: \"$authority_hook\".
         
         add_action('wp_ajax_mkcg_save_topic', [$this, 'handle_save_topic_ajax']);
         add_action('wp_ajax_nopriv_mkcg_save_topic', [$this, 'handle_save_topic_ajax']);
+        
+        // CRITICAL FIX: Add missing authority hook save handlers
+        add_action('wp_ajax_mkcg_save_authority_hook', [$this, 'handle_save_authority_hook_ajax']);
+        add_action('wp_ajax_nopriv_mkcg_save_authority_hook', [$this, 'handle_save_authority_hook_ajax']);
+        
+        add_action('wp_ajax_mkcg_save_field', [$this, 'handle_save_field_ajax']);
+        add_action('wp_ajax_nopriv_mkcg_save_field', [$this, 'handle_save_field_ajax']);
+        
+        add_action('wp_ajax_mkcg_save_topic_field', [$this, 'handle_save_topic_field_ajax']);
+        add_action('wp_ajax_nopriv_mkcg_save_topic_field', [$this, 'handle_save_topic_field_ajax']);
         
         // Legacy AJAX actions for backwards compatibility
         add_action('wp_ajax_generate_interview_topics', [$this, 'handle_ajax_generation']);
@@ -628,6 +667,165 @@ The expert's area of expertise is: \"$authority_hook\".
             }
         } else {
             wp_send_json_error(['message' => 'Unified data service not available']);
+        }
+    }
+    
+    /**
+     * CRITICAL FIX: Handle save authority hook components AJAX request
+     */
+    public function handle_save_authority_hook_ajax() {
+        // Use centralized security validation
+        $security_check = $this->validate_ajax_security(['entry_id']);
+        if (is_wp_error($security_check)) {
+            wp_send_json_error(['message' => $security_check->get_error_message()]);
+            return;
+        }
+        
+        $entry_id = intval($_POST['entry_id']);
+        
+        if (!$entry_id) {
+            wp_send_json_error(['message' => 'Entry ID is required']);
+            return;
+        }
+        
+        // Get components from POST data
+        $who = isset($_POST['who']) ? sanitize_textarea_field($_POST['who']) : '';
+        $result = isset($_POST['result']) ? sanitize_textarea_field($_POST['result']) : '';
+        $when = isset($_POST['when']) ? sanitize_textarea_field($_POST['when']) : '';
+        $how = isset($_POST['how']) ? sanitize_textarea_field($_POST['how']) : '';
+        
+        // Use the existing save_authority_hook_components method from this class
+        try {
+            $save_result = $this->save_authority_hook_components($entry_id, $who, $result, $when, $how);
+            
+            if ($save_result['success']) {
+                wp_send_json_success([
+                    'message' => 'Authority hook components saved successfully',
+                    'authority_hook' => $save_result['authority_hook'],
+                    'saved_fields' => $save_result['saved_fields'],
+                    'components' => [
+                        'who' => $who,
+                        'result' => $result,
+                        'when' => $when,
+                        'how' => $how
+                    ]
+                ]);
+            } else {
+                wp_send_json_error([
+                    'message' => 'Failed to save authority hook components',
+                    'details' => $save_result['errors'] ?? 'Unknown error'
+                ]);
+            }
+        } catch (Exception $e) {
+            error_log('MKCG Topics Generator: Exception in handle_save_authority_hook_ajax: ' . $e->getMessage());
+            wp_send_json_error([
+                'message' => 'Server error while saving authority hook components',
+                'details' => $e->getMessage()
+            ]);
+        }
+    }
+    
+    /**
+     * CRITICAL FIX: Handle save individual field AJAX request
+     */
+    public function handle_save_field_ajax() {
+        // Use centralized security validation
+        $security_check = $this->validate_ajax_security(['entry_id']);
+        if (is_wp_error($security_check)) {
+            wp_send_json_error(['message' => $security_check->get_error_message()]);
+            return;
+        }
+        
+        $entry_id = intval($_POST['entry_id']);
+        $field_id = isset($_POST['field_id']) ? sanitize_text_field($_POST['field_id']) : '';
+        $value = isset($_POST['value']) ? sanitize_textarea_field($_POST['value']) : '';
+        
+        if (!$entry_id || !$field_id) {
+            wp_send_json_error(['message' => 'Entry ID and field ID are required']);
+            return;
+        }
+        
+        // Save using Formidable service
+        if ($this->formidable_service) {
+            $result = $this->formidable_service->save_generated_content(
+                $entry_id,
+                [$field_id => $value],
+                [$field_id => $field_id]
+            );
+            
+            if ($result['success']) {
+                wp_send_json_success([
+                    'message' => 'Field saved successfully',
+                    'entry_id' => $entry_id,
+                    'field_id' => $field_id,
+                    'value' => $value
+                ]);
+            } else {
+                wp_send_json_error([
+                    'message' => 'Failed to save field',
+                    'details' => $result['message'] ?? 'Unknown error'
+                ]);
+            }
+        } else {
+            wp_send_json_error(['message' => 'Formidable service not available']);
+        }
+    }
+    
+    /**
+     * CRITICAL FIX: Handle save topic field AJAX request
+     */
+    public function handle_save_topic_field_ajax() {
+        // Use centralized security validation
+        $security_check = $this->validate_ajax_security(['entry_id']);
+        if (is_wp_error($security_check)) {
+            wp_send_json_error(['message' => $security_check->get_error_message()]);
+            return;
+        }
+        
+        $entry_id = intval($_POST['entry_id']);
+        $field_name = isset($_POST['field_name']) ? sanitize_text_field($_POST['field_name']) : '';
+        $field_value = isset($_POST['field_value']) ? sanitize_textarea_field($_POST['field_value']) : '';
+        
+        if (!$entry_id || !$field_name) {
+            wp_send_json_error(['message' => 'Entry ID and field name are required']);
+            return;
+        }
+        
+        // Extract field ID from field name (e.g., 'field_8498' -> '8498')
+        $field_id = '';
+        if (preg_match('/field_(\d+)/', $field_name, $matches)) {
+            $field_id = $matches[1];
+        }
+        
+        if (!$field_id) {
+            wp_send_json_error(['message' => 'Invalid field name format']);
+            return;
+        }
+        
+        // Save using Formidable service
+        if ($this->formidable_service) {
+            $result = $this->formidable_service->save_generated_content(
+                $entry_id,
+                [$field_id => $field_value],
+                [$field_id => $field_id]
+            );
+            
+            if ($result['success']) {
+                wp_send_json_success([
+                    'message' => 'Topic field saved successfully',
+                    'entry_id' => $entry_id,
+                    'field_name' => $field_name,
+                    'field_id' => $field_id,
+                    'value' => $field_value
+                ]);
+            } else {
+                wp_send_json_error([
+                    'message' => 'Failed to save topic field',
+                    'details' => $result['message'] ?? 'Unknown error'
+                ]);
+            }
+        } else {
+            wp_send_json_error(['message' => 'Formidable service not available']);
         }
     }
 }
