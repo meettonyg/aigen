@@ -54,31 +54,50 @@ if ($entry_id && empty($authority_hook) && isset($authority_hook_service)) {
                         <h4>WHO do you help?</h4>
                     </div>
                     
+                    <!-- ENHANCED: Primary input field (read-only, shows selected audiences) -->
                     <div class="field field--with-clear">
                         <input type="text" 
                                id="mkcg-who" 
                                name="who" 
-                               class="field__input" 
+                               class="field__input field__input--readonly" 
                                value="<?php echo esc_attr($who); ?>" 
-                               placeholder="e.g., busy executives, small business owners">
-                        <button type="button" class="field__clear" data-field-id="mkcg-who" title="Clear field">×</button>
+                               placeholder="Selected audiences will appear here automatically"
+                               readonly>
+                        <button type="button" class="field__clear" data-field-id="mkcg-who" title="Clear all audiences">×</button>
+                    </div>
+                    
+                    <p class="field__helper-text">💡 <strong>Use the audience manager below</strong> to add and select your target audiences</p>
+                    
+                    <!-- ENHANCED: Multiple Audience Management System (Primary Interface) -->
+                    <div class="credentials-manager credentials-manager--primary">
+                        <label>🎯 <strong>Audience Manager</strong> - Add and Select Your Target Audiences:</label>
+                        <p class="helper-text">This is where you manage your audiences. Add new ones and check the boxes to include them in your Authority Hook.</p>
+                        <div class="input-container">
+                            <input type="text" id="tag_input" placeholder="Type an audience (e.g., SaaS founders) and press Enter">
+                            <button type="button" id="add_tag" class="button">Add Audience</button>
+                        </div>
+                        <div id="tags_container" class="tags-container--enhanced"></div>
+                        
+                        <div class="audience-manager-status">
+                            <small class="status-text">📊 <span id="audience-count">0</span> audiences added | <span id="selected-count">0</span> selected for Authority Hook</small>
+                        </div>
                     </div>
                     
                     <div class="examples">
                         <p class="examples__title"><strong>Examples:</strong></p>
-                        <span class="tag tag--example" data-target="mkcg-who" data-value="busy executives">busy executives <span class="tag__add-link">+ Add</span></span>
-                        <span class="tag tag--example" data-target="mkcg-who" data-value="small business owners">small business owners <span class="tag__add-link">+ Add</span></span>
-                        <span class="tag tag--example" data-target="mkcg-who" data-value="entrepreneurs">entrepreneurs <span class="tag__add-link">+ Add</span></span>
-                        <span class="tag tag--example" data-target="mkcg-who" data-value="sales professionals">sales professionals <span class="tag__add-link">+ Add</span></span>
+                        <span class="example-chip field-chip" data-target="mkcg-who" data-value="SaaS founders">SaaS founders<span class="add-to-list" data-value="SaaS founders">+ Add to List</span></span>
+                        <span class="example-chip field-chip" data-target="mkcg-who" data-value="Business coaches">Business coaches<span class="add-to-list" data-value="Business coaches">+ Add to List</span></span>
+                        <span class="example-chip field-chip" data-target="mkcg-who" data-value="Authors launching a book">Authors launching a book<span class="add-to-list" data-value="Authors launching a book">+ Add to List</span></span>
+                        <span class="example-chip field-chip" data-target="mkcg-who" data-value="Real estate investors">Real estate investors<span class="add-to-list" data-value="Real estate investors">+ Add to List</span></span>
                     </div>
                     
-                    <!-- Audience Tags Manager -->
-                    <div class="tag-manager tag-manager--minimal">
+                    <!-- Audience Tags Manager (will be enhanced by JavaScript) -->
+                    <div class="tag-manager tag-manager--minimal" style="display: none;">
                         <div class="tag-manager__input-group">
-                            <input type="text" id="tag_input" class="tag-manager__input" placeholder="Add an audience segment">
-                            <button type="button" id="add_tag" class="button button--add">Add</button>
+                            <input type="text" id="tag_input_backup" class="tag-manager__input" placeholder="Add an audience segment">
+                            <button type="button" id="add_tag_backup" class="button button--add">Add</button>
                         </div>
-                        <div id="tags_container" class="tag-manager__container"></div>
+                        <div id="tags_container_backup" class="tag-manager__container"></div>
                     </div>
                 </div>
             </div>

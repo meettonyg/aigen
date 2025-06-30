@@ -118,8 +118,8 @@ class MKCG_Topics_Data_Service {
                 $result['source'] = 'formidable_entry';
             }
             
-            // Always get authority hook data
-            $result['authority_hook'] = $this->get_authority_hook_data($entry_id);
+            // Always get authority hook data (ROOT FIX: now reads from post meta like topics)
+            $result['authority_hook'] = $this->get_authority_hook_data($entry_id, $post_id);
             
             $result['success'] = (count(array_filter($result['topics'])) > 0);
             
@@ -576,15 +576,142 @@ class MKCG_Topics_Data_Service {
     }
     
     /**
-     * SELF-CONTAINED: Get authority hook data with comprehensive fallback
+     * ROOT-LEVEL FIX: Get audience terms from custom taxonomy (MULTIPLE TERMS SUPPORTED)
+     * Supports multiple audience terms joined with comma separator
      */
-    public function get_authority_hook_data($entry_id) {
+    private function get_taxonomy_terms_for_who_field($post_id, $taxonomy = 'audience') {
+        if (!$post_id) {
+            error_log('MKCG Topics Data Service: get_taxonomy_terms_for_who_field - No post_id provided');
+            return '';
+        }
+        
         try {
+            error_log('MKCG Topics Data Service: Getting taxonomy terms for post ' . $post_id . ' from taxonomy: ' . $taxonomy);
+            
+            // Get taxonomy terms for the post
+            $terms = wp_get_post_terms($post_id, $taxonomy, array(
+                'fields' => 'names',
+                'orderby' => 'name',
+                'order' => 'ASC'
+            ));
+            
+            if (is_wp_error($terms)) {
+                error_log('MKCG Topics Data Service: WP Error getting taxonomy terms: ' . $terms->get_error_message());
+                return '';
+            }
+            
+            if (empty($terms)) {
+                error_log('MKCG Topics Data Service: No taxonomy terms found for post ' . $post_id . ' in taxonomy: ' . $taxonomy);
+                return '';
+            }
+            
+            // Join multiple terms with comma separator (MULTIPLE TERMS SUPPORT)
+            $audience_text = is_array($terms) ? implode(', ', $terms) : $terms;
+            
+            error_log('MKCG Topics Data Service: ✅ Found audience taxonomy terms: ' . $audience_text);
+            return $audience_text;
+            
+        } catch (Exception $e) {
+            error_log('MKCG Topics Data Service: Exception in get_taxonomy_terms_for_who_field: ' . $e->getMessage());
+            return '';
+        }
+    }
+    
+    /**
+     * CRITICAL ROOT FIX: Get authority hook data with NEW taxonomy-based WHO field
+     * COMPREHENSIVE 4-LEVEL FALLBACK STRATEGY:
+     * 1. Custom taxonomy "audience" (NEW - primary source)
+     * 2. WordPress post meta 'authority_who' (current behavior)
+     * 3. Formidable field 10296 (existing fallback)
+     * 4. Default "your audience" (last resort)
+     */
+    public function get_authority_hook_data($entry_id, $post_id = null) {
+        try {
+            error_log('MKCG Topics Data Service: ROOT FIX - Getting authority hook with taxonomy-based WHO field');
+            
+            // Get post_id if not provided
+            if (!$post_id && $entry_id) {
+                $post_id = $this->safe_get_post_id_from_entry($entry_id);
+            }
+            
+            if ($post_id) {
+                error_log('MKCG Topics Data Service: ROOT FIX - Processing authority hook for post ' . $post_id);
+                
+                // ROOT FIX: 4-LEVEL FALLBACK FOR WHO FIELD
+                $who_field = '';
+                
+                // LEVEL 1: Try custom taxonomy "audience" (NEW PRIMARY SOURCE)
+                $who_from_taxonomy = $this->get_taxonomy_terms_for_who_field($post_id, 'audience');
+                if (!empty($who_from_taxonomy)) {
+                    $who_field = $who_from_taxonomy;
+                    error_log('MKCG Topics Data Service: ✅ Level 1 SUCCESS - WHO field from taxonomy: ' . $who_field);
+                } else {
+                    error_log('MKCG Topics Data Service: Level 1 FALLBACK - No taxonomy terms, trying post meta');
+                    
+                    // LEVEL 2: Try WordPress post meta (current behavior)
+                    $who_from_meta = get_post_meta($post_id, 'authority_who', true);
+                    if (!empty($who_from_meta) && $who_from_meta !== 'your audience') {
+                        $who_field = $who_from_meta;
+                        error_log('MKCG Topics Data Service: ✅ Level 2 SUCCESS - WHO field from post meta: ' . $who_field);
+                    } else {
+                        error_log('MKCG Topics Data Service: Level 2 FALLBACK - No valid post meta, trying Formidable field');
+                        
+                        // LEVEL 3: Try Formidable field 10296 (existing fallback)
+                        if ($entry_id) {
+                            $who_from_formidable = $this->safe_get_field_value($entry_id, 10296);
+                            if (!empty($who_from_formidable) && $who_from_formidable !== 'your audience') {
+                                $who_field = $who_from_formidable;
+                                error_log('MKCG Topics Data Service: ✅ Level 3 SUCCESS - WHO field from Formidable: ' . $who_field);
+                            } else {
+                                error_log('MKCG Topics Data Service: Level 3 FALLBACK - No valid Formidable data, using default');
+                            }
+                        }
+                    }
+                }
+                
+                // LEVEL 4: Final fallback to default
+                if (empty($who_field)) {
+                    $who_field = 'your audience';
+                    error_log('MKCG Topics Data Service: Level 4 FINAL FALLBACK - Using default: ' . $who_field);
+                }
+                
+                // Get other components (unchanged - only WHO field uses taxonomy)
+                $components = [
+                    'who' => $who_field, // ROOT FIX: Now uses taxonomy with 4-level fallback
+                    'result' => get_post_meta($post_id, 'authority_result', true), 
+                    'when' => get_post_meta($post_id, 'authority_when', true),
+                    'how' => get_post_meta($post_id, 'authority_how', true),
+                    'complete' => get_post_meta($post_id, 'authority_complete', true)
+                ];
+                
+                error_log('MKCG Topics Data Service: ROOT FIX - Final components: ' . json_encode($components));
+                
+                // Fill in defaults for missing components (other than WHO)
+                $components['result'] = $components['result'] ?: 'achieve their goals';
+                $components['when'] = $components['when'] ?: 'they need help';
+                $components['how'] = $components['how'] ?: 'through your method';
+                
+                // Build complete hook if missing
+                if (empty($components['complete'])) {
+                    $components['complete'] = "I help {$components['who']} {$components['result']} when {$components['when']} {$components['how']}.";
+                }
+                
+                error_log('MKCG Topics Data Service: ✅ ROOT FIX COMPLETE - Authority hook ready with taxonomy-based WHO field');
+                return $components;
+                
+            } else {
+                error_log('MKCG Topics Data Service: ⚠️ ROOT FIX - No post_id available, falling back to Formidable entry fields');
+            }
+            
+            // FALLBACK: Read from Formidable entry fields (original behavior) if no post meta
             if (!$this->is_formidable_available || !$entry_id) {
+                error_log('MKCG Topics Data Service: Using default authority hook - no Formidable service or entry_id');
                 return $this->get_default_authority_hook();
             }
             
-            // Get components using Form 515 field IDs
+            error_log('MKCG Topics Data Service: FALLBACK - Reading from Formidable entry fields for entry ' . $entry_id);
+            
+            // Get components using Form 515 field IDs (fallback)
             $components = [
                 'who' => $this->safe_get_field_value($entry_id, 10296),
                 'result' => $this->safe_get_field_value($entry_id, 10297),
@@ -592,6 +719,8 @@ class MKCG_Topics_Data_Service {
                 'how' => $this->safe_get_field_value($entry_id, 10298),
                 'complete' => $this->safe_get_field_value($entry_id, 10358)
             ];
+            
+            error_log('MKCG Topics Data Service: FALLBACK - Formidable field values: ' . json_encode($components));
             
             // Fill in defaults for missing components
             $components['who'] = $components['who'] ?: 'your audience';

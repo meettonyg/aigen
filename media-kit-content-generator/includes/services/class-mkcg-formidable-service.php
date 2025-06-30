@@ -1622,92 +1622,203 @@ class MKCG_Formidable_Service {
     }
     
     /**
-     * CRITICAL FIX: Simplified field value processing focused on Formidable data extraction
-     * Prioritizes direct string values and basic serialization handling
+     * ENHANCED ROOT FIX: Robust field value processing for Formidable data extraction
+     * Handles serialized data properly to fix field 10296 (WHO field) loading issue
+     * INCLUDES MALFORMED SERIALIZED DATA RECOVERY
      */
     public function process_field_value_enhanced($raw_value, $field_id = null) {
-        // Return empty string for null or false values
-        if ($raw_value === null || $raw_value === false) {
+        // Return empty string for null, false, or empty values
+        if ($raw_value === null || $raw_value === false || $raw_value === '') {
             if ($field_id) {
-                error_log("MKCG Simple Processing: Field {$field_id} - NULL/FALSE value, returning empty");
+                error_log("MKCG Enhanced Processing: Field {$field_id} - NULL/FALSE/EMPTY value, returning empty");
             }
             return '';
         }
         
         // Debug logging for field processing
         if ($field_id) {
-            error_log("MKCG Simple Processing: Field {$field_id} - Raw type: " . gettype($raw_value) . ", Length: " . (is_string($raw_value) ? strlen($raw_value) : 'N/A') . ", First 100 chars: " . substr(print_r($raw_value, true), 0, 100));
+            error_log("MKCG Enhanced Processing: Field {$field_id} - Raw type: " . gettype($raw_value) . ", Length: " . (is_string($raw_value) ? strlen($raw_value) : 'N/A') . ", First 100 chars: " . substr(print_r($raw_value, true), 0, 100));
         }
         
-        // PRIORITY 1: If it's a non-empty string and doesn't look serialized, use it directly
         if (is_string($raw_value)) {
             $trimmed = trim($raw_value);
             
-            // Check if it's obviously a plain string (not serialized or JSON)
-            if (!empty($trimmed) && !$this->looks_like_complex_data($trimmed)) {
-                if ($field_id) {
-                    error_log("MKCG Simple Processing: Field {$field_id} - Direct string value: '{$trimmed}'");
-                }
-                return $trimmed;
-            }
-            
-            // PRIORITY 2: Handle simple serialized strings (common in Formidable)
+            // Check if the string is serialized (CRITICAL FIX for field 10296)
             if ($this->is_serialized($trimmed)) {
+                if ($field_id) {
+                    error_log("MKCG Enhanced Processing: Field {$field_id} - Detected serialized data");
+                }
+                
+                // Try standard unserialization first
                 $unserialized = @unserialize($trimmed);
                 
-                if ($unserialized !== false) {
-                    // If unserialization gives us a simple string, use it
-                    if (is_string($unserialized)) {
-                        $result = trim($unserialized);
-                        if ($field_id) {
-                            error_log("MKCG Simple Processing: Field {$field_id} - Unserialized string: '{$result}'");
-                        }
-                        return $result;
+                if ($field_id) {
+                    error_log("MKCG Enhanced Processing: Field {$field_id} - Unserialize result type: " . gettype($unserialized) . ", Value: " . print_r($unserialized, true));
+                }
+                
+                // CRITICAL FIX: If standard unserialization failed, activate repair system
+                if ($unserialized === false) {
+                    if ($field_id) {
+                        error_log("MKCG CRITICAL FIX: Field {$field_id} - Formidable serialization BUG detected, activating repair system");
                     }
                     
-                    // If it's an array, get the first non-empty value
-                    if (is_array($unserialized)) {
-                        foreach ($unserialized as $value) {
-                            if (is_string($value) && !empty(trim($value))) {
-                                $result = trim($value);
-                                if ($field_id) {
-                                    error_log("MKCG Simple Processing: Field {$field_id} - First array value: '{$result}'");
-                                }
-                                return $result;
+                    $repaired_unserialized = $this->repair_and_unserialize_malformed_data($trimmed, $field_id);
+                    
+                    if ($repaired_unserialized !== false) {
+                        $unserialized = $repaired_unserialized;
+                        if ($field_id) {
+                            error_log("MKCG CRITICAL FIX: Field {$field_id} - Repair SUCCESSFUL! Data recovered from Formidable bug");
+                        }
+                    } else {
+                        if ($field_id) {
+                            error_log("MKCG CRITICAL FIX: Field {$field_id} - Repair failed, extracting value manually");
+                        }
+                        
+                        // Emergency extraction: try to get the string content manually
+                        $manual_extract = $this->emergency_string_extraction($trimmed, $field_id);
+                        if (!empty($manual_extract)) {
+                            if ($field_id) {
+                                error_log("MKCG CRITICAL FIX: Field {$field_id} - Emergency extraction successful: '{$manual_extract}'");
+                            }
+                            return $manual_extract;
+                        }
+                        
+                        return $trimmed; // Final fallback to original string
+                    }
+                }
+                
+                // If unserializing results in an array, extract the first non-empty value
+                if (is_array($unserialized)) {
+                    if ($field_id) {
+                        error_log("MKCG Enhanced Processing: Field {$field_id} - Processing array with " . count($unserialized) . " elements");
+                    }
+                    
+                    foreach ($unserialized as $key => $value) {
+                        if ($field_id) {
+                            error_log("MKCG Enhanced Processing: Field {$field_id} - Array element {$key}: '" . print_r($value, true) . "' (type: " . gettype($value) . ")");
+                        }
+                        
+                        if (!empty(trim((string)$value))) {
+                            $result = trim((string)$value);
+                            if ($field_id) {
+                                error_log("MKCG Enhanced Processing: Field {$field_id} - Extracted array value: '{$result}'");
+                            }
+                            return $result; // Return the first valid string
+                        }
+                    }
+                    
+                    if ($field_id) {
+                        error_log("MKCG Enhanced Processing: Field {$field_id} - Array contains only empty values");
+                    }
+                    return ''; // Return empty if array contains only empty values
+                }
+                
+                // If unserializing results in a non-array, return it as a string
+                $result = trim((string)$unserialized);
+                if ($field_id) {
+                    error_log("MKCG Enhanced Processing: Field {$field_id} - Unserialized non-array: '{$result}'");
+                }
+                return $result;
+            }
+            
+            // If it's not serialized, return the trimmed string directly
+            if ($field_id) {
+                error_log("MKCG Enhanced Processing: Field {$field_id} - Direct string value: '{$trimmed}'");
+            }
+            return $trimmed;
+        }
+        
+        // Handle non-string values like arrays
+        if (is_array($raw_value)) {
+            foreach ($raw_value as $value) {
+                if (!empty(trim($value))) {
+                    $result = trim($value);
+                    if ($field_id) {
+                        error_log("MKCG Enhanced Processing: Field {$field_id} - Direct array value: '{$result}'");
+                    }
+                    return $result; // Return the first valid string
+                }
+            }
+        }
+        
+        // Fallback for other data types
+        $result = trim((string)$raw_value);
+        if ($field_id) {
+            error_log("MKCG Enhanced Processing: Field {$field_id} - Fallback conversion: '{$result}'");
+        }
+        return $result;
+    }
+    
+    /**
+     * CRITICAL FIX: Repair malformed serialized data
+     * Handles cases where Formidable stored incorrect string lengths
+     */
+    private function repair_and_unserialize_malformed_data($serialized_string, $field_id = null) {
+        try {
+            // Check if this looks like a malformed array with string length issues
+            if (preg_match('/^a:\d+:\{.*\}$/', $serialized_string)) {
+                if ($field_id) {
+                    error_log("MKCG Data Repair: Field {$field_id} - Attempting to repair array serialization");
+                }
+                
+                // Try to extract string values and rebuild the serialization
+                if (preg_match_all('/s:(\d+):"([^"]*)";/', $serialized_string, $matches, PREG_SET_ORDER)) {
+                    $repaired = $serialized_string;
+                    
+                    foreach ($matches as $match) {
+                        $declared_length = intval($match[1]);
+                        $actual_string = $match[2];
+                        $actual_length = strlen($actual_string);
+                        
+                        if ($declared_length !== $actual_length) {
+                            if ($field_id) {
+                                error_log("MKCG Data Repair: Field {$field_id} - Found length mismatch: declared={$declared_length}, actual={$actual_length}, string='{$actual_string}'");
+                            }
+                            
+                            // Replace the incorrect length with the correct one
+                            $old_part = "s:{$declared_length}:\"{$actual_string}\"";
+                            $new_part = "s:{$actual_length}:\"{$actual_string}\"";
+                            $repaired = str_replace($old_part, $new_part, $repaired);
+                            
+                            if ($field_id) {
+                                error_log("MKCG Data Repair: Field {$field_id} - Replaced '{$old_part}' with '{$new_part}'");
                             }
                         }
                     }
+                    
+                    if ($repaired !== $serialized_string) {
+                        if ($field_id) {
+                            error_log("MKCG Data Repair: Field {$field_id} - Repaired serialized string: '{$repaired}'");
+                        }
+                        
+                        $result = @unserialize($repaired);
+                        if ($result !== false) {
+                            if ($field_id) {
+                                error_log("MKCG Data Repair: Field {$field_id} - Repair successful!");
+                            }
+                            return $result;
+                        }
+                    }
                 }
             }
             
-            // PRIORITY 3: Return the trimmed string even if processing failed
-            if (!empty($trimmed)) {
+            // If we can't repair it, try a simple regex extraction as last resort
+            if (preg_match('/"([^"]+)"/', $serialized_string, $extract_match)) {
+                $extracted_value = $extract_match[1];
                 if ($field_id) {
-                    error_log("MKCG Simple Processing: Field {$field_id} - Fallback to trimmed string: '{$trimmed}'");
+                    error_log("MKCG Data Repair: Field {$field_id} - Regex extraction found: '{$extracted_value}'");
                 }
-                return $trimmed;
+                // Return as a single-element array to match expected structure
+                return array(0 => $extracted_value);
+            }
+            
+        } catch (Exception $e) {
+            if ($field_id) {
+                error_log("MKCG Data Repair: Field {$field_id} - Exception during repair: " . $e->getMessage());
             }
         }
         
-        // PRIORITY 4: Handle arrays directly (simple extraction)
-        if (is_array($raw_value)) {
-            foreach ($raw_value as $value) {
-                if (is_string($value) && !empty(trim($value))) {
-                    $result = trim($value);
-                    if ($field_id) {
-                        error_log("MKCG Simple Processing: Field {$field_id} - Array value: '{$result}'");
-                    }
-                    return $result;
-                }
-            }
-        }
-        
-        // PRIORITY 5: Convert everything else to string
-        $result = trim((string)$raw_value);
-        if ($field_id) {
-            error_log("MKCG Simple Processing: Field {$field_id} - Final conversion: '{$result}'");
-        }
-        return $result;
+        return false;
     }
     
     /**
@@ -1735,6 +1846,72 @@ class MKCG_Formidable_Service {
         }
         
         return false;
+    }
+    
+    /**
+     * EMERGENCY STRING EXTRACTION - Last resort method to extract readable content
+     * Used when both standard unserialization and repair methods fail
+     */
+    private function emergency_string_extraction($malformed_serialized, $field_id = null) {
+        try {
+            if ($field_id) {
+                error_log("MKCG Emergency Extraction: Field {$field_id} - Attempting emergency string extraction from: '{$malformed_serialized}'");
+            }
+            
+            // Strategy 1: Regex extraction of quoted strings
+            if (preg_match_all('/"([^"]+)"/', $malformed_serialized, $matches)) {
+                foreach ($matches[1] as $extracted) {
+                    $cleaned = trim($extracted);
+                    if (strlen($cleaned) > 3) { // Must be meaningful content
+                        if ($field_id) {
+                            error_log("MKCG Emergency Extraction: Field {$field_id} - Strategy 1 SUCCESS: '{$cleaned}'");
+                        }
+                        return $cleaned;
+                    }
+                }
+            }
+            
+            // Strategy 2: Look for text patterns that don't look like serialization syntax
+            if (preg_match('/[a-zA-Z]{3,}[^;{}:"]*/', $malformed_serialized, $text_match)) {
+                $extracted = trim($text_match[0]);
+                if (strlen($extracted) > 3) {
+                    if ($field_id) {
+                        error_log("MKCG Emergency Extraction: Field {$field_id} - Strategy 2 SUCCESS: '{$extracted}'");
+                    }
+                    return $extracted;
+                }
+            }
+            
+            // Strategy 3: Extract content between specific markers
+            $patterns = [
+                '/s:\d+:"([^"]+)"/',  // Standard serialized string pattern
+                '/"([^"]{5,})"/',      // Any quoted string 5+ chars
+                '/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/' // Title case words
+            ];
+            
+            foreach ($patterns as $pattern) {
+                if (preg_match($pattern, $malformed_serialized, $match)) {
+                    $extracted = trim($match[1]);
+                    if (strlen($extracted) > 3) {
+                        if ($field_id) {
+                            error_log("MKCG Emergency Extraction: Field {$field_id} - Strategy 3 SUCCESS with pattern '{$pattern}': '{$extracted}'");
+                        }
+                        return $extracted;
+                    }
+                }
+            }
+            
+            if ($field_id) {
+                error_log("MKCG Emergency Extraction: Field {$field_id} - All strategies FAILED");
+            }
+            
+        } catch (Exception $e) {
+            if ($field_id) {
+                error_log("MKCG Emergency Extraction: Field {$field_id} - Exception: " . $e->getMessage());
+            }
+        }
+        
+        return '';
     }
     
     /**
@@ -1829,7 +2006,8 @@ class MKCG_Formidable_Service {
     }
     
     /**
-     * Enhanced is_serialized check
+     * ENHANCED ROOT FIX: Robust serialization detection for Formidable data
+     * Updated to properly handle field 10296 serialized format
      */
     private function is_serialized($data) {
         // WordPress has this function, use it if available
@@ -1837,25 +2015,38 @@ class MKCG_Formidable_Service {
             return is_serialized($data);
         }
         
-        // Fallback implementation
-        if (!is_string($data) || empty($data)) {
+        // Enhanced fallback implementation from Gemini
+        if (!is_string($data)) {
             return false;
         }
-        
-        $trimmed = trim($data);
-        if (strlen($trimmed) < 4) {
-            return false;
-        }
-        
-        if ($trimmed === 'b:0;' || $trimmed === 'b:1;') {
+        $data = trim($data);
+        if ('N;' == $data) {
             return true;
         }
-        
-        if (preg_match('/^[aOs]:[0-9]+:/', $trimmed) || preg_match('/^[sid]:[0-9]+:/', $trimmed)) {
-            $test = @unserialize($trimmed);
-            return $test !== false || $trimmed === 'b:0;';
+        if (strlen($data) < 4) {
+            return false;
         }
-        
+        if (':' !== $data[1]) {
+            return false;
+        }
+        $lastc = substr($data, -1);
+        if (';' !== $lastc && '}' !== $lastc) {
+            return false;
+        }
+        $token = $data[0];
+        switch ($token) {
+            case 's':
+                if ('"' !== substr($data, -2, 1)) {
+                    return false;
+                }
+            case 'a':
+            case 'O':
+                return (bool) preg_match("/^{$token}:[0-9]+:/s", $data);
+            case 'b':
+            case 'i':
+            case 'd':
+                return (bool) preg_match("/^{$token}:[0-9.E-]+;\$/", $data);
+        }
         return false;
     }
 }

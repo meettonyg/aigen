@@ -10,6 +10,307 @@
  * .block__element--modifier - Variant/state
  */
 
+/* Enhanced read-only field styling */
+.field__input--readonly {
+    background-color: #f8f9fa !important;
+    border: 1px solid #e9ecef !important;
+    color: #6c757d !important;
+    cursor: default !important;
+    font-style: italic;
+}
+
+.field__input--readonly:focus {
+    box-shadow: none !important;
+    border-color: #e9ecef !important;
+}
+
+/* Helper text styling */
+.field__helper-text {
+    font-size: 13px;
+    color: #495057;
+    margin: 8px 0 15px 0;
+    padding: 8px 12px;
+    background-color: #e3f2fd;
+    border-left: 3px solid #2196f3;
+    border-radius: 4px;
+}
+
+/* ============================================================
+   Multiple Audience Management (Enhanced from Offer Builder)
+   ============================================================ */
+
+/* Container for the audience management system */
+.credentials-manager {
+    margin: 10px 0 15px;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border-radius: 4px;
+    border: 1px solid #e5e5e5;
+}
+
+/* Enhanced primary audience manager */
+.credentials-manager--primary {
+    background: linear-gradient(135deg, #f8f9ff 0%, #f1f4ff 100%);
+    border: 2px solid #2196f3;
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.1);
+}
+
+.credentials-manager--primary label {
+    color: #1976d2;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.credentials-manager label {
+    color: #333;
+    margin-bottom: 12px;
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.helper-text {
+    font-size: 12px;
+    color: #666;
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+/* Enhanced tags container */
+.tags-container--enhanced {
+    background: white;
+    border: 2px dashed #e3f2fd;
+    border-radius: 6px;
+    min-height: 80px;
+    padding: 15px;
+    margin-bottom: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    transition: border-color 0.3s ease;
+}
+
+.tags-container--enhanced:empty::before {
+    content: '✨ Your audience tags will appear here. Add some using the field above!';
+    color: #9e9e9e;
+    font-style: italic;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+}
+
+.tags-container--enhanced:not(:empty) {
+    border-color: #2196f3;
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+}
+
+/* Audience manager status */
+.audience-manager-status {
+    background: rgba(33, 150, 243, 0.05);
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-top: 10px;
+}
+
+.status-text {
+    color: #1976d2;
+    font-weight: 500;
+}
+
+/* Enhanced Add button */
+#add_tag {
+    background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 0 4px 4px 0;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    transition: all 0.2s ease;
+}
+
+#add_tag:hover {
+    background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+}
+
+/* Input container for adding new tags */
+.input-container {
+    display: flex;
+    margin-bottom: 12px;
+}
+
+#tag_input {
+    flex-grow: 1;
+    padding: 8px 12px;
+    border: 1px solid #cbd6e2;
+    border-radius: 4px 0 0 4px;
+    font-size: 14px;
+    background-color: #ffffff;
+    height: 38px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+    box-sizing: border-box;
+}
+
+#tag_input:focus {
+    outline: none;
+    border-color: #0091ae;
+    box-shadow: 0 0 0 3px rgba(0, 145, 174, 0.1);
+}
+
+#add_tag {
+    width: auto;
+    min-width: 60px;
+    padding: 8px 14px;
+    background: #0074e0;
+    color: white;
+    border: none;
+    border-radius: 0 4px 4px 0;
+    height: 38px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+#add_tag:hover {
+    background: #0059aa;
+}
+
+/* Container for the audience tags */
+#tags_container {
+    margin-bottom: 12px;
+    padding: 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    min-height: 60px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    background-color: white;
+}
+
+/* Individual audience tag styling */
+.audience-tag {
+    display: inline-flex;
+    align-items: center;
+    background-color: #eaf0f6;
+    padding: 4px 10px 4px 6px;
+    border-radius: 16px;
+    margin: 3px;
+    font-size: 13px;
+    color: #333;
+    border: 1px solid #d8e6f3;
+    transition: background-color 0.2s ease;
+}
+
+.audience-tag span {
+    color: #333;
+}
+
+.audience-tag.active {
+    background-color: #deeefe;
+    border-color: #a8d1f7;
+}
+
+/* Checkbox within audience tag */
+.credential-checkbox {
+    margin-right: 5px;
+    width: 14px;
+    height: 14px;
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1px solid #cbd6e2;
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+    background: white;
+    position: relative;
+    vertical-align: middle;
+}
+
+.credential-checkbox:checked {
+    background-color: #0074e0;
+    border-color: #0074e0;
+    box-shadow: 0 0 0 1px rgba(0, 116, 224, 0.3);
+}
+
+.credential-checkbox:checked::after {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 1px;
+    width: 4px;
+    height: 8px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.credential-checkbox:checked + span {
+    font-weight: 500;
+    color: #0059aa;
+}
+
+/* Remove button for audience tags */
+.credential-remove {
+    display: inline-block;
+    margin-left: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    color: #666;
+    line-height: 1;
+    padding: 0 2px;
+}
+
+.credential-remove:hover {
+    color: #333;
+}
+
+/* Enhanced example chips with "Add to List" functionality */
+.example-chip {
+    display: inline-flex;
+    align-items: center;
+    background-color: #eef5ff;
+    color: #333;
+    padding: 6px 10px;
+    border-radius: 16px;
+    margin: 0 8px 8px 0;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.example-chip:hover {
+    background-color: #e5efff;
+}
+
+/* "Add to List" link/button within examples */
+.add-to-list {
+    margin-left: 6px;
+    color: #0074e0;
+    cursor: pointer;
+    font-size: 12px;
+    background: rgba(0, 116, 224, 0.08);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-weight: normal;
+    display: inline-block;
+    vertical-align: middle;
+    transition: background-color 0.2s;
+}
+
+.add-to-list:hover {
+    background: rgba(0, 116, 224, 0.15);
+}
+
 /* =============================================================================
    ROOT VARIABLES & RESET
    ============================================================================= */

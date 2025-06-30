@@ -39,9 +39,156 @@
     init() {
       console.log('🚀 Authority Hook Builder initializing...');
       this.hideTargetAudienceSection();
+      this.initAudienceTagManager(); // NEW: Initialize audience tag management
       this.setupEventListeners();
       this.updateAuthorityHook();
       console.log('✅ Authority Hook Builder ready!');
+    }
+    
+    /**
+     * ENHANCED: Initialize Audience Tag Manager (from Offer Builder)
+     * Supports multiple audiences with checkboxes and Add to List functionality
+     */
+    initAudienceTagManager() {
+      const whoField = this.elements.whoInput;
+      const tagInput = this.elements.tagInput;
+      const addTagBtn = this.elements.addTagBtn;
+      const tagsContainer = this.elements.tagContainer;
+
+      if (!whoField || !tagInput || !addTagBtn || !tagsContainer) {
+        console.log('ℹ️ Audience tag manager elements not found, skipping initialization');
+        return;
+      }
+      
+      console.log('🏷️ Initializing Audience Tag Manager');
+
+      const saveTags = () => {
+        const tagEls = tagsContainer.querySelectorAll('.audience-tag');
+        const selectedTags = [];
+        let totalCount = 0;
+        let selectedCount = 0;
+        
+        tagEls.forEach(tagEl => {
+          totalCount++;
+          const checkbox = tagEl.querySelector('.credential-checkbox');
+          // Include tag if no checkbox exists or if it's checked
+          if (!checkbox || checkbox.checked) {
+            selectedTags.push(tagEl.dataset.value);
+            selectedCount++;
+          }
+        });
+        
+        whoField.value = selectedTags.join(', ');
+        whoField.dispatchEvent(new Event('input', { bubbles: true }));
+        
+        // Update status counters
+        this.updateAudienceStatus(totalCount, selectedCount);
+        
+        // Update Authority Hook immediately
+        this.updateAuthorityHook();
+        console.log('💾 Saved audiences:', selectedTags.join(', '), `(${selectedCount}/${totalCount} selected)`);
+      };
+
+      const addTag = (text, isChecked = true) => {
+        const trimmed = text.trim();
+        if (!trimmed) return;
+
+        // Check for duplicate
+        const exists = [...tagsContainer.querySelectorAll('.audience-tag')]
+          .some(tag => tag.dataset.value.toLowerCase() === trimmed.toLowerCase());
+        if (exists) {
+          console.log('⚠️ Duplicate audience tag, skipping:', trimmed);
+          return;
+        }
+
+        const tagEl = document.createElement('div');
+        tagEl.className = 'audience-tag';
+        tagEl.dataset.value = trimmed;
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'credential-checkbox';
+        checkbox.checked = isChecked;
+
+        const span = document.createElement('span');
+        span.textContent = trimmed;
+
+        const removeBtn = document.createElement('span');
+        removeBtn.className = 'credential-remove';
+        removeBtn.textContent = '×';
+
+        tagEl.appendChild(checkbox);
+        tagEl.appendChild(span);
+        tagEl.appendChild(removeBtn);
+        tagsContainer.appendChild(tagEl);
+
+        removeBtn.addEventListener('click', function() {
+          tagEl.remove();
+          saveTags();
+          console.log('🗑️ Removed audience tag:', trimmed);
+        });
+
+        checkbox.addEventListener('change', saveTags);
+
+        tagInput.value = '';
+        saveTags();
+        
+        console.log('✅ Added audience tag:', trimmed, 'Checked:', isChecked);
+      };
+
+      // Expose the addTag function globally (for external access)
+      window.addAudienceTag = addTag;
+
+      addTagBtn.addEventListener('click', function() {
+        addTag(tagInput.value);
+      });
+
+      tagInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          addTag(tagInput.value);
+        }
+      });
+
+      // Load existing tags from the WHO field
+      const loadExistingTags = () => {
+        const existingVal = whoField.value.trim();
+        if (!existingVal) return;
+        const splitted = existingVal.split(',').map(x => x.trim()).filter(Boolean);
+        
+        // Clear the container first
+        tagsContainer.innerHTML = '';
+        
+        // Add each existing audience as a tag
+        splitted.forEach(tag => addTag(tag, true));
+        console.log('📎 Loaded existing audience tags:', splitted);
+      };
+      
+      // Load any existing tags
+      loadExistingTags();
+      
+      // ENHANCED: Prevent manual editing of the main WHO field
+      // Users should only interact with the tag system
+      whoField.addEventListener('input', (e) => {
+        // If user tries to type in the main field, guide them to use tags
+        if (!e.isTrusted) return; // Allow programmatic updates
+        
+        setTimeout(() => {
+          // Reset to the tag-based value
+          saveTags();
+        }, 100);
+      });
+      
+      // Disable paste and other direct input methods
+      whoField.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+        if (pastedText) {
+          // Add pasted audiences as individual tags
+          const audiences = pastedText.split(',').map(x => x.trim()).filter(Boolean);
+          audiences.forEach(audience => addTag(audience, true));
+        }
+      });
     }
     
     hideTargetAudienceSection() {
@@ -138,8 +285,30 @@
         }
       });
       
-      // Example tag click handlers
+      // Example tag click handlers - ENHANCED for "Add to List" functionality
       document.addEventListener('click', (e) => {
+        // Handle "Add to List" clicks for audience tags
+        if (e.target.classList.contains('add-to-list')) {
+          e.preventDefault();
+          const value = e.target.dataset.value;
+          if (value && typeof window.addAudienceTag === 'function') {
+            window.addAudienceTag(value);
+            
+            // Visual feedback
+            const originalText = e.target.textContent;
+            e.target.textContent = '✓ Added to List';
+            e.target.style.color = '#10a3be';
+            setTimeout(() => {
+              e.target.textContent = originalText;
+              e.target.style.color = '';
+            }, 1500);
+            
+            console.log('✅ Added to audience list:', value);
+          }
+          return;
+        }
+        
+        // Handle legacy tag clicks (fallback)
         if (e.target.classList.contains('tag__add-link') || 
             (e.target.parentElement && e.target.parentElement.classList.contains('tag--example'))) {
           e.preventDefault();
@@ -167,17 +336,75 @@
         this.elements.copyBtn.addEventListener('click', () => this.copyToClipboard());
       }
       
-      // Clear field buttons
+      // Clear field buttons - ENHANCED for tag-based management
       document.addEventListener('click', (e) => {
         if (e.target.classList.contains('field__clear')) {
           const fieldId = e.target.dataset.fieldId;
-          const field = document.getElementById(fieldId);
-          if (field) {
-            field.value = '';
-            this.updateAuthorityHook();
+          
+          if (fieldId === 'mkcg-who') {
+            // Clear all audience tags instead of just the field
+            this.clearAllAudienceTags();
+          } else {
+            // Handle other fields normally
+            const field = document.getElementById(fieldId);
+            if (field) {
+              field.value = '';
+              this.updateAuthorityHook();
+            }
           }
         }
       });
+    }
+    
+    /**
+     * ENHANCED: Update audience status counters
+     */
+    updateAudienceStatus(totalCount, selectedCount) {
+      const audienceCountEl = document.getElementById('audience-count');
+      const selectedCountEl = document.getElementById('selected-count');
+      
+      if (audienceCountEl) {
+        audienceCountEl.textContent = totalCount;
+      }
+      if (selectedCountEl) {
+        selectedCountEl.textContent = selectedCount;
+      }
+      
+      // Add visual feedback for the status
+      const statusEl = document.querySelector('.audience-manager-status');
+      if (statusEl) {
+        if (selectedCount > 0) {
+          statusEl.style.background = 'rgba(76, 175, 80, 0.1)';
+          statusEl.style.borderLeft = '3px solid #4caf50';
+        } else {
+          statusEl.style.background = 'rgba(33, 150, 243, 0.05)';
+          statusEl.style.borderLeft = '';
+        }
+      }
+    }
+    
+    /**
+     * ENHANCED: Clear all audience tags (called by clear button)
+     */
+    clearAllAudienceTags() {
+      const tagsContainer = this.elements.tagContainer;
+      if (tagsContainer) {
+        // Remove all audience tags
+        tagsContainer.innerHTML = '';
+        
+        // Clear the main WHO field
+        if (this.elements.whoInput) {
+          this.elements.whoInput.value = '';
+        }
+        
+        // Reset status counters
+        this.updateAudienceStatus(0, 0);
+        
+        // Update Authority Hook
+        this.updateAuthorityHook();
+        
+        console.log('🗑️ Cleared all audience tags');
+      }
     }
     
     handleExampleTagClick(e) {
@@ -260,8 +487,35 @@
       const when = this.elements.whenInput?.value?.trim() || 'when they need you';
       const how = this.elements.howInput?.value?.trim() || 'through your method';
       
+      // ENHANCED: Format WHO field with proper comma handling for multiple audiences
+      const formatAudienceList = (audienceText) => {
+        if (!audienceText || audienceText === 'your audience') {
+          return 'your audience';
+        }
+        
+        // Split on commas, trim each piece, filter out empties
+        const audiences = audienceText
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+        
+        if (audiences.length === 0) {
+          return 'your audience';
+        } else if (audiences.length === 1) {
+          return audiences[0];
+        } else if (audiences.length === 2) {
+          return audiences.join(' and ');
+        } else {
+          // More than two: "A, B, and C"
+          const last = audiences.pop();
+          return audiences.join(', ') + ', and ' + last;
+        }
+      };
+      
+      const formattedWho = formatAudienceList(who);
+      
       // Create the Authority Hook sentence
-      let authorityHook = `I help ${who} ${result} ${when} ${how}.`;
+      let authorityHook = `I help ${formattedWho} ${result} ${when} ${how}.`;
       
       // Clean up any double spaces and ensure proper formatting
       authorityHook = authorityHook.replace(/\s+/g, ' ').trim();
@@ -269,7 +523,7 @@
       // Update display with highlighted segments
       if (this.elements.authorityHookContent) {
         this.elements.authorityHookContent.innerHTML = `
-          I help <span class="authority-hook__highlight">${this.escapeHtml(who)}</span> 
+          I help <span class="authority-hook__highlight">${this.escapeHtml(formattedWho)}</span> 
           <span class="authority-hook__highlight">${this.escapeHtml(result)}</span> 
           <span class="authority-hook__highlight">${this.escapeHtml(when)}</span> 
           <span class="authority-hook__highlight">${this.escapeHtml(how)}</span>.
