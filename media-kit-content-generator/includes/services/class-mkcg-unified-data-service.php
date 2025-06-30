@@ -528,7 +528,8 @@ class MKCG_Unified_Data_Service {
     }
     
     /**
-     * Get authority hook data
+     * Get comprehensive authority hook data with all 6 components
+     * WHO, RESULT, WHEN, HOW, WHERE, WHY + complete hook
      */
     public function get_authority_hook_data($entry_id, $entry_key = '') {
         if ($entry_key && !$entry_id) {
@@ -539,46 +540,111 @@ class MKCG_Unified_Data_Service {
             $entry_id = $entry_data['entry_id'];
         }
         
-        // Use existing formidable service to find authority hook
-        $hook_result = $this->formidable_service->find_authority_hook($entry_id);
-        
-        if ($hook_result['success']) {
+        if (!$entry_id) {
             return [
-                'success' => true,
-                'items' => ['authority_hook' => $hook_result['value']],
-                'count' => 1,
-                'field_id' => $hook_result['field_id'],
-                'method' => $hook_result['method']
+                'success' => false, 
+                'message' => 'No entry ID provided',
+                'items' => $this->get_default_authority_hook()
             ];
         }
         
-        return $hook_result;
+        // Load ALL 6 authority hook components using centralized config
+        $field_config = $this->field_mappings['authority_hook']['fields'];
+        $authority_components = [];
+        $found_count = 0;
+        
+        // Load each component from Formidable using centralized field mappings
+        foreach ($field_config as $component => $field_id) {
+            try {
+                $field_value = $this->formidable_service->get_field_value($entry_id, $field_id);
+                $authority_components[$component] = $field_value ?: '';
+                
+                if (!empty($field_value)) {
+                    $found_count++;
+                }
+                
+                error_log("MKCG Unified Service: Loaded {$component} (field {$field_id}): " . substr($field_value ?: 'empty', 0, 50));
+                
+            } catch (Exception $e) {
+                error_log("MKCG Unified Service: Failed to load {$component} (field {$field_id}): " . $e->getMessage());
+                $authority_components[$component] = '';
+            }
+        }
+        
+        // Apply defaults for core components (used by Topics Generator)
+        $authority_components['who'] = $authority_components['who'] ?: 'your audience';
+        $authority_components['result'] = $authority_components['result'] ?: 'achieve their goals';
+        $authority_components['when'] = $authority_components['when'] ?: 'they need help';
+        $authority_components['how'] = $authority_components['how'] ?: 'through your method';
+        
+        // WHERE and WHY can remain empty - they're optional extensions
+        $authority_components['where'] = $authority_components['where'] ?: '';
+        $authority_components['why'] = $authority_components['why'] ?: '';
+        
+        // Build complete hook if not already provided
+        if (empty($authority_components['complete'])) {
+            $authority_components['complete'] = sprintf(
+                "I help %s %s when %s %s.",
+                $authority_components['who'],
+                $authority_components['result'],
+                $authority_components['when'],
+                $authority_components['how']
+            );
+        }
+        
+        error_log("MKCG Unified Service: ✅ Authority hook data loaded - {$found_count} fields found");
+        
+        return [
+            'success' => true,
+            'items' => $authority_components,
+            'count' => $found_count,
+            'total_fields' => count($field_config),
+            'data_quality' => $found_count >= 4 ? 'good' : ($found_count >= 2 ? 'fair' : 'poor'),
+            'metadata' => [
+                'entry_id' => $entry_id,
+                'source' => 'centralized_config',
+                'field_mappings' => $field_config
+            ]
+        ];
     }
     
     /**
-     * Save authority hook data
+     * Save comprehensive authority hook data with all 6 components
      */
     public function save_authority_hook_data($hook_data, $post_id, $entry_id) {
-        $field_config = $this->field_mappings['authority_hook'];
+        $field_config = $this->field_mappings['authority_hook']['fields'];
         $saved_components = 0;
+        $errors = [];
         
-        // Save individual components
-        foreach (['who', 'result', 'when', 'how'] as $component) {
-            if (isset($hook_data[$component]) && isset($field_config['fields'][$component])) {
-                $field_id = $field_config['fields'][$component];
-                $result = $this->formidable_service->save_generated_content(
-                    $entry_id,
-                    [$component => $hook_data[$component]],
-                    [$component => $field_id]
-                );
-                
-                if ($result['success']) {
-                    $saved_components++;
+        // Save ALL individual components that are provided
+        foreach ($field_config as $component => $field_id) {
+            // Skip 'complete' - we'll build and save that separately
+            if ($component === 'complete') {
+                continue;
+            }
+            
+            if (isset($hook_data[$component]) && !empty(trim($hook_data[$component]))) {
+                try {
+                    $result = $this->formidable_service->save_generated_content(
+                        $entry_id,
+                        [$component => $hook_data[$component]],
+                        [$component => $field_id]
+                    );
+                    
+                    if ($result['success']) {
+                        $saved_components++;
+                        error_log("MKCG Unified Service: ✅ Saved {$component} to field {$field_id}");
+                    } else {
+                        $errors[] = "Failed to save {$component}: " . ($result['message'] ?? 'Unknown error');
+                    }
+                } catch (Exception $e) {
+                    $errors[] = "Exception saving {$component}: " . $e->getMessage();
+                    error_log("MKCG Unified Service: ❌ Exception saving {$component}: " . $e->getMessage());
                 }
             }
         }
         
-        // Build and save complete hook
+        // Build complete hook from core components (WHO, RESULT, WHEN, HOW)
         $complete_hook = sprintf(
             "I help %s %s when %s %s.",
             $hook_data['who'] ?? 'your audience',
@@ -587,18 +653,35 @@ class MKCG_Unified_Data_Service {
             $hook_data['how'] ?? 'through your method'
         );
         
-        $complete_result = $this->formidable_service->save_generated_content(
-            $entry_id,
-            ['complete' => $complete_hook],
-            ['complete' => $field_config['fields']['complete']]
-        );
+        // Save complete hook
+        try {
+            $complete_result = $this->formidable_service->save_generated_content(
+                $entry_id,
+                ['complete' => $complete_hook],
+                ['complete' => $field_config['complete']]
+            );
+            
+            if ($complete_result['success']) {
+                $saved_components++;
+                error_log("MKCG Unified Service: ✅ Saved complete authority hook");
+            } else {
+                $errors[] = "Failed to save complete hook: " . ($complete_result['message'] ?? 'Unknown error');
+            }
+        } catch (Exception $e) {
+            $errors[] = "Exception saving complete hook: " . $e->getMessage();
+            error_log("MKCG Unified Service: ❌ Exception saving complete hook: " . $e->getMessage());
+        }
+        
+        $success = $saved_components > 0;
         
         return [
-            'success' => $saved_components > 0 || $complete_result['success'],
-            'message' => 'Authority hook saved successfully',
+            'success' => $success,
+            'message' => $success ? 'Authority hook saved successfully' : 'Failed to save authority hook',
             'items' => ['authority_hook' => $complete_hook],
             'count' => 1,
-            'saved_components' => $saved_components
+            'saved_components' => $saved_components,
+            'total_attempted' => count($hook_data),
+            'errors' => $errors
         ];
     }
     
@@ -716,6 +799,21 @@ class MKCG_Unified_Data_Service {
         } else {
             return 'poor';
         }
+    }
+    
+    /**
+     * Get default authority hook data with all 6 components
+     */
+    private function get_default_authority_hook() {
+        return [
+            'who' => 'your audience',
+            'result' => 'achieve their goals',
+            'when' => 'they need help',
+            'how' => 'through your method',
+            'where' => '',  // Optional field
+            'why' => '',    // Optional field
+            'complete' => 'I help your audience achieve their goals when they need help through your method.'
+        ];
     }
     
     /**
@@ -917,13 +1015,22 @@ class MKCG_Topics_Data_Wrapper {
         return $this->unified_service->save_single_item('topics', $topic_number, $topic_text, $post_id, $entry_id);
     }
     
-    public function save_authority_hook($entry_id, $who, $result, $when, $how) {
+    public function save_authority_hook($entry_id, $who, $result, $when, $how, $where = '', $why = '') {
         $hook_data = [
             'who' => $who,
             'result' => $result,
             'when' => $when,
             'how' => $how
         ];
+        
+        // Add WHERE and WHY if provided
+        if (!empty($where)) {
+            $hook_data['where'] = $where;
+        }
+        if (!empty($why)) {
+            $hook_data['why'] = $why;
+        }
+        
         return $this->unified_service->save_authority_hook_data($hook_data, 0, $entry_id);
     }
 }

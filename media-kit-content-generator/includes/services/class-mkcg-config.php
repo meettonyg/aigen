@@ -40,14 +40,16 @@ class MKCG_Config {
             ],
             'authority_hook' => [
                 'fields' => [
-                    'who' => 10296,     // WHO field
-                    'result' => 10297,  // RESULT field  
-                    'when' => 10387,    // WHEN field
-                    'how' => 10298,     // HOW field
+                    'who' => 10296,     // WHO do you help? (specific niches)
+                    'result' => 10297,  // WHAT result do you help them achieve?
+                    'when' => 10387,    // WHEN do they need you?
+                    'how' => 10298,     // HOW do you help them achieve this result?
+                    'where' => 10359,   // WHERE have you demonstrated specific results or credentials
+                    'why' => 10360,     // WHY are you passionate about what you do?
                     'complete' => 10358 // Complete Authority Hook
                 ],
                 'meta_prefix' => 'authority_hook_',
-                'max_items' => 5,
+                'max_items' => 7,
                 'type' => 'component_based'
             ],
             // PLACEHOLDER: Biography and Offers field mappings (to prevent warnings)
