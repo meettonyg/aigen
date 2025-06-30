@@ -1,1 +1,88 @@
-<!DOCTYPE html>\n<html>\n<head>\n    <title>Unified Data Architecture Test</title>\n    <style>\n        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }\n        .test-container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }\n        .test-header { background: #2196F3; color: white; padding: 15px; margin: -20px -20px 20px; border-radius: 8px 8px 0 0; }\n        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 4px; }\n        .test-status { font-weight: bold; padding: 8px 12px; border-radius: 4px; margin: 5px 0; }\n        .status-pass { background: #4CAF50; color: white; }\n        .status-fail { background: #f44336; color: white; }\n        .status-improvement { background: #2196F3; color: white; }\n        .test-details { background: #f9f9f9; padding: 15px; margin: 10px 0; border-left: 4px solid #2196F3; font-family: monospace; font-size: 12px; line-height: 1.6; }\n        .architecture { background: #e3f2fd; padding: 15px; border-radius: 4px; margin: 20px 0; border: 2px solid #2196F3; }\n        .code-block { background: #263238; color: #ffffff; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 12px; margin: 10px 0; overflow-x: auto; }\n        .priority { background: #fff3e0; padding: 10px; border-left: 4px solid #ff9800; margin: 10px 0; }\n    </style>\n</head>\n<body>\n    <div class=\"test-container\">\n        <div class=\"test-header\">\n            <h1>🏗️ Unified Data Architecture Implementation</h1>\n            <p>Testing the new centralized data approach for Topics and Questions Generators</p>\n        </div>\n\n        <div class=\"architecture\">\n            <h3>🎯 ARCHITECTURAL IMPROVEMENT</h3>\n            <p><strong>Previous Problem:</strong> Topics Generator and Questions Generator used different data sources and couldn't work together.</p>\n            <p><strong>New Solution:</strong> Unified data architecture with centralized data manager and cross-generator compatibility.</p>\n        </div>\n\n        <div class=\"test-section\">\n            <h3>📊 Data Source Priority System</h3>\n            <p>The Questions Generator now uses a 3-tier priority system for data loading:</p>\n            \n            <div class=\"priority\">\n                <strong>🥇 PRIORITY 1: Centralized Data Manager</strong><br>\n                <code>MKCG_DataManager.getTopic(1-5)</code><br>\n                <em>Real-time synchronized data across all generators</em>\n            </div>\n            \n            <div class=\"priority\">\n                <strong>🥈 PRIORITY 2: Topics Generator Shared Data</strong><br>\n                <code>window.MKCG_Topics_Data.topics</code><br>\n                <em>Direct data sharing when both generators on same page</em>\n            </div>\n            \n            <div class=\"priority\">\n                <strong>🥉 PRIORITY 3: Questions Generator Legacy Data</strong><br>\n                <code>MKCG_TopicsData</code><br>\n                <em>Backwards compatibility for existing implementations</em>\n            </div>\n        </div>\n\n        <div class=\"test-section\">\n            <h3>🔄 Real-Time Data Synchronization</h3>\n            <div class=\"test-details\">\n✅ When Topics Generator updates a topic → Centralized Data Manager updated\n✅ When Questions Generator loads → Gets latest data from centralized source\n✅ Cross-generator communication via MKCG_DataManager\n✅ Automatic fallback to shared page data if centralized unavailable\n✅ Seamless integration when both generators on same page\n            </div>\n        </div>\n\n        <div class=\"test-section\">\n            <h3>💻 Implementation Example</h3>\n            <div class=\"code-block\">\n// NEW: Unified data loading with priority system\nloadUnifiedTopicsData: function() {\n    let dataSource = 'none';\n    let topicsFound = false;\n    \n    // PRIORITY 1: Centralized Data Manager\n    if (MKCG_DataManager) {\n        for (let i = 1; i <= 5; i++) {\n            const topicText = MKCG_DataManager.getTopic(i);\n            if (topicText) {\n                this.topicsData[i] = topicText;\n                topicsFound = true;\n            }\n        }\n        dataSource = 'centralized_data_manager';\n    }\n    \n    // PRIORITY 2: Topics Generator shared data\n    if (!topicsFound && window.MKCG_Topics_Data) {\n        // Convert format and sync to centralized manager\n        this.syncFromTopicsGenerator();\n        dataSource = 'topics_generator_shared';\n    }\n    \n    // PRIORITY 3: Legacy Questions Generator data\n    if (!topicsFound && MKCG_TopicsData) {\n        this.topicsData = MKCG_TopicsData;\n        dataSource = 'questions_generator_legacy';\n    }\n}\n            </div>\n        </div>\n\n        <div class=\"test-section\">\n            <h3>🧪 Testing Instructions</h3>\n            <ol>\n                <li><strong>Go to your Topics Generator page:</strong> <code>?entry=y8ver</code></li>\n                <li><strong>Open browser console</strong> (F12 → Console tab)</li>\n                <li><strong>Look for new unified architecture messages:</strong></li>\n            </ol>\n            \n            <h4>✅ Expected Console Output (NEW):</h4>\n            <div class=\"test-details\">\n✅ \"MKCG Enhanced Questions: Initializing with unified data architecture\"\n✅ \"MKCG Enhanced Questions: Loading from unified data architecture\"\n✅ \"✅ MKCG Questions: Loaded topics from Topics Generator (shared page)\"\n✅ \"🔄 MKCG Questions: Synced Topics Generator data to Centralized Data Manager\"\n✅ \"MKCG Enhanced Questions: Unified data loading complete\"\n            </div>\n            \n            <h4>❌ Old Messages (SHOULD NOT SEE):</h4>\n            <div class=\"test-details\">\n❌ \"MKCG Enhanced Questions: Skipping initialization - not on Questions Generator page\"\n❌ \"MKCG Enhanced Questions: No topics data from PHP\"\n❌ \"MKCG: Selected topic element not found\"\n            </div>\n        </div>\n\n        <div class=\"test-section\">\n            <h3>🔍 Architecture Benefits</h3>\n            \n            <div class=\"test-status status-improvement\">\n                ✨ CROSS-GENERATOR COMPATIBILITY\n            </div>\n            <p>Both generators can now work together on the same page sharing the same data source.</p>\n            \n            <div class=\"test-status status-improvement\">\n                ✨ REAL-TIME SYNCHRONIZATION\n            </div>\n            <p>Changes in Topics Generator are immediately available to Questions Generator via centralized data manager.</p>\n            \n            <div class=\"test-status status-improvement\">\n                ✨ INTELLIGENT FALLBACKS\n            </div>\n            <p>Priority-based data loading ensures data is found from the best available source.</p>\n            \n            <div class=\"test-status status-improvement\">\n                ✨ BACKWARDS COMPATIBILITY\n            </div>\n            <p>Existing implementations continue to work while gaining new capabilities.</p>\n        </div>\n\n        <div class=\"test-section\">\n            <h3>📈 Data Flow Diagram</h3>\n            <div class=\"test-details\">\nTOPICS GENERATOR:\n┌─────────────────┐    updates    ┌──────────────────────┐\n│   User edits    │──────────────▶│  MKCG_DataManager   │\n│     topic       │               │  (Centralized Hub)   │\n└─────────────────┘               └──────────────────────┘\n                                           │\n                                    syncs to │\n                                           ▼\nQUESTIONS GENERATOR:               ┌──────────────────────┐\n┌─────────────────┐    reads      │   Questions Gen      │\n│  Loads topics   │◀──────────────│   Topics Data        │\n│  for questions  │               │   (Always Current)   │\n└─────────────────┘               └──────────────────────┘\n            </div>\n        </div>\n\n        <div class=\"test-section\">\n            <h3>🎯 Success Criteria</h3>\n            \n            <div class=\"test-status status-pass\">\n                ✅ NO MORE \"Skipping initialization\" messages\n            </div>\n            \n            <div class=\"test-status status-pass\">\n                ✅ Questions Generator initializes on Topics pages\n            </div>\n            \n            <div class=\"test-status status-pass\">\n                ✅ Data automatically shared between generators\n            </div>\n            \n            <div class=\"test-status status-pass\">\n                ✅ Centralized data manager populated\n            </div>\n            \n            <div class=\"test-status status-pass\">\n                ✅ Clean console output with unified messages\n            </div>\n        </div>\n\n        <div class=\"test-section\">\n            <h3>🚀 Future Possibilities</h3>\n            <p>With unified data architecture, we can now implement:</p>\n            <ul>\n                <li><strong>Real-time topic editing:</strong> Edit topics directly from Questions Generator</li>\n                <li><strong>Cross-generator workflows:</strong> Seamless transitions between generators</li>\n                <li><strong>Unified save operations:</strong> Save topics and questions simultaneously</li>\n                <li><strong>Data validation:</strong> Centralized validation across all generators</li>\n                <li><strong>Shared undo/redo:</strong> Consistent operation history</li>\n            </ul>\n        </div>\n\n        <div class=\"test-section\">\n            <h3>📝 Implementation Status</h3>\n            \n            <div class=\"test-status status-pass\">\n                ✅ Priority-based data loading implemented\n            </div>\n            \n            <div class=\"test-status status-pass\">\n                ✅ Cross-generator data synchronization implemented\n            </div>\n            \n            <div class=\"test-status status-pass\">\n                ✅ Unified initialization architecture implemented\n            </div>\n            \n            <div class=\"test-status status-pass\">\n                ✅ Backwards compatibility maintained\n            </div>\n            \n            <div class=\"test-status status-pass\">\n                ✅ Graceful error handling implemented\n            </div>\n        </div>\n    </div>\n\n    <script>\n        // Add some interactive testing functionality\n        function testDataArchitecture() {\n            if (typeof MKCG_DataManager !== 'undefined') {\n                console.log('🧪 Testing Centralized Data Manager:');\n                \n                // Test data retrieval\n                for (let i = 1; i <= 5; i++) {\n                    const topic = MKCG_DataManager.getTopic(i);\n                    console.log(`Topic ${i}:`, topic || 'No data');\n                }\n                \n                console.log('Data Manager State:', MKCG_DataManager.getState());\n            } else {\n                console.log('MKCG_DataManager not available on this page');\n            }\n            \n            if (typeof window.MKCG_Topics_Data !== 'undefined') {\n                console.log('🧪 Topics Generator Data:', window.MKCG_Topics_Data);\n            }\n            \n            if (typeof QuestionsGenerator !== 'undefined') {\n                console.log('🧪 Questions Generator State:', {\n                    topicsData: QuestionsGenerator.topicsData,\n                    selectedTopic: QuestionsGenerator.selectedTopicText,\n                    dataQuality: QuestionsGenerator.dataQuality\n                });\n            }\n        }\n        \n        // Auto-run test if generators are available\n        window.addEventListener('load', function() {\n            setTimeout(testDataArchitecture, 2000);\n        });\n    </script>\n</body>\n</html>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Unified Data Architecture Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .test-container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .test-header { background: #2196F3; color: white; padding: 15px; margin: -20px -20px 20px; border-radius: 8px 8px 0 0; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 4px; }
+        .test-details { background: #f9f9f9; padding: 15px; margin: 10px 0; border-left: 4px solid #2196F3; font-family: monospace; font-size: 12px; line-height: 1.6; }
+        .architecture { background: #e3f2fd; padding: 15px; border-radius: 4px; margin: 20px 0; border: 2px solid #2196F3; }
+        .priority { background: #fff3e0; padding: 10px; border-left: 4px solid #ff9800; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="test-header">
+            <h1>🏗️ Unified Data Architecture Implementation</h1>
+            <p>Testing the new centralized data approach for Topics and Questions Generators</p>
+        </div>
+
+        <div class="architecture">
+            <h3>🎯 ARCHITECTURAL IMPROVEMENT</h3>
+            <p><strong>Previous Problem:</strong> Topics Generator and Questions Generator used different data sources and couldn't work together, causing script errors on each other's pages.</p>
+            <p><strong>New Solution:</strong> A unified data architecture with a centralized data manager and cross-generator compatibility that allows them to coexist gracefully.</p>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Data Source Priority System</h3>
+            <p>The Questions Generator now uses a 3-tier priority system for data loading:</p>
+            
+            <div class="priority">
+                <strong>🥇 PRIORITY 1: Centralized Data Manager</strong><br>
+                <code>MKCG_DataManager</code><br>
+                <em>Real-time synchronized data across all generators. This is the single source of truth.</em>
+            </div>
+            
+            <div class="priority">
+                <strong>🥈 PRIORITY 2: Topics Generator Shared Data</strong><br>
+                <code>window.MKCG_Topics_Data</code><br>
+                <em>On a page where the Topics Generator is active, its data is used and synced to the central manager.</em>
+            </div>
+            
+            <div class="priority">
+                <strong>🥉 PRIORITY 3: Questions Generator Legacy Data</strong><br>
+                <code>MKCG_TopicsData</code><br>
+                <em>Maintains backwards compatibility for existing implementations.</em>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🧪 Expected Console Output (On Topics Page)</h3>
+            <div class="test-details">
+✅ "MKCG Enhanced Questions: Initializing with unified data architecture"
+✅ "MKCG Enhanced Questions: Loading from unified data architecture"
+✅ "✅ MKCG Questions: Loaded topics from Topics Generator (shared page)"
+✅ "🔄 MKCG Questions: Synced Topics Generator data to Centralized Data Manager"
+✅ "MKCG Enhanced Questions: Unified data loading complete"
+            </div>
+            <h4>❌ You should NO LONGER see these errors:</h4>
+            <div class="test-details">
+❌ "MKCG Enhanced Questions: No topics data from PHP"
+❌ "MKCG: Selected topic element not found"
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔧 How This Fix Works</h3>
+            <ul>
+                <li><strong>No More Errors:</strong> The script no longer assumes it's on the Questions page. It uses <code>isOnQuestionsGeneratorPage()</code> to check for its specific HTML elements before trying to manipulate them.</li>
+                <li><strong>Unified Data:</strong> It intelligently looks for topic data from multiple sources. On the Topics Generator page, it will find the data from <code>window.MKCG_Topics_Data</code>, load it, and quietly sync it to the MKCG_DataManager in the background without causing errors.</li>
+                <li><strong>Robust Architecture:</strong> This is a much better long-term solution. If you ever decide to have both generators on the same page, they will now work together seamlessly.</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h3>✅ Verification Steps</h3>
+            <ol>
+                <li>Clear your browser cache and reload the Topics Generator page</li>
+                <li>Open browser console (F12)</li>
+                <li>Check that you see the "unified data architecture" log messages</li>
+                <li>Verify you NO LONGER see the error messages about "No topics data from PHP" or "Selected topic element not found"</li>
+                <li>Confirm Topics Generator functionality still works normally</li>
+            </ol>
+        </div>
+    </div>
+</body>
+</html>

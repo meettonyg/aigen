@@ -343,21 +343,15 @@ class Media_Kit_Content_Generator {
                 break;
                 
             default:
-                // TEMPORARY DEBUG: Force Topics detection if URL contains 'topics'
-                if (isset($_SERVER['REQUEST_URI']) && strpos(strtolower($_SERVER['REQUEST_URI']), 'topics') !== false) {
-                    error_log('MKCG DEBUG: Forcing Topics detection due to URL containing "topics"');
-                    $this->enqueue_topics_scripts();
-                } else {
-                    // No specific generator detected - load minimal shared scripts only
-                    error_log('MKCG Script Loading: No specific generator detected, loading shared scripts only');
-                    wp_enqueue_script(
-                        'mkcg-form-utils', 
-                        MKCG_PLUGIN_URL . 'assets/js/mkcg-form-utils.js', 
-                        ['jquery', 'mkcg-data-manager'], 
-                        MKCG_VERSION, 
-                        true
-                    );
-                }
+                // No specific generator detected - load minimal shared scripts only
+                error_log('MKCG Script Loading: No specific generator detected, loading shared scripts only');
+                wp_enqueue_script(
+                    'mkcg-form-utils', 
+                    MKCG_PLUGIN_URL . 'assets/js/mkcg-form-utils.js', 
+                    ['jquery', 'mkcg-data-manager'], 
+                    MKCG_VERSION, 
+                    true
+                );
                 break;
         }
         
@@ -373,105 +367,91 @@ class Media_Kit_Content_Generator {
     }
     
     /**
-     * CRITICAL FIX: Detect which generator is currently being used
+     * CRITICAL FIX: More precise generator detection logic (Gemini's approach)
      */
     private function detect_current_generator() {
         global $post;
         
         // Enhanced debugging
         $request_uri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
-        $url_path = parse_url($request_uri, PHP_URL_PATH);
         
-        error_log('MKCG Generator Detection Debug:');
+        error_log('MKCG Precise Generator Detection:');
         error_log('- REQUEST_URI: ' . $request_uri);
-        error_log('- URL_PATH: ' . $url_path);
-        error_log('- POST object available: ' . (is_object($post) ? 'YES' : 'NO'));
         
-        // Method 1: Check for shortcodes in current post content
-        if ($post && !empty($post->post_content)) {
-            error_log('- Checking post content for shortcodes...');
-            if (has_shortcode($post->post_content, 'mkcg_topics')) {
-                error_log('- FOUND: mkcg_topics shortcode');
-                return 'topics';
-            }
-            if (has_shortcode($post->post_content, 'mkcg_questions')) {
-                error_log('- FOUND: mkcg_questions shortcode');
-                return 'questions';
-            }
-            if (has_shortcode($post->post_content, 'mkcg_biography')) {
-                error_log('- FOUND: mkcg_biography shortcode');
-                return 'biography';
-            }
-            if (has_shortcode($post->post_content, 'mkcg_offers')) {
-                error_log('- FOUND: mkcg_offers shortcode');
-                return 'offers';
-            }
-        }
-        
-        // Method 2: Check URL parameters for generator hints
+        // Method 1: Check for a specific query parameter first (most reliable)
         if (isset($_GET['generator'])) {
             $generator = sanitize_text_field($_GET['generator']);
-            error_log('- URL generator parameter: ' . $generator);
+            error_log('- Found generator parameter: ' . $generator);
             if (in_array($generator, ['topics', 'questions', 'biography', 'offers'])) {
-                error_log('- FOUND: URL generator parameter match');
+                error_log('- MATCHED: URL generator parameter');
                 return $generator;
             }
         }
-        
-        // Method 3: ENHANCED URL Path Detection (most important for your case)
-        if ($request_uri) {
-            $uri_lower = strtolower($request_uri);
-            error_log('- Checking URI patterns in: ' . $uri_lower);
-            
-            // Check for Topics patterns
-            if (strpos($uri_lower, '/topics/') !== false || 
-                strpos($uri_lower, '/topics?') !== false ||
-                (strpos($uri_lower, 'topics') !== false && strpos($uri_lower, 'frm_action=edit') !== false)) {
-                error_log('- FOUND: Topics pattern in URL');
-                return 'topics';
-            }
-            
-            // Check for Questions patterns
-            if (strpos($uri_lower, '/questions/') !== false || 
-                strpos($uri_lower, '/questions?') !== false ||
-                (strpos($uri_lower, 'questions') !== false && strpos($uri_lower, 'frm_action=edit') !== false)) {
-                error_log('- FOUND: Questions pattern in URL');
+
+        // Method 2: Check for shortcodes in the current post content
+        if ($post && !empty($post->post_content)) {
+            error_log('- Checking shortcodes in post content...');
+            // Check in order of specificity
+            if (has_shortcode($post->post_content, 'mkcg_questions')) {
+                error_log('- MATCHED: mkcg_questions shortcode');
                 return 'questions';
             }
-            
-            // Check for Biography patterns
-            if (strpos($uri_lower, '/biography/') !== false || strpos($uri_lower, 'biography') !== false) {
-                error_log('- FOUND: Biography pattern in URL');
+            if (has_shortcode($post->post_content, 'mkcg_topics')) {
+                error_log('- MATCHED: mkcg_topics shortcode');
+                return 'topics';
+            }
+            if (has_shortcode($post->post_content, 'mkcg_biography')) {
+                error_log('- MATCHED: mkcg_biography shortcode');
                 return 'biography';
             }
-            
-            // Check for Offers patterns
-            if (strpos($uri_lower, '/offers/') !== false || strpos($uri_lower, 'offers') !== false) {
-                error_log('- FOUND: Offers pattern in URL');
+            if (has_shortcode($post->post_content, 'mkcg_offers')) {
+                error_log('- MATCHED: mkcg_offers shortcode');
                 return 'offers';
             }
         }
-        
-        // Method 4: Check page/post slug or title for generator hints
-        if ($post) {
-            $content_to_check = strtolower($post->post_title . ' ' . $post->post_name . ' ' . $post->post_content);
-            error_log('- Checking post content patterns...');
+
+        // Method 3: Check the URL Path with precise regex patterns
+        if ($request_uri) {
+            $uri_lower = strtolower($request_uri);
+            error_log('- Checking precise URL patterns in: ' . $uri_lower);
             
-            if (strpos($content_to_check, 'topics') !== false && strpos($content_to_check, 'interview') !== false) {
-                error_log('- FOUND: Topics + interview in content');
-                return 'topics';
-            }
-            if (strpos($content_to_check, 'questions') !== false && strpos($content_to_check, 'interview') !== false) {
-                error_log('- FOUND: Questions + interview in content');
+            // Check for '/questions' but not if it's part of another word
+            if (preg_match('/\/questions(\/|\?|$)/', $uri_lower)) {
+                error_log('- MATCHED: Questions URL pattern');
                 return 'questions';
             }
-            if (strpos($content_to_check, 'biography') !== false) {
-                error_log('- FOUND: Biography in content');
+            
+            // Check for '/topics' but not if it's part of another word
+            if (preg_match('/\/topics(\/|\?|$)/', $uri_lower)) {
+                error_log('- MATCHED: Topics URL pattern');
+                return 'topics';
+            }
+            
+            // Check for biography patterns
+            if (preg_match('/\/biography(\/|\?|$)/', $uri_lower)) {
+                error_log('- MATCHED: Biography URL pattern');
                 return 'biography';
             }
-            if (strpos($content_to_check, 'offers') !== false) {
-                error_log('- FOUND: Offers in content');
+            
+            // Check for offers patterns
+            if (preg_match('/\/offers(\/|\?|$)/', $uri_lower)) {
+                error_log('- MATCHED: Offers URL pattern');
                 return 'offers';
+            }
+        }
+
+        // Method 4: Fallback content analysis (least reliable)
+        if ($post) {
+            $content_to_check = strtolower($post->post_title . ' ' . $post->post_name);
+            error_log('- Fallback: checking title and slug patterns...');
+            
+            if (strpos($content_to_check, 'questions') !== false && strpos($content_to_check, 'interview') !== false) {
+                error_log('- FALLBACK MATCHED: Questions in title/slug');
+                return 'questions';
+            }
+            if (strpos($content_to_check, 'topics') !== false && strpos($content_to_check, 'interview') !== false) {
+                error_log('- FALLBACK MATCHED: Topics in title/slug');
+                return 'topics';
             }
         }
         

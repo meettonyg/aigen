@@ -57,21 +57,20 @@ const QuestionsGenerator = {
         console.log('MKCG Enhanced Questions: Initializing with unified data architecture');
         this.performance.loadStartTime = performance.now();
         
-        // ARCHITECTURAL FIX: Always attempt initialization, use centralized data
         try {
             // CRITICAL FIX: Initialize centralized data manager first
             this.initializeCentralizedDataManager();
             
-            // ARCHITECTURAL FIX: Load data from centralized sources
+            // ARCHITECTURAL FIX: Load data from unified sources
             this.loadUnifiedTopicsData();
             this.bindEnhancedEvents();
-            this.updateSelectedTopic();
             
-            // 💾 INITIALIZE SIMPLE SAVE FUNCTIONALITY
-            this.bindSimpleSave();
-            
-            // Show questions for default selected topic (Topic 1)
-            this.showQuestionsForTopic(this.selectedTopicId || 1);
+            // Only update UI elements if they exist
+            if(this.isOnQuestionsGeneratorPage()){
+                 this.updateSelectedTopic();
+                 this.bindSimpleSave();
+                 this.showQuestionsForTopic(this.selectedTopicId || 1);
+            }
             
             const loadTime = performance.now() - this.performance.loadStartTime;
             console.log(`MKCG Enhanced Questions: Initialization completed in ${loadTime.toFixed(2)}ms`);
@@ -93,23 +92,14 @@ const QuestionsGenerator = {
         let topicsFound = false;
         
         // PRIORITY 1: Get data from centralized data manager
-        if (this.dataManagerAvailable && typeof MKCG_DataManager !== 'undefined') {
+        if (typeof MKCG_DataManager !== 'undefined') {
             try {
-                const centralizedTopics = {};
-                
-                // Get topics 1-5 from centralized data manager
-                for (let i = 1; i <= 5; i++) {
-                    const topicText = MKCG_DataManager.getTopic(i);
-                    if (topicText && topicText.trim()) {
-                        centralizedTopics[i] = topicText;
-                        topicsFound = true;
-                    }
-                }
-                
-                if (topicsFound) {
+                const centralizedTopics = MKCG_DataManager.getAllTopics();
+                if (Object.values(centralizedTopics).some(t => t && t.trim())) {
                     this.topicsData = centralizedTopics;
+                    topicsFound = true;
                     dataSource = 'centralized_data_manager';
-                    console.log('✅ MKCG Questions: Loaded topics from Centralized Data Manager', centralizedTopics);
+                    console.log('✅ MKCG Questions: Loaded topics from Centralized Data Manager', this.topicsData);
                 }
             } catch (error) {
                 console.log('⚠️ MKCG Questions: Centralized Data Manager access failed:', error);
@@ -117,36 +107,30 @@ const QuestionsGenerator = {
         }
         
         // PRIORITY 2: Get data from Topics Generator (same page data sharing)
-        if (!topicsFound && typeof window.MKCG_Topics_Data !== 'undefined') {
-            const topicsGeneratorData = window.MKCG_Topics_Data;
+        if (!topicsFound && typeof window.MKCG_Topics_Data !== 'undefined' && window.MKCG_Topics_Data.topics) {
+            const topicsGeneratorData = window.MKCG_Topics_Data.topics;
+            const convertedTopics = {};
+            let hasData = false;
+            Object.keys(topicsGeneratorData).forEach(key => {
+                if (topicsGeneratorData[key] && topicsGeneratorData[key].trim()) {
+                    const topicNumber = key.replace('topic_', '');
+                    convertedTopics[topicNumber] = topicsGeneratorData[key];
+                    hasData = true;
+                }
+            });
             
-            if (topicsGeneratorData && topicsGeneratorData.topics) {
-                // Convert Topics Generator format to Questions Generator format
-                const convertedTopics = {};
-                Object.keys(topicsGeneratorData.topics).forEach(key => {
-                    if (topicsGeneratorData.topics[key] && topicsGeneratorData.topics[key].trim()) {
-                        const topicNumber = key.split('_')[1];
-                        convertedTopics[topicNumber] = topicsGeneratorData.topics[key];
-                        topicsFound = true;
-                    }
-                });
+            if (hasData) {
+                this.topicsData = convertedTopics;
+                topicsFound = true;
+                dataSource = 'topics_generator_shared';
+                console.log('✅ MKCG Questions: Loaded topics from Topics Generator (shared page)', this.topicsData);
                 
-                if (topicsFound) {
-                    this.topicsData = convertedTopics;
-                    dataSource = 'topics_generator_shared';
-                    console.log('✅ MKCG Questions: Loaded topics from Topics Generator (shared page)', convertedTopics);
-                    
-                    // SYNC: Also populate centralized data manager for future use
-                    if (this.dataManagerAvailable) {
-                        Object.keys(convertedTopics).forEach(topicId => {
-                            try {
-                                MKCG_DataManager.setTopic(parseInt(topicId), convertedTopics[topicId]);
-                            } catch (error) {
-                                console.log('⚠️ Failed to sync to centralized data manager:', error);
-                            }
-                        });
-                        console.log('🔄 MKCG Questions: Synced Topics Generator data to Centralized Data Manager');
-                    }
+                // SYNC: Populate centralized data manager for future use
+                if (typeof MKCG_DataManager !== 'undefined') {
+                    Object.keys(this.topicsData).forEach(topicId => {
+                        MKCG_DataManager.setTopic(parseInt(topicId), this.topicsData[topicId]);
+                    });
+                    console.log('🔄 MKCG Questions: Synced Topics Generator data to Centralized Data Manager');
                 }
             }
         }
@@ -154,52 +138,31 @@ const QuestionsGenerator = {
         // PRIORITY 3: Get data from Questions Generator specific data source (legacy)
         if (!topicsFound && typeof MKCG_TopicsData !== 'undefined') {
             this.topicsData = MKCG_TopicsData;
-            const nonEmptyTopics = Object.values(MKCG_TopicsData).filter(topic => topic && topic.trim());
-            if (nonEmptyTopics.length > 0) {
+            if (Object.values(this.topicsData).some(t => t && t.trim())) {
                 topicsFound = true;
                 dataSource = 'questions_generator_legacy';
-                console.log('✅ MKCG Questions: Loaded topics from Questions Generator legacy data', MKCG_TopicsData);
-            }
-        }
-        
-        // FALLBACK: No data found
-        if (!topicsFound) {
-            this.topicsData = {};
-            dataSource = 'none_available';
-            console.log('⚠️ MKCG Questions: No topics data available from any source');
-            
-            // Only show error if we're actually on a Questions Generator page
-            if (this.isOnQuestionsGeneratorPage()) {
-                this.showDataQualityNotification('topics', { 
-                    quality: 'missing', 
-                    issues: ['No topics data available from any unified source'] 
-                });
-            } else {
-                console.log('ℹ️ MKCG Questions: Not on Questions Generator page, no data needed');
+                console.log('✅ MKCG Questions: Loaded topics from Questions Generator legacy data', this.topicsData);
             }
         }
         
         // Set selected topic text
         if (topicsFound) {
-            this.selectedTopicText = this.topicsData[1] || this.topicsData[Object.keys(this.topicsData)[0]] || 'No topic selected';
-            
-            // Validate topics data quality
-            const validation = this.validateTopicsData(this.topicsData);
-            this.dataQuality.topics = validation.quality;
-            
-            if (validation.issues.length > 0) {
-                console.log('MKCG Enhanced Questions: Topics data issues detected:', validation.issues);
-            }
+            this.selectedTopicText = this.topicsData[1] || Object.values(this.topicsData).find(t => t) || 'No topic selected';
         } else {
             this.selectedTopicText = 'No topic selected';
-            this.dataQuality.topics = 'missing';
+            if(this.isOnQuestionsGeneratorPage()){
+                console.log('⚠️ MKCG Questions: No topics data available from any source');
+                this.showDataQualityNotification('topics', { 
+                    quality: 'missing', 
+                    issues: ['No topics data available from any unified source'] 
+                });
+            }
         }
         
         console.log('MKCG Enhanced Questions: Unified data loading complete:', {
             dataSource: dataSource,
             topicsFound: topicsFound,
-            selectedTopic: this.selectedTopicText,
-            quality: this.dataQuality.topics
+            selectedTopic: this.selectedTopicText
         });
     },
     
@@ -207,7 +170,6 @@ const QuestionsGenerator = {
      * ARCHITECTURAL FIX: Detect if we're actually on a Questions Generator page
      */
     isOnQuestionsGeneratorPage: function() {
-        // Look for Questions Generator specific elements
         const questionsElements = [
             '#mkcg-topics-grid',
             '#mkcg-selected-topic-text', 
@@ -215,9 +177,7 @@ const QuestionsGenerator = {
             '.mkcg-topic-card'
         ];
         
-        return questionsElements.some(selector => 
-            document.querySelector(selector) !== null
-        );
+        return questionsElements.some(selector => document.querySelector(selector) !== null);
     },
     
     /**
@@ -2114,52 +2074,13 @@ const QuestionsGenerator = {
 
 // Initialize when the DOM is ready with unified architecture
 document.addEventListener('DOMContentLoaded', function() {
-    // ARCHITECTURAL FIX: Always attempt initialization with unified data architecture
     setTimeout(() => {
         try {
-            console.log('MKCG Enhanced Questions: Starting unified initialization');
             QuestionsGenerator.init();
         } catch (error) {
             console.error('MKCG Enhanced Questions: Initialization error:', error);
-            
-            // Only show error message if we're on a Questions Generator page
-            const questionsElementsPresent = document.querySelector('#mkcg-topics-grid') !== null ||
-                                          document.querySelector('#mkcg-questions-result') !== null;
-            
-            if (questionsElementsPresent) {
-                console.error('MKCG Enhanced Questions: Failed to initialize on Questions Generator page');
-                // Error handling for Questions Generator pages only
-                const errorMessage = document.createElement('div');
-                errorMessage.style.cssText = `
-                    position: fixed;
-                    top: 20px;
-                    right: 20px;
-                    background: #e74c3c;
-                    color: white;
-                    padding: 15px;
-                    border-radius: 6px;
-                    z-index: 10000;
-                    max-width: 300px;
-                    font-size: 14px;
-                `;
-                errorMessage.innerHTML = `
-                    <strong>Questions Generator Error</strong><br>
-                    Initialization failed. Please refresh the page.
-                    <button onclick="this.parentElement.remove()" style="background: none; border: 1px solid white; color: white; padding: 4px 8px; border-radius: 3px; cursor: pointer; margin-left: 10px;">×</button>
-                `;
-                document.body.appendChild(errorMessage);
-                
-                // Auto-remove after 10 seconds
-                setTimeout(() => {
-                    if (errorMessage.parentElement) {
-                        errorMessage.remove();
-                    }
-                }, 10000);
-            } else {
-                console.log('MKCG Enhanced Questions: Error occurred but not on Questions Generator page - gracefully ignoring');
-            }
         }
-    }, 100); // Small delay for script loading
+    }, 100); 
 });
 
 // Make globally available with enhanced debugging

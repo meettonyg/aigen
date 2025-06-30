@@ -650,76 +650,81 @@ if (empty($available_topics) || count(array_filter($available_topics)) === 0) {
     </div>
 </div>
 
-<!-- ENHANCED JavaScript Integration with Data Quality Information -->
+<!-- CRITICAL FIX: Standardized JavaScript data output to match Topics Generator -->
 <script type="text/javascript">
-// Enhanced data from PHP with quality information
-const MKCG_TopicsData = <?php echo json_encode($all_topics); ?>;
-const MKCG_ExistingQuestions = <?php echo json_encode($existing_questions); ?>;
-const MKCG_PostId = <?php echo json_encode($post_id); ?>;
-
-// Enhanced metadata for frontend validation
-const MKCG_DataMetadata = <?php 
-echo json_encode([
-    'topics_quality' => isset($topics_result) ? $topics_result['data_quality'] : 'unknown',
-    'topics_source' => isset($topics_result) ? $topics_result['source_pattern'] : 'unknown',
-    'questions_integrity' => isset($questions_result) ? $questions_result['integrity_status'] : 'unknown',
-    'auto_healed' => [
-        'topics' => isset($topics_result) ? $topics_result['auto_healed'] : false,
-        'questions' => isset($questions_result) ? $questions_result['auto_healed'] : false
-    ],
-    'validation_passed' => isset($validation_result) ? $validation_result['valid'] : false,
-    'entry_id' => $entry_id,
-    'entry_key' => $entry_key,
-    'timestamp' => time()
-]);
-?>;
-
-// Enhanced initialization with error handling and debugging
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('MKCG Enhanced Questions: DOM ready, initializing with metadata:', MKCG_DataMetadata);
-    
-    try {
-        if (typeof QuestionsGenerator !== 'undefined') {
-            QuestionsGenerator.init();
-        } else {
-            console.error('MKCG Enhanced Questions: QuestionsGenerator script not loaded correctly');
-            
-            // Show user-friendly error
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'mkcg-script-error';
-            errorDiv.style.cssText = `
-                background: #f8d7da;
-                color: #721c24;
-                padding: 15px;
-                margin: 20px 0;
-                border: 1px solid #f5c6cb;
-                border-radius: 4px;
-                text-align: center;
-            `;
-            errorDiv.innerHTML = `
-                <strong>⚠️ Script Loading Error</strong><br>
-                The Questions Generator failed to load properly. Please refresh the page.
-                <br><br>
-                <button onclick="location.reload()" style="background: #721c24; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Refresh Page</button>
-            `;
-            
-            const container = document.querySelector('.mkcg-questions-generator-wrapper');
-            if (container) {
-                container.insertBefore(errorDiv, container.firstChild);
-            }
-        }
-    } catch (error) {
-        console.error('MKCG Enhanced Questions: Critical initialization error:', error);
-    }
-});
-
-// Debug information for development
-if (typeof console !== 'undefined') {
-    console.log('MKCG Enhanced Questions: Data loaded successfully', {
-        topics: Object.keys(MKCG_TopicsData).length,
-        questions: Object.keys(MKCG_ExistingQuestions).length,
-        postId: MKCG_PostId,
-        metadata: MKCG_DataMetadata
+    // MKCG Debug Info
+    console.log('🎯 MKCG Questions: Template data loading...', {
+        entryId: <?php echo intval($entry_id); ?>,
+        entryKey: '<?php echo esc_js($entry_key); ?>',
+        hasEntry: <?php echo $entry_id > 0 ? 'true' : 'false'; ?>,
+        postId: <?php echo json_encode($post_id); ?>,
+        templateLoadTime: new Date().toISOString()
     });
-}
+    
+    // CRITICAL FIX: Standardize on the same global variable as the Topics Generator.
+    window.MKCG_Topics_Data = {
+        entryId: <?php echo intval($entry_id); ?>,
+        entryKey: '<?php echo esc_js($entry_key); ?>',
+        hasEntry: <?php echo $entry_id > 0 ? 'true' : 'false'; ?>,
+        // The authority hook part can be omitted here if not directly used by the questions template,
+        // but we include topics which is the crucial part.
+        authorityHook: {
+             // This can be populated if needed, otherwise left empty.
+        },
+        topics: <?php echo json_encode(array_filter($all_topics)); ?>, // Pass the topics data
+        // We can add questions data here if needed by other scripts
+        questions: <?php echo json_encode(array_filter($existing_questions)); ?>,
+        dataSource: 'questions_generator_template' // Identifier for debugging
+    };
+    
+    console.log('✅ MKCG Questions: Standardized data loaded into window.MKCG_Topics_Data', window.MKCG_Topics_Data);
+    
+    // Enhanced initialization with error handling and debugging
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('MKCG Enhanced Questions: DOM ready, initializing with standardized data');
+        
+        try {
+            if (typeof QuestionsGenerator !== 'undefined') {
+                QuestionsGenerator.init();
+            } else {
+                console.error('MKCG Enhanced Questions: QuestionsGenerator script not loaded correctly');
+                
+                // Show user-friendly error
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'mkcg-script-error';
+                errorDiv.style.cssText = `
+                    background: #f8d7da;
+                    color: #721c24;
+                    padding: 15px;
+                    margin: 20px 0;
+                    border: 1px solid #f5c6cb;
+                    border-radius: 4px;
+                    text-align: center;
+                `;
+                errorDiv.innerHTML = `
+                    <strong>⚠️ Script Loading Error</strong><br>
+                    The Questions Generator failed to load properly. Please refresh the page.
+                    <br><br>
+                    <button onclick="location.reload()" style="background: #721c24; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Refresh Page</button>
+                `;
+                
+                const container = document.querySelector('.mkcg-questions-generator-wrapper');
+                if (container) {
+                    container.insertBefore(errorDiv, container.firstChild);
+                }
+            }
+        } catch (error) {
+            console.error('MKCG Enhanced Questions: Critical initialization error:', error);
+        }
+    });
+    
+    // Debug information for development
+    if (typeof console !== 'undefined') {
+        console.log('MKCG Enhanced Questions: Standardized data loaded successfully', {
+            topics: Object.keys(window.MKCG_Topics_Data.topics).length,
+            questions: Object.keys(window.MKCG_Topics_Data.questions).length,
+            entryId: window.MKCG_Topics_Data.entryId,
+            dataSource: window.MKCG_Topics_Data.dataSource
+        });
+    }
 </script>
