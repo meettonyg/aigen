@@ -335,17 +335,70 @@ The expert's area of expertise is: \"$authority_hook\".
     // REMOVED: Redundant field processing methods - now using centralized Formidable Service
     
     /**
-     * STANDALONE MODE: Get template data directly from Formidable service
-     * Simplified data loading for standalone operation
+     * UNIFIED DATA SOURCE: Get template data using Topics Data Service (same as Questions Generator)
+     * ROOT LEVEL FIX: Now uses unified service for consistent data loading
      */
     public function get_template_data($entry_key = '') {
-        // Initialize empty data structure
-        $template_data = [
-            'entry_id' => 0,
+        $entry_id = 0;
+        $post_id = 0;
+        
+        // If no entry key provided, try to get from URL
+        if (empty($entry_key) && isset($_GET['entry'])) {
+            $entry_key = sanitize_text_field($_GET['entry']);
+        }
+        
+        // Resolve entry_id and post_id first
+        if (!empty($entry_key) && $this->is_topics_service_available()) {
+            error_log('MKCG Topics Generator: UNIFIED MODE - Using Topics Data Service for entry_key: ' . $entry_key);
+            
+            $entry_data = $this->formidable_service->get_entry_data($entry_key);
+            if ($entry_data['success']) {
+                $entry_id = $entry_data['entry_id'];
+                $post_id = $this->formidable_service->get_post_id_from_entry($entry_id);
+                error_log('MKCG Topics Generator: ✅ Resolved entry_id=' . $entry_id . ', post_id=' . $post_id);
+            }
+        }
+
+        // ROOT LEVEL FIX: Use the UNIFIED Topics Data Service to get all data (same as Questions Generator)
+        if ($this->is_topics_service_available() && $entry_id > 0) {
+            error_log('MKCG Topics Generator: 🔄 Using UNIFIED Topics Data Service to get template data');
+            
+            try {
+                $service_data = $this->topics_data_service->get_topics_data($entry_id, $entry_key, $post_id);
+
+                if ($service_data['success']) {
+                    error_log('MKCG Topics Generator: ✅ SUCCESS - Unified service returned data successfully');
+                    error_log('MKCG Topics Generator: Topics from service: ' . json_encode($service_data['topics']));
+                    
+                    return [
+                        'entry_id' => $service_data['entry_id'],
+                        'entry_key' => $entry_key,
+                        'authority_hook_components' => $service_data['authority_hook'],
+                        'form_field_values' => $service_data['topics'], // Use topics directly from unified service
+                        'has_entry' => true
+                    ];
+                } else {
+                    error_log('MKCG Topics Generator: ⚠️ Unified service failed: ' . ($service_data['message'] ?? 'Unknown error'));
+                }
+            } catch (Exception $e) {
+                error_log('MKCG Topics Generator: ❌ Exception using unified service: ' . $e->getMessage());
+            }
+        } else {
+            if (!$this->is_topics_service_available()) {
+                error_log('MKCG Topics Generator: ❌ Topics Data Service not available - check initialization');
+            } elseif ($entry_id <= 0) {
+                error_log('MKCG Topics Generator: ⚠️ No valid entry_id resolved from entry_key: ' . $entry_key);
+            }
+        }
+        
+        // Fallback to default structure if unified service fails or no entry
+        error_log('MKCG Topics Generator: Using fallback default data structure');
+        return [
+            'entry_id' => $entry_id,
             'entry_key' => $entry_key,
             'authority_hook_components' => [
                 'who' => 'your audience',
-                'result' => 'achieve their goals',
+                'result' => 'achieve their goals', 
                 'when' => 'they need help',
                 'how' => 'through your method',
                 'complete' => 'I help your audience achieve their goals when they need help through your method.'
@@ -359,79 +412,6 @@ The expert's area of expertise is: \"$authority_hook\".
             ],
             'has_entry' => false
         ];
-        
-        // If no entry key provided, try to get from URL
-        if (empty($entry_key) && isset($_GET['entry'])) {
-            $entry_key = sanitize_text_field($_GET['entry']);
-            $template_data['entry_key'] = $entry_key;
-        }
-        
-        // STANDALONE MODE: Load data directly from Formidable service
-        if (!empty($entry_key) && $this->formidable_service) {
-            error_log('MKCG Topics Generator: Loading data directly from Formidable for entry_key: ' . $entry_key);
-            
-            try {
-                // Get entry ID from entry key
-                $entry_data = $this->formidable_service->get_entry_data($entry_key);
-                
-                if (!empty($entry_data['entry_id'])) {
-                    $entry_id = $entry_data['entry_id'];
-                    $template_data['entry_id'] = $entry_id;
-                    $template_data['has_entry'] = true;
-                    
-                    // Load topics from Formidable fields directly
-                    $field_mappings = $this->get_field_mappings();
-                    
-                    foreach (['topic_1', 'topic_2', 'topic_3', 'topic_4', 'topic_5'] as $topic_key) {
-                        if (isset($field_mappings['fields'][$topic_key])) {
-                            $field_id = $field_mappings['fields'][$topic_key];
-                            $value = $this->formidable_service->get_field_value($entry_id, $field_id);
-                            if (!empty($value)) {
-                                $template_data['form_field_values'][$topic_key] = $value;
-                            }
-                        }
-                    }
-                    
-                    // Load authority hook components from Formidable fields
-                    $auth_mappings = $this->get_authority_hook_field_mappings();
-                    foreach (['who', 'result', 'when', 'how'] as $component) {
-                        if (isset($auth_mappings[$component])) {
-                            $field_id = $auth_mappings[$component];
-                            $value = $this->formidable_service->get_field_value($entry_id, $field_id);
-                            if (!empty($value)) {
-                                $template_data['authority_hook_components'][$component] = $value;
-                            }
-                        }
-                    }
-                    
-                    // Rebuild complete authority hook
-                    $template_data['authority_hook_components']['complete'] = $this->authority_hook_service->build_authority_hook($template_data['authority_hook_components']);
-                    
-                    error_log('MKCG Topics Generator: ✅ Successfully loaded data from Formidable');
-                    error_log('MKCG Topics Generator: Entry ID: ' . $template_data['entry_id']);
-                    error_log('MKCG Topics Generator: Topics loaded: ' . json_encode($template_data['form_field_values']));
-                    
-                } else {
-                    error_log('MKCG Topics Generator: ❌ Could not get entry ID from entry_key: ' . $entry_key);
-                }
-                
-            } catch (Exception $e) {
-                error_log('MKCG Topics Generator: ❌ Exception loading from Formidable: ' . $e->getMessage());
-            }
-        } elseif (!empty($entry_key) && !$this->formidable_service) {
-            error_log('MKCG Topics Generator: ❌ CRITICAL ERROR - Formidable service not available for entry_key: ' . $entry_key);
-        } elseif (empty($entry_key)) {
-            error_log('MKCG Topics Generator: No entry_key provided - using defaults');
-        }
-        
-        // STANDALONE MODE: Simple default handling
-        if ($template_data['entry_id'] === 0) {
-            error_log('MKCG Topics Generator: No entry found - using defaults');
-        } else {
-            error_log('MKCG Topics Generator: Entry found - using loaded data');
-        }
-        
-        return $template_data;
     }
     
     /**
@@ -610,7 +590,7 @@ The expert's area of expertise is: \"$authority_hook\".
     }
     
     /**
-     * CRITICAL FIX: Handle get topics data AJAX request using Topics Data Service
+     * UNIFIED AJAX: Handle get topics data request using Topics Data Service (same as Questions Generator)
      */
     public function handle_get_topics_data_ajax() {
         // Use centralized security validation
@@ -624,47 +604,53 @@ The expert's area of expertise is: \"$authority_hook\".
         $entry_key = isset($_POST['entry_key']) ? sanitize_text_field($_POST['entry_key']) : '';
         $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
         
-        error_log('MKCG Topics AJAX: Get topics data request - entry_id=' . $entry_id . ', entry_key=' . $entry_key . ', post_id=' . $post_id);
+        error_log('MKCG Topics AJAX: 🔄 UNIFIED - Get topics data request (entry_id=' . $entry_id . ', entry_key=' . $entry_key . ', post_id=' . $post_id . ')');
         
-        // CRITICAL FIX: Use Topics Data Service (same as Questions Generator)
+        // ROOT LEVEL FIX: Use Topics Data Service for consistent data loading (same as Questions Generator)
         if ($this->is_topics_service_available()) {
             try {
-                // Use Topics Data Service for consistent data loading
+                error_log('MKCG Topics AJAX: Using UNIFIED Topics Data Service');
                 $result = $this->topics_data_service->get_topics_data($entry_id, $entry_key, $post_id);
                 
                 if ($result['success']) {
+                    error_log('MKCG Topics AJAX: ✅ SUCCESS - Unified service returned data');
                     wp_send_json_success([
                         'entry_id' => $result['entry_id'],
                         'authority_hook' => $result['authority_hook'],
                         'topics' => $result['topics'],
                         'has_entry' => true,
                         'data_quality' => $result['data_quality'],
-                        'source' => $result['source']
+                        'source' => $result['source'],
+                        'unified_service' => true // Flag to indicate unified service usage
                     ]);
                 } else {
+                    error_log('MKCG Topics AJAX: ⚠️ Unified service failed: ' . ($result['message'] ?? 'Unknown error'));
                     wp_send_json_error([
-                        'message' => $result['message'] ?? 'Failed to load topics data',
+                        'message' => $result['message'] ?? 'Failed to load topics data via unified service',
                         'entry_key' => $entry_key,
-                        'entry_id' => $entry_id
+                        'entry_id' => $entry_id,
+                        'unified_service' => true
                     ]);
                 }
             } catch (Exception $e) {
-                error_log('MKCG Topics AJAX: Exception in Topics Data Service: ' . $e->getMessage());
+                error_log('MKCG Topics AJAX: ❌ Exception in unified Topics Data Service: ' . $e->getMessage());
                 wp_send_json_error([
-                    'message' => 'Service error: ' . $e->getMessage()
+                    'message' => 'Unified service error: ' . $e->getMessage(),
+                    'unified_service' => true
                 ]);
             }
         } else {
-            error_log('MKCG Topics AJAX: Topics Data Service not available - using fallback');
+            error_log('MKCG Topics AJAX: ❌ Topics Data Service not available - check initialization');
             wp_send_json_error([
-                'message' => 'Topics Data Service not available',
-                'fallback' => true
+                'message' => 'Topics Data Service not available - check service initialization',
+                'fallback' => true,
+                'unified_service' => false
             ]);
         }
     }
     
     /**
-     * CRITICAL FIX: Handle save topics data AJAX request
+     * UNIFIED AJAX: Handle save topics data request using Topics Data Service (same as Questions Generator)
      */
     public function handle_save_topics_data_ajax() {
         // Use centralized security validation
@@ -683,18 +669,57 @@ The expert's area of expertise is: \"$authority_hook\".
             return;
         }
         
-        // Delegate to unified service if available
-        if ($this->unified_data_service) {
-            $topics_service = $this->unified_data_service->get_topics_service();
-            $result = $topics_service->save_topics_data($topics, $post_id, $entry_id);
-            
-            if ($result['success']) {
-                wp_send_json_success($result);
-            } else {
-                wp_send_json_error($result);
+        error_log('MKCG Topics AJAX: 🔄 UNIFIED - Save topics data request (post_id=' . $post_id . ', entry_id=' . $entry_id . ')');
+        
+        // ROOT LEVEL FIX: Use Topics Data Service for consistent data saving (same as Questions Generator)
+        if ($this->is_topics_service_available()) {
+            try {
+                error_log('MKCG Topics AJAX: Using UNIFIED Topics Data Service for save');
+                
+                // Convert topics to format expected by unified service
+                $topics_data = [];
+                if (is_array($topics)) {
+                    for ($i = 1; $i <= 5; $i++) {
+                        $topic_key = 'topic_' . $i;
+                        if (isset($topics[$topic_key])) {
+                            $topics_data[$i] = $topics[$topic_key];
+                        }
+                    }
+                }
+                
+                // Use the unified service directly (like Questions Generator)
+                $result = $this->topics_data_service->save_topics_data($topics_data, $post_id, $entry_id);
+                
+                if ($result['success']) {
+                    error_log('MKCG Topics AJAX: ✅ SUCCESS - Topics saved via unified service');
+                    wp_send_json_success([
+                        'message' => 'Topics saved successfully via unified service',
+                        'saved_count' => $result['saved_count'],
+                        'post_id' => $post_id,
+                        'entry_id' => $entry_id,
+                        'unified_service' => true
+                    ]);
+                } else {
+                    error_log('MKCG Topics AJAX: ⚠️ Unified service save failed: ' . json_encode($result['errors'] ?? []));
+                    wp_send_json_error([
+                        'message' => 'Failed to save topics via unified service',
+                        'errors' => $result['errors'] ?? [],
+                        'unified_service' => true
+                    ]);
+                }
+            } catch (Exception $e) {
+                error_log('MKCG Topics AJAX: ❌ Exception during unified save: ' . $e->getMessage());
+                wp_send_json_error([
+                    'message' => 'Unified service save error: ' . $e->getMessage(),
+                    'unified_service' => true
+                ]);
             }
         } else {
-            wp_send_json_error(['message' => 'Unified data service not available']);
+            error_log('MKCG Topics AJAX: ❌ Topics Data Service not available for save');
+            wp_send_json_error([
+                'message' => 'Topics Data Service not available for save operation',
+                'unified_service' => false
+            ]);
         }
     }
     
