@@ -9,22 +9,16 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// ARCHITECTURAL FIX: Use generator class for data loading instead of inline logic
+// STANDALONE MODE: Simplified data loading for standalone operation
 $template_data = [];
 
+// Try to get data from generator instance if available
 if (isset($generator_instance) && method_exists($generator_instance, 'get_template_data')) {
-    // Use the Topics Generator instance to get template data
-    $template_data = $generator_instance->get_template_data();
-} elseif (isset($generator_type) && $generator_type === 'topics') {
-    // Fallback: Try to get generator from global scope
-    global $mkcg_topics_generator;
-    if (isset($mkcg_topics_generator)) {
-        $template_data = $mkcg_topics_generator->get_template_data();
-    }
-}
-
-// Fallback: If generator not available, create minimal structure
-if (empty($template_data)) {
+    $entry_key = isset($_GET['entry']) ? sanitize_text_field($_GET['entry']) : '';
+    $template_data = $generator_instance->get_template_data($entry_key);
+    error_log('MKCG Topics Template: Got data from generator instance');
+} else {
+    // Fallback: Create default structure
     $entry_key = isset($_GET['entry']) ? sanitize_text_field($_GET['entry']) : '';
     $template_data = [
         'entry_id' => 0,
@@ -432,11 +426,10 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
 <!-- Pass PHP data to JavaScript -->
 <script type="text/javascript">
     // MKCG Debug Info
-    console.log('🎯 MKCG Topics: Template data loading...', {
+    console.log('🎯 MKCG Topics: Template data loaded', {
         entryId: <?php echo intval($entry_id); ?>,
         entryKey: '<?php echo esc_js($entry_key); ?>',
-        hasEntry: <?php echo $entry_id > 0 ? 'true' : 'false'; ?>,
-        templateLoadTime: new Date().toISOString()
+        hasEntry: <?php echo $entry_id > 0 ? 'true' : 'false'; ?>
     });
     
     window.MKCG_Topics_Data = {

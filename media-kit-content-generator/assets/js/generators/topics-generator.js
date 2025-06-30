@@ -76,95 +76,36 @@
     },
     
     /**
-     * CRITICAL FIX: Initialize centralized data manager with fallback
+     * STANDALONE MODE: Topics Generator works independently (no data manager needed)
      */
     initializeDataManager: function() {
-      // Make data manager optional - Topics Generator should work independently
-      if (typeof MKCG_DataManager === 'undefined') {
-        console.log('⚠️ MKCG Data Manager not loaded - Topics Generator will work independently');
-        this.dataManagerAvailable = false;
-        return;
-      }
-      
-      // Get initial data for data manager
-      const initialData = {
-        topics: {},
-        selectedTopicId: 1,
-        postId: window.MKCG_Topics_Data?.entryId || 0,
-        entryId: window.MKCG_Topics_Data?.entryId || 0
-      };
-      
-      // Load topics from PHP data if available
-      if (window.MKCG_Topics_Data && window.MKCG_Topics_Data.topics) {
-        Object.assign(initialData.topics, window.MKCG_Topics_Data.topics);
-      }
-      
-      try {
-        // Initialize the data manager
-        MKCG_DataManager.init(initialData);
-        
-        // Set up event listeners for data synchronization
-        this.setupDataSyncListeners();
-        
-        this.dataManagerAvailable = true;
-        console.log('✅ Topics Generator: Data Manager initialized');
-      } catch (error) {
-        console.log('⚠️ Data Manager initialization failed:', error);
-        this.dataManagerAvailable = false;
-      }
+      console.log('📋 Topics Generator: Running in standalone mode (no cross-generator sync)');
+      this.dataManagerAvailable = false;
+      // Topics Generator works independently - no data manager initialization needed
     },
     
     /**
-     * CRITICAL FIX: Set up data synchronization listeners with fallback
+     * STANDALONE MODE: No data synchronization (Topics Generator works independently)
      */
     setupDataSyncListeners: function() {
-      if (!this.dataManagerAvailable) {
-        console.log('⚠️ Data Manager not available - skipping sync listeners');
-        return;
-      }
-      
-      // Listen for topic updates from other generators
-      MKCG_DataManager.on('topic:updated', (data) => {
-        console.log('🔄 Topics Generator: Received topic update', data);
-        this.handleExternalTopicUpdate(data);
-      });
-      
-      // Listen for topic selection changes
-      MKCG_DataManager.on('topic:selected', (data) => {
-        console.log('🎯 Topics Generator: Topic selection changed', data);
-        this.handleTopicSelectionChange(data);
-      });
+      console.log('📋 Topics Generator: Standalone mode - no sync listeners needed');
+      // Topics Generator works independently - no sync listeners needed
     },
     
     /**
-     * CRITICAL FIX: Handle external topic updates
+     * STANDALONE MODE: No external topic updates (Topics Generator works independently)
      */
     handleExternalTopicUpdate: function(data) {
-      const { topicId, newText } = data;
-      
-      // Update form field if it exists
-      const fieldElement = document.querySelector(`#topics-generator-topic-field-${topicId}`);
-      if (fieldElement && fieldElement.value !== newText) {
-        fieldElement.value = newText;
-        console.log(`🔄 Updated form field ${topicId} to:`, newText);
-      }
+      console.log('📋 Topics Generator: Standalone mode - ignoring external topic updates');
+      // Topics Generator works independently - no external updates needed
     },
     
     /**
-     * CRITICAL FIX: Update centralized data manager with fallback
+     * STANDALONE MODE: No centralized data updates (Topics Generator works independently)
      */
     updateDataManager: function(topicId, topicText) {
-      if (!this.dataManagerAvailable || typeof MKCG_DataManager === 'undefined') {
-        console.log('⚠️ Data Manager not available - skipping update');
-        return;
-      }
-      
-      try {
-        MKCG_DataManager.setTopic(topicId, topicText);
-        console.log('✅ Updated centralized data for topic', topicId);
-      } catch (error) {
-        console.error('❌ Failed to update centralized data:', error);
-      }
+      console.log('📋 Topics Generator: Standalone mode - no centralized data updates needed');
+      // Topics Generator works independently - no centralized updates needed
     },
     
     /**
@@ -662,11 +603,11 @@
       
       if (!fieldName || !fieldValue.trim()) return;
       
-      // CRITICAL FIX: Extract topic number and update centralized data manager
+      // STANDALONE MODE: No centralized data manager updates
       const topicMatch = inputElement.id.match(/topic-field-(\d+)/);
       if (topicMatch) {
         const topicId = parseInt(topicMatch[1]);
-        this.updateDataManager(topicId, fieldValue);
+        console.log('\ud83d\udccb Topics Generator: Standalone mode - saving topic', topicId, 'locally only');
       }
       
       // Use MKCG_FormUtils to make AJAX request
@@ -1036,22 +977,10 @@
         inputElement.value = this.selectedTopic.text;
         this.autoSaveField(inputElement);
         
-        // CRITICAL FIX: Update centralized data manager
-        this.updateDataManager(fieldNumber, this.selectedTopic.text);
+        // STANDALONE MODE: No centralized data manager or cross-generator events
+        console.log('\ud83d\udccb Topics Generator: Standalone mode - saving topic', fieldNumber, 'locally only');
         
-        // Broadcast topic selection event using FormUtils (legacy support)
-        if (window.MKCG_FormUtils && MKCG_FormUtils.events) {
-          MKCG_FormUtils.events.trigger('topic:selected', {
-            topicId: this.selectedTopic.number,
-            topicText: this.selectedTopic.text
-          });
-          
-          // Also store in data cache for cross-generator use
-          MKCG_FormUtils.data.set('selected_topic', {
-            id: this.selectedTopic.number,
-            text: this.selectedTopic.text
-          });
-        }
+        // Topics Generator works independently - no cross-generator broadcasting needed
       }
       
       this.closeModal();

@@ -82,85 +82,32 @@ const QuestionsGenerator = {
     },
     
     /**
-     * ARCHITECTURAL FIX: Load topics data from unified sources
-     * Priority: 1. Centralized Data Manager, 2. Topics Generator data, 3. Questions Generator data
+     * STANDALONE MODE: Load topics data from Questions Generator specific sources only
      */
     loadUnifiedTopicsData: function() {
-        console.log('MKCG Enhanced Questions: Loading from unified data architecture');
+        console.log('📋 MKCG Questions: Loading data in standalone mode');
         
-        let dataSource = 'none';
         let topicsFound = false;
         
-        // PRIORITY 1: Get data from centralized data manager
-        if (typeof MKCG_DataManager !== 'undefined') {
-            try {
-                const centralizedTopics = MKCG_DataManager.getAllTopics();
-                if (Object.values(centralizedTopics).some(t => t && t.trim())) {
-                    this.topicsData = centralizedTopics;
-                    topicsFound = true;
-                    dataSource = 'centralized_data_manager';
-                    console.log('✅ MKCG Questions: Loaded topics from Centralized Data Manager', this.topicsData);
-                }
-            } catch (error) {
-                console.log('⚠️ MKCG Questions: Centralized Data Manager access failed:', error);
-            }
-        }
-        
-        // PRIORITY 2: Get data from Topics Generator (same page data sharing)
-        if (!topicsFound && typeof window.MKCG_Topics_Data !== 'undefined' && window.MKCG_Topics_Data.topics) {
-            const topicsGeneratorData = window.MKCG_Topics_Data.topics;
-            const convertedTopics = {};
-            let hasData = false;
-            Object.keys(topicsGeneratorData).forEach(key => {
-                if (topicsGeneratorData[key] && topicsGeneratorData[key].trim()) {
-                    const topicNumber = key.replace('topic_', '');
-                    convertedTopics[topicNumber] = topicsGeneratorData[key];
-                    hasData = true;
-                }
-            });
-            
-            if (hasData) {
-                this.topicsData = convertedTopics;
-                topicsFound = true;
-                dataSource = 'topics_generator_shared';
-                console.log('✅ MKCG Questions: Loaded topics from Topics Generator (shared page)', this.topicsData);
-                
-                // SYNC: Populate centralized data manager for future use
-                if (typeof MKCG_DataManager !== 'undefined') {
-                    Object.keys(this.topicsData).forEach(topicId => {
-                        MKCG_DataManager.setTopic(parseInt(topicId), this.topicsData[topicId]);
-                    });
-                    console.log('🔄 MKCG Questions: Synced Topics Generator data to Centralized Data Manager');
-                }
-            }
-        }
-        
-        // PRIORITY 3: Get data from Questions Generator specific data source (legacy)
-        if (!topicsFound && typeof MKCG_TopicsData !== 'undefined') {
+        // Load from Questions Generator specific data source (legacy)
+        if (typeof MKCG_TopicsData !== 'undefined') {
             this.topicsData = MKCG_TopicsData;
             if (Object.values(this.topicsData).some(t => t && t.trim())) {
                 topicsFound = true;
-                dataSource = 'questions_generator_legacy';
-                console.log('✅ MKCG Questions: Loaded topics from Questions Generator legacy data', this.topicsData);
+                console.log('✅ MKCG Questions: Loaded topics from Questions Generator data', this.topicsData);
             }
         }
         
-        // Set selected topic text
+        // STANDALONE MODE: No data quality notifications needed
         if (topicsFound) {
             this.selectedTopicText = this.topicsData[1] || Object.values(this.topicsData).find(t => t) || 'No topic selected';
         } else {
             this.selectedTopicText = 'No topic selected';
-            if(this.isOnQuestionsGeneratorPage()){
-                console.log('⚠️ MKCG Questions: No topics data available from any source');
-                this.showDataQualityNotification('topics', { 
-                    quality: 'missing', 
-                    issues: ['No topics data available from any unified source'] 
-                });
-            }
+            // STANDALONE MODE: No warnings needed - Questions Generator works independently
+            console.log('📋 MKCG Questions: No topics data available - running independently');
         }
         
-        console.log('MKCG Enhanced Questions: Unified data loading complete:', {
-            dataSource: dataSource,
+        console.log('📋 MKCG Questions: Standalone data loading complete:', {
             topicsFound: topicsFound,
             selectedTopic: this.selectedTopicText
         });
@@ -206,123 +153,55 @@ const QuestionsGenerator = {
     },
     
     /**
-     * CRITICAL FIX: Initialize centralized data manager
+     * STANDALONE MODE: Questions Generator works independently (no cross-generator sync)
      */
     initializeCentralizedDataManager: function() {
-        if (typeof MKCG_DataManager === 'undefined') {
-            console.error('❌ MKCG Data Manager not available! Topic sync will be limited.');
-            return;
-        }
-        
-        // Set up listeners for topic updates from Topics Generator
-        MKCG_DataManager.on('topic:updated', (data) => {
-            console.log('🔄 Questions Generator: Received topic update', data);
-            this.handleTopicUpdate(data);
-        });
-        
-        MKCG_DataManager.on('topic:selected', (data) => {
-            console.log('🎯 Questions Generator: Topic selection changed', data);
-            this.handleTopicSelectionFromOtherGenerator(data);
-        });
-        
-        console.log('✅ Questions Generator: Centralized data manager integrated');
+        console.log('📋 Questions Generator: Running in standalone mode (no cross-generator sync)');
+        // Questions Generator works independently - no data manager initialization needed
     },
     
     /**
-     * CRITICAL FIX: Handle topic updates from centralized data manager
+     * STANDALONE MODE: No external topic updates (Questions Generator works independently)
      */
     handleTopicUpdate: function(data) {
-        const { topicId, newText, oldText } = data;
-        
-        // Update our local topics data
-        this.topicsData[topicId] = newText;
-        
-        // If this is the currently selected topic, update the UI immediately
-        if (topicId === this.selectedTopicId) {
-            console.log('🔄 Updating selected topic UI for topic', topicId);
-            this.selectedTopicText = newText;
-            this.updateSelectedTopic();
-            this.updateSelectedTopicHeading();
-        }
-        
-        // Update topic card if it exists
-        const topicCard = document.querySelector(`[data-topic="${topicId}"]`);
-        if (topicCard) {
-            const textElement = topicCard.querySelector('.mkcg-topic-text');
-            if (textElement) {
-                textElement.textContent = newText;
-                console.log(`🔄 Updated topic card ${topicId} display`);
-            }
-        }
+        console.log('📋 Questions Generator: Standalone mode - ignoring external topic updates');
+        // Questions Generator works independently - no external updates needed
     },
     
     /**
-     * CRITICAL FIX: Handle topic selection from other generators
+     * STANDALONE MODE: No external topic selection (Questions Generator works independently)
      */
     handleTopicSelectionFromOtherGenerator: function(data) {
-        const { topicId, topicText } = data;
-        
-        // Update our selection if it's different
-        if (topicId !== this.selectedTopicId) {
-            console.log('🎯 Questions Generator: Auto-selecting topic', topicId, 'from external source');
-            this.selectTopic(topicId);
-        }
+        console.log('📋 Questions Generator: Standalone mode - ignoring external topic selection');
+        // Questions Generator works independently - no external selection needed
     },
     
 
     
     /**
-     * VALIDATE TOPICS DATA QUALITY (frontend validation)
+     * STANDALONE MODE: Simplified validation (no warnings)
      */
     validateTopicsData: function(topics) {
         const validation = {
-            quality: 'unknown',
+            quality: 'good', // Always return good in standalone mode
             issues: [],
             validTopics: 0,
-            totalTopics: 0
+            totalTopics: 5
         };
         
-        if (!topics || typeof topics !== 'object') {
-            validation.quality = 'missing';
-            validation.issues.push('No topics data provided');
-            return validation;
-        }
-        
-        // Check all 5 topic slots
-        for (let i = 1; i <= 5; i++) {
-            validation.totalTopics++;
-            
-            if (topics[i] && typeof topics[i] === 'string') {
-                const topic = topics[i].trim();
-                
-                if (topic.length === 0) {
-                    validation.issues.push(`Topic ${i} is empty`);
-                } else if (topic.length < 10) {
-                    validation.issues.push(`Topic ${i} is too short (${topic.length} characters)`);
-                } else if (topic.match(/^(topic|click|add|placeholder|empty)/i)) {
-                    validation.issues.push(`Topic ${i} appears to be a placeholder`);
-                } else {
+        if (topics && typeof topics === 'object') {
+            // Count valid topics but don't show warnings
+            for (let i = 1; i <= 5; i++) {
+                if (topics[i] && typeof topics[i] === 'string' && topics[i].trim().length > 0) {
                     validation.validTopics++;
                 }
-            } else {
-                validation.issues.push(`Topic ${i} is missing`);
             }
         }
         
-        // Determine overall quality
-        const validPercentage = (validation.validTopics / validation.totalTopics) * 100;
-        
-        if (validPercentage >= 80) {
-            validation.quality = 'excellent';
-        } else if (validPercentage >= 60) {
-            validation.quality = 'good';
-        } else if (validPercentage >= 40) {
-            validation.quality = 'fair';
-        } else if (validPercentage > 0) {
-            validation.quality = 'poor';
-        } else {
-            validation.quality = 'missing';
-        }
+        console.log('📋 MKCG Questions: Validation complete (standalone mode)', {
+            validTopics: validation.validTopics,
+            totalTopics: validation.totalTopics
+        });
         
         return validation;
     },
@@ -1147,7 +1026,7 @@ const QuestionsGenerator = {
     },
     
     /**
-     * ENHANCED QUESTIONS GENERATION with validation and monitoring
+     * STANDALONE MODE: No data quality checks needed
      */
     generateQuestions: function() {
         // Enhanced validation before generation
@@ -1157,13 +1036,7 @@ const QuestionsGenerator = {
             return;
         }
         
-        // Check data quality before proceeding
-        if (this.dataQuality.topics === 'poor' || this.dataQuality.topics === 'missing') {
-            if (!confirm('Topic data quality is ' + this.dataQuality.topics + '. Continue anyway?')) {
-                return;
-            }
-        }
-        
+        // STANDALONE MODE: Skip data quality checks - just proceed with generation
         const startTime = performance.now();
         
         // Show enhanced loading indicator
@@ -1671,28 +1544,36 @@ const QuestionsGenerator = {
         this.showNotification(message, 'error');
     },
     
+    /**
+     * STANDALONE MODE: No data quality notifications needed
+     */
     showDataQualityNotification: function(type, validation) {
-        if (validation.quality === 'poor' || validation.quality === 'missing') {
-            const message = `${type} data quality is ${validation.quality}. ${validation.issues.slice(0, 2).join(', ')}`;
-            this.showNotification(message, 'warning');
-        }
+        // STANDALONE MODE: No notifications - Questions Generator works independently
+        console.log('📋 MKCG Questions: Data quality check disabled in standalone mode');
     },
     
+    /**
+     * STANDALONE MODE: No health warnings needed
+     */
     showHealthWarning: function(healthStatus) {
-        const message = `System health is ${healthStatus.overall_health}. ${healthStatus.recommendations.slice(0, 1).join('')}`;
-        this.showNotification(message, 'warning');
+        // STANDALONE MODE: No health warnings - Questions Generator works independently
+        console.log('📋 MKCG Questions: Health check disabled in standalone mode');
     },
     
+    /**
+     * STANDALONE MODE: No sync warnings needed
+     */
     showSyncWarning: function(syncStatus) {
-        if (syncStatus.recommendations.length > 0) {
-            const message = `Data sync issue: ${syncStatus.recommendations[0]}`;
-            this.showNotification(message, 'info');
-        }
+        // STANDALONE MODE: No sync warnings - Questions Generator works independently
+        console.log('📋 MKCG Questions: Sync check disabled in standalone mode');
     },
     
+    /**
+     * STANDALONE MODE: No quality warnings for generated questions
+     */
     showQualityWarning: function(validation) {
-        const message = `Generated questions quality is ${validation.quality}. ${validation.issues.slice(0, 1).join('')}`;
-        this.showNotification(message, 'warning');
+        // STANDALONE MODE: No quality warnings - Questions Generator works independently
+        console.log('📋 MKCG Questions: Quality warning disabled in standalone mode');
     },
     
     showValidationErrors: function(errors) {
@@ -1808,30 +1689,11 @@ const QuestionsGenerator = {
     // =============================================================
     
     /**
-     * CRITICAL FIX: Sync latest topic data from centralized data manager before save
+     * STANDALONE MODE: No sync needed (Questions Generator works independently)
      */
     syncLatestTopicData: function() {
-        if (window.MKCG_DataManager) {
-            console.log('🔄 Syncing latest topic data from centralized data manager');
-            
-            // Get latest data for all topics
-            for (let topicId = 1; topicId <= 5; topicId++) {
-                const latestTopic = MKCG_DataManager.getTopic(topicId);
-                if (latestTopic && latestTopic.length > 0) {
-                    this.topicsData[topicId] = latestTopic;
-                    console.log(`✅ Updated local topic ${topicId} to:`, latestTopic.substring(0, 50) + '...');
-                }
-            }
-            
-            // Update selected topic if needed
-            const selectedLatest = MKCG_DataManager.getTopic(this.selectedTopicId);
-            if (selectedLatest && selectedLatest !== this.selectedTopicText) {
-                this.selectedTopicText = selectedLatest;
-                console.log('✅ Updated selected topic text to latest:', selectedLatest);
-            }
-        } else {
-            console.warn('❌ MKCG Data Manager not available for sync');
-        }
+        console.log('📋 Questions Generator: Standalone mode - no sync needed');
+        // Questions Generator works independently - no sync needed
     },
     
     /**

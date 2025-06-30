@@ -157,11 +157,22 @@ window.MKCG_DataManager = (function() {
         setTopic: function(topicId, topicText, options = {}) {
             logger.log('info', 'topics', `Setting topic ${topicId}`, { topicText, options });
             
-            // Validation
+            // CRITICAL FIX: Enhanced validation with placeholder text handling
             const validation = validator.validateTopic(topicId, topicText);
             if (!validation.valid && !options.skipValidation) {
-                logger.log('error', 'topics', 'Topic validation failed', validation.errors);
-                throw new Error('Topic validation failed: ' + validation.errors.join(', '));
+                // CRITICAL FIX: Allow placeholder text for empty topics - just mark as placeholder
+                const hasPlaceholderError = validation.errors.some(error => 
+                    error.includes('placeholder text') || error.includes('empty'));
+                
+                if (hasPlaceholderError && validation.errors.length === 1) {
+                    // This is just placeholder text - allow it but mark it
+                    logger.log('warn', 'topics', `Allowing placeholder topic ${topicId}`, validation.errors);
+                    options.isPlaceholder = true;
+                } else {
+                    // Real validation errors - reject
+                    logger.log('error', 'topics', 'Topic validation failed', validation.errors);
+                    throw new Error('Topic validation failed: ' + validation.errors.join(', '));
+                }
             }
             
             // Store previous value for rollback
