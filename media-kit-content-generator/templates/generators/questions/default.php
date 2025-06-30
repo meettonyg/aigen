@@ -666,8 +666,6 @@ if (empty($available_topics) || count(array_filter($available_topics)) === 0) {
         entryId: <?php echo intval($entry_id); ?>,
         entryKey: '<?php echo esc_js($entry_key); ?>',
         hasEntry: <?php echo $entry_id > 0 ? 'true' : 'false'; ?>,
-        // The authority hook part can be omitted here if not directly used by the questions template,
-        // but we include topics which is the crucial part.
         authorityHook: {
              // This can be populated if needed, otherwise left empty.
         },
@@ -678,6 +676,48 @@ if (empty($available_topics) || count(array_filter($available_topics)) === 0) {
     };
     
     console.log('✅ MKCG Questions: Standardized data loaded into window.MKCG_Topics_Data', window.MKCG_Topics_Data);
+    
+    // UNIFIED: Data validation for standardized structure
+    function validateDataStructure(data) {
+        const validation = {
+            valid: true,
+            issues: [],
+            dataSource: data.dataSource || 'unknown'
+        };
+        
+        // Check required structure
+        if (!data.topics || typeof data.topics !== 'object') {
+            validation.valid = false;
+            validation.issues.push('Missing topics object');
+        } else {
+            // Validate unified topic format (numeric keys from PHP array)
+            const actualKeys = Object.keys(data.topics);
+            const hasTopicData = actualKeys.some(key => {
+                return data.topics[key] && data.topics[key].trim().length > 0;
+            });
+            
+            if (!hasTopicData) {
+                validation.issues.push('No topic data found');
+            } else {
+                console.log('✅ Topics data validation: Found data in', actualKeys.length, 'slots');
+            }
+        }
+        
+        // Check authority hook structure (optional)
+        if (!data.authorityHook || typeof data.authorityHook !== 'object') {
+            validation.issues.push('Authority hook object missing or empty (non-critical)');
+        }
+        
+        return validation;
+    }
+    
+    // Validate the data we just loaded
+    const validation = validateDataStructure(window.MKCG_Topics_Data);
+    if (!validation.valid) {
+        console.error('🚨 MKCG Questions: Data structure validation failed:', validation.issues);
+    } else {
+        console.log('✅ MKCG Questions: Data structure validation passed (source: ' + validation.dataSource + ')');
+    }
     
     // Enhanced initialization with error handling and debugging
     document.addEventListener('DOMContentLoaded', function() {
