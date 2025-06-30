@@ -43,7 +43,7 @@ class MKCG_Topics_Generator extends MKCG_Base_Generator {
             
             // Initialize Unified Data Service if available
             if (class_exists('MKCG_Unified_Data_Service')) {
-                $this->unified_data_service = new MKCG_Unified_Data_Service();
+                $this->unified_data_service = new MKCG_Unified_Data_Service($this->formidable_service);
                 error_log('MKCG Topics Generator: ✅ Unified Data Service initialized');
             } else {
                 error_log('MKCG Topics Generator: ⚠️ Unified Data Service class not available');
@@ -989,6 +989,199 @@ The expert's area of expertise is: \"$authority_hook\".
             }
         } else {
             wp_send_json_error(['message' => 'Formidable service not available']);
+        }
+    }
+    
+    /**
+     * UNIFIED: Fallback template data loading when service unavailable
+     */
+    private function get_template_data_fallback($entry_key, $template_data) {
+        error_log('MKCG Topics Generator: Using fallback template data loading');
+        
+        try {
+            // Get entry ID from entry key
+            $entry_data = $this->formidable_service->get_entry_data($entry_key);
+            
+            if (!empty($entry_data['entry_id'])) {
+                $entry_id = $entry_data['entry_id'];
+                $template_data['entry_id'] = $entry_id;
+                $template_data['has_entry'] = true;
+                
+                // Load topics from Formidable fields directly
+                $field_mappings = $this->get_field_mappings();
+                
+                foreach (['topic_1', 'topic_2', 'topic_3', 'topic_4', 'topic_5'] as $topic_key) {
+                    if (isset($field_mappings['fields'][$topic_key])) {
+                        $field_id = $field_mappings['fields'][$topic_key];
+                        $value = $this->formidable_service->get_field_value($entry_id, $field_id);
+                        if (!empty($value)) {
+                            $template_data['form_field_values'][$topic_key] = $value;
+                        }
+                    }
+                }
+                
+                // Load authority hook components from Formidable fields
+                $auth_mappings = $this->get_authority_hook_field_mappings();
+                foreach (['who', 'result', 'when', 'how'] as $component) {
+                    if (isset($auth_mappings[$component])) {
+                        $field_id = $auth_mappings[$component];
+                        $value = $this->formidable_service->get_field_value($entry_id, $field_id);
+                        if (!empty($value)) {
+                            $template_data['authority_hook_components'][$component] = $value;
+                        }
+                    }
+                }
+                
+                // Rebuild complete authority hook
+                if ($this->authority_hook_service) {
+                    $template_data['authority_hook_components']['complete'] = $this->authority_hook_service->build_authority_hook($template_data['authority_hook_components']);
+                }
+                
+                error_log('MKCG Topics Generator: ✅ Fallback data loading successful');
+            }
+        } catch (Exception $e) {
+            error_log('MKCG Topics Generator: ❌ Fallback loading failed: ' . $e->getMessage());
+        }
+        
+        return $template_data;
+    }
+    
+    /**
+     * UNIFIED: Save topics via unified service pattern
+     */
+    private function save_topics_via_unified_service($topics, $post_id, $entry_id) {
+        try {
+            $saved_count = 0;
+            
+            // Save to post meta (primary location)
+            foreach ($topics as $key => $value) {
+                if (!empty(trim($value))) {
+                    $meta_key = str_replace('_', '_', $key); // Ensure proper format
+                    $save_result = update_post_meta($post_id, $meta_key, trim($value));
+                    
+                    if ($save_result !== false) {
+                        $saved_count++;
+                    }
+                }
+            }
+            
+            // Update topics timestamp for sync tracking
+            if ($saved_count > 0) {
+                update_post_meta($post_id, '_mkcg_topics_updated', time());
+            }
+            
+            // Also save to Formidable entry if available
+            if ($entry_id && $saved_count > 0) {
+                $this->save_topics_to_formidable_entry($entry_id, $topics);
+            }
+            
+            return [
+                'success' => $saved_count > 0,
+                'saved_count' => $saved_count,
+                'message' => $saved_count > 0 ? "Saved {$saved_count} topics successfully" : 'No topics saved'
+            ];
+            
+        } catch (Exception $e) {
+            error_log('MKCG Topics: Exception in save_topics_via_unified_service: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Save failed: ' . $e->getMessage()
+            ];
+        }
+    }
+    
+    /**
+     * UNIFIED: Save topics to Formidable entry fields
+     */
+    private function save_topics_to_formidable_entry($entry_id, $topics) {
+        try {
+            $field_mappings = $this->get_field_mappings();
+            $saved_count = 0;
+            
+            foreach ($topics as $key => $value) {
+                if (isset($field_mappings['fields'][$key]) && !empty(trim($value))) {
+                    $field_id = $field_mappings['fields'][$key];
+                    $result = $this->save_single_topic_to_formidable($entry_id, $field_id, trim($value));
+                    
+                    if ($result) {
+                        $saved_count++;
+                    }
+                }
+            }
+            
+            error_log("MKCG Topics: Saved {$saved_count} topics to Formidable entry {$entry_id}");
+            return $saved_count;
+            
+        } catch (Exception $e) {
+            error_log('MKCG Topics: Exception saving to Formidable entry: ' . $e->getMessage());
+            return 0;
+        }
+    }
+    
+    /**
+     * UNIFIED: Save single topic to Formidable field (by topic number)
+     */
+    private function save_single_topic_to_formidable($entry_id, $topic_number, $topic_text) {
+        try {
+            // Get field ID for this topic number
+            $field_mappings = $this->get_field_mappings();
+            $topic_key = 'topic_' . $topic_number;
+            
+            if (isset($field_mappings['fields'][$topic_key])) {
+                $field_id = $field_mappings['fields'][$topic_key];
+                return $this->save_single_field_to_formidable($entry_id, $field_id, $topic_text);
+            }
+            
+            return false;
+            
+        } catch (Exception $e) {
+            error_log('MKCG Topics: Exception in save_single_topic_to_formidable: ' . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * UNIFIED: Save single field to Formidable database directly
+     */
+    private function save_single_field_to_formidable($entry_id, $field_id, $value) {
+        global $wpdb;
+        
+        try {
+            $table = $wpdb->prefix . 'frm_item_metas';
+            
+            // Check if field already exists
+            $existing = $wpdb->get_var($wpdb->prepare(
+                "SELECT meta_value FROM {$table} WHERE item_id = %d AND field_id = %d",
+                $entry_id, $field_id
+            ));
+            
+            if ($existing !== null) {
+                // Update existing field
+                $result = $wpdb->update(
+                    $table,
+                    ['meta_value' => $value],
+                    ['item_id' => $entry_id, 'field_id' => $field_id],
+                    ['%s'],
+                    ['%d', '%d']
+                );
+            } else {
+                // Insert new field
+                $result = $wpdb->insert(
+                    $table,
+                    [
+                        'item_id' => $entry_id,
+                        'field_id' => $field_id,
+                        'meta_value' => $value
+                    ],
+                    ['%d', '%d', '%s']
+                );
+            }
+            
+            return $result !== false;
+            
+        } catch (Exception $e) {
+            error_log('MKCG Topics: Exception in save_single_field_to_formidable: ' . $e->getMessage());
+            return false;
         }
     }
 }
