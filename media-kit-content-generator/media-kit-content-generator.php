@@ -40,40 +40,57 @@ class Media_Kit_Content_Generator {
         $this->init_services();
         $this->init_generators();
         
-        // CRITICAL FIX: Initialize AJAX handlers IMMEDIATELY, not during init hook
-        $this->init_ajax_handlers();
+        // PHASE 1 TASK 2: Defer AJAX handler initialization to proper timing
+        add_action('init', [$this, 'init_ajax_handlers'], 20);
     }
     
     /**
-     * CRITICAL FIX: Initialize AJAX handlers IMMEDIATELY during plugin loading
-     * This must happen early, before WordPress processes AJAX requests
+     * PHASE 1 TASK 2: Initialize AJAX handlers at proper timing to prevent 500 errors
      */
-    private function init_ajax_handlers() {
-        error_log('MKCG: Starting IMMEDIATE AJAX handler initialization');
+    public function init_ajax_handlers() {
+        error_log('MKCG: Starting AJAX handler initialization at proper timing');
         
-        // Check if services and generators are available
-        if (!$this->api_service || !$this->formidable_service || !$this->authority_hook_service) {
-            error_log('MKCG: ⚠️ Services not available for AJAX handler initialization');
-            return;
-        }
-        
-        // Check if Topics Generator is available
-        if (!isset($this->generators['topics'])) {
-            error_log('MKCG: ⚠️ Topics Generator not available for AJAX handler initialization');
-            return;
-        }
-        
-        // Initialize AJAX handlers with enhanced error handling
-        if (class_exists('MKCG_Topics_AJAX_Handlers')) {
-            try {
-                new MKCG_Topics_AJAX_Handlers($this->generators['topics']);
-                error_log('MKCG: ✅ Topics AJAX Handlers initialized IMMEDIATELY during plugin load');
-            } catch (Exception $e) {
-                error_log('MKCG: ❌ Failed to initialize Topics AJAX Handlers IMMEDIATELY: ' . $e->getMessage());
+        try {
+            // PHASE 1: Validate that all required components are available
+            if (!$this->api_service || !$this->formidable_service || !$this->authority_hook_service) {
+                error_log('MKCG: ⚠️ Core services not available for AJAX handler initialization');
+                // Schedule retry for later
+                add_action('wp_loaded', [$this, 'retry_ajax_handlers_init'], 10);
+                return;
             }
-        } else {
-            error_log('MKCG: ⚠️ MKCG_Topics_AJAX_Handlers class not available during immediate initialization');
+            
+            // PHASE 1: Check if Topics Generator is properly initialized
+            if (!isset($this->generators['topics']) || !is_object($this->generators['topics'])) {
+                error_log('MKCG: ⚠️ Topics Generator not properly initialized for AJAX handlers');
+                // Schedule retry for later
+                add_action('wp_loaded', [$this, 'retry_ajax_handlers_init'], 10);
+                return;
+            }
+            
+            // PHASE 1: Initialize AJAX handlers with comprehensive error handling
+            if (class_exists('MKCG_Topics_AJAX_Handlers')) {
+                try {
+                    new MKCG_Topics_AJAX_Handlers($this->generators['topics']);
+                    error_log('MKCG: ✅ Topics AJAX Handlers initialized successfully at proper timing');
+                } catch (Exception $e) {
+                    error_log('MKCG: ❌ Failed to initialize Topics AJAX Handlers: ' . $e->getMessage());
+                    error_log('MKCG: Stack trace: ' . $e->getTraceAsString());
+                }
+            } else {
+                error_log('MKCG: ❌ MKCG_Topics_AJAX_Handlers class not available');
+            }
+            
+        } catch (Exception $e) {
+            error_log('MKCG: ❌ Critical error in init_ajax_handlers: ' . $e->getMessage());
         }
+    }
+    
+    /**
+     * PHASE 1 TASK 2: Retry AJAX handlers initialization if first attempt failed
+     */
+    public function retry_ajax_handlers_init() {
+        error_log('MKCG: Retrying AJAX handlers initialization');
+        $this->init_ajax_handlers();
     }
     
     private function init_hooks() {

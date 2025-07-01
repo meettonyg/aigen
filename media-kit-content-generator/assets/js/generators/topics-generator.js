@@ -1,7 +1,15 @@
 /**
  * Topics Generator JavaScript - BEM Methodology
  * Handles topics generation with Authority Hook Builder integration
- * Version: 2.0.0 - BEM Update
+ * Version: 2.1.0 - PHASE 2 Enhanced Error Recovery & Retry Mechanisms
+ * 
+ * PHASE 2 ENHANCEMENTS:
+ * - Exponential backoff retry system
+ * - Advanced connection monitoring
+ * - Intelligent error recovery
+ * - Enhanced user feedback systems
+ * - Circuit breaker pattern for failed requests
+ * - 95%+ AJAX success rate target
  */
 
 (function() {
@@ -60,11 +68,38 @@
     generatedTopics: [],
     selectedTopic: null,
     
+    // PHASE 2: Enhanced Error Recovery & Retry System
+    errorRecovery: {
+      retryAttempts: {},
+      circuitBreakers: {},
+      connectionMonitor: {
+        lastSuccessTime: Date.now(),
+        consecutiveFailures: 0,
+        isHealthy: true
+      },
+      backoffDelays: [1000, 2000, 4000, 8000, 16000], // Exponential backoff
+      maxRetries: 3,
+      healthCheckInterval: null
+    },
+    
+    // PHASE 2: Request queue for failed operations
+    requestQueue: {
+      pending: [],
+      processing: false,
+      maxQueueSize: 50
+    },
+    
     /**
      * Initialize the Topics Generator
      */
     init: function() {
-      console.log('🎯 Topics Generator: Initializing with centralized data manager');
+      console.log('🎯 Topics Generator: Initializing with PHASE 2 Enhanced Error Recovery');
+      
+      // PHASE 1 TASK 1: Validate enhanced modules and setup fallbacks
+      this.validateAndSetupEnhancedModules();
+      
+      // PHASE 2: Initialize Enhanced Error Recovery Systems
+      this.initializeErrorRecoverySystem();
       
       // CRITICAL FIX: Initialize centralized data manager first
       this.initializeDataManager();
@@ -74,6 +109,525 @@
       
       this.bindEvents();
       // Don't call updateAuthorityHook() here - let loadExistingData() handle it
+      
+      // PHASE 2: Start connection monitoring
+      this.startConnectionHealthMonitoring();
+      
+      console.log('✅ PHASE 2: Topics Generator initialized with enhanced error recovery');
+    },
+    
+    /**
+     * PHASE 1 TASK 1: Validate enhanced modules and setup comprehensive fallbacks
+     */
+    validateAndSetupEnhancedModules: function() {
+      console.log('🔍 Phase 1: Validating enhanced modules availability...');
+      
+      this.enhancedModules = {
+        ajax: null,
+        uiFeedback: null,
+        errorHandler: null,
+        validationManager: null,
+        offlineManager: null
+      };
+      
+      // Test and validate each enhanced module
+      try {
+        if (window.EnhancedAjaxManager && typeof window.EnhancedAjaxManager.makeRequest === 'function') {
+          this.enhancedModules.ajax = window.EnhancedAjaxManager;
+          console.log('✅ EnhancedAjaxManager validated');
+        } else {
+          console.log('⚠️ EnhancedAjaxManager not available - using fallback');
+        }
+        
+        if (window.EnhancedUIFeedback && typeof window.EnhancedUIFeedback.showToast === 'function') {
+          this.enhancedModules.uiFeedback = window.EnhancedUIFeedback;
+          console.log('✅ EnhancedUIFeedback validated');
+        } else {
+          console.log('⚠️ EnhancedUIFeedback not available - using fallback');
+        }
+        
+        if (window.EnhancedErrorHandler && typeof window.EnhancedErrorHandler.handleError === 'function') {
+          this.enhancedModules.errorHandler = window.EnhancedErrorHandler;
+          console.log('✅ EnhancedErrorHandler validated');
+        } else {
+          console.log('⚠️ EnhancedErrorHandler not available - using fallback');
+        }
+        
+        if (window.EnhancedValidationManager && typeof window.EnhancedValidationManager.validateField === 'function') {
+          this.enhancedModules.validationManager = window.EnhancedValidationManager;
+          console.log('✅ EnhancedValidationManager validated');
+        } else {
+          console.log('⚠️ EnhancedValidationManager not available - using fallback');
+        }
+        
+        if (window.MKCG_OfflineManager && typeof window.MKCG_OfflineManager.getNetworkStatus === 'function') {
+          this.enhancedModules.offlineManager = window.MKCG_OfflineManager;
+          console.log('✅ MKCG_OfflineManager validated');
+        } else {
+          console.log('⚠️ MKCG_OfflineManager not available - using fallback');
+        }
+        
+      } catch (error) {
+        console.error('❌ Error during enhanced module validation:', error);
+        // All modules will remain null, fallbacks will be used
+      }
+      
+      // Count available enhanced modules
+      const availableModules = Object.values(this.enhancedModules).filter(module => module !== null).length;
+      const totalModules = Object.keys(this.enhancedModules).length;
+      
+      console.log(`📊 Enhanced modules status: ${availableModules}/${totalModules} available`);
+      
+      if (availableModules === 0) {
+        console.log('⚠️ No enhanced modules available - running in basic compatibility mode');
+        this.enhancedMode = false;
+      } else if (availableModules < totalModules) {
+        console.log(`⚠️ Limited enhanced systems (${availableModules}/${totalModules}) - running in hybrid mode`);
+        this.enhancedMode = 'hybrid';
+      } else {
+        console.log('✅ Full enhanced system available - running in enhanced mode');
+        this.enhancedMode = true;
+      }
+      
+      // Set up module availability flags for easy checking
+      this.hasEnhancedAjax = !!this.enhancedModules.ajax;
+      this.hasEnhancedUI = !!this.enhancedModules.uiFeedback;
+      this.hasEnhancedValidation = !!this.enhancedModules.validationManager;
+      this.hasEnhancedOffline = !!this.enhancedModules.offlineManager;
+      
+      console.log('🎯 Phase 1 Task 1: Enhanced module validation complete');
+    },
+    
+    /**
+     * PHASE 2: Initialize Enhanced Error Recovery System
+     */
+    initializeErrorRecoverySystem: function() {
+      console.log('🔄 PHASE 2: Initializing Enhanced Error Recovery System');
+      
+      // Reset error recovery state
+      this.errorRecovery.retryAttempts = {};
+      this.errorRecovery.circuitBreakers = {};
+      this.errorRecovery.connectionMonitor = {
+        lastSuccessTime: Date.now(),
+        consecutiveFailures: 0,
+        isHealthy: true
+      };
+      
+      // Initialize request queue
+      this.requestQueue = {
+        pending: [],
+        processing: false,
+        maxQueueSize: 50
+      };
+      
+      // Set up error recovery event listeners
+      this.setupErrorRecoveryListeners();
+      
+      console.log('✅ PHASE 2: Error Recovery System initialized');
+    },
+    
+    /**
+     * PHASE 2: Setup Error Recovery Event Listeners
+     */
+    setupErrorRecoveryListeners: function() {
+      // Listen for window online/offline events
+      window.addEventListener('online', () => {
+        console.log('🌐 PHASE 2: Connection restored - processing queued requests');
+        this.onConnectionRestored();
+      });
+      
+      window.addEventListener('offline', () => {
+        console.log('📵 PHASE 2: Connection lost - enabling offline mode');
+        this.onConnectionLost();
+      });
+      
+      // Listen for unhandled promise rejections (failed AJAX)
+      window.addEventListener('unhandledrejection', (event) => {
+        console.log('⚠️ PHASE 2: Unhandled promise rejection detected:', event.reason);
+        this.handleUnhandledError(event.reason);
+      });
+    },
+    
+    /**
+     * PHASE 2: Start Connection Health Monitoring
+     */
+    startConnectionHealthMonitoring: function() {
+      console.log('🔍 PHASE 2: Starting connection health monitoring');
+      
+      // Health check every 30 seconds
+      this.errorRecovery.healthCheckInterval = setInterval(() => {
+        this.performHealthCheck();
+      }, 30000);
+      
+      // Initial health check
+      setTimeout(() => this.performHealthCheck(), 2000);
+    },
+    
+    /**
+     * PHASE 2: Perform Connection Health Check
+     */
+    performHealthCheck: function() {
+      const healthCheckData = {
+        action: 'mkcg_health_check',
+        nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || '',
+        timestamp: Date.now()
+      };
+      
+      this.makeEnhancedAjaxRequest('mkcg_health_check', healthCheckData, {
+        timeout: 5000,
+        context: 'health_check',
+        retryAttempts: 1,
+        onSuccess: (data) => {
+          this.updateConnectionHealth(true);
+          console.log('✅ PHASE 2: Health check passed');
+        },
+        onError: (error) => {
+          this.updateConnectionHealth(false);
+          console.log('❌ PHASE 2: Health check failed:', error);
+        }
+      });
+    },
+    
+    /**
+     * PHASE 2: Update Connection Health Status
+     */
+    updateConnectionHealth: function(isHealthy) {
+      const monitor = this.errorRecovery.connectionMonitor;
+      
+      if (isHealthy) {
+        monitor.lastSuccessTime = Date.now();
+        monitor.consecutiveFailures = 0;
+        monitor.isHealthy = true;
+        
+        // Process any queued requests
+        if (this.requestQueue.pending.length > 0) {
+          this.processQueuedRequests();
+        }
+      } else {
+        monitor.consecutiveFailures++;
+        monitor.isHealthy = false;
+        
+        // Show connection warning after 3 consecutive failures
+        if (monitor.consecutiveFailures >= 3) {
+          this.showConnectionWarning();
+        }
+      }
+    },
+    
+    /**
+     * PHASE 2: Handle Connection Restored
+     */
+    onConnectionRestored: function() {
+      this.updateConnectionHealth(true);
+      
+      this.showUserFeedback({
+        type: 'success',
+        title: 'Connection Restored',
+        message: 'Internet connection is back. Processing saved changes...',
+        duration: 3000
+      });
+      
+      // Process queued requests
+      this.processQueuedRequests();
+    },
+    
+    /**
+     * PHASE 2: Handle Connection Lost
+     */
+    onConnectionLost: function() {
+      this.updateConnectionHealth(false);
+      
+      this.showUserFeedback({
+        type: 'warning',
+        title: 'Connection Lost',
+        message: 'Working offline. Your changes will be saved when connection returns.',
+        duration: 5000
+      });
+    },
+    
+    /**
+     * PHASE 2: Show Connection Warning
+     */
+    showConnectionWarning: function() {
+      this.showUserFeedback({
+        type: 'warning',
+        title: 'Connection Issues Detected',
+        message: 'Having trouble reaching the server. Some features may be limited.',
+        actions: [
+          'Your work is being saved locally',
+          'Try refreshing if problems persist'
+        ],
+        duration: 8000
+      });
+    },
+    
+    /**
+     * PHASE 2: Process Queued Requests
+     */
+    processQueuedRequests: function() {
+      if (this.requestQueue.processing || this.requestQueue.pending.length === 0) {
+        return;
+      }
+      
+      console.log(`🔄 PHASE 2: Processing ${this.requestQueue.pending.length} queued requests`);
+      
+      this.requestQueue.processing = true;
+      
+      const processNext = () => {
+        if (this.requestQueue.pending.length === 0) {
+          this.requestQueue.processing = false;
+          console.log('✅ PHASE 2: All queued requests processed');
+          return;
+        }
+        
+        const request = this.requestQueue.pending.shift();
+        
+        this.makeEnhancedAjaxRequest(request.action, request.data, {
+          ...request.options,
+          onSuccess: (data) => {
+            console.log('✅ PHASE 2: Queued request completed:', request.action);
+            if (request.options.onSuccess) {
+              request.options.onSuccess(data);
+            }
+            setTimeout(processNext, 500); // Small delay between requests
+          },
+          onError: (error) => {
+            console.log('❌ PHASE 2: Queued request failed:', request.action, error);
+            if (request.options.onError) {
+              request.options.onError(error);
+            }
+            setTimeout(processNext, 1000); // Longer delay after failure
+          }
+        });
+      };
+      
+      processNext();
+    },
+    
+    /**
+     * PHASE 2: Queue Request for Later Processing
+     */
+    queueRequest: function(action, data, options) {
+      if (this.requestQueue.pending.length >= this.requestQueue.maxQueueSize) {
+        console.log('⚠️ PHASE 2: Request queue full, dropping oldest request');
+        this.requestQueue.pending.shift();
+      }
+      
+      this.requestQueue.pending.push({
+        action: action,
+        data: data,
+        options: options,
+        timestamp: Date.now()
+      });
+      
+      console.log(`📜 PHASE 2: Request queued (${this.requestQueue.pending.length} pending):`, action);
+    },
+    
+    /**
+     * PHASE 2: Handle Unhandled Errors
+     */
+    handleUnhandledError: function(error) {
+      console.error('❌ PHASE 2: Handling unhandled error:', error);
+      
+      // Check if it's a network-related error
+      if (this.isNetworkError(error)) {
+        this.updateConnectionHealth(false);
+      }
+      
+      // Show user-friendly error message
+      this.showUserFeedback({
+        type: 'error',
+        title: 'Unexpected Error',
+        message: 'Something went wrong. Your work is being saved locally.',
+        duration: 5000
+      });
+    },
+    
+    /**
+     * PHASE 2: Check if Error is Network-Related
+     */
+    isNetworkError: function(error) {
+      const networkErrorPatterns = [
+        /network/i,
+        /timeout/i,
+        /connection/i,
+        /fetch/i,
+        /failed to fetch/i,
+        /net::/i
+      ];
+      
+      const errorString = error ? error.toString() : '';
+      return networkErrorPatterns.some(pattern => pattern.test(errorString));
+    },
+    
+    /**
+     * PHASE 2: Enhanced AJAX Request with Intelligent Retry
+     */
+    makeEnhancedAjaxRequest: function(action, data, options = {}) {
+      console.log(`🚀 PHASE 2: Enhanced AJAX request: ${action}`);
+      
+      const requestId = `${action}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const context = options.context || action;
+      
+      // Check circuit breaker
+      if (this.isCircuitBreakerOpen(context)) {
+        console.log(`⚡ PHASE 2: Circuit breaker open for ${context}, queuing request`);
+        this.queueRequest(action, data, options);
+        return Promise.reject('Circuit breaker open');
+      }
+      
+      // Check connection health
+      if (!this.errorRecovery.connectionMonitor.isHealthy && !navigator.onLine) {
+        console.log(`📵 PHASE 2: Connection unhealthy, queuing request: ${action}`);
+        this.queueRequest(action, data, options);
+        return Promise.reject('Connection unhealthy');
+      }
+      
+      const retryAttempts = options.retryAttempts || this.errorRecovery.maxRetries;
+      const timeout = options.timeout || 30000;
+      
+      return this.executeAjaxWithRetry(action, data, options, requestId, retryAttempts, 0);
+    },
+    
+    /**
+     * PHASE 2: Execute AJAX with Exponential Backoff Retry
+     */
+    executeAjaxWithRetry: function(action, data, options, requestId, maxRetries, attemptNumber) {
+      console.log(`🔄 PHASE 2: Attempt ${attemptNumber + 1}/${maxRetries + 1} for ${action}`);
+      
+      return new Promise((resolve, reject) => {
+        // Call the original makeStandardizedAjaxRequest
+        this.makeStandardizedAjaxRequest(action, data, {
+          ...options,
+          onSuccess: (data) => {
+            console.log(`✅ PHASE 2: Request successful on attempt ${attemptNumber + 1}: ${action}`);
+            this.recordSuccess(options.context || action);
+            if (options.onSuccess) options.onSuccess(data);
+            resolve(data);
+          },
+          onError: (error) => {
+            console.log(`❌ PHASE 2: Request failed on attempt ${attemptNumber + 1}: ${action}`, error);
+            this.recordFailure(options.context || action);
+            
+            if (attemptNumber < maxRetries && this.shouldRetry(error)) {
+              const delay = this.calculateBackoffDelay(attemptNumber);
+              console.log(`⏳ PHASE 2: Retrying ${action} in ${delay}ms`);
+              
+              setTimeout(() => {
+                this.executeAjaxWithRetry(action, data, options, requestId, maxRetries, attemptNumber + 1)
+                  .then(resolve)
+                  .catch(reject);
+              }, delay);
+            } else {
+              console.log(`❌ PHASE 2: All retry attempts exhausted for ${action}`);
+              if (options.onError) options.onError(error);
+              reject(error);
+            }
+          }
+        }).catch(error => {
+          console.log(`❌ PHASE 2: Request error: ${action}`, error);
+          this.recordFailure(options.context || action);
+          
+          if (attemptNumber < maxRetries && this.shouldRetry(error)) {
+            const delay = this.calculateBackoffDelay(attemptNumber);
+            console.log(`⏳ PHASE 2: Retrying ${action} in ${delay}ms`);
+            
+            setTimeout(() => {
+              this.executeAjaxWithRetry(action, data, options, requestId, maxRetries, attemptNumber + 1)
+                .then(resolve)
+                .catch(reject);
+            }, delay);
+          } else {
+            console.log(`❌ PHASE 2: All retry attempts exhausted for ${action}`);
+            if (options.onError) options.onError(error);
+            reject(error);
+          }
+        });
+      });
+    },
+    
+    /**
+     * PHASE 2: Calculate Exponential Backoff Delay
+     */
+    calculateBackoffDelay: function(attemptNumber) {
+      const baseDelay = this.errorRecovery.backoffDelays[attemptNumber] || 16000;
+      const jitter = Math.random() * 1000; // Add jitter to prevent thundering herd
+      return baseDelay + jitter;
+    },
+    
+    /**
+     * PHASE 2: Determine if Request Should be Retried
+     */
+    shouldRetry: function(error) {
+      // Don't retry authentication errors or client errors
+      if (error && error.toString().includes('403')) return false;
+      if (error && error.toString().includes('401')) return false;
+      if (error && error.toString().includes('400')) return false;
+      
+      // Retry network errors, timeouts, and server errors
+      return this.isNetworkError(error) || 
+             (error && error.toString().includes('500')) ||
+             (error && error.toString().includes('502')) ||
+             (error && error.toString().includes('503')) ||
+             (error && error.toString().includes('504'));
+    },
+    
+    /**
+     * PHASE 2: Record Request Success
+     */
+    recordSuccess: function(context) {
+      this.updateConnectionHealth(true);
+      
+      // Reset circuit breaker
+      if (this.errorRecovery.circuitBreakers[context]) {
+        this.errorRecovery.circuitBreakers[context].failures = 0;
+        this.errorRecovery.circuitBreakers[context].lastFailure = 0;
+        this.errorRecovery.circuitBreakers[context].state = 'closed';
+      }
+    },
+    
+    /**
+     * PHASE 2: Record Request Failure
+     */
+    recordFailure: function(context) {
+      this.updateConnectionHealth(false);
+      
+      // Update circuit breaker
+      if (!this.errorRecovery.circuitBreakers[context]) {
+        this.errorRecovery.circuitBreakers[context] = {
+          failures: 0,
+          lastFailure: 0,
+          state: 'closed',
+          threshold: 5
+        };
+      }
+      
+      const breaker = this.errorRecovery.circuitBreakers[context];
+      breaker.failures++;
+      breaker.lastFailure = Date.now();
+      
+      if (breaker.failures >= breaker.threshold) {
+        breaker.state = 'open';
+        console.log(`⚡ PHASE 2: Circuit breaker opened for ${context}`);
+      }
+    },
+    
+    /**
+     * PHASE 2: Check if Circuit Breaker is Open
+     */
+    isCircuitBreakerOpen: function(context) {
+      const breaker = this.errorRecovery.circuitBreakers[context];
+      if (!breaker || breaker.state !== 'open') return false;
+      
+      // Check if enough time has passed to try again (60 seconds)
+      const timeSinceLastFailure = Date.now() - breaker.lastFailure;
+      if (timeSinceLastFailure > 60000) {
+        breaker.state = 'half-open';
+        console.log(`🔄 PHASE 2: Circuit breaker half-open for ${context}`);
+        return false;
+      }
+      
+      return true;
     },
     
     /**
@@ -1109,8 +1663,8 @@
         }
       };
       
-      // ENHANCED: Use standardized AJAX with comprehensive error recovery
-      this.makeStandardizedAjaxRequest('mkcg_generate_topics', formData, {
+      // ENHANCED: Use Phase 2 enhanced AJAX with intelligent retry
+      this.makeEnhancedAjaxRequest('mkcg_generate_topics', formData, {
         context: 'generate_topics',
         timeout: 45000,
         retryAttempts: 2,
@@ -1561,10 +2115,10 @@
     },
     
     /**
-     * CRITICAL FIX: Add missing makeStandardizedAjaxRequest method
+     * PHASE 1 TASK 1: Enhanced makeStandardizedAjaxRequest with comprehensive fallbacks
      */
     makeStandardizedAjaxRequest: function(action, data, options = {}) {
-      console.log(`🔄 Making standardized AJAX request: ${action}`);
+      console.log(`🔄 Phase 1: Making standardized AJAX request: ${action}`);
       
       const requestData = {
         action: action,
@@ -1572,56 +2126,221 @@
         ...data
       };
       
-      // Use enhanced AJAX manager if available, otherwise fallback to FormUtils
-      if (window.EnhancedAjaxManager) {
-        return window.EnhancedAjaxManager.makeRequest(action, requestData, options);
-      } else if (window.MKCG_FormUtils) {
-        return MKCG_FormUtils.wp.makeAjaxRequest(action, requestData, options);
-      } else {
-        console.error('❌ No AJAX manager available');
-        if (options.onError) {
-          options.onError('No AJAX manager available');
+      // PHASE 1: Use validated enhanced modules with comprehensive error boundaries
+      try {
+        if (this.hasEnhancedAjax && this.enhancedModules.ajax) {
+          console.log('🚀 Using validated EnhancedAjaxManager');
+          return this.enhancedModules.ajax.makeRequest(action, requestData, options);
+        } else if (window.MKCG_FormUtils && typeof window.MKCG_FormUtils.wp.makeAjaxRequest === 'function') {
+          console.log('🔄 Using FormUtils fallback');
+          return window.MKCG_FormUtils.wp.makeAjaxRequest(action, requestData, options);
+        } else {
+          // PHASE 1: Native jQuery AJAX fallback with error handling
+          console.log('⚠️ Using native jQuery AJAX fallback');
+          return this.makeNativeAjaxRequest(action, requestData, options);
         }
+      } catch (error) {
+        console.error('❌ Error in makeStandardizedAjaxRequest:', error);
+        if (options.onError) {
+          options.onError('AJAX request failed: ' + error.message);
+        }
+        return Promise.reject(error);
       }
     },
     
     /**
-     * CRITICAL FIX: Add missing hideLoadingStates method
+     * PHASE 1 TASK 1: Native AJAX fallback for when all enhanced systems fail
+     */
+    makeNativeAjaxRequest: function(action, data, options = {}) {
+      console.log('🔧 Phase 1: Using native AJAX fallback for:', action);
+      
+      return new Promise((resolve, reject) => {
+        try {
+          if (typeof jQuery === 'undefined') {
+            throw new Error('jQuery not available for native AJAX fallback');
+          }
+          
+          jQuery.ajax({
+            url: window.ajaxurl || '/wp-admin/admin-ajax.php',
+            type: 'POST',
+            data: data,
+            timeout: options.timeout || 30000,
+            success: function(response) {
+              console.log('✅ Native AJAX success for:', action);
+              if (options.onSuccess) {
+                options.onSuccess(response);
+              }
+              resolve(response);
+            },
+            error: function(xhr, status, error) {
+              console.error('❌ Native AJAX error for:', action, error);
+              const errorMessage = `Native AJAX failed: ${status} - ${error}`;
+              if (options.onError) {
+                options.onError(errorMessage);
+              }
+              reject(new Error(errorMessage));
+            },
+            complete: function() {
+              if (options.onComplete) {
+                options.onComplete();
+              }
+            }
+          });
+        } catch (error) {
+          console.error('❌ Native AJAX setup failed:', error);
+          if (options.onError) {
+            options.onError('Native AJAX setup failed: ' + error.message);
+          }
+          reject(error);
+        }
+      });
+    },
+    
+    /**
+     * PHASE 1 TASK 1: Enhanced hideLoadingStates with validated modules
      */
     hideLoadingStates: function(options = {}) {
-      console.log('🔄 Hiding loading states');
+      console.log('🔄 Phase 1: Hiding loading states with validated modules');
       
-      if (window.EnhancedUIFeedback) {
-        if (options.loadingId) {
-          window.EnhancedUIFeedback.hideLoadingSpinner(options.loadingId);
+      try {
+        if (this.hasEnhancedUI && this.enhancedModules.uiFeedback) {
+          console.log('🚀 Using validated EnhancedUIFeedback for hiding loading states');
+          if (options.loadingId) {
+            this.enhancedModules.uiFeedback.hideLoadingSpinner(options.loadingId);
+          }
+          if (options.progressId) {
+            this.enhancedModules.uiFeedback.hideProgress(options.progressId);
+          }
+        } else {
+          console.log('🔧 Using basic loading state management fallback');
+          // Basic fallback - just hide the standard loading indicator
         }
-        if (options.progressId) {
-          window.EnhancedUIFeedback.hideProgress(options.progressId);
-        }
+      } catch (error) {
+        console.error('❌ Error hiding loading states:', error);
       }
       
+      // Always try to hide basic loading indicator
       this.hideLoading();
     },
     
     /**
-     * CRITICAL FIX: Add missing showUserFeedback method
+     * PHASE 1 TASK 1: Enhanced showUserFeedback with comprehensive fallbacks
      */
     showUserFeedback: function(feedbackOptions) {
-      console.log('💬 Showing user feedback:', feedbackOptions);
+      console.log('💬 Phase 1: Showing user feedback with validated modules:', feedbackOptions);
       
-      if (window.EnhancedUIFeedback) {
-        window.EnhancedUIFeedback.showToast(feedbackOptions, feedbackOptions.type, feedbackOptions.duration);
-      } else {
-        // Fallback to browser alert
-        alert(`${feedbackOptions.title}: ${feedbackOptions.message}`);
+      try {
+        if (this.hasEnhancedUI && this.enhancedModules.uiFeedback) {
+          console.log('🚀 Using validated EnhancedUIFeedback');
+          this.enhancedModules.uiFeedback.showToast(feedbackOptions, feedbackOptions.type, feedbackOptions.duration);
+        } else {
+          console.log('🔧 Using basic user feedback fallback');
+          this.showBasicUserFeedback(feedbackOptions);
+        }
+      } catch (error) {
+        console.error('❌ Error showing user feedback:', error);
+        // Ultimate fallback to basic alert
+        this.showBasicUserFeedback(feedbackOptions);
       }
     },
     
     /**
-     * CRITICAL FIX: Add missing autoSaveFieldEnhanced method
+     * PHASE 1 TASK 1: Basic user feedback fallback when enhanced UI is not available
+     */
+    showBasicUserFeedback: function(feedbackOptions) {
+      console.log('🔔 Phase 1: Using basic user feedback fallback');
+      
+      // Create a simple notification element if possible, otherwise use alert
+      try {
+        const notificationContainer = this.getOrCreateNotificationContainer();
+        const notification = this.createBasicNotification(feedbackOptions);
+        notificationContainer.appendChild(notification);
+        
+        // Auto-remove after specified duration or 5 seconds
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+          }
+        }, feedbackOptions.duration || 5000);
+        
+      } catch (error) {
+        console.error('❌ Basic notification creation failed:', error);
+        // Ultimate fallback to browser alert
+        const message = feedbackOptions.title ? 
+          `${feedbackOptions.title}: ${feedbackOptions.message}` : 
+          feedbackOptions.message || 'Notification';
+        alert(message);
+      }
+    },
+    
+    /**
+     * PHASE 1 TASK 1: Get or create notification container for basic feedback
+     */
+    getOrCreateNotificationContainer: function() {
+      let container = document.getElementById('mkcg-basic-notifications');
+      if (!container) {
+        container = document.createElement('div');
+        container.id = 'mkcg-basic-notifications';
+        container.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          z-index: 10000;
+          max-width: 400px;
+        `;
+        document.body.appendChild(container);
+      }
+      return container;
+    },
+    
+    /**
+     * PHASE 1 TASK 1: Create basic notification element
+     */
+    createBasicNotification: function(feedbackOptions) {
+      const notification = document.createElement('div');
+      notification.style.cssText = `
+        background: ${this.getNotificationColor(feedbackOptions.type)};
+        color: white;
+        padding: 12px 16px;
+        margin-bottom: 10px;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        animation: slideInRight 0.3s ease;
+        cursor: pointer;
+      `;
+      
+      const title = feedbackOptions.title ? `<strong>${feedbackOptions.title}</strong><br>` : '';
+      const message = feedbackOptions.message || 'Notification';
+      notification.innerHTML = title + message;
+      
+      // Click to dismiss
+      notification.addEventListener('click', () => {
+        if (notification.parentNode) {
+          notification.parentNode.removeChild(notification);
+        }
+      });
+      
+      return notification;
+    },
+    
+    /**
+     * PHASE 1 TASK 1: Get notification color based on type
+     */
+    getNotificationColor: function(type) {
+      switch (type) {
+        case 'success': return '#27ae60';
+        case 'error': return '#e74c3c';
+        case 'warning': return '#f39c12';
+        case 'info': return '#3498db';
+        default: return '#34495e';
+      }
+    },
+    
+    /**
+     * PHASE 1 TASK 1: Enhanced autoSaveFieldEnhanced with validated modules
      */
     autoSaveFieldEnhanced: function(inputElement, callbacks = {}) {
-      console.log('💾 Enhanced auto-save for field:', inputElement.name);
+      console.log('💾 Phase 1: Enhanced auto-save for field with validated modules:', inputElement.name);
       
       const entryId = document.querySelector(this.elements.entryIdField)?.value;
       if (!entryId || entryId === '0') {
@@ -1635,7 +2354,29 @@
       const fieldName = inputElement.getAttribute('name');
       const fieldValue = inputElement.value;
       
-      this.makeStandardizedAjaxRequest('mkcg_save_topic_field', {
+      // PHASE 1: Enhanced validation before save if available
+      if (this.hasEnhancedValidation && this.enhancedModules.validationManager) {
+        try {
+          const validation = this.enhancedModules.validationManager.validateField(
+            fieldName.includes('topic') ? 'topic' : fieldName, 
+            fieldValue,
+            { context: 'auto_save' }
+          );
+          
+          if (!validation.valid) {
+            console.log('⚠️ Field validation failed:', validation.errors);
+            if (callbacks.onError) {
+              callbacks.onError('Validation failed: ' + validation.errors.join(', '));
+            }
+            return;
+          }
+        } catch (error) {
+          console.error('❌ Enhanced validation error:', error);
+          // Continue without validation if validation fails
+        }
+      }
+      
+      this.makeEnhancedAjaxRequest('mkcg_save_topic_field', {
         entry_id: entryId,
         field_name: fieldName,
         field_value: fieldValue
@@ -1656,32 +2397,61 @@
     },
     
     /**
-     * CRITICAL FIX: Add missing showComponentSaveSuccess method
+     * PHASE 1 TASK 1: Enhanced showComponentSaveSuccess with validated modules
      */
     showComponentSaveSuccess: function(component) {
-      console.log(`✅ Component ${component} saved successfully`);
+      console.log(`✅ Phase 1: Component ${component} saved successfully`);
       
-      if (window.EnhancedUIFeedback) {
-        window.EnhancedUIFeedback.showToast(
-          `${component.toUpperCase()} component saved`,
-          'success',
-          2000
-        );
+      try {
+        if (this.hasEnhancedUI && this.enhancedModules.uiFeedback) {
+          console.log('🚀 Using validated EnhancedUIFeedback for success message');
+          this.enhancedModules.uiFeedback.showToast(
+            `${component.toUpperCase()} component saved`,
+            'success',
+            2000
+          );
+        } else {
+          console.log('🔧 Using basic success feedback fallback');
+          this.showBasicUserFeedback({
+            title: 'Success',
+            message: `${component.toUpperCase()} component saved`,
+            type: 'success',
+            duration: 2000
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error showing component save success:', error);
+        // Silent fallback - don't break the save operation
       }
     },
     
     /**
-     * CRITICAL FIX: Add missing showComponentSaveError method
+     * PHASE 1 TASK 1: Enhanced showComponentSaveError with validated modules
      */
     showComponentSaveError: function(component, error) {
-      console.error(`❌ Component ${component} save failed:`, error);
+      console.error(`❌ Phase 1: Component ${component} save failed:`, error);
       
-      if (window.EnhancedUIFeedback) {
-        window.EnhancedUIFeedback.showToast(
-          `Failed to save ${component.toUpperCase()} component`,
-          'error',
-          4000
-        );
+      try {
+        if (this.hasEnhancedUI && this.enhancedModules.uiFeedback) {
+          console.log('🚀 Using validated EnhancedUIFeedback for error message');
+          this.enhancedModules.uiFeedback.showToast(
+            `Failed to save ${component.toUpperCase()} component`,
+            'error',
+            4000
+          );
+        } else {
+          console.log('🔧 Using basic error feedback fallback');
+          this.showBasicUserFeedback({
+            title: 'Error',
+            message: `Failed to save ${component.toUpperCase()} component`,
+            type: 'error',
+            duration: 4000
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error showing component save error:', error);
+        // Ultimate fallback to console only
+        console.error(`Component ${component} save failed:`, error);
       }
     },
     
@@ -1809,5 +2579,33 @@
   };
   
   console.log('✅ PHASE 2B: Topics Generator with full offline support loaded successfully');
+  
+  // PHASE 2: SUCCESS METRICS TRACKING
+  window.MKCG_Phase2_Metrics = {
+    initialized: true,
+    version: '2.1.0',
+    enhancementDate: new Date().toISOString(),
+    features: {
+      exponentialBackoffRetry: true,
+      circuitBreakerPattern: true,
+      connectionHealthMonitoring: true,
+      requestQueuing: true,
+      enhancedErrorRecovery: true,
+      networkAwareness: true,
+      intelligentRetryLogic: true
+    },
+    targetSuccessRate: '95%',
+    phase: 'PHASE_2_COMPLETE'
+  };
+  
+  console.log('\n=== PHASE 2 IMPLEMENTATION COMPLETE ===');
+  console.log('📊 Target Success Rate: 95%+ AJAX requests');
+  console.log('🔄 Exponential backoff retry system: ACTIVE');
+  console.log('⚡ Circuit breaker pattern: ACTIVE');
+  console.log('🔍 Connection health monitoring: ACTIVE');
+  console.log('📜 Request queuing system: ACTIVE');
+  console.log('🌐 Network awareness: ACTIVE');
+  console.log('✅ Enhanced error recovery: ACTIVE');
+  console.log('========================================\n');
 
 })();
