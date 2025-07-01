@@ -17,43 +17,135 @@ class MKCG_Topics_Generator extends MKCG_Base_Generator {
     protected $topics_data_service;
     
     /**
-     * Constructor - ENHANCED with proper service initialization
+     * STEP 2 FIX: Constructor - Enhanced with bulletproof service initialization
      */
     public function __construct($api_service, $formidable_service, $authority_hook_service = null) {
-        parent::__construct($api_service, $formidable_service, $authority_hook_service);
-        
-        // CRITICAL FIX: Initialize Topics Data Service if available
-        $this->init_data_services();
-        
-        error_log('MKCG Topics Generator: 📋 Initialized with enhanced service integration');
+        try {
+            // Call parent constructor first
+            parent::__construct($api_service, $formidable_service, $authority_hook_service);
+            
+            // STEP 2: Initialize critical data services with validation
+            $this->init_data_services_with_validation();
+            
+            // Validate all required services are available
+            $this->validate_service_dependencies();
+            
+            error_log('MKCG Topics Generator: ✅ All services initialized and validated successfully');
+            
+        } catch (Exception $e) {
+            error_log('MKCG Topics Generator: ❌ CRITICAL - Constructor failed: ' . $e->getMessage());
+            // Set service states to null to prevent further errors
+            $this->topics_data_service = null;
+            $this->unified_data_service = null;
+            throw new Exception('Topics Generator initialization failed: ' . $e->getMessage());
+        }
     }
     
     /**
-     * CRITICAL FIX: Initialize data services with proper error handling
+     * STEP 2 FIX: Initialize data services with comprehensive validation and fallbacks
      */
-    private function init_data_services() {
+    private function init_data_services_with_validation() {
+        $initialization_errors = [];
+        
+        // Validate formidable_service is available
+        if (!$this->formidable_service || !is_object($this->formidable_service)) {
+            $initialization_errors[] = 'Formidable service not available or invalid';
+            throw new Exception('Cannot initialize data services without valid Formidable service');
+        }
+        
+        // Initialize Topics Data Service with enhanced validation
         try {
-            // Initialize Topics Data Service
             if (class_exists('MKCG_Topics_Data_Service')) {
                 $this->topics_data_service = new MKCG_Topics_Data_Service($this->formidable_service);
-                error_log('MKCG Topics Generator: ✅ Topics Data Service initialized');
+                
+                // Validate the service was created successfully
+                if (!is_object($this->topics_data_service)) {
+                    throw new Exception('Topics Data Service constructor failed');
+                }
+                
+                // Test basic service functionality
+                if (method_exists($this->topics_data_service, 'get_topics_data')) {
+                    error_log('MKCG Topics Generator: ✅ Topics Data Service initialized and validated');
+                } else {
+                    throw new Exception('Topics Data Service missing required methods');
+                }
             } else {
-                error_log('MKCG Topics Generator: ⚠️ Topics Data Service class not available');
+                $initialization_errors[] = 'MKCG_Topics_Data_Service class not found';
+                error_log('MKCG Topics Generator: ❌ Topics Data Service class not available');
             }
-            
-            // Initialize Unified Data Service if available
+        } catch (Exception $e) {
+            $initialization_errors[] = 'Topics Data Service: ' . $e->getMessage();
+            $this->topics_data_service = null;
+            error_log('MKCG Topics Generator: ❌ Topics Data Service init failed: ' . $e->getMessage());
+        }
+        
+        // Initialize Unified Data Service with enhanced validation
+        try {
             if (class_exists('MKCG_Unified_Data_Service')) {
                 $this->unified_data_service = new MKCG_Unified_Data_Service($this->formidable_service);
-                error_log('MKCG Topics Generator: ✅ Unified Data Service initialized');
+                
+                // Validate the service was created successfully
+                if (!is_object($this->unified_data_service)) {
+                    throw new Exception('Unified Data Service constructor failed');
+                }
+                
+                error_log('MKCG Topics Generator: ✅ Unified Data Service initialized and validated');
             } else {
+                $initialization_errors[] = 'MKCG_Unified_Data_Service class not found';
                 error_log('MKCG Topics Generator: ⚠️ Unified Data Service class not available');
             }
-            
         } catch (Exception $e) {
-            error_log('MKCG Topics Generator: ❌ Exception initializing data services: ' . $e->getMessage());
-            $this->topics_data_service = null;
+            $initialization_errors[] = 'Unified Data Service: ' . $e->getMessage();
             $this->unified_data_service = null;
+            error_log('MKCG Topics Generator: ❌ Unified Data Service init failed: ' . $e->getMessage());
         }
+        
+        // Log summary of initialization results
+        if (empty($initialization_errors)) {
+            error_log('MKCG Topics Generator: ✅ All data services initialized successfully');
+        } else {
+            error_log('MKCG Topics Generator: ⚠️ Service initialization warnings: ' . implode('; ', $initialization_errors));
+        }
+    }
+    
+    /**
+     * STEP 2 FIX: Validate all service dependencies are met
+     */
+    private function validate_service_dependencies() {
+        $validation_errors = [];
+        
+        // Check core services from parent
+        if (!$this->api_service) {
+            $validation_errors[] = 'API Service missing';
+        }
+        if (!$this->formidable_service) {
+            $validation_errors[] = 'Formidable Service missing';
+        }
+        if (!$this->authority_hook_service) {
+            $validation_errors[] = 'Authority Hook Service missing';
+        }
+        
+        // Check data services (these are optional but preferred)
+        $has_data_service = false;
+        if ($this->topics_data_service) {
+            $has_data_service = true;
+            error_log('MKCG Validation: ✅ Topics Data Service available');
+        }
+        if ($this->unified_data_service) {
+            $has_data_service = true;
+            error_log('MKCG Validation: ✅ Unified Data Service available');
+        }
+        
+        if (!$has_data_service) {
+            error_log('MKCG Validation: ⚠️ No data services available - will use fallback methods');
+        }
+        
+        // Throw exception only for critical missing services
+        if (!empty($validation_errors)) {
+            throw new Exception('Critical service dependencies missing: ' . implode(', ', $validation_errors));
+        }
+        
+        error_log('MKCG Validation: ✅ All critical service dependencies validated');
     }
     
     /**
@@ -335,105 +427,175 @@ The expert's area of expertise is: \"$authority_hook\".
     // REMOVED: Redundant field processing methods - now using centralized Formidable Service
     
     /**
-     * UNIFIED DATA SOURCE: Get template data using Topics Data Service (same as Questions Generator)
-     * ROOT LEVEL FIX: Now uses unified service for consistent data loading
-     * AUTHORITY HOOK FIX: Properly loads Authority Hook components from Formidable fields
+     * STEP 3 FIX: Unified data source - Enhanced template data loading with robust fallbacks
      */
     public function get_template_data($entry_key = '') {
-        $entry_id = 0;
-        $post_id = 0;
-        
-        // If no entry key provided, try to get from URL
-        if (empty($entry_key) && isset($_GET['entry'])) {
-            $entry_key = sanitize_text_field($_GET['entry']);
-        }
-        
-        // Resolve entry_id and post_id first
-        if (!empty($entry_key) && $this->is_topics_service_available()) {
-            error_log('MKCG Topics Generator: UNIFIED MODE - Using Topics Data Service for entry_key: ' . $entry_key);
-            
-            $entry_data = $this->formidable_service->get_entry_data($entry_key);
-            if ($entry_data['success']) {
-                $entry_id = $entry_data['entry_id'];
-                $post_id = $this->formidable_service->get_post_id_from_entry($entry_id);
-                error_log('MKCG Topics Generator: ✅ Resolved entry_id=' . $entry_id . ', post_id=' . $post_id);
-            }
-        }
-
-        // ROOT LEVEL FIX: Use the UNIFIED Topics Data Service to get all data (same as Questions Generator)
-        if ($this->is_topics_service_available() && $entry_id > 0) {
-            error_log('MKCG Topics Generator: 🔄 Using UNIFIED Topics Data Service to get template data');
-            
-            try {
-                $service_data = $this->topics_data_service->get_topics_data($entry_id, $entry_key, $post_id);
-
-                if ($service_data['success']) {
-                    error_log('MKCG Topics Generator: ✅ SUCCESS - Unified service returned data successfully');
-                    error_log('MKCG Topics Generator: Topics from service: ' . json_encode($service_data['topics']));
-                    
-                    // CENTRALIZED: Use Authority Hook Service for component loading
-                    $authority_hook_components = $this->authority_hook_service->get_authority_hook_components($entry_id);
-                    
-                    return [
-                        'entry_id' => $service_data['entry_id'],
-                        'entry_key' => $entry_key,
-                        'authority_hook_components' => $authority_hook_components,
-                        'form_field_values' => $service_data['topics'], // Use topics directly from unified service
-                        'has_entry' => true
-                    ];
-                } else {
-                    error_log('MKCG Topics Generator: ⚠️ Unified service failed: ' . ($service_data['message'] ?? 'Unknown error'));
-                }
-            } catch (Exception $e) {
-                error_log('MKCG Topics Generator: ❌ Exception using unified service: ' . $e->getMessage());
-            }
-        } else {
-            if (!$this->is_topics_service_available()) {
-                error_log('MKCG Topics Generator: ❌ Topics Data Service not available - check initialization');
-            } elseif ($entry_id <= 0) {
-                error_log('MKCG Topics Generator: ⚠️ No valid entry_id resolved from entry_key: ' . $entry_key);
-            }
-        }
-        
-        // If we have an entry_id but no service, try direct loading
-        if ($entry_id > 0) {
-            error_log('MKCG Topics Generator: 🔄 Direct loading fallback for entry_id: ' . $entry_id);
-            
-            // CENTRALIZED: Use Authority Hook Service for component loading
-            $authority_hook_components = $this->authority_hook_service->get_authority_hook_components($entry_id);
-            
-            // Load topics directly from Formidable
-            $topics_data = $this->load_topics_from_formidable($entry_id);
-            
-            return [
-                'entry_id' => $entry_id,
-                'entry_key' => $entry_key,
-                'authority_hook_components' => $authority_hook_components,
-                'form_field_values' => $topics_data,
-                'has_entry' => true
-            ];
-        }
-        
-        // Fallback to default structure if unified service fails or no entry
-        error_log('MKCG Topics Generator: Using fallback default data structure');
-        
-        // CENTRALIZED: Use Authority Hook Service for consistent defaults
-        $authority_hook_components = $this->authority_hook_service->get_default_components();
-        $authority_hook_components['complete'] = $this->authority_hook_service->build_authority_hook($authority_hook_components);
-        
-        return [
-            'entry_id' => $entry_id,
+        $template_data = [
+            'entry_id' => 0,
             'entry_key' => $entry_key,
-            'authority_hook_components' => $authority_hook_components,
-            'form_field_values' => [
+            'authority_hook_components' => [],
+            'form_field_values' => [],
+            'has_entry' => false,
+            'data_source' => 'default',
+            'debug_info' => []
+        ];
+        
+        try {
+            // Step 3A: Resolve entry identifier from multiple sources
+            $resolved_ids = $this->resolve_entry_identifiers($entry_key);
+            $template_data['entry_id'] = $resolved_ids['entry_id'];
+            $template_data['entry_key'] = $resolved_ids['entry_key'];
+            $post_id = $resolved_ids['post_id'];
+            
+            error_log('MKCG Step 3: Resolved IDs - entry_id=' . $resolved_ids['entry_id'] . ', post_id=' . $post_id . ', entry_key=' . $resolved_ids['entry_key']);
+
+            // Step 3B: Try unified data loading with comprehensive fallbacks
+            if ($template_data['entry_id'] > 0) {
+                $template_data = $this->load_data_via_unified_service($template_data, $post_id);
+            } else {
+                error_log('MKCG Step 3: No valid entry ID - using default template data');
+                $template_data['debug_info'][] = 'No valid entry ID resolved';
+            }
+            
+        } catch (Exception $e) {
+            error_log('MKCG Step 3: Exception in get_template_data: ' . $e->getMessage());
+            $template_data['debug_info'][] = 'Exception: ' . $e->getMessage();
+        }
+        
+        // Step 3C: Ensure default authority hook components if not loaded
+        if (empty($template_data['authority_hook_components']) && $this->authority_hook_service) {
+            $template_data['authority_hook_components'] = $this->authority_hook_service->get_default_components();
+            $template_data['authority_hook_components']['complete'] = $this->authority_hook_service->build_authority_hook($template_data['authority_hook_components']);
+            $template_data['data_source'] = 'default_auth_hook';
+        }
+        
+        // Step 3D: Ensure default topic structure
+        if (empty($template_data['form_field_values'])) {
+            $template_data['form_field_values'] = [
                 'topic_1' => '',
                 'topic_2' => '',
                 'topic_3' => '',
                 'topic_4' => '',
                 'topic_5' => ''
-            ],
-            'has_entry' => false
+            ];
+            if ($template_data['data_source'] === 'default') {
+                $template_data['data_source'] = 'default_complete';
+            }
+        }
+        
+        error_log('MKCG Step 3: Final template data - source=' . $template_data['data_source'] . ', has_entry=' . ($template_data['has_entry'] ? 'true' : 'false') . ', entry_id=' . $template_data['entry_id']);
+        
+        return $template_data;
+    }
+    
+    /**
+     * STEP 3 SUPPORTING METHODS: Resolve entry identifiers from multiple sources
+     */
+    private function resolve_entry_identifiers($entry_key) {
+        $resolved = [
+            'entry_id' => 0,
+            'entry_key' => $entry_key,
+            'post_id' => 0
         ];
+        
+        // If no entry key provided, try to get from URL
+        if (empty($entry_key) && isset($_GET['entry'])) {
+            $entry_key = sanitize_text_field($_GET['entry']);
+            $resolved['entry_key'] = $entry_key;
+        }
+        
+        // Resolve entry_id from entry_key
+        if (!empty($entry_key)) {
+            try {
+                $entry_data = $this->formidable_service->get_entry_data($entry_key);
+                if ($entry_data['success']) {
+                    $resolved['entry_id'] = $entry_data['entry_id'];
+                    $resolved['post_id'] = $this->formidable_service->get_post_id_from_entry($resolved['entry_id']);
+                    error_log('MKCG Entry Resolution: ✅ Resolved from entry_key - entry_id=' . $resolved['entry_id'] . ', post_id=' . $resolved['post_id']);
+                } else {
+                    error_log('MKCG Entry Resolution: ❌ Failed to resolve entry_key: ' . $entry_key);
+                }
+            } catch (Exception $e) {
+                error_log('MKCG Entry Resolution: ❌ Exception resolving entry_key: ' . $e->getMessage());
+            }
+        }
+        
+        return $resolved;
+    }
+    
+    /**
+     * STEP 3 SUPPORTING METHODS: Load data via unified service with fallbacks
+     */
+    private function load_data_via_unified_service($template_data, $post_id) {
+        $entry_id = $template_data['entry_id'];
+        $entry_key = $template_data['entry_key'];
+        
+        // Strategy 1: Use Topics Data Service (preferred)
+        if ($this->is_topics_service_available()) {
+            error_log('MKCG Unified Loading: 🔄 Attempting Topics Data Service for entry_id=' . $entry_id);
+            
+            try {
+                $service_data = $this->topics_data_service->get_topics_data($entry_id, $entry_key, $post_id);
+                
+                if ($service_data['success']) {
+                    error_log('MKCG Unified Loading: ✅ Topics Data Service SUCCESS');
+                    
+                    // Load authority hook components
+                    if ($this->authority_hook_service) {
+                        $template_data['authority_hook_components'] = $this->authority_hook_service->get_authority_hook_components($entry_id);
+                    }
+                    
+                    $template_data['form_field_values'] = $service_data['topics'];
+                    $template_data['has_entry'] = true;
+                    $template_data['data_source'] = 'topics_data_service';
+                    $template_data['debug_info'][] = 'Loaded via Topics Data Service';
+                    
+                    return $template_data;
+                } else {
+                    error_log('MKCG Unified Loading: ⚠️ Topics Data Service failed: ' . ($service_data['message'] ?? 'Unknown error'));
+                    $template_data['debug_info'][] = 'Topics Data Service failed: ' . ($service_data['message'] ?? 'Unknown error');
+                }
+            } catch (Exception $e) {
+                error_log('MKCG Unified Loading: ❌ Topics Data Service exception: ' . $e->getMessage());
+                $template_data['debug_info'][] = 'Topics Data Service exception: ' . $e->getMessage();
+            }
+        }
+        
+        // Strategy 2: Direct Formidable loading (fallback)
+        error_log('MKCG Unified Loading: 🔄 Attempting direct Formidable loading');
+        
+        try {
+            // Load authority hook components
+            if ($this->authority_hook_service) {
+                $template_data['authority_hook_components'] = $this->authority_hook_service->get_authority_hook_components($entry_id);
+            }
+            
+            // Load topics directly from Formidable
+            $topics_data = $this->load_topics_from_formidable($entry_id);
+            
+            if (!empty(array_filter($topics_data))) {
+                $template_data['form_field_values'] = $topics_data;
+                $template_data['has_entry'] = true;
+                $template_data['data_source'] = 'direct_formidable';
+                $template_data['debug_info'][] = 'Loaded via direct Formidable access';
+                
+                error_log('MKCG Unified Loading: ✅ Direct Formidable loading SUCCESS');
+                return $template_data;
+            } else {
+                error_log('MKCG Unified Loading: ⚠️ Direct Formidable loading returned empty data');
+                $template_data['debug_info'][] = 'Direct Formidable loading returned empty data';
+            }
+        } catch (Exception $e) {
+            error_log('MKCG Unified Loading: ❌ Direct Formidable loading exception: ' . $e->getMessage());
+            $template_data['debug_info'][] = 'Direct Formidable loading exception: ' . $e->getMessage();
+        }
+        
+        // Strategy 3: Return template_data with has_entry=false (final fallback)
+        error_log('MKCG Unified Loading: 📋 Using final fallback - no data loaded');
+        $template_data['data_source'] = 'fallback';
+        $template_data['debug_info'][] = 'All loading strategies failed - using defaults';
+        
+        return $template_data;
     }
     
     /**
@@ -581,37 +743,58 @@ The expert's area of expertise is: \"$authority_hook\".
     }
     
     /**
-     * Initialize with all required AJAX actions
+     * STEP 1 FIX: Initialize with all required AJAX actions - Enhanced error handling
      */
     public function init() {
-        parent::init();
+        try {
+            parent::init();
+            
+            // STEP 1: Ensure all critical AJAX handlers are registered
+            $this->register_critical_ajax_handlers();
+            
+            error_log('MKCG Topics Generator: ✅ All AJAX handlers registered successfully');
+            
+        } catch (Exception $e) {
+            error_log('MKCG Topics Generator: ❌ CRITICAL - Init failed: ' . $e->getMessage());
+            // Add admin notice for critical initialization failure
+            add_action('admin_notices', function() use ($e) {
+                echo '<div class="notice notice-error"><p><strong>Topics Generator Error:</strong> Initialization failed - ' . esc_html($e->getMessage()) . '</p></div>';
+            });
+        }
+    }
+    
+    /**
+     * STEP 1 FIX: Register all critical AJAX handlers with validation
+     */
+    private function register_critical_ajax_handlers() {
+        $ajax_handlers = [
+            // Core data handlers
+            'mkcg_get_topics_data' => 'handle_get_topics_data_ajax',
+            'mkcg_save_topics_data' => 'handle_save_topics_data_ajax',
+            'mkcg_save_topic' => 'handle_save_topic_ajax',
+            
+            // Authority hook handlers
+            'mkcg_save_authority_hook' => 'handle_save_authority_hook_ajax',
+            'mkcg_update_authority_hook' => 'handle_save_authority_hook_ajax', // Alias
+            
+            // Field handlers
+            'mkcg_save_field' => 'handle_save_field_ajax',
+            'mkcg_save_topic_field' => 'handle_save_topic_field_ajax',
+            
+            // Legacy compatibility
+            'generate_interview_topics' => 'handle_ajax_generation',
+            'fetch_authority_hook' => 'handle_fetch_authority_hook',
+        ];
         
-        // CRITICAL FIX: Add back missing AJAX handlers that JavaScript depends on
-        add_action('wp_ajax_mkcg_get_topics_data', [$this, 'handle_get_topics_data_ajax']);
-        add_action('wp_ajax_nopriv_mkcg_get_topics_data', [$this, 'handle_get_topics_data_ajax']);
-        
-        add_action('wp_ajax_mkcg_save_topics_data', [$this, 'handle_save_topics_data_ajax']);
-        add_action('wp_ajax_nopriv_mkcg_save_topics_data', [$this, 'handle_save_topics_data_ajax']);
-        
-        add_action('wp_ajax_mkcg_save_topic', [$this, 'handle_save_topic_ajax']);
-        add_action('wp_ajax_nopriv_mkcg_save_topic', [$this, 'handle_save_topic_ajax']);
-        
-        // CRITICAL FIX: Add missing authority hook save handlers
-        add_action('wp_ajax_mkcg_save_authority_hook', [$this, 'handle_save_authority_hook_ajax']);
-        add_action('wp_ajax_nopriv_mkcg_save_authority_hook', [$this, 'handle_save_authority_hook_ajax']);
-        
-        add_action('wp_ajax_mkcg_save_field', [$this, 'handle_save_field_ajax']);
-        add_action('wp_ajax_nopriv_mkcg_save_field', [$this, 'handle_save_field_ajax']);
-        
-        add_action('wp_ajax_mkcg_save_topic_field', [$this, 'handle_save_topic_field_ajax']);
-        add_action('wp_ajax_nopriv_mkcg_save_topic_field', [$this, 'handle_save_topic_field_ajax']);
-        
-        // Legacy AJAX actions for backwards compatibility
-        add_action('wp_ajax_generate_interview_topics', [$this, 'handle_ajax_generation']);
-        add_action('wp_ajax_nopriv_generate_interview_topics', [$this, 'handle_ajax_generation']);
-        
-        add_action('wp_ajax_fetch_authority_hook', [$this, 'handle_fetch_authority_hook']);
-        add_action('wp_ajax_nopriv_fetch_authority_hook', [$this, 'handle_fetch_authority_hook']);
+        foreach ($ajax_handlers as $action => $method) {
+            if (method_exists($this, $method)) {
+                add_action('wp_ajax_' . $action, [$this, $method]);
+                add_action('wp_ajax_nopriv_' . $action, [$this, $method]);
+                error_log("MKCG AJAX Registration: ✅ Registered {$action} → {$method}");
+            } else {
+                error_log("MKCG AJAX Registration: ❌ Method {$method} not found for action {$action}");
+            }
+        }
     }
     
     /**
@@ -848,81 +1031,83 @@ The expert's area of expertise is: \"$authority_hook\".
     }
     
     /**
-     * CRITICAL FIX: Handle save authority hook components AJAX request - ENHANCED
+     * STEP 4 FIX: Enhanced AJAX handler with standardized data communication
      */
     public function handle_save_authority_hook_ajax() {
-        // Enhanced error handling and debugging
         try {
-            error_log('MKCG Topics Generator: Starting enhanced handle_save_authority_hook_ajax');
+            error_log('MKCG Step 4: Starting standardized save authority hook AJAX');
             
-            // ROBUST: Enhanced security validation with multiple fallbacks
-            $security_check = $this->validate_ajax_security_enhanced(['entry_id']);
-            if (is_wp_error($security_check)) {
-                error_log('MKCG Topics Generator: Security validation failed: ' . $security_check->get_error_message());
+            // Step 4A: Standardized request validation
+            $request_data = $this->validate_and_extract_request_data([
+                'entry_id' => 'required|integer',
+                'who' => 'string',
+                'result' => 'string', 
+                'when' => 'string',
+                'how' => 'string'
+            ]);
+            
+            if (is_wp_error($request_data)) {
+                error_log('MKCG Step 4: Request validation failed: ' . $request_data->get_error_message());
                 wp_send_json_error([
-                    'message' => $security_check->get_error_message(),
-                    'error_type' => 'security_validation_failed'
+                    'message' => $request_data->get_error_message(),
+                    'error_code' => 'request_validation_failed',
+                    'step' => 'step_4_validation'
                 ]);
                 return;
             }
             
-            $entry_id = intval($_POST['entry_id']);
+            $entry_id = $request_data['entry_id'];
             
-            if (!$entry_id) {
-                error_log('MKCG Topics Generator: Invalid entry_id: ' . print_r($_POST['entry_id'], true));
-                wp_send_json_error([
-                    'message' => 'Entry ID is required',
-                    'error_type' => 'invalid_entry_id'
-                ]);
-                return;
+            // Step 4B: Resolve post_id to prevent 500 errors
+            $post_id = $this->resolve_post_id_from_entry($entry_id);
+            if (!$post_id) {
+                error_log('MKCG Step 4: Could not resolve post_id for entry_id=' . $entry_id);
+                // Don't fail completely - continue with entry-only save
             }
             
-            // Get components from POST data with enhanced validation
-            $components = $this->extract_authority_components_from_post();
+            error_log('MKCG Step 4: Processing for entry_id=' . $entry_id . ', post_id=' . ($post_id ?: 'none'));
             
-            error_log('MKCG Topics Generator: Processing components for entry ' . $entry_id . ': ' . json_encode($components));
-            
-            // ENHANCED: Use safe authority hook building with comprehensive error handling
-            $save_result = $this->save_authority_hook_components_safe(
-                $entry_id, 
-                $components['who'], 
-                $components['result'], 
-                $components['when'], 
-                $components['how']
+            // Step 4C: Standardized save operation with comprehensive error handling
+            $save_result = $this->standardized_authority_hook_save(
+                $entry_id,
+                $post_id,
+                $request_data
             );
             
+            // Step 4D: Standardized response format
             if ($save_result['success']) {
-                error_log('MKCG Topics Generator: ✅ Authority hook saved successfully');
+                error_log('MKCG Step 4: ✅ Authority hook saved successfully');
                 wp_send_json_success([
-                    'message' => 'Authority hook components saved successfully',
-                    'authority_hook' => $save_result['authority_hook'],
-                    'saved_fields' => $save_result['saved_fields'],
-                    'components' => $components,
-                    'success_type' => 'authority_hook_saved'
+                    'message' => 'Authority hook saved successfully',
+                    'data' => [
+                        'authority_hook' => $save_result['authority_hook'],
+                        'components' => $save_result['components'],
+                        'entry_id' => $entry_id,
+                        'post_id' => $post_id
+                    ],
+                    'meta' => [
+                        'saved_fields' => $save_result['saved_fields'],
+                        'save_method' => $save_result['save_method'],
+                        'timestamp' => time()
+                    ]
                 ]);
             } else {
-                error_log('MKCG Topics Generator: ❌ Save failed: ' . print_r($save_result, true));
+                error_log('MKCG Step 4: ❌ Save failed: ' . json_encode($save_result['errors']));
                 wp_send_json_error([
-                    'message' => 'Failed to save authority hook components',
-                    'details' => $save_result['errors'] ?? ['Unknown error'],
-                    'debug_info' => $save_result['debug_info'] ?? [],
-                    'error_type' => 'save_failed'
+                    'message' => 'Failed to save authority hook',
+                    'error_code' => 'save_operation_failed',
+                    'details' => $save_result['errors'],
+                    'debug_info' => $save_result['debug_info'] ?? []
                 ]);
             }
             
         } catch (Exception $e) {
-            error_log('MKCG Topics Generator: ❌ Critical exception in handle_save_authority_hook_ajax: ' . $e->getMessage());
-            error_log('MKCG Topics Generator: Exception stack trace: ' . $e->getTraceAsString());
-            
+            error_log('MKCG Step 4: ❌ Critical exception: ' . $e->getMessage());
             wp_send_json_error([
-                'message' => 'Critical server error during authority hook save',
+                'message' => 'Server error during save operation',
+                'error_code' => 'critical_server_error',
                 'details' => $e->getMessage(),
-                'error_type' => 'critical_exception',
-                'exception_details' => [
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine(),
-                    'trace' => $e->getTraceAsString()
-                ]
+                'step' => 'step_4_exception_handler'
             ]);
         }
     }
@@ -1249,47 +1434,187 @@ The expert's area of expertise is: \"$authority_hook\".
     }
     
     /**
-     * UNIFIED: Save single field to Formidable database directly
+     * STEP 4 SUPPORTING METHODS: Standardized request validation and data extraction
      */
-    private function save_single_field_to_formidable($entry_id, $field_id, $value) {
-        global $wpdb;
-        
+    private function validate_and_extract_request_data($validation_rules) {
         try {
-            $table = $wpdb->prefix . 'frm_item_metas';
-            
-            // Check if field already exists
-            $existing = $wpdb->get_var($wpdb->prepare(
-                "SELECT meta_value FROM {$table} WHERE item_id = %d AND field_id = %d",
-                $entry_id, $field_id
-            ));
-            
-            if ($existing !== null) {
-                // Update existing field
-                $result = $wpdb->update(
-                    $table,
-                    ['meta_value' => $value],
-                    ['item_id' => $entry_id, 'field_id' => $field_id],
-                    ['%s'],
-                    ['%d', '%d']
-                );
-            } else {
-                // Insert new field
-                $result = $wpdb->insert(
-                    $table,
-                    [
-                        'item_id' => $entry_id,
-                        'field_id' => $field_id,
-                        'meta_value' => $value
-                    ],
-                    ['%d', '%d', '%s']
-                );
+            // First validate security (nonce)
+            $security_check = $this->validate_ajax_security(['entry_id']);
+            if (is_wp_error($security_check)) {
+                return new WP_Error('security_failed', $security_check->get_error_message());
             }
             
-            return $result !== false;
+            $extracted_data = [];
+            $validation_errors = [];
+            
+            foreach ($validation_rules as $field => $rules) {
+                $rules_array = explode('|', $rules);
+                $is_required = in_array('required', $rules_array);
+                $is_integer = in_array('integer', $rules_array);
+                $is_string = in_array('string', $rules_array);
+                
+                $value = isset($_POST[$field]) ? $_POST[$field] : '';
+                
+                // Check required fields
+                if ($is_required && empty($value)) {
+                    $validation_errors[] = "Field '{$field}' is required";
+                    continue;
+                }
+                
+                // Process value based on type
+                if ($is_integer) {
+                    $extracted_data[$field] = intval($value);
+                    if ($is_required && $extracted_data[$field] <= 0) {
+                        $validation_errors[] = "Field '{$field}' must be a positive integer";
+                    }
+                } elseif ($is_string) {
+                    $extracted_data[$field] = sanitize_textarea_field($value);
+                } else {
+                    $extracted_data[$field] = sanitize_text_field($value);
+                }
+            }
+            
+            if (!empty($validation_errors)) {
+                return new WP_Error('validation_failed', implode('; ', $validation_errors));
+            }
+            
+            error_log('MKCG Step 4 Validation: ✅ Request data validated successfully');
+            return $extracted_data;
             
         } catch (Exception $e) {
-            error_log('MKCG Topics: Exception in save_single_field_to_formidable: ' . $e->getMessage());
+            error_log('MKCG Step 4 Validation: ❌ Exception: ' . $e->getMessage());
+            return new WP_Error('validation_exception', 'Request validation failed: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * STEP 4 SUPPORTING METHODS: Resolve post_id from entry_id to prevent 500 errors
+     */
+    private function resolve_post_id_from_entry($entry_id) {
+        try {
+            if (!$entry_id || !$this->formidable_service) {
+                return false;
+            }
+            
+            $post_id = $this->formidable_service->get_post_id_from_entry($entry_id);
+            
+            if ($post_id) {
+                error_log('MKCG Step 4: ✅ Resolved post_id=' . $post_id . ' from entry_id=' . $entry_id);
+                return $post_id;
+            } else {
+                error_log('MKCG Step 4: ⚠️ Could not resolve post_id from entry_id=' . $entry_id);
+                return false;
+            }
+            
+        } catch (Exception $e) {
+            error_log('MKCG Step 4: ❌ Exception resolving post_id: ' . $e->getMessage());
             return false;
+        }
+    }
+    
+    /**
+     * STEP 4 SUPPORTING METHODS: Standardized authority hook save operation
+     */
+    private function standardized_authority_hook_save($entry_id, $post_id, $request_data) {
+        try {
+            $components = [
+                'who' => $request_data['who'] ?: 'your audience',
+                'result' => $request_data['result'] ?: 'achieve their goals', 
+                'when' => $request_data['when'] ?: 'they need help',
+                'how' => $request_data['how'] ?: 'through your method'
+            ];
+            
+            error_log('MKCG Step 4 Save: Processing components - ' . json_encode($components));
+            
+            // Build complete authority hook
+            $complete_hook = '';
+            if ($this->authority_hook_service) {
+                $complete_hook = $this->authority_hook_service->build_authority_hook($components);
+            } else {
+                $complete_hook = "I help {$components['who']} {$components['result']} when {$components['when']} {$components['how']}.";
+            }
+            
+            $save_results = [];
+            $saved_fields = [];
+            $save_errors = [];
+            
+            // Save Strategy 1: Use Authority Hook Service (preferred)
+            if ($this->authority_hook_service) {
+                try {
+                    $service_result = $this->save_authority_hook_components(
+                        $entry_id,
+                        $components['who'],
+                        $components['result'], 
+                        $components['when'],
+                        $components['how']
+                    );
+                    
+                    if ($service_result['success']) {
+                        $save_results[] = 'authority_hook_service';
+                        $saved_fields = array_merge($saved_fields, $service_result['saved_fields']);
+                        error_log('MKCG Step 4 Save: ✅ Authority Hook Service save successful');
+                    } else {
+                        $save_errors[] = 'Authority Hook Service: ' . implode(', ', $service_result['errors']);
+                    }
+                } catch (Exception $e) {
+                    $save_errors[] = 'Authority Hook Service exception: ' . $e->getMessage();
+                }
+            }
+            
+            // Save Strategy 2: Direct Formidable save (fallback)
+            if (empty($save_results) && $this->formidable_service) {
+                try {
+                    $field_mappings = $this->get_authority_hook_field_mappings();
+                    $data_to_save = $components;
+                    $data_to_save['complete'] = $complete_hook;
+                    
+                    $formidable_result = $this->formidable_service->save_generated_content(
+                        $entry_id,
+                        $data_to_save,
+                        $field_mappings
+                    );
+                    
+                    if ($formidable_result['success']) {
+                        $save_results[] = 'direct_formidable';
+                        $saved_fields = array_merge($saved_fields, $formidable_result['saved_fields']);
+                        error_log('MKCG Step 4 Save: ✅ Direct Formidable save successful');
+                    } else {
+                        $save_errors[] = 'Direct Formidable save failed';
+                    }
+                } catch (Exception $e) {
+                    $save_errors[] = 'Direct Formidable exception: ' . $e->getMessage();
+                }
+            }
+            
+            // Determine overall success
+            $success = !empty($save_results);
+            
+            return [
+                'success' => $success,
+                'authority_hook' => $complete_hook,
+                'components' => $components,
+                'saved_fields' => $saved_fields,
+                'save_method' => implode(', ', $save_results),
+                'errors' => $save_errors,
+                'debug_info' => [
+                    'entry_id' => $entry_id,
+                    'post_id' => $post_id,
+                    'strategies_attempted' => count($save_results) + count($save_errors),
+                    'successful_strategies' => $save_results
+                ]
+            ];
+            
+        } catch (Exception $e) {
+            error_log('MKCG Step 4 Save: ❌ Critical exception: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'authority_hook' => '',
+                'components' => [],
+                'saved_fields' => [],
+                'save_method' => 'none',
+                'errors' => ['Critical exception: ' . $e->getMessage()],
+                'debug_info' => ['exception_occurred' => true]
+            ];
         }
     }
 }
