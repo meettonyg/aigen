@@ -13,10 +13,83 @@ class MKCG_Authority_Hook_Service {
     }
     
     /**
-     * Get Authority Hook for a given entry
+     * Get default Authority Hook components
+     * CENTRALIZED: Consistent defaults across all generators
+     */
+    public function get_default_components() {
+        return [
+            'who' => 'your audience',
+            'result' => 'achieve their goals',
+            'when' => 'they need help',
+            'how' => 'through your method'
+        ];
+    }
+    
+    /**
+     * Get Authority Hook components from Formidable fields
+     * CENTRALIZED: Used by all generators (Topics, Questions, Biography, Offers)
+     */
+    public function get_authority_hook_components($entry_id) {
+        if (!$entry_id) {
+            return $this->get_default_components();
+        }
+        
+        error_log('MKCG Authority Hook Service: 🔄 Loading Authority Hook components from Formidable entry ' . $entry_id);
+        
+        // Get field mappings from centralized config
+        $auth_mappings = MKCG_Config::get_field_mappings()['authority_hook']['fields'];
+        
+        $components = [];
+        foreach (['who', 'result', 'when', 'how'] as $component) {
+            if (isset($auth_mappings[$component])) {
+                $field_id = $auth_mappings[$component];
+                $value = $this->formidable_service->get_field_value($entry_id, $field_id);
+                
+                if (!empty($value)) {
+                    $components[$component] = trim($value);
+                    error_log('MKCG Authority Hook Service: ✅ Loaded ' . $component . ' from field ' . $field_id . ': ' . substr($value, 0, 50));
+                } else {
+                    // Use defaults for empty fields
+                    $defaults = $this->get_default_components();
+                    $components[$component] = $defaults[$component];
+                    error_log('MKCG Authority Hook Service: ⚠️ Field ' . $field_id . ' (' . $component . ') is empty, using default');
+                }
+            } else {
+                error_log('MKCG Authority Hook Service: ❌ No field mapping found for component: ' . $component);
+                $defaults = $this->get_default_components();
+                $components[$component] = $defaults[$component];
+            }
+        }
+        
+        // Build complete authority hook using existing service method
+        $components['complete'] = $this->build_authority_hook($components);
+        
+        error_log('MKCG Authority Hook Service: ✅ Complete Authority Hook: ' . $components['complete']);
+        
+        return $components;
+    }
+    
+    /**
+     * Get Authority Hook for a given entry (legacy method - now uses centralized components)
+     * ENHANCED: Uses centralized component loading with proper field mappings
      */
     public function get_authority_hook($entry_id) {
-        return $this->formidable_service->find_authority_hook($entry_id);
+        error_log('MKCG Authority Hook Service: 🔄 get_authority_hook() called for entry ' . $entry_id);
+        
+        // Use the new centralized method to get components
+        $components = $this->get_authority_hook_components($entry_id);
+        
+        if (!empty($components['complete'])) {
+            return [
+                'success' => true,
+                'value' => $components['complete'],
+                'components' => $components
+            ];
+        } else {
+            // Fallback to legacy method if new method fails
+            error_log('MKCG Authority Hook Service: ⚠️ Centralized loading failed, trying legacy method');
+            return $this->formidable_service->find_authority_hook($entry_id);
+        }
     }
     
     /**

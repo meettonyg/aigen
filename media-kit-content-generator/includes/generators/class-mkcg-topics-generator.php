@@ -337,6 +337,7 @@ The expert's area of expertise is: \"$authority_hook\".
     /**
      * UNIFIED DATA SOURCE: Get template data using Topics Data Service (same as Questions Generator)
      * ROOT LEVEL FIX: Now uses unified service for consistent data loading
+     * AUTHORITY HOOK FIX: Properly loads Authority Hook components from Formidable fields
      */
     public function get_template_data($entry_key = '') {
         $entry_id = 0;
@@ -370,10 +371,13 @@ The expert's area of expertise is: \"$authority_hook\".
                     error_log('MKCG Topics Generator: ✅ SUCCESS - Unified service returned data successfully');
                     error_log('MKCG Topics Generator: Topics from service: ' . json_encode($service_data['topics']));
                     
+                    // CENTRALIZED: Use Authority Hook Service for component loading
+                    $authority_hook_components = $this->authority_hook_service->get_authority_hook_components($entry_id);
+                    
                     return [
                         'entry_id' => $service_data['entry_id'],
                         'entry_key' => $entry_key,
-                        'authority_hook_components' => $service_data['authority_hook'],
+                        'authority_hook_components' => $authority_hook_components,
                         'form_field_values' => $service_data['topics'], // Use topics directly from unified service
                         'has_entry' => true
                     ];
@@ -391,18 +395,36 @@ The expert's area of expertise is: \"$authority_hook\".
             }
         }
         
+        // If we have an entry_id but no service, try direct loading
+        if ($entry_id > 0) {
+            error_log('MKCG Topics Generator: 🔄 Direct loading fallback for entry_id: ' . $entry_id);
+            
+            // CENTRALIZED: Use Authority Hook Service for component loading
+            $authority_hook_components = $this->authority_hook_service->get_authority_hook_components($entry_id);
+            
+            // Load topics directly from Formidable
+            $topics_data = $this->load_topics_from_formidable($entry_id);
+            
+            return [
+                'entry_id' => $entry_id,
+                'entry_key' => $entry_key,
+                'authority_hook_components' => $authority_hook_components,
+                'form_field_values' => $topics_data,
+                'has_entry' => true
+            ];
+        }
+        
         // Fallback to default structure if unified service fails or no entry
         error_log('MKCG Topics Generator: Using fallback default data structure');
+        
+        // CENTRALIZED: Use Authority Hook Service for consistent defaults
+        $authority_hook_components = $this->authority_hook_service->get_default_components();
+        $authority_hook_components['complete'] = $this->authority_hook_service->build_authority_hook($authority_hook_components);
+        
         return [
             'entry_id' => $entry_id,
             'entry_key' => $entry_key,
-            'authority_hook_components' => [
-                'who' => 'your audience',
-                'result' => 'achieve their goals', 
-                'when' => 'they need help',
-                'how' => 'through your method',
-                'complete' => 'I help your audience achieve their goals when they need help through your method.'
-            ],
+            'authority_hook_components' => $authority_hook_components,
             'form_field_values' => [
                 'topic_1' => '',
                 'topic_2' => '',
@@ -412,6 +434,38 @@ The expert's area of expertise is: \"$authority_hook\".
             ],
             'has_entry' => false
         ];
+    }
+    
+    /**
+     * AUTHORITY HOOK FIX: Load topics directly from Formidable fields as fallback
+     */
+    private function load_topics_from_formidable($entry_id) {
+        $topics_data = [
+            'topic_1' => '',
+            'topic_2' => '',
+            'topic_3' => '',
+            'topic_4' => '',
+            'topic_5' => ''
+        ];
+        
+        if (!$entry_id) {
+            return $topics_data;
+        }
+        
+        error_log('MKCG Topics Generator: 🔄 Loading topics directly from Formidable entry ' . $entry_id);
+        
+        // Get field mappings from centralized config
+        $topic_mappings = MKCG_Config::get_field_mappings()['topics']['fields'];
+        
+        foreach ($topic_mappings as $topic_key => $field_id) {
+            $value = $this->formidable_service->get_field_value($entry_id, $field_id);
+            if (!empty($value)) {
+                $topics_data[$topic_key] = trim($value);
+                error_log('MKCG Topics Generator: ✅ Loaded ' . $topic_key . ' from field ' . $field_id . ': ' . substr($value, 0, 50));
+            }
+        }
+        
+        return $topics_data;
     }
     
     /**
