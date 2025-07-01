@@ -157,21 +157,53 @@ window.MKCG_DataManager = (function() {
         setTopic: function(topicId, topicText, options = {}) {
             logger.log('info', 'topics', `Setting topic ${topicId}`, { topicText, options });
             
-            // CRITICAL FIX: Enhanced validation with placeholder text handling
-            const validation = validator.validateTopic(topicId, topicText);
-            if (!validation.valid && !options.skipValidation) {
-                // CRITICAL FIX: Allow placeholder text for empty topics - just mark as placeholder
-                const hasPlaceholderError = validation.errors.some(error => 
-                    error.includes('placeholder text') || error.includes('empty'));
+            // Enhanced validation using EnhancedValidationManager if available
+            if (window.EnhancedValidationManager && !options.skipValidation) {
+                const enhancedValidation = window.EnhancedValidationManager.validateField(
+                    'topic', 
+                    topicText, 
+                    { context: 'data_manager_set' }
+                );
                 
-                if (hasPlaceholderError && validation.errors.length === 1) {
-                    // This is just placeholder text - allow it but mark it
-                    logger.log('warn', 'topics', `Allowing placeholder topic ${topicId}`, validation.errors);
-                    options.isPlaceholder = true;
-                } else {
-                    // Real validation errors - reject
-                    logger.log('error', 'topics', 'Topic validation failed', validation.errors);
-                    throw new Error('Topic validation failed: ' + validation.errors.join(', '));
+                if (!enhancedValidation.valid) {
+                    logger.log('error', 'topics', 'Enhanced validation failed', enhancedValidation.errors);
+                    
+                    // Use Enhanced Error Handler if available
+                    if (window.EnhancedErrorHandler) {
+                        window.EnhancedErrorHandler.handleError(new Error(
+                            'Topic validation failed: ' + enhancedValidation.errors.join(', ')
+                        ), {
+                            topicId: topicId,
+                            topicText: topicText,
+                            source: 'data_manager',
+                            operation: 'setTopic'
+                        });
+                    }
+                    
+                    throw new Error('Topic validation failed: ' + enhancedValidation.errors.join(', '));
+                }
+                
+                // Log warnings if any
+                if (enhancedValidation.warnings.length > 0) {
+                    logger.log('warn', 'topics', `Topic warnings for ${topicId}`, enhancedValidation.warnings);
+                }
+            } else {
+                // Fallback to original validation
+                const validation = validator.validateTopic(topicId, topicText);
+                if (!validation.valid && !options.skipValidation) {
+                    // CRITICAL FIX: Allow placeholder text for empty topics - just mark as placeholder
+                    const hasPlaceholderError = validation.errors.some(error => 
+                        error.includes('placeholder text') || error.includes('empty'));
+                    
+                    if (hasPlaceholderError && validation.errors.length === 1) {
+                        // This is just placeholder text - allow it but mark it
+                        logger.log('warn', 'topics', `Allowing placeholder topic ${topicId}`, validation.errors);
+                        options.isPlaceholder = true;
+                    } else {
+                        // Real validation errors - reject
+                        logger.log('error', 'topics', 'Topic validation failed', validation.errors);
+                        throw new Error('Topic validation failed: ' + validation.errors.join(', '));
+                    }
                 }
             }
             
@@ -179,6 +211,14 @@ window.MKCG_DataManager = (function() {
             const previousTopic = dataStore.topics[topicId];
             
             try {
+                // Create backup before change
+                const backup = {
+                    topicId: topicId,
+                    previousValue: previousTopic,
+                    timestamp: Date.now(),
+                    options: options
+                };
+                
                 // Update the topic
                 dataStore.topics[topicId] = topicText;
                 dataStore.lastUpdate = Date.now();
@@ -190,7 +230,8 @@ window.MKCG_DataManager = (function() {
                     topicId: topicId,
                     oldText: previousTopic,
                     newText: topicText,
-                    timestamp: dataStore.lastUpdate
+                    timestamp: dataStore.lastUpdate,
+                    backup: backup
                 });
                 
                 // If this is the selected topic, trigger selection event too
@@ -202,12 +243,31 @@ window.MKCG_DataManager = (function() {
                     });
                 }
                 
-                return true;
+                return {
+                    success: true,
+                    topicId: topicId,
+                    previousValue: previousTopic,
+                    newValue: topicText,
+                    backup: backup
+                };
                 
             } catch (error) {
-                // Rollback on error
+                // Enhanced error handling and rollback
                 logger.log('error', 'topics', 'Failed to set topic, rolling back', error);
                 dataStore.topics[topicId] = previousTopic;
+                
+                // Use Enhanced Error Handler if available
+                if (window.EnhancedErrorHandler) {
+                    window.EnhancedErrorHandler.handleError(error, {
+                        topicId: topicId,
+                        topicText: topicText,
+                        previousTopic: previousTopic,
+                        source: 'data_manager',
+                        operation: 'setTopic',
+                        rolledBack: true
+                    });
+                }
+                
                 throw error;
             }
         },
@@ -326,26 +386,90 @@ window.MKCG_DataManager = (function() {
             }
         },
         
-        // SAVE MANAGEMENT
-        markSaveInProgress: function() {
+        // ENHANCED SAVE MANAGEMENT with error recovery
+        markSaveInProgress: function(operation = 'unknown') {
             dataStore.saveInProgress = true;
+            dataStore.lastSaveAttempt = Date.now();
+            
+            logger.log('info', 'save', `Save operation started: ${operation}`);
+            
+            // Show loading indicator if EnhancedUIFeedback available
+            if (window.EnhancedUIFeedback) {
+                dataStore.saveLoadingId = window.EnhancedUIFeedback.showLoadingSpinner(
+                    document.body,
+                    `Saving ${operation}...`,
+                    { global: true }
+                );
+            }
+            
             this.trigger('save:started', {
-                timestamp: Date.now()
+                operation: operation,
+                timestamp: dataStore.lastSaveAttempt
             });
         },
         
-        markSaveCompleted: function() {
+        markSaveCompleted: function(operation = 'unknown', result = {}) {
             dataStore.saveInProgress = false;
+            const duration = Date.now() - (dataStore.lastSaveAttempt || 0);
+            
+            logger.log('success', 'save', `Save operation completed: ${operation} (${duration}ms)`, result);
+            
+            // Hide loading indicator
+            if (window.EnhancedUIFeedback && dataStore.saveLoadingId) {
+                window.EnhancedUIFeedback.hideLoadingSpinner(dataStore.saveLoadingId);
+                delete dataStore.saveLoadingId;
+                
+                // Show success toast
+                window.EnhancedUIFeedback.showToast(
+                    `${operation} saved successfully`,
+                    'success',
+                    3000
+                );
+            }
+            
             this.trigger('save:completed', {
+                operation: operation,
+                result: result,
+                duration: duration,
                 timestamp: Date.now()
             });
         },
         
-        markSaveFailed: function(error) {
+        markSaveFailed: function(error, operation = 'unknown', options = {}) {
             dataStore.saveInProgress = false;
+            const duration = Date.now() - (dataStore.lastSaveAttempt || 0);
+            
+            logger.log('error', 'save', `Save operation failed: ${operation} (${duration}ms)`, error);
+            
+            // Hide loading indicator
+            if (window.EnhancedUIFeedback && dataStore.saveLoadingId) {
+                window.EnhancedUIFeedback.hideLoadingSpinner(dataStore.saveLoadingId);
+                delete dataStore.saveLoadingId;
+            }
+            
+            // Use Enhanced Error Handler if available
+            if (window.EnhancedErrorHandler) {
+                window.EnhancedErrorHandler.handleError(error, {
+                    operation: operation,
+                    duration: duration,
+                    source: 'data_manager_save',
+                    ...options
+                });
+            } else if (window.EnhancedUIFeedback) {
+                // Fallback error notification
+                window.EnhancedUIFeedback.showToast({
+                    title: 'Save Failed',
+                    message: `Failed to save ${operation}. Please try again.`,
+                    actions: ['Check your connection and retry']
+                }, 'error', 0);
+            }
+            
             this.trigger('save:failed', {
+                operation: operation,
                 error: error,
-                timestamp: Date.now()
+                duration: duration,
+                timestamp: Date.now(),
+                options: options
             });
         },
         
@@ -367,14 +491,26 @@ window.MKCG_DataManager = (function() {
             };
         },
         
-        // UTILITIES
+        // ENHANCED UTILITIES with validation integration
         isValidTopicId: function(topicId) {
             return Number.isInteger(topicId) && topicId >= 1 && topicId <= 5;
         },
         
         hasValidTopic: function(topicId) {
             const topic = this.getTopic(topicId);
-            return topic && topic.length >= 10 && !topic.match(/^topic \d+ - click to add/i);
+            
+            // Use enhanced validation if available
+            if (window.EnhancedValidationManager) {
+                const validation = window.EnhancedValidationManager.validateField(
+                    'topic', 
+                    topic, 
+                    { context: 'validity_check' }
+                );
+                return validation.valid && validation.warnings.length === 0;
+            } else {
+                // Fallback to basic validation
+                return topic && topic.length >= 10 && !topic.match(/^topic \d+ - click to add/i);
+            }
         },
         
         getValidTopicsCount: function() {
@@ -387,21 +523,221 @@ window.MKCG_DataManager = (function() {
             return count;
         },
         
-        // DEBUG AND DIAGNOSTICS
+        // Enhanced data integrity check
+        validateDataIntegrity: function() {
+            const issues = [];
+            
+            // Check topic data integrity
+            for (let i = 1; i <= 5; i++) {
+                const topic = dataStore.topics[i];
+                if (topic !== undefined && typeof topic !== 'string') {
+                    issues.push(`Topic ${i} has invalid data type: ${typeof topic}`);
+                }
+            }
+            
+            // Check questions data integrity
+            for (let i = 1; i <= 5; i++) {
+                const questions = dataStore.questions[i];
+                if (questions !== undefined && !Array.isArray(questions)) {
+                    issues.push(`Questions for topic ${i} should be an array`);
+                }
+            }
+            
+            // Check selected topic validity
+            if (!this.isValidTopicId(dataStore.selectedTopicId)) {
+                issues.push(`Invalid selected topic ID: ${dataStore.selectedTopicId}`);
+            }
+            
+            if (issues.length > 0) {
+                logger.log('error', 'integrity', 'Data integrity issues found', issues);
+                
+                if (window.EnhancedErrorHandler) {
+                    window.EnhancedErrorHandler.handleError(
+                        new Error('Data integrity issues detected'),
+                        {
+                            issues: issues,
+                            source: 'data_manager',
+                            operation: 'integrity_check'
+                        }
+                    );
+                }
+            }
+            
+            return {
+                valid: issues.length === 0,
+                issues: issues
+            };
+        },
+        
+        // Enhanced backup and restore functionality
+        createStateBackup: function() {
+            const backup = {
+                timestamp: Date.now(),
+                topics: { ...dataStore.topics },
+                questions: { ...dataStore.questions },
+                selectedTopicId: dataStore.selectedTopicId,
+                lastUpdate: dataStore.lastUpdate
+            };
+            
+            logger.log('info', 'backup', 'State backup created', backup);
+            return backup;
+        },
+        
+        restoreFromBackup: function(backup) {
+            if (!backup || typeof backup !== 'object') {
+                logger.log('error', 'restore', 'Invalid backup data provided');
+                return false;
+            }
+            
+            try {
+                const previousState = this.createStateBackup();
+                
+                // Restore data
+                if (backup.topics) Object.assign(dataStore.topics, backup.topics);
+                if (backup.questions) Object.assign(dataStore.questions, backup.questions);
+                if (backup.selectedTopicId) dataStore.selectedTopicId = backup.selectedTopicId;
+                if (backup.lastUpdate) dataStore.lastUpdate = backup.lastUpdate;
+                
+                logger.log('success', 'restore', 'State restored from backup', backup);
+                
+                this.trigger('data:restored', {
+                    backup: backup,
+                    previousState: previousState,
+                    timestamp: Date.now()
+                });
+                
+                return true;
+            } catch (error) {
+                logger.log('error', 'restore', 'Failed to restore from backup', error);
+                
+                if (window.EnhancedErrorHandler) {
+                    window.EnhancedErrorHandler.handleError(error, {
+                        backup: backup,
+                        source: 'data_manager',
+                        operation: 'restore_backup'
+                    });
+                }
+                
+                return false;
+            }
+        },
+        
+        // ENHANCED DEBUG AND DIAGNOSTICS
         debug: function() {
+            const integrityCheck = this.validateDataIntegrity();
+            
             return {
                 state: this.getState(),
                 eventListeners: Object.keys(eventListeners).reduce((acc, key) => {
                     acc[key] = eventListeners[key].length;
                     return acc;
                 }, {}),
-                validTopics: this.getValidTopicsCount()
+                validTopics: this.getValidTopicsCount(),
+                dataIntegrity: integrityCheck,
+                enhancedSystems: {
+                    ajaxManager: !!window.EnhancedAjaxManager,
+                    errorHandler: !!window.EnhancedErrorHandler,
+                    uiFeedback: !!window.EnhancedUIFeedback,
+                    validationManager: !!window.EnhancedValidationManager
+                },
+                performance: {
+                    lastUpdate: dataStore.lastUpdate,
+                    lastSaveAttempt: dataStore.lastSaveAttempt || null,
+                    saveInProgress: dataStore.saveInProgress,
+                    cacheSize: window.EnhancedValidationManager ? 
+                        window.EnhancedValidationManager.getStats().cacheSize : 'N/A'
+                }
             };
+        },
+        
+        // Enhanced error recovery method
+        recoverFromError: function(error, context = {}) {
+            logger.log('warn', 'recovery', 'Attempting error recovery', { error, context });
+            
+            try {
+                // Check data integrity
+                const integrityCheck = this.validateDataIntegrity();
+                if (!integrityCheck.valid) {
+                    logger.log('error', 'recovery', 'Data integrity issues found during recovery', integrityCheck.issues);
+                }
+                
+                // Reset save state if stuck
+                if (dataStore.saveInProgress && context.resetSaveState) {
+                    dataStore.saveInProgress = false;
+                    if (dataStore.saveLoadingId && window.EnhancedUIFeedback) {
+                        window.EnhancedUIFeedback.hideLoadingSpinner(dataStore.saveLoadingId);
+                        delete dataStore.saveLoadingId;
+                    }
+                }
+                
+                // Clear validation cache if available
+                if (window.EnhancedValidationManager && context.clearValidationCache) {
+                    window.EnhancedValidationManager.clearCache();
+                }
+                
+                this.trigger('error:recovered', {
+                    error: error,
+                    context: context,
+                    timestamp: Date.now()
+                });
+                
+                return true;
+            } catch (recoveryError) {
+                logger.log('error', 'recovery', 'Error recovery failed', recoveryError);
+                return false;
+            }
         }
     };
 })();
 
-// Initialize when DOM is ready
+// Enhanced initialization when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🎯 MKCG Data Manager: Ready for initialization');
+    console.log('🎯 MKCG Data Manager: Ready for enhanced initialization');
+    
+    // Wait for enhanced systems to be available
+    const waitForEnhancedSystems = () => {
+        const systemsAvailable = {
+            ajaxManager: !!window.EnhancedAjaxManager,
+            errorHandler: !!window.EnhancedErrorHandler,
+            uiFeedback: !!window.EnhancedUIFeedback,
+            validationManager: !!window.EnhancedValidationManager
+        };
+        
+        const availableCount = Object.values(systemsAvailable).filter(Boolean).length;
+        
+        if (availableCount >= 2) { // At least 2 enhanced systems available
+            console.log('✅ Enhanced systems detected, Data Manager ready', systemsAvailable);
+            
+            // Initialize with enhanced capabilities
+            if (window.MKCG_DataManager) {
+                window.MKCG_DataManager.enhancedMode = true;
+                window.MKCG_DataManager.availableSystems = systemsAvailable;
+            }
+        } else {
+            console.log('⚠️ Limited enhanced systems, running in basic mode', systemsAvailable);
+            
+            // Retry in 100ms
+            setTimeout(waitForEnhancedSystems, 100);
+        }
+    };
+    
+    // Start waiting for enhanced systems
+    waitForEnhancedSystems();
+});
+
+// Global error handler for Data Manager
+window.addEventListener('error', (event) => {
+    if (event.error && event.error.message && event.error.message.includes('MKCG_DataManager')) {
+        console.error('🚨 Data Manager error detected:', event.error);
+        
+        if (window.MKCG_DataManager && typeof window.MKCG_DataManager.recoverFromError === 'function') {
+            window.MKCG_DataManager.recoverFromError(event.error, {
+                type: 'uncaught_error',
+                filename: event.filename,
+                lineno: event.lineno,
+                resetSaveState: true,
+                clearValidationCache: true
+            });
+        }
+    }
 });

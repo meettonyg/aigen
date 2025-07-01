@@ -192,14 +192,61 @@ const MKCG_FormUtils = {
         }
     },
     
-    // WordPress/AJAX utilities
+    // WordPress/AJAX utilities - ENHANCED with enterprise-grade error handling
     wp: {
         makeAjaxRequest: function(action, data, callbacks = {}) {
-            MKCG_FormUtils.log('Making AJAX request', { action, data });
+            MKCG_FormUtils.log('Making ENHANCED AJAX request', { action, data });
             
+            // Use Enhanced AJAX Manager if available, fallback to legacy
+            if (window.EnhancedAjaxManager) {
+                return window.EnhancedAjaxManager.makeRequest(action, data, {
+                    onStart: callbacks.onStart,
+                    onProgress: callbacks.onProgress,
+                    onSuccess: (result) => {
+                        MKCG_FormUtils.log('Enhanced AJAX success', result);
+                        if (callbacks.onSuccess) {
+                            callbacks.onSuccess(result);
+                        }
+                    },
+                    onError: (error) => {
+                        MKCG_FormUtils.log('Enhanced AJAX error', error);
+                        
+                        // Use Enhanced Error Handler if available
+                        if (window.EnhancedErrorHandler) {
+                            window.EnhancedErrorHandler.handleError(error, {
+                                action: action,
+                                data: data,
+                                source: 'mkcg_form_utils'
+                            });
+                        }
+                        
+                        if (callbacks.onError) {
+                            callbacks.onError(error.message || error);
+                        }
+                    },
+                    onComplete: callbacks.onComplete,
+                    timeout: callbacks.timeout || 30000,
+                    retryAttempts: callbacks.retryAttempts || 3
+                }).catch(error => {
+                    // Final error handling
+                    MKCG_FormUtils.log('Enhanced AJAX final error', error);
+                    if (callbacks.onError) {
+                        callbacks.onError(error.message || 'Request failed');
+                    }
+                    throw error;
+                });
+            } else {
+                // Legacy fallback with basic error handling
+                console.warn('⚠️ Enhanced AJAX Manager not available, using legacy method');
+                return this.makeLegacyAjaxRequest(action, data, callbacks);
+            }
+        },
+        
+        // Legacy AJAX method for fallback
+        makeLegacyAjaxRequest: function(action, data, callbacks = {}) {
             const postData = new URLSearchParams();
             postData.append('action', action);
-            postData.append('security', mkcg_vars.nonce);
+            postData.append('security', mkcg_vars?.nonce || '');
             
             // Add data to post
             Object.keys(data).forEach(key => {
@@ -215,16 +262,23 @@ const MKCG_FormUtils = {
                 callbacks.onStart();
             }
             
-            fetch(mkcg_vars.ajax_url, {
+            const ajaxUrl = mkcg_vars?.ajax_url || window.ajaxurl || '/wp-admin/admin-ajax.php';
+            
+            return fetch(ajaxUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
                 },
                 body: postData.toString()
             })
-            .then(response => response.json())
             .then(response => {
-                MKCG_FormUtils.log('AJAX response received', response);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(response => {
+                MKCG_FormUtils.log('Legacy AJAX response received', response);
                 
                 if (callbacks.onComplete) {
                     callbacks.onComplete();
@@ -234,23 +288,28 @@ const MKCG_FormUtils = {
                     if (callbacks.onSuccess) {
                         callbacks.onSuccess(response.data);
                     }
+                    return response.data;
                 } else {
-                    MKCG_FormUtils.log('AJAX error', response);
+                    const errorMessage = response.data?.message || 'Request failed';
+                    MKCG_FormUtils.log('Legacy AJAX error', response);
                     if (callbacks.onError) {
-                        callbacks.onError(response.data?.message || 'Request failed');
+                        callbacks.onError(errorMessage);
                     }
+                    throw new Error(errorMessage);
                 }
             })
             .catch(error => {
-                MKCG_FormUtils.log('AJAX fetch error', error);
+                MKCG_FormUtils.log('Legacy AJAX fetch error', error);
                 
                 if (callbacks.onComplete) {
                     callbacks.onComplete();
                 }
                 
+                const errorMessage = error.message || 'Network error occurred';
                 if (callbacks.onError) {
-                    callbacks.onError('Network error: ' + error.message);
+                    callbacks.onError(errorMessage);
                 }
+                throw error;
             });
         },
         
@@ -278,7 +337,34 @@ const MKCG_FormUtils = {
             this.bindFieldClearEvents();
         },
         
-        showLoading: function(message = 'Loading...') {
+        showLoading: function(message = 'Loading...', target = null) {
+            // Use Enhanced UI Feedback if available
+            if (window.EnhancedUIFeedback) {
+                return window.EnhancedUIFeedback.showLoadingSpinner(
+                    target || document.body, 
+                    message, 
+                    { global: !target }
+                );
+            } else {
+                // Legacy fallback
+                return this.showLegacyLoading(message);
+            }
+        },
+        
+        hideLoading: function(loadingId = null) {
+            // Use Enhanced UI Feedback if available
+            if (window.EnhancedUIFeedback && loadingId) {
+                window.EnhancedUIFeedback.hideLoadingSpinner(loadingId);
+            } else if (window.EnhancedUIFeedback) {
+                window.EnhancedUIFeedback.hideAllLoading();
+            } else {
+                // Legacy fallback
+                this.hideLegacyLoading();
+            }
+        },
+        
+        // Legacy loading methods for fallback
+        showLegacyLoading: function(message = 'Loading...') {
             let overlay = document.querySelector('.loading');
             if (!overlay) {
                 overlay = this.createLoadingOverlay();
@@ -290,9 +376,10 @@ const MKCG_FormUtils = {
             }
             
             overlay.style.display = 'flex';
+            return 'legacy_loading';
         },
         
-        hideLoading: function() {
+        hideLegacyLoading: function() {
             const overlay = document.querySelector('.loading');
             if (overlay) {
                 overlay.style.display = 'none';
@@ -312,8 +399,30 @@ const MKCG_FormUtils = {
             return overlay;
         },
         
-        showAlert: function(message, type = 'info') {
-            alert(message); // Simple fallback - can be enhanced with custom modals
+        showAlert: function(message, type = 'info', duration = 5000) {
+            // Use Enhanced UI Feedback if available
+            if (window.EnhancedUIFeedback) {
+                return window.EnhancedUIFeedback.showToast(message, type, duration);
+            } else {
+                // Legacy fallback
+                alert(typeof message === 'string' ? message : message.message || 'Notification');
+            }
+        },
+        
+        showSuccess: function(message, duration = 3000) {
+            return this.showAlert(message, 'success', duration);
+        },
+        
+        showError: function(message, duration = 0) {
+            return this.showAlert(message, 'error', duration);
+        },
+        
+        showWarning: function(message, duration = 5000) {
+            return this.showAlert(message, 'warning', duration);
+        },
+        
+        showInfo: function(message, duration = 4000) {
+            return this.showAlert(message, 'info', duration);
         },
         
         bindClipboardEvents: function() {
@@ -353,7 +462,7 @@ const MKCG_FormUtils = {
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(text)
                     .then(() => {
-                        alert('Copied to clipboard!');
+                        this.showSuccess('Copied to clipboard!');
                     })
                     .catch(err => {
                         console.error('Could not copy text: ', err);
@@ -376,13 +485,13 @@ const MKCG_FormUtils = {
             try {
                 const successful = document.execCommand('copy');
                 if (successful) {
-                    alert('Copied to clipboard!');
+                    this.showSuccess('Copied to clipboard!');
                 } else {
-                    alert('Unable to copy to clipboard. Please copy the text manually.');
+                    this.showError('Unable to copy to clipboard. Please copy the text manually.');
                 }
             } catch (err) {
                 console.error('Error copying to clipboard:', err);
-                alert('Unable to copy to clipboard. Please copy the text manually.');
+                this.showError('Unable to copy to clipboard. Please copy the text manually.');
             }
             
             document.body.removeChild(textarea);

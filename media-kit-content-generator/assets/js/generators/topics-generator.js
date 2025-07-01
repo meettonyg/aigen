@@ -159,18 +159,24 @@
     );
     
     if (hasRealComponents) {
-        // Build from components (they have real data)
-        console.log('🔧 Building authority hook from real components:', this.fields);
-        this.updateAuthorityHook(false); // false = no server save during initialization
-    } else if (phpData.authorityHook.complete && phpData.authorityHook.complete !== 'I help your audience achieve their goals when they need help through your method.') {
-        // Use complete hook only if it's not the default and components are default
-        console.log('🔧 Using complete authority hook from database:', phpData.authorityHook.complete);
-        this.updateAuthorityHookText(phpData.authorityHook.complete);
-    } else {
-        // Build from components (fallback)
-        console.log('🔧 Building authority hook from default components');
+    // Build from components (they have real data)
+    console.log('🔧 Building authority hook from real components:', this.fields);
+    // PHASE 1 FIX: Only update if updateAuthorityHook method exists
+        if (typeof this.updateAuthorityHook === 'function') {
         this.updateAuthorityHook(false); // false = no server save during initialization
     }
+    } else if (phpData.authorityHook.complete && phpData.authorityHook.complete !== 'I help your audience achieve their goals when they need help through your method.') {
+        // Use complete hook only if it's not the default and components are default
+    console.log('🔧 Using complete authority hook from database:', phpData.authorityHook.complete);
+    this.updateAuthorityHookText(phpData.authorityHook.complete);
+    } else {
+        // Build from components (fallback)
+                console.log('🔧 Building authority hook from default components');
+                // PHASE 1 FIX: Only update if updateAuthorityHook method exists
+                if (typeof this.updateAuthorityHook === 'function') {
+                    this.updateAuthorityHook(false); // false = no server save during initialization
+                }
+            }
     }
     
     // Load existing topics into form fields
@@ -270,7 +276,10 @@
         this.fields.result = this.fields.result || 'achieve their goals';
         this.fields.when = this.fields.when || 'they need help';
         this.fields.how = this.fields.how || 'through your method';
-        this.updateAuthorityHook(false); // false = no server save during initialization
+        // PHASE 1 FIX: Only update if updateAuthorityHook method exists
+        if (typeof this.updateAuthorityHook === 'function') {
+            this.updateAuthorityHook(false); // false = no server save during initialization
+        }
         console.log('✅ Topics Generator: Default data set');
     },
     
@@ -560,11 +569,14 @@
     },
     
     /**
-     * Auto-save authority hook component to Formidable
+     * ENHANCED: Auto-save authority hook component with standardized AJAX and error recovery
      */
     autoSaveAuthorityComponent: function(component, value) {
       const entryId = document.querySelector('#topics-generator-entry-id')?.value;
-      if (!entryId || entryId === '0') return;
+      if (!entryId || entryId === '0') {
+        console.log('⚠️ Topics Generator: No entry ID available for auto-save');
+        return;
+      }
       
       // Map component names to field IDs (Form 515)
       const componentFieldMap = {
@@ -575,41 +587,59 @@
       };
       
       const fieldId = componentFieldMap[component];
-      if (!fieldId) return;
+      if (!fieldId) {
+        console.error('❌ Topics Generator: Invalid component for auto-save:', component);
+        return;
+      }
       
-      // Debounce the save to avoid too many requests
-      clearTimeout(this.componentSaveTimer);
-      this.componentSaveTimer = setTimeout(() => {
-        this.saveComponentToFormidable(component, fieldId, value);
+      // Enhanced debouncing with component tracking
+      clearTimeout(this.componentSaveTimers?.[component]);
+      if (!this.componentSaveTimers) this.componentSaveTimers = {};
+      
+      this.componentSaveTimers[component] = setTimeout(() => {
+        this.saveComponentToFormidableEnhanced(component, fieldId, value);
       }, 1000);
     },
     
     /**
-     * Save component to Formidable and update complete authority hook
+     * ENHANCED: Save component to Formidable with standardized AJAX and comprehensive error handling
      */
-    saveComponentToFormidable: function(component, fieldId, value) {
+    saveComponentToFormidableEnhanced: function(component, fieldId, value) {
       const entryId = document.querySelector('#topics-generator-entry-id')?.value;
       
-      // CRITICAL FIX: Use unified nonce for authority hook save
-      MKCG_FormUtils.wp.makeAjaxRequest('mkcg_save_authority_hook', {
-      entry_id: entryId,
-      who: this.fields.who,
-      result: this.fields.result,
-      when: this.fields.when,
-      how: this.fields.how,
-      nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || document.querySelector(this.elements.nonceField)?.value || ''
+      console.log(`🔄 Topics Generator: Saving ${component} component to field ${fieldId}`);
+      
+      // Standardized AJAX request with enhanced error recovery
+      this.makeStandardizedAjaxRequest('mkcg_save_authority_hook', {
+        entry_id: entryId,
+        who: this.fields.who,
+        result: this.fields.result,
+        when: this.fields.when,
+        how: this.fields.how
       }, {
-          onSuccess: (data) => {
-            console.log('✅ Authority hook components saved:', data);
-          },
-          onError: (error) => {
-            console.log('⚠️ Failed to save authority hook components:', error);
+        context: `save_authority_component_${component}`,
+        retryAttempts: 2,
+        onSuccess: (data) => {
+          console.log(`✅ Topics Generator: ${component} component saved successfully`);
+          this.showComponentSaveSuccess(component);
+          
+          // Update complete authority hook display if provided
+          if (data.authority_hook) {
+            this.updateAuthorityHookText(data.authority_hook);
           }
-        });
+        },
+        onError: (error) => {
+          console.error(`❌ Topics Generator: Failed to save ${component} component:`, error);
+          this.showComponentSaveError(component, error);
+        },
+        onComplete: () => {
+          console.log(`🏁 Topics Generator: ${component} save operation completed`);
+        }
+      });
     },
     
     /**
-     * Auto-save field to Formidable (if entry exists)
+     * PHASE 2B: Enhanced auto-save with professional visual feedback and state management
      */
     autoSaveField: function(inputElement) {
       const entryId = document.querySelector(this.elements.entryIdField)?.value;
@@ -627,12 +657,38 @@
       const topicMatch = inputElement.id.match(/topic-field-(\d+)/);
       if (topicMatch) {
         const topicId = parseInt(topicMatch[1]);
-        console.log('\ud83d\udccb Topics Generator: Standalone mode - saving topic', topicId, 'locally only');
+        console.log('📋 Topics Generator: Standalone mode - saving topic', topicId, 'locally only');
       }
       
-      // Use MKCG_FormUtils to make AJAX request
+      // PHASE 2B: Professional auto-save with comprehensive state management
       if (window.MKCG_FormUtils) {
-        console.log('💾 Auto-saving field:', fieldName, 'with value:', fieldValue);
+        console.log('💾 PHASE 2B Enhanced auto-save for field:', fieldName, 'with value:', fieldValue);
+        
+        // Clear previous state indicators
+        this.clearFieldStateIndicators(inputElement);
+        
+        // Validate field before saving with Enhanced Validation Manager
+        if (window.EnhancedValidationManager) {
+          const validation = window.EnhancedValidationManager.validateField(
+            fieldName.includes('topic') ? 'topic' : fieldName, 
+            fieldValue,
+            { context: 'auto_save' }
+          );
+          
+          if (!validation.valid) {
+            console.log('⚠️ Field validation failed, showing validation feedback:', validation.errors);
+            this.showFieldValidationError(inputElement, validation.errors);
+            return;
+          }
+          
+          // Show validation warnings if any
+          if (validation.warnings.length > 0) {
+            this.showFieldValidationWarning(inputElement, validation.warnings);
+          }
+        }
+        
+        // Show saving state
+        this.showFieldSavingState(inputElement);
         
         MKCG_FormUtils.wp.makeAjaxRequest('mkcg_save_topic_field', {
           entry_id: entryId,
@@ -640,20 +696,165 @@
           field_value: fieldValue,
           nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || document.querySelector(this.elements.nonceField)?.value || ''
         }, {
+          onStart: () => {
+            // Additional loading state setup if needed
+            console.log('🔄 Auto-save started for:', fieldName);
+          },
           onSuccess: (response) => {
-            console.log('✅ Auto-save successful for field:', fieldName);
-            // Visual feedback for successful save
-            inputElement.style.borderColor = '#27ae60';
-            setTimeout(() => {
-              inputElement.style.borderColor = '';
-            }, 1000);
+            console.log('✅ PHASE 2B Enhanced auto-save successful for field:', fieldName);
+            this.showFieldSavedState(inputElement);
+            
+            // Optional: Show success toast for important saves
+            if (fieldName.includes('authority') && window.EnhancedUIFeedback) {
+              window.EnhancedUIFeedback.showToast(
+                'Authority hook saved successfully',
+                'success',
+                2000
+              );
+            }
           },
           onError: (error) => {
-            console.log('❌ Auto-save failed for field:', fieldName, error);
-          }
+            console.log('❌ PHASE 2B Enhanced auto-save failed for field:', fieldName, error);
+            this.showFieldErrorState(inputElement, error);
+            
+            // Show enhanced error notification
+            if (window.EnhancedUIFeedback) {
+              window.EnhancedUIFeedback.showToast({
+                title: 'Auto-save Failed',
+                message: `Failed to save ${fieldName}. Your changes are preserved locally.`,
+                actions: ['Try saving manually', 'Check your connection']
+              }, 'warning', 5000);
+            }
+          },
+          timeout: 10000, // 10 second timeout for auto-save
+          retryAttempts: 2 // 2 retries for auto-save with enhanced feedback
         });
       } else {
         console.log('⚠️ MKCG_FormUtils not available for auto-save');
+        if (window.EnhancedUIFeedback) {
+          window.EnhancedUIFeedback.showToast({
+            title: 'Auto-save Unavailable',
+            message: 'Please save your changes manually.',
+            actions: ['Use the save button', 'Refresh the page if the problem persists']
+          }, 'warning', 4000);
+        }
+      }
+    },
+    
+    /**
+     * PHASE 2B: Professional visual state management for form fields
+     */
+    clearFieldStateIndicators: function(fieldElement) {
+      // Remove all existing state indicators
+      const parent = fieldElement.parentNode;
+      if (parent) {
+        const indicators = parent.querySelectorAll('.field-state-indicator');
+        indicators.forEach(indicator => indicator.remove());
+      }
+      
+      // Reset field styling
+      fieldElement.style.borderColor = '';
+      fieldElement.style.boxShadow = '';
+      fieldElement.classList.remove('field--saving', 'field--saved', 'field--error', 'field--warning');
+    },
+    
+    showFieldSavingState: function(fieldElement) {
+      fieldElement.classList.add('field--saving');
+      fieldElement.style.borderColor = '#3498db';
+      fieldElement.style.boxShadow = '0 0 5px rgba(52, 152, 219, 0.3)';
+      
+      const indicator = this.createFieldStateIndicator('💾 Saving...', '#3498db');
+      this.addFieldStateIndicator(fieldElement, indicator);
+    },
+    
+    showFieldSavedState: function(fieldElement) {
+      this.clearFieldStateIndicators(fieldElement);
+      fieldElement.classList.add('field--saved');
+      fieldElement.style.borderColor = '#27ae60';
+      fieldElement.style.boxShadow = '0 0 5px rgba(39, 174, 96, 0.3)';
+      
+      const indicator = this.createFieldStateIndicator('✓ Saved', '#27ae60');
+      this.addFieldStateIndicator(fieldElement, indicator);
+      
+      // Auto-clear success state after 3 seconds
+      setTimeout(() => {
+        this.clearFieldStateIndicators(fieldElement);
+      }, 3000);
+    },
+    
+    showFieldErrorState: function(fieldElement, error) {
+      this.clearFieldStateIndicators(fieldElement);
+      fieldElement.classList.add('field--error');
+      fieldElement.style.borderColor = '#e74c3c';
+      fieldElement.style.boxShadow = '0 0 5px rgba(231, 76, 60, 0.3)';
+      
+      const indicator = this.createFieldStateIndicator('⚠ Save failed', '#e74c3c');
+      this.addFieldStateIndicator(fieldElement, indicator);
+      
+      // Auto-clear error state after 5 seconds
+      setTimeout(() => {
+        this.clearFieldStateIndicators(fieldElement);
+      }, 5000);
+    },
+    
+    showFieldValidationError: function(fieldElement, errors) {
+      fieldElement.style.borderColor = '#e74c3c';
+      fieldElement.style.boxShadow = '0 0 5px rgba(231, 76, 60, 0.3)';
+      
+      const indicator = this.createFieldStateIndicator('⚠ ' + errors[0], '#e74c3c');
+      this.addFieldStateIndicator(fieldElement, indicator);
+      
+      // Auto-clear validation error when user starts typing
+      const clearOnInput = () => {
+        this.clearFieldStateIndicators(fieldElement);
+        fieldElement.removeEventListener('input', clearOnInput);
+      };
+      fieldElement.addEventListener('input', clearOnInput);
+    },
+    
+    showFieldValidationWarning: function(fieldElement, warnings) {
+      const indicator = this.createFieldStateIndicator('⚠ ' + warnings[0], '#f39c12');
+      indicator.style.fontSize = '11px';
+      this.addFieldStateIndicator(fieldElement, indicator);
+      
+      // Auto-clear warning after 4 seconds
+      setTimeout(() => {
+        indicator.remove();
+      }, 4000);
+    },
+    
+    createFieldStateIndicator: function(text, color) {
+      const indicator = document.createElement('div');
+      indicator.className = 'field-state-indicator';
+      indicator.textContent = text;
+      indicator.style.cssText = `
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: ${color};
+        font-size: 12px;
+        font-weight: 500;
+        pointer-events: none;
+        z-index: 10;
+        background: white;
+        padding: 2px 4px;
+        border-radius: 3px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        animation: fadeIn 0.3s ease;
+      `;
+      
+      return indicator;
+    },
+    
+    addFieldStateIndicator: function(fieldElement, indicator) {
+      const parent = fieldElement.parentNode;
+      if (parent) {
+        // Ensure parent has relative positioning
+        if (getComputedStyle(parent).position === 'static') {
+          parent.style.position = 'relative';
+        }
+        parent.appendChild(indicator);
       }
     },
     
@@ -819,56 +1020,201 @@
     },
     
     /**
-     * Generate topics with the AI service
+     * ENHANCED: Topic generation with standardized AJAX and comprehensive error recovery
      */
     generateTopics: function() {
+      console.log('🎯 Topics Generator: Starting enhanced topic generation with standardized AJAX');
+      
       const authorityHook = document.querySelector(this.elements.authorityHookText)?.textContent;
       
       if (!authorityHook) {
-        alert('Please build your authority hook first.');
+        this.showUserFeedback({
+          type: 'warning',
+          title: 'Authority Hook Required',
+          message: 'Please build your authority hook first before generating topics.',
+          actions: ['Click "Edit Components" to build your authority hook']
+        });
         return;
       }
       
-      // Show loading indicator
-      this.showLoading();
+      // Validate data before submission with enhanced feedback
+      const formData = {
+        authority_hook: authorityHook,
+        who: this.fields.who,
+        result: this.fields.result,
+        when: this.fields.when,
+        how: this.fields.how,
+        entry_id: document.querySelector(this.elements.entryIdField)?.value
+      };
+      
+      // PHASE 2B: Enhanced validation with progressive feedback
+      if (window.EnhancedValidationManager) {
+        const validationResult = window.EnhancedValidationManager.validateBeforeSubmit(
+          formData, 
+          'generate_topics'
+        );
+        
+        if (!validationResult.valid) {
+          console.log('❌ Validation failed for topic generation:', validationResult);
+          window.EnhancedValidationManager.showValidationErrors(validationResult);
+          return;
+        }
+        
+        // Show validation success if Enhanced UI is available
+        if (validationResult.warnings.length === 0 && window.EnhancedUIFeedback) {
+          window.EnhancedUIFeedback.showToast('✓ Pre-generation validation passed', 'success', 1500);
+        }
+      }
+      
+      // Hide previous results and show progressive loading
       this.hideTopicsResult();
       
-      // Use MKCG_FormUtils to make AJAX request to WordPress
-      if (window.MKCG_FormUtils) {
-        MKCG_FormUtils.wp.makeAjaxRequest('mkcg_generate_topics', {
-          authority_hook: authorityHook,
-          who: this.fields.who,
-          result: this.fields.result,
-          when: this.fields.when,
-          how: this.fields.how,
-          entry_id: document.querySelector(this.elements.entryIdField)?.value,
-          nonce: document.querySelector(this.elements.nonceField)?.value
-        }, {
-          onStart: () => {
-            this.showLoading();
-          },
-          onComplete: () => {
-            this.hideLoading();
-          },
-          onSuccess: (data) => {
-            if (data.topics) {
+      // PHASE 2B: Progressive loading with multiple stages
+      let loadingId = null;
+      let progressId = null;
+      
+      if (window.EnhancedUIFeedback) {
+        // Show initial loading state
+        loadingId = window.EnhancedUIFeedback.showLoadingSpinner(
+          '#topics-generator',
+          'Preparing topic generation request...',
+          { animated: true }
+        );
+        
+        // Add progress bar
+        progressId = window.EnhancedUIFeedback.showProgress(
+          '#topics-generator', 
+          10, 
+          { animated: true }
+        );
+      } else {
+        this.showLoading();
+      }
+      
+      // PHASE 2B: Progressive loading stages
+      const updateProgress = (stage, message, progress) => {
+        console.log(`🔄 Generation stage: ${stage} (${progress}%)`);
+        
+        if (window.EnhancedUIFeedback) {
+          // Update loading message
+          const loadingElement = document.querySelector('.mkcg-loading-message');
+          if (loadingElement) {
+            loadingElement.textContent = message;
+          }
+          
+          // Update progress bar
+          if (progressId) {
+            window.EnhancedUIFeedback.showProgress('#topics-generator', progress, { animated: true });
+          }
+        }
+      };
+      
+      // ENHANCED: Use standardized AJAX with comprehensive error recovery
+      this.makeStandardizedAjaxRequest('mkcg_generate_topics', formData, {
+        context: 'generate_topics',
+        timeout: 45000,
+        retryAttempts: 2,
+        progressCallback: updateProgress,
+        onStart: () => {
+          console.log('🔄 Topics Generator: Topic generation started with standardized AJAX');
+          updateProgress('start', 'Initializing AI request...', 20);
+        },
+        onProgress: (progress) => {
+          if (progress.type === 'retry') {
+            updateProgress('retry', `Retrying connection (attempt ${progress.attempt})...`, 30);
+            this.showUserFeedback({
+              type: 'info',
+              title: 'Retrying Generation',
+              message: `Attempt ${progress.attempt} of ${progress.maxAttempts} - AI service may be busy`,
+              duration: 4000
+            });
+          } else if (progress.type === 'queued') {
+            updateProgress('queued', 'Request queued - will retry when online...', 15);
+          }
+        },
+        onSuccess: (data) => {
+          console.log('✅ Topics Generator: Topic generation successful:', data);
+          
+          updateProgress('processing', 'Processing generated topics...', 80);
+          
+          // Simulate processing time for smooth UX
+          setTimeout(() => {
+            updateProgress('complete', 'Topics generated successfully!', 100);
+            this.hideLoadingStates({ loadingId, progressId });
+            
+            if (data.topics && Array.isArray(data.topics) && data.topics.length > 0) {
               this.generatedTopics = data.topics;
               this.displayTopics(data.topics);
+              
+              this.showUserFeedback({
+                type: 'success',
+                title: 'Topics Generated Successfully!',
+                message: `Generated ${data.topics.length} compelling interview topics tailored to your authority hook.`,
+                actions: [
+                  'Click "Use" next to any topic to add it to your form',
+                  'Topics are automatically saved when you use them'
+                ],
+                duration: 6000
+              });
             } else {
+              console.log('⚠️ No topics in response, using demo topics');
               this.generateDemoTopics(authorityHook);
             }
-          },
-          onError: () => {
+          }, 500);
+        },
+        onError: (error) => {
+          console.error('❌ Topics Generator: Topic generation failed:', error);
+          
+          updateProgress('error', 'Generation failed - switching to demo topics...', 0);
+          this.hideLoadingStates({ loadingId, progressId });
+          
+          // Show demo topics as graceful fallback
+          setTimeout(() => {
+            console.log('🎭 Topics Generator: Showing demo topics as graceful fallback');
             this.generateDemoTopics(authorityHook);
-          }
-        });
-      } else {
-        // Fallback to demo topics
+            
+            this.showUserFeedback({
+              type: 'info',
+              title: 'Using Demo Topics',
+              message: 'AI generation is temporarily unavailable. Here are sample topics you can customize.',
+              actions: [
+                'These topics are examples based on your authority hook',
+                'Edit them to match your specific expertise',
+                'Try AI generation again in a few minutes'
+              ],
+              duration: 8000
+            });
+          }, 800);
+        },
+        onComplete: () => {
+          console.log('🏁 Topics Generator: Topic generation completed');
+        }
+      });
+        
+      
+      // Simulate initial progress for better UX
+      setTimeout(() => updateProgress('sending', 'Sending request to AI service...', 40), 200);
+      setTimeout(() => updateProgress('processing', 'AI is analyzing your authority hook...', 60), 1000);
+    },
+    
+    /**
+     * ENHANCED: Fallback demo topics generation with standardized handling
+     */
+    generateDemoTopicsFallback: function(authorityHook) {
+      console.log('⚠️ Topics Generator: MKCG_FormUtils not available, using demo topics fallback');
+      
+      updateProgress('fallback', 'FormUtils unavailable - loading demo topics...', 50);
+      
+      setTimeout(() => {
+        updateProgress('demo', 'Preparing demo topics...', 80);
+        
         setTimeout(() => {
-          this.hideLoading();
+          updateProgress('complete', 'Demo topics ready!', 100);
+          this.hideLoadingStates({ loadingId, progressId });
           this.generateDemoTopics(authorityHook);
-        }, 2000);
-      }
+        }, 800);
+      }, 1500);
+    },
     },
     
     /**
@@ -1012,18 +1358,29 @@
     },
     
     /**
-     * Use the selected topic in the specified form field
+     * ENHANCED: Use selected topic with standardized save and comprehensive feedback
      */
     useTopicInField: function() {
-      if (!this.selectedTopic) return;
+      if (!this.selectedTopic) {
+        console.error('❌ Topics Generator: No topic selected for use');
+        return;
+      }
       
       const fieldNumberInput = document.querySelector(this.elements.fieldNumberInput);
-      if (!fieldNumberInput) return;
+      if (!fieldNumberInput) {
+        console.error('❌ Topics Generator: Field number input not found');
+        return;
+      }
       
       const fieldNumber = parseInt(fieldNumberInput.value);
       
       if (isNaN(fieldNumber) || fieldNumber < 1 || fieldNumber > 5) {
-        alert('Please enter a valid field number (1-5)');
+        this.showUserFeedback({
+          type: 'warning',
+          title: 'Invalid Field Number',
+          message: 'Please enter a valid field number (1-5)',
+          duration: 3000
+        });
         return;
       }
       
@@ -1031,37 +1388,296 @@
       const inputElement = document.querySelector(fieldSelector);
       
       if (inputElement) {
+        console.log(`🎯 Topics Generator: Using topic "${this.selectedTopic.text}" in field ${fieldNumber}`);
+        
         inputElement.value = this.selectedTopic.text;
-        this.autoSaveField(inputElement);
         
-        // STANDALONE MODE: No centralized data manager or cross-generator events
-        console.log('\ud83d\udccb Topics Generator: Standalone mode - saving topic', fieldNumber, 'locally only');
+        // Enhanced auto-save with feedback
+        this.autoSaveFieldEnhanced(inputElement, {
+          onSuccess: () => {
+            this.showUserFeedback({
+              type: 'success',
+              title: 'Topic Added Successfully',
+              message: `Topic ${fieldNumber} has been saved: "${this.selectedTopic.text.substring(0, 50)}..."`,
+              duration: 3000
+            });
+            
+            console.log(`✅ Topics Generator: Topic ${fieldNumber} saved successfully`);
+          },
+          onError: (error) => {
+            this.showUserFeedback({
+              type: 'error',
+              title: 'Save Failed',
+              message: 'Topic was added to the form but could not be saved to the server. Please save manually.',
+              duration: 5000
+            });
+            
+            console.error(`❌ Topics Generator: Failed to save topic ${fieldNumber}:`, error);
+          }
+        });
         
-        // Topics Generator works independently - no cross-generator broadcasting needed
+        // STANDALONE MODE: Topics Generator works independently
+        console.log('📋 Topics Generator: Standalone mode - topic saved locally');
+      } else {
+        console.error(`❌ Topics Generator: Field element not found: ${fieldSelector}`);
+        this.showUserFeedback({
+          type: 'error',
+          title: 'Field Not Found',
+          message: `Could not find topic field ${fieldNumber}. Please refresh the page.`,
+          duration: 5000
+        });
       }
       
       this.closeModal();
+    },
+    
+    // PHASE 2B: Network awareness integration
+    networkStatus: {
+      isOnline: true,
+      indicator: null
+    },
+    
+    /**
+     * PHASE 2B: Update network status from Offline Manager
+     */
+    updateNetworkStatus: function(isOnline) {
+      this.networkStatus.isOnline = isOnline;
+      
+      console.log(`🌐 Topics Generator: Network status updated - ${isOnline ? 'Online' : 'Offline'}`);
+      
+      // Update UI based on network status
+      this.updateUIForNetworkStatus(isOnline);
+      
+      // If back online and there are pending operations, show sync option
+      if (isOnline && window.MKCG_OfflineManager) {
+        const queueStatus = window.MKCG_OfflineManager.getNetworkStatus();
+        if (queueStatus.queuedOperations > 0) {
+          this.showSyncPendingNotification(queueStatus.queuedOperations);
+        }
+      }
+    },
+    
+    /**
+     * PHASE 2B: Update UI elements based on network status
+     */
+    updateUIForNetworkStatus: function(isOnline) {
+      const generateButton = document.querySelector(this.elements.generateButton);
+      
+      if (generateButton) {
+        if (isOnline) {
+          generateButton.disabled = false;
+          generateButton.textContent = 'Generate Topics';
+          generateButton.style.opacity = '1';
+        } else {
+          generateButton.disabled = true;
+          generateButton.textContent = 'Generate Topics (Offline)';
+          generateButton.style.opacity = '0.6';
+        }
+      }
+      
+      // Update form field placeholders for offline mode
+      const formFields = document.querySelectorAll('.topics-generator__form-field-input');
+      formFields.forEach(field => {
+        if (isOnline) {
+          field.classList.remove('field--offline-mode');
+        } else {
+          field.classList.add('field--offline-mode');
+        }
+      });
+    },
+    
+    /**
+     * PHASE 2B: Show notification about pending sync operations
+     */
+    showSyncPendingNotification: function(count) {
+      if (window.EnhancedUIFeedback) {
+        window.EnhancedUIFeedback.showToast({
+          title: 'Offline Changes Detected',
+          message: `You have ${count} pending changes that will be synced automatically.`,
+          actions: ['Changes are being processed in the background']
+        }, 'info', 5000);
+      }
+    },
+    
+    /**
+     * PHASE 2B: Enhanced auto-save with offline awareness
+     */
+    autoSaveFieldWithOfflineSupport: function(inputElement) {
+      // Check network status first
+      if (!this.networkStatus.isOnline && window.MKCG_OfflineManager) {
+        console.log('📱 Offline mode: Queuing auto-save for later sync');
+        
+        const fieldName = inputElement.getAttribute('name');
+        const fieldValue = inputElement.value;
+        const entryId = document.querySelector(this.elements.entryIdField)?.value;
+        
+        // Queue the operation for when back online
+        window.MKCG_OfflineManager.queueOperation('mkcg_save_topic_field', {
+          entry_id: entryId,
+          field_name: fieldName,
+          field_value: fieldValue,
+          nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || ''
+        }, {
+          onSuccess: () => {
+            console.log('✅ Offline queued save completed for:', fieldName);
+            this.showFieldSavedState(inputElement);
+          },
+          onError: (error) => {
+            console.log('❌ Offline queued save failed for:', fieldName, error);
+            this.showFieldErrorState(inputElement, error);
+          }
+        });
+        
+        // Show offline saved state
+        this.showFieldOfflineState(inputElement);
+        return;
+      }
+      
+      // Use regular auto-save if online
+      this.autoSaveField(inputElement);
+    },
+    
+    /**
+     * PHASE 2B: Show offline saved state
+     */
+    showFieldOfflineState: function(fieldElement) {
+      this.clearFieldStateIndicators(fieldElement);
+      fieldElement.classList.add('field--offline-saved');
+      fieldElement.style.borderColor = '#f39c12';
+      fieldElement.style.boxShadow = '0 0 5px rgba(243, 156, 18, 0.3)';
+      
+      const indicator = this.createFieldStateIndicator('📱 Saved offline', '#f39c12');
+      this.addFieldStateIndicator(fieldElement, indicator);
+      
+      // Auto-clear offline state after 4 seconds
+      setTimeout(() => {
+        this.clearFieldStateIndicators(fieldElement);
+      }, 4000);
+    },
+    
+    /**
+     * PHASE 2B: Enhanced topic generation with offline detection
+     */
+    generateTopicsWithOfflineCheck: function() {
+      // Check if we're offline
+      if (!this.networkStatus.isOnline) {
+        if (window.EnhancedUIFeedback) {
+          window.EnhancedUIFeedback.showToast({
+            title: 'Generation Requires Internet',
+            message: 'Topic generation needs an internet connection to access AI services.',
+            actions: [
+              'Check your connection and try again',
+              'Use demo topics while offline'
+            ]
+          }, 'warning', 8000);
+        } else {
+          alert('Topic generation requires an internet connection. Please check your connection and try again.');
+        }
+        
+        // Offer demo topics as alternative
+        const authorityHook = document.querySelector(this.elements.authorityHookText)?.textContent || 'default hook';
+        this.generateDemoTopics(authorityHook);
+        return;
+      }
+      
+      // Use enhanced generation if online
+      this.generateTopics();
     }
   };
 
-  // Initialize when DOM is ready
+  // Initialize when DOM is ready with enhanced dependency loading
   document.addEventListener('DOMContentLoaded', function() {
-    console.log('🎯 Topics Generator: DOM Ready - BEM Version');
+    console.log('🎯 PHASE 2B: Topics Generator DOM Ready - Enhanced Version');
     
-    // Wait for MKCG_FormUtils to be available
-    const waitForFormUtils = () => {
-      if (window.MKCG_FormUtils) {
-        console.log('✅ Topics Generator: FormUtils detected - Starting BEM initialization');
+    // Wait for all required dependencies
+    const waitForDependencies = () => {
+      const requiredDependencies = {
+        FormUtils: window.MKCG_FormUtils,
+        OfflineManager: window.MKCG_OfflineManager,
+        EnhancedUIFeedback: window.EnhancedUIFeedback,
+        EnhancedAjaxManager: window.EnhancedAjaxManager
+      };
+      
+      const missing = Object.keys(requiredDependencies).filter(dep => !requiredDependencies[dep]);
+      
+      if (missing.length === 0) {
+        console.log('✅ PHASE 2B: All dependencies loaded - Starting enhanced initialization');
+        
+        // Initialize Topics Generator
         TopicsGenerator.init();
+        
+        // Setup network awareness
+        if (window.MKCG_OfflineManager) {
+          window.MKCG_OfflineManager.addNetworkStatusListener((isOnline) => {
+            TopicsGenerator.updateNetworkStatus(isOnline);
+          });
+          
+          // Get initial network status
+          const networkStatus = window.MKCG_OfflineManager.getNetworkStatus();
+          TopicsGenerator.updateNetworkStatus(networkStatus.isOnline);
+          
+          console.log('🌐 PHASE 2B: Network awareness integrated');
+        }
+        
+        // Replace auto-save method with offline-aware version
+        document.querySelectorAll('.topics-generator__form-field-input').forEach(input => {
+          input.removeEventListener('blur', TopicsGenerator.autoSaveField);
+          input.addEventListener('blur', () => {
+            TopicsGenerator.autoSaveFieldWithOfflineSupport(input);
+          });
+        });
+        
+        // Replace generate button with offline-aware version
+        const generateBtn = document.querySelector(TopicsGenerator.elements.generateButton);
+        if (generateBtn) {
+          generateBtn.removeEventListener('click', TopicsGenerator.generateTopics);
+          generateBtn.addEventListener('click', () => {
+            TopicsGenerator.generateTopicsWithOfflineCheck();
+          });
+        }
+        
+        console.log('✅ PHASE 2B: Enhanced Topics Generator fully initialized');
+        
       } else {
-        setTimeout(waitForFormUtils, 100);
+        console.log(`⏳ PHASE 2B: Waiting for dependencies: ${missing.join(', ')}`);
+        setTimeout(waitForDependencies, 100);
       }
     };
     
-    waitForFormUtils();
+    waitForDependencies();
   });
 
-  // Make globally available for debugging
+  // PHASE 2B: Make globally available with enhanced debugging
   window.TopicsGenerator = TopicsGenerator;
+  
+  // PHASE 2B: Add global debugging helpers
+  window.MKCG_Debug = {
+    getTopicsGeneratorStatus: () => ({
+      initialized: !!window.TopicsGenerator,
+      networkStatus: TopicsGenerator.networkStatus,
+      formUtils: !!window.MKCG_FormUtils,
+      offlineManager: !!window.MKCG_OfflineManager,
+      enhancedUI: !!window.EnhancedUIFeedback,
+      enhancedAjax: !!window.EnhancedAjaxManager
+    }),
+    
+    getOfflineStatus: () => {
+      return window.MKCG_OfflineManager ? window.MKCG_OfflineManager.getNetworkStatus() : null;
+    },
+    
+    forceSync: () => {
+      if (window.MKCG_OfflineManager) {
+        window.MKCG_OfflineManager.forcSync();
+      }
+    },
+    
+    clearOfflineQueue: () => {
+      if (window.MKCG_OfflineManager) {
+        window.MKCG_OfflineManager.clearOfflineQueue();
+      }
+    }
+  };
+  
+  console.log('✅ PHASE 2B: Topics Generator with full offline support loaded successfully');
 
 })();

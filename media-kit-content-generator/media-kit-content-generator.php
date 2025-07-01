@@ -141,51 +141,304 @@ class Media_Kit_Content_Generator {
         }
     }
     
+    /**
+     * CRITICAL FIX: Enhanced service initialization with proper dependency order and error handling
+     */
     private function init_services() {
-        $this->api_service = new MKCG_API_Service();
-        $this->formidable_service = new MKCG_Formidable_Service();
-        $this->authority_hook_service = new MKCG_Authority_Hook_Service($this->formidable_service);
+        error_log('MKCG: Starting enhanced service initialization');
+        
+        try {
+            // Initialize services in proper dependency order
+            
+            // 1. API Service (no dependencies)
+            if (class_exists('MKCG_API_Service')) {
+                $this->api_service = new MKCG_API_Service();
+                error_log('MKCG: ✅ API Service initialized');
+            } else {
+                throw new Exception('MKCG_API_Service class not found');
+            }
+            
+            // 2. Formidable Service (no dependencies)
+            if (class_exists('MKCG_Formidable_Service')) {
+                $this->formidable_service = new MKCG_Formidable_Service();
+                error_log('MKCG: ✅ Formidable Service initialized');
+            } else {
+                throw new Exception('MKCG_Formidable_Service class not found');
+            }
+            
+            // 3. Authority Hook Service (depends on Formidable Service)
+            if (class_exists('MKCG_Authority_Hook_Service')) {
+                if (!$this->formidable_service) {
+                    throw new Exception('Authority Hook Service requires Formidable Service');
+                }
+                
+                $this->authority_hook_service = new MKCG_Authority_Hook_Service($this->formidable_service);
+                error_log('MKCG: ✅ Authority Hook Service initialized with Formidable dependency');
+            } else {
+                throw new Exception('MKCG_Authority_Hook_Service class not found');
+            }
+            
+            // Validate all services are properly initialized
+            $this->validate_service_initialization();
+            
+            error_log('MKCG: ✅ All services initialized successfully');
+            
+        } catch (Exception $e) {
+            error_log('MKCG: ❌ CRITICAL - Service initialization failed: ' . $e->getMessage());
+            
+            // Add admin notice for service initialization failure
+            add_action('admin_notices', function() use ($e) {
+                echo '<div class="notice notice-error"><p><strong>Media Kit Content Generator:</strong> Service initialization failed - ' . esc_html($e->getMessage()) . '. Please check error logs.</p></div>';
+            });
+            
+            // Don't completely break - set services to null and continue with graceful degradation
+            $this->api_service = null;
+            $this->formidable_service = null;
+            $this->authority_hook_service = null;
+        }
     }
     
+    /**
+     * CRITICAL FIX: Validate that all services are properly initialized
+     */
+    private function validate_service_initialization() {
+        $required_services = [
+            'api_service' => 'MKCG_API_Service',
+            'formidable_service' => 'MKCG_Formidable_Service', 
+            'authority_hook_service' => 'MKCG_Authority_Hook_Service'
+        ];
+        
+        $validation_errors = [];
+        
+        foreach ($required_services as $property => $expected_class) {
+            if (!isset($this->$property) || !$this->$property) {
+                $validation_errors[] = "{$property} is null";
+            } elseif (!($this->$property instanceof $expected_class)) {
+                $validation_errors[] = "{$property} is not an instance of {$expected_class}";
+            } else {
+                error_log("MKCG: ✅ {$property} validated as {$expected_class}");
+            }
+        }
+        
+        if (!empty($validation_errors)) {
+            throw new Exception('Service validation failed: ' . implode(', ', $validation_errors));
+        }
+        
+        error_log('MKCG: ✅ All services validated successfully');
+    }
+    
+    /**
+     * CRITICAL FIX: Enhanced generator initialization with error handling and validation
+     */
     private function init_generators() {
-        $this->generators['biography'] = new MKCG_Biography_Generator(
-            $this->api_service, 
-            $this->formidable_service,
-            $this->authority_hook_service
-        );
+        error_log('MKCG: Starting enhanced generator initialization');
         
-        $this->generators['offers'] = new MKCG_Offers_Generator(
-            $this->api_service, 
-            $this->formidable_service,
-            $this->authority_hook_service
-        );
+        // Check if services are available before initializing generators
+        if (!$this->api_service || !$this->formidable_service || !$this->authority_hook_service) {
+            error_log('MKCG: ⚠️ Services not fully initialized - using graceful degradation for generators');
+            return; // Don't initialize generators if services failed
+        }
         
-        $this->generators['topics'] = new MKCG_Topics_Generator(
-            $this->api_service, 
-            $this->formidable_service,
-            $this->authority_hook_service
-        );
-        
-        $this->generators['questions'] = new MKCG_Questions_Generator(
-            $this->api_service, 
-            $this->formidable_service,
-            $this->authority_hook_service
-        );
-        
-        // Initialize AJAX handlers for Topics generator
-        if (isset($this->generators['topics'])) {
-            new MKCG_Topics_AJAX_Handlers($this->generators['topics']);
+        try {
+            // Initialize generators with enhanced error handling
+            $generator_classes = [
+                'topics' => 'MKCG_Topics_Generator',
+                'questions' => 'MKCG_Questions_Generator',
+                'biography' => 'MKCG_Biography_Generator',
+                'offers' => 'MKCG_Offers_Generator'
+            ];
+            
+            foreach ($generator_classes as $type => $class_name) {
+                try {
+                    if (class_exists($class_name)) {
+                        $this->generators[$type] = new $class_name(
+                            $this->api_service,
+                            $this->formidable_service,
+                            $this->authority_hook_service
+                        );
+                        
+                        error_log("MKCG: ✅ {$class_name} initialized successfully");
+                    } else {
+                        error_log("MKCG: ⚠️ {$class_name} class not found - skipping {$type} generator");
+                    }
+                } catch (Exception $e) {
+                    error_log("MKCG: ❌ Failed to initialize {$class_name}: " . $e->getMessage());
+                    // Continue with other generators even if one fails
+                }
+            }
+            
+            // CRITICAL FIX: Initialize AJAX handlers with enhanced error handling
+            if (isset($this->generators['topics']) && class_exists('MKCG_Topics_AJAX_Handlers')) {
+                try {
+                    new MKCG_Topics_AJAX_Handlers($this->generators['topics']);
+                    error_log('MKCG: ✅ Topics AJAX Handlers initialized successfully');
+                } catch (Exception $e) {
+                    error_log('MKCG: ❌ Failed to initialize Topics AJAX Handlers: ' . $e->getMessage());
+                }
+            } else {
+                error_log('MKCG: ⚠️ Topics generator or AJAX handlers class not available');
+            }
+            
+            // Validate generator initialization
+            $this->validate_generator_initialization();
+            
+            error_log('MKCG: ✅ Generator initialization completed - ' . count($this->generators) . ' generators loaded');
+            
+        } catch (Exception $e) {
+            error_log('MKCG: ❌ CRITICAL - Generator initialization failed: ' . $e->getMessage());
+            
+            // Add admin notice for generator initialization failure
+            add_action('admin_notices', function() use ($e) {
+                echo '<div class="notice notice-warning"><p><strong>Media Kit Content Generator:</strong> Some generators failed to initialize - ' . esc_html($e->getMessage()) . '. Basic functionality may be limited.</p></div>';
+            });
         }
     }
     
-    public function init() {
-        // Initialize each generator
-        foreach ($this->generators as $generator) {
-            $generator->init();
+    /**
+     * CRITICAL FIX: Validate generator initialization
+     */
+    private function validate_generator_initialization() {
+        $expected_generators = ['topics', 'questions'];
+        $initialized_generators = array_keys($this->generators);
+        
+        $missing_generators = array_diff($expected_generators, $initialized_generators);
+        
+        if (!empty($missing_generators)) {
+            error_log('MKCG: ⚠️ Missing critical generators: ' . implode(', ', $missing_generators));
         }
         
-        // Register shortcodes
-        $this->register_shortcodes();
+        foreach ($this->generators as $type => $generator) {
+            if (!is_object($generator)) {
+                error_log("MKCG: ❌ Generator '{$type}' is not a valid object");
+            } else {
+                error_log("MKCG: ✅ Generator '{$type}' validated successfully");
+            }
+        }
+    }
+    
+    /**
+     * CRITICAL FIX: Enhanced initialization with comprehensive error handling
+     */
+    public function init() {
+        error_log('MKCG: Starting enhanced plugin initialization');
+        
+        try {
+            // Initialize each generator with error handling
+            if (!empty($this->generators)) {
+                foreach ($this->generators as $type => $generator) {
+                    try {
+                        if (is_object($generator) && method_exists($generator, 'init')) {
+                            $generator->init();
+                            error_log("MKCG: ✅ Generator '{$type}' initialized successfully");
+                        } else {
+                            error_log("MKCG: ⚠️ Generator '{$type}' does not have init method or is not an object");
+                        }
+                    } catch (Exception $e) {
+                        error_log("MKCG: ❌ Failed to initialize generator '{$type}': " . $e->getMessage());
+                        // Continue with other generators
+                    }
+                }
+            } else {
+                error_log('MKCG: ⚠️ No generators available for initialization');
+            }
+            
+            // Register shortcodes with error handling
+            try {
+                $this->register_shortcodes();
+                error_log('MKCG: ✅ Shortcodes registered successfully');
+            } catch (Exception $e) {
+                error_log('MKCG: ❌ Failed to register shortcodes: ' . $e->getMessage());
+            }
+            
+            // Additional initialization tasks
+            $this->setup_error_handling();
+            $this->validate_plugin_requirements();
+            
+            error_log('MKCG: ✅ Plugin initialization completed successfully');
+            
+        } catch (Exception $e) {
+            error_log('MKCG: ❌ CRITICAL - Plugin initialization failed: ' . $e->getMessage());
+            
+            // Show admin notice for critical initialization failure
+            add_action('admin_notices', function() use ($e) {
+                echo '<div class="notice notice-error"><p><strong>Media Kit Content Generator:</strong> Critical initialization failure - ' . esc_html($e->getMessage()) . '. Plugin may not function correctly.</p></div>';
+            });
+        }
+    }
+    
+    /**
+     * CRITICAL FIX: Setup global error handling
+     */
+    private function setup_error_handling() {
+        // Add PHP error handler for plugin-specific errors
+        set_error_handler(function($severity, $message, $file, $line) {
+            if (strpos($file, 'media-kit-content-generator') !== false) {
+                error_log("MKCG PHP Error [{$severity}]: {$message} in {$file} on line {$line}");
+            }
+            return false; // Don't interfere with normal error handling
+        }, E_ERROR | E_WARNING | E_PARSE);
+        
+        // Add WordPress action for uncaught exceptions
+        add_action('wp_loaded', function() {
+            set_exception_handler(function($exception) {
+                if (strpos($exception->getFile(), 'media-kit-content-generator') !== false) {
+                    error_log('MKCG Uncaught Exception: ' . $exception->getMessage() . ' in ' . $exception->getFile() . ' on line ' . $exception->getLine());
+                }
+            });
+        });
+    }
+    
+    /**
+     * CRITICAL FIX: Validate plugin requirements
+     */
+    private function validate_plugin_requirements() {
+        $requirements = [
+            'php_version' => '7.4.0',
+            'wordpress_version' => '5.0',
+            'required_functions' => ['wp_create_nonce', 'wp_verify_nonce', 'sanitize_text_field'],
+            'required_classes' => ['WP_Query', 'wpdb']
+        ];
+        
+        $validation_errors = [];
+        
+        // Check PHP version
+        if (version_compare(PHP_VERSION, $requirements['php_version'], '<')) {
+            $validation_errors[] = "PHP version {$requirements['php_version']} or higher required. Current: " . PHP_VERSION;
+        }
+        
+        // Check WordPress version
+        global $wp_version;
+        if (version_compare($wp_version, $requirements['wordpress_version'], '<')) {
+            $validation_errors[] = "WordPress version {$requirements['wordpress_version']} or higher required. Current: {$wp_version}";
+        }
+        
+        // Check required functions
+        foreach ($requirements['required_functions'] as $function) {
+            if (!function_exists($function)) {
+                $validation_errors[] = "Required function '{$function}' not available";
+            }
+        }
+        
+        // Check required classes
+        foreach ($requirements['required_classes'] as $class) {
+            if (!class_exists($class)) {
+                $validation_errors[] = "Required class '{$class}' not available";
+            }
+        }
+        
+        if (!empty($validation_errors)) {
+            error_log('MKCG: ❌ Plugin requirements validation failed: ' . implode(', ', $validation_errors));
+            
+            add_action('admin_notices', function() use ($validation_errors) {
+                echo '<div class="notice notice-error"><p><strong>Media Kit Content Generator:</strong> Requirements not met:</p><ul>';
+                foreach ($validation_errors as $error) {
+                    echo '<li>' . esc_html($error) . '</li>';
+                }
+                echo '</ul></div>';
+            });
+        } else {
+            error_log('MKCG: ✅ All plugin requirements validated successfully');
+        }
     }
     
     /**
@@ -651,44 +904,105 @@ class Media_Kit_Content_Generator {
         flush_rewrite_rules();
     }
     
-    // Getter methods for services (for generator access)
+    // ENHANCED: Getter methods for services with validation
     public function get_api_service() {
+        if (!$this->api_service) {
+            error_log('MKCG: ⚠️ API Service requested but not available');
+        }
         return $this->api_service;
     }
     
     public function get_formidable_service() {
+        if (!$this->formidable_service) {
+            error_log('MKCG: ⚠️ Formidable Service requested but not available');
+        }
         return $this->formidable_service;
     }
     
     public function get_authority_hook_service() {
+        if (!$this->authority_hook_service) {
+            error_log('MKCG: ⚠️ Authority Hook Service requested but not available');
+        }
         return $this->authority_hook_service;
     }
     
-    public function get_generator($type) {
-        return isset($this->generators[$type]) ? $this->generators[$type] : null;
+    /**
+     * CRITICAL FIX: Get service status for debugging
+     */
+    public function get_service_status() {
+        return [
+            'api_service' => $this->api_service ? 'available' : 'unavailable',
+            'formidable_service' => $this->formidable_service ? 'available' : 'unavailable',
+            'authority_hook_service' => $this->authority_hook_service ? 'available' : 'unavailable',
+            'generators_count' => count($this->generators),
+            'available_generators' => array_keys($this->generators)
+        ];
     }
     
     /**
-     * Get current entry ID from URL parameters
+     * ENHANCED: Get generator with validation and error handling
+     */
+    public function get_generator($type) {
+        if (!is_string($type) || empty($type)) {
+            error_log('MKCG: Invalid generator type requested: ' . print_r($type, true));
+            return null;
+        }
+        
+        if (isset($this->generators[$type])) {
+            if (is_object($this->generators[$type])) {
+                error_log("MKCG: ✅ Generator '{$type}' retrieved successfully");
+                return $this->generators[$type];
+            } else {
+                error_log("MKCG: ❌ Generator '{$type}' exists but is not a valid object");
+                return null;
+            }
+        }
+        
+        error_log("MKCG: ⚠️ Generator '{$type}' not found. Available generators: " . implode(', ', array_keys($this->generators)));
+        return null;
+    }
+    
+    /**
+     * ENHANCED: Get current entry ID with enhanced error handling
      */
     public function get_current_entry_id() {
-        if (isset($_GET['entry'])) {
-            $entry_key = sanitize_text_field($_GET['entry']);
-            $entry_data = $this->formidable_service->get_entry_data($entry_key);
-            
-            if ($entry_data['success']) {
-                return $entry_data['entry_id'];
+        try {
+            if (isset($_GET['entry'])) {
+                $entry_key = sanitize_text_field($_GET['entry']);
+                
+                // Check if Formidable service is available
+                if (!$this->formidable_service) {
+                    error_log('MKCG: ⚠️ Formidable service not available for entry ID lookup');
+                    return 0;
+                }
+                
+                $entry_data = $this->formidable_service->get_entry_data($entry_key);
+                
+                if ($entry_data['success']) {
+                    error_log('MKCG: ✅ Entry ID resolved: ' . $entry_data['entry_id']);
+                    return $entry_data['entry_id'];
+                } else {
+                    error_log('MKCG: ⚠️ Failed to resolve entry ID from key: ' . $entry_key);
+                }
             }
+        } catch (Exception $e) {
+            error_log('MKCG: ❌ Exception in get_current_entry_id: ' . $e->getMessage());
         }
         
         return 0;
     }
     
     /**
-     * Get current entry key from URL parameters
+     * ENHANCED: Get current entry key with validation
      */
     public function get_current_entry_key() {
-        return isset($_GET['entry']) ? sanitize_text_field($_GET['entry']) : '';
+        $entry_key = isset($_GET['entry']) ? sanitize_text_field($_GET['entry']) : '';
+        
+        if ($entry_key) {
+            error_log('MKCG: Entry key found in URL: ' . $entry_key);
+        }
+        
+        return $entry_key;
     }
 }
 

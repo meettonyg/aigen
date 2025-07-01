@@ -17,14 +17,14 @@ class MKCG_Topics_Generator extends MKCG_Base_Generator {
     protected $topics_data_service;
     
     /**
-     * STEP 2 FIX: Constructor - Enhanced with bulletproof service initialization
+     * PHASE 1 FIX: Constructor - Enhanced with bulletproof service initialization
      */
     public function __construct($api_service, $formidable_service, $authority_hook_service = null) {
         try {
             // Call parent constructor first
             parent::__construct($api_service, $formidable_service, $authority_hook_service);
             
-            // STEP 2: Initialize critical data services with validation
+            // PHASE 1: Initialize critical data services with validation
             $this->init_data_services_with_validation();
             
             // Validate all required services are available
@@ -40,6 +40,8 @@ class MKCG_Topics_Generator extends MKCG_Base_Generator {
             throw new Exception('Topics Generator initialization failed: ' . $e->getMessage());
         }
     }
+    
+
     
     /**
      * STEP 2 FIX: Initialize data services with comprehensive validation and fallbacks
@@ -153,6 +155,13 @@ class MKCG_Topics_Generator extends MKCG_Base_Generator {
      */
     public function is_topics_service_available() {
         return ($this->topics_data_service !== null && is_object($this->topics_data_service));
+    }
+    
+    /**
+     * CRITICAL FIX: Get authority hook service for AJAX handlers
+     */
+    public function get_authority_hook_service() {
+        return $this->authority_hook_service;
     }
     
     /**
@@ -350,7 +359,7 @@ The expert's area of expertise is: \"$authority_hook\".
     }
     
     /**
-     * CRITICAL FIX: Safe authority hook components save with enhanced error handling
+     * PHASE 1 CRITICAL FIX: Safe authority hook components save with enhanced error handling
      */
     public function save_authority_hook_components_safe($entry_id, $who, $result, $when, $how) {
         try {
@@ -423,6 +432,8 @@ The expert's area of expertise is: \"$authority_hook\".
             ];
         }
     }
+    
+
     
     // REMOVED: Redundant field processing methods - now using centralized Formidable Service
     
@@ -743,13 +754,13 @@ The expert's area of expertise is: \"$authority_hook\".
     }
     
     /**
-     * STEP 1 FIX: Initialize with all required AJAX actions - Enhanced error handling
+     * PHASE 1 FIX: Initialize with all required AJAX actions - Enhanced error handling
      */
     public function init() {
         try {
             parent::init();
             
-            // STEP 1: Ensure all critical AJAX handlers are registered
+            // PHASE 1: Ensure all critical AJAX handlers are registered
             $this->register_critical_ajax_handlers();
             
             error_log('MKCG Topics Generator: ✅ All AJAX handlers registered successfully');
@@ -764,7 +775,7 @@ The expert's area of expertise is: \"$authority_hook\".
     }
     
     /**
-     * STEP 1 FIX: Register all critical AJAX handlers with validation
+     * PHASE 1 FIX: Register all critical AJAX handlers with validation
      */
     private function register_critical_ajax_handlers() {
         $ajax_handlers = [
@@ -796,6 +807,8 @@ The expert's area of expertise is: \"$authority_hook\".
             }
         }
     }
+    
+
     
     /**
      * Handle legacy fetch authority hook request

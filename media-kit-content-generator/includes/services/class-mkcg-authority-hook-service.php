@@ -269,4 +269,98 @@ class MKCG_Authority_Hook_Service {
         
         return isset($suggestions[$industry]) ? $suggestions[$industry] : $suggestions['default'];
     }
+    
+    /**
+     * CRITICAL FIX: Save authority hook components safely with comprehensive error handling
+     * This method was missing and causing 500 errors when called from JavaScript
+     */
+    public function save_authority_hook_components_safe($entry_id, $who, $result, $when, $how) {
+        error_log('MKCG Authority Hook Service: save_authority_hook_components_safe called for entry ' . $entry_id);
+        
+        // Validate inputs
+        if (!$entry_id || !is_numeric($entry_id)) {
+            error_log('MKCG Authority Hook Service: Invalid entry ID provided: ' . $entry_id);
+            return [
+                'success' => false,
+                'message' => 'Invalid entry ID provided',
+                'code' => 'INVALID_ENTRY_ID'
+            ];
+        }
+        
+        try {
+            // Sanitize inputs
+            $who = sanitize_text_field($who);
+            $result = sanitize_text_field($result);
+            $when = sanitize_text_field($when);
+            $how = sanitize_text_field($how);
+            
+            // Get field mappings from centralized config
+            $auth_mappings = MKCG_Config::get_field_mappings()['authority_hook']['fields'];
+            
+            // Prepare components for saving
+            $components = [
+                'who' => $who,
+                'result' => $result,
+                'when' => $when,
+                'how' => $how
+            ];
+            
+            // Build complete authority hook
+            $complete_hook = $this->build_authority_hook($components);
+            $components['complete'] = $complete_hook;
+            
+            // Prepare field mappings for Formidable save
+            $field_mappings = [];
+            $save_data = [];
+            
+            foreach ($components as $component => $value) {
+                if (isset($auth_mappings[$component])) {
+                    $field_id = $auth_mappings[$component];
+                    $save_data[$component] = $value;
+                    $field_mappings[$component] = $field_id;
+                    
+                    error_log("MKCG Authority Hook Service: Prepared {$component} (field {$field_id}): {$value}");
+                }
+            }
+            
+            // Save via Formidable service with enhanced error handling
+            if (!$this->formidable_service) {
+                throw new Exception('Formidable service not available');
+            }
+            
+            $save_result = $this->formidable_service->save_generated_content(
+                $entry_id,
+                $save_data,
+                $field_mappings
+            );
+            
+            if ($save_result['success']) {
+                error_log('MKCG Authority Hook Service: Components saved successfully for entry ' . $entry_id);
+                
+                return [
+                    'success' => true,
+                    'message' => 'Authority hook components saved successfully',
+                    'authority_hook' => $complete_hook,
+                    'components' => $components,
+                    'saved_fields' => $save_result['saved_fields']
+                ];
+            } else {
+                throw new Exception('Failed to save to Formidable fields');
+            }
+            
+        } catch (Exception $e) {
+            error_log('MKCG Authority Hook Service: Exception in save_authority_hook_components_safe: ' . $e->getMessage());
+            
+            return [
+                'success' => false,
+                'message' => 'Failed to save authority hook components: ' . $e->getMessage(),
+                'code' => 'SAVE_EXCEPTION',
+                'debug' => [
+                    'entry_id' => $entry_id,
+                    'exception' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]
+            ];
+        }
+    }
 }

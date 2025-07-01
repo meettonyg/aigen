@@ -7,9 +7,10 @@
 class MKCG_Formidable_Service {
     
     /**
-     * Get entry data by entry ID or entry key
+     * CRITICAL FIX: Enhanced entry data retrieval with comprehensive error handling
      */
     public function get_entry_data($entry_identifier) {
+        error_log('MKCG Enhanced Entry Data: Starting retrieval for identifier: ' . $entry_identifier);
         global $wpdb;
         
         $entry_id = 0;
@@ -144,32 +145,57 @@ class MKCG_Formidable_Service {
             ];
         }
         
-        // CRITICAL FIX: Organize the data with enhanced field value processing
+        // CRITICAL FIX: Organize the data with enhanced field value processing and context awareness
         $field_data = [];
         $topic_field_summary = [];
+        $authority_hook_summary = [];
         
         foreach ($all_meta_values as $meta) {
-            // Use centralized enhanced processing for all field values
-            $processed_value = $this->process_field_value_enhanced($meta['meta_value'], $meta['field_id']);
-            
-            $field_data[$meta['field_id']] = [
-                'id' => $meta['field_id'],
-                'name' => $meta['name'] ?: 'Unknown',
-                'key' => $meta['field_key'] ?: '',
-                'value' => $processed_value,
-                'raw_value' => $meta['meta_value'], // Keep original for debugging
-                'processing_success' => !empty($processed_value) || $meta['meta_value'] === '0'
-            ];
-            
-            // Enhanced logging for topic fields
-            if (in_array($meta['field_id'], ['8498', '8499', '8500', '8501', '8502'])) {
+        // Determine processing context based on field ID
+        $context = $this->determine_processing_context($meta['field_id']);
+        
+        // Use enhanced safe processing for all field values
+        $processed_value = $this->process_field_value_safe($meta['meta_value'], $meta['field_id'], $context);
+        
+        $field_data[$meta['field_id']] = [
+        'id' => $meta['field_id'],
+        'name' => $meta['name'] ?: 'Unknown',
+            'key' => $meta['field_key'] ?: '',
+            'value' => $processed_value,
+            'raw_value' => $meta['meta_value'], // Keep original for debugging
+            'processing_context' => $context,
+        'processing_success' => !empty($processed_value) || $meta['meta_value'] === '0',
+        'data_quality' => $this->assess_field_data_quality($processed_value, $context)
+        ];
+        
+        // Enhanced logging for topic fields with quality assessment
+        if (in_array($meta['field_id'], ['8498', '8499', '8500', '8501', '8502'])) {
                 $topic_number = $meta['field_id'] - 8497; // Convert to 1-5
-                $status = !empty($processed_value) ? 'SUCCESS' : 'EMPTY';
-                $topic_field_summary[] = "Topic {$topic_number} (field {$meta['field_id']}): {$status} - '" . substr($processed_value, 0, 50) . "'";
+                    $quality = $field_data[$meta['field_id']]['data_quality'];
+                    $status = !empty($processed_value) ? "SUCCESS ({$quality})" : 'EMPTY';
+                    $topic_field_summary[] = "Topic {$topic_number} (field {$meta['field_id']}): {$status} - '" . substr($processed_value, 0, 50) . "'";
+                    
+                    error_log("MKCG Enhanced Extraction: Topic field {$meta['field_id']} - Context: {$context}, Quality: {$quality}, Processed: '" . $processed_value . "'");
+                }
                 
-                error_log("MKCG Data Extraction: Topic field {$meta['field_id']} - Raw type: " . gettype($meta['meta_value']) . ", Raw length: " . (is_string($meta['meta_value']) ? strlen($meta['meta_value']) : 'N/A') . ", Processed: '" . $processed_value . "'");
+                // Enhanced logging for authority hook fields
+                if (in_array($meta['field_id'], ['10296', '10297', '10387', '10298', '10358'])) {
+                    $component_map = [
+                        '10296' => 'WHO',
+                        '10297' => 'RESULT',
+                        '10387' => 'WHEN',
+                        '10298' => 'HOW',
+                        '10358' => 'COMPLETE'
+                    ];
+                    
+                    $component = $component_map[$meta['field_id']] ?? 'UNKNOWN';
+                    $quality = $field_data[$meta['field_id']]['data_quality'];
+                    $status = !empty($processed_value) ? "SUCCESS ({$quality})" : 'EMPTY';
+                    $authority_hook_summary[] = "{$component} (field {$meta['field_id']}): {$status} - '" . substr($processed_value, 0, 50) . "'";
+                    
+                    error_log("MKCG Enhanced Extraction: Authority hook field {$meta['field_id']} ({$component}) - Context: {$context}, Quality: {$quality}, Processed: '" . $processed_value . "'");
+                }
             }
-        }
         
         if (!empty($topic_field_summary)) {
             error_log('MKCG Data Extraction: TOPIC FIELDS SUMMARY - ' . implode(' | ', $topic_field_summary));
@@ -187,11 +213,20 @@ class MKCG_Formidable_Service {
             }
         }
         
-        if (!empty($topic_found)) {
-            error_log('MKCG Formidable Service: Topic fields found: ' . implode(', ', $topic_found));
-        } else {
-            error_log('MKCG Formidable Service: NO topic fields found in fields: ' . implode(', ', $found_field_ids));
+        if (!empty($topic_field_summary)) {
+        error_log('MKCG Enhanced Extraction: TOPIC FIELDS SUMMARY - ' . implode(' | ', $topic_field_summary));
         }
+        
+        if (!empty($authority_hook_summary)) {
+                error_log('MKCG Enhanced Extraction: AUTHORITY HOOK SUMMARY - ' . implode(' | ', $authority_hook_summary));
+            }
+            
+            // Legacy compatibility logging
+            if (!empty($topic_found)) {
+                error_log('MKCG Formidable Service: Topic fields found: ' . implode(', ', $topic_found));
+            } else {
+                error_log('MKCG Formidable Service: NO topic fields found in fields: ' . implode(', ', $found_field_ids));
+            }
         
         return [
             'success' => true,
@@ -199,10 +234,12 @@ class MKCG_Formidable_Service {
             'fields' => $field_data,
             'raw_data' => $all_meta_values,
             'debug_info' => [
-                'total_fields' => count($field_data),
-                'topic_fields_found' => count($topic_found),
-                'specific_check' => $specific_check
-            ]
+            'total_fields' => count($field_data),
+            'topic_fields_found' => count($topic_found),
+            'authority_hook_fields_found' => count($authority_hook_summary),
+                'specific_check' => $specific_check,
+                    'data_quality_summary' => $this->generate_data_quality_summary($field_data)
+                ]
         ];
     }
     
@@ -1656,33 +1693,52 @@ class MKCG_Formidable_Service {
                     error_log("MKCG Enhanced Processing: Field {$field_id} - Unserialize result type: " . gettype($unserialized) . ", Value: " . print_r($unserialized, true));
                 }
                 
-                // CRITICAL FIX: If standard unserialization failed, activate repair system
+                // CRITICAL FIX: If standard unserialization failed, activate comprehensive repair system
                 if ($unserialized === false) {
                     if ($field_id) {
-                        error_log("MKCG CRITICAL FIX: Field {$field_id} - Formidable serialization BUG detected, activating repair system");
+                        error_log("MKCG CRITICAL FIX: Field {$field_id} - Formidable serialization BUG detected, activating comprehensive repair system");
                     }
                     
-                    $repaired_unserialized = $this->repair_and_unserialize_malformed_data($trimmed, $field_id);
+                    // ENHANCED: Try multiple repair strategies
+                    $repair_strategies = [
+                        'malformed_data_repair' => function() use ($trimmed, $field_id) {
+                            return $this->repair_and_unserialize_malformed_data($trimmed, $field_id);
+                        },
+                        'encoding_repair' => function() use ($trimmed, $field_id) {
+                            return $this->repair_encoding_issues($trimmed, $field_id);
+                        },
+                        'structure_repair' => function() use ($trimmed, $field_id) {
+                            return $this->repair_serialization_structure($trimmed, $field_id);
+                        },
+                        'emergency_extraction' => function() use ($trimmed, $field_id) {
+                            $manual_extract = $this->emergency_string_extraction($trimmed, $field_id);
+                            return !empty($manual_extract) ? [$manual_extract] : false;
+                        }
+                    ];
                     
-                    if ($repaired_unserialized !== false) {
-                        $unserialized = $repaired_unserialized;
-                        if ($field_id) {
-                            error_log("MKCG CRITICAL FIX: Field {$field_id} - Repair SUCCESSFUL! Data recovered from Formidable bug");
-                        }
-                    } else {
-                        if ($field_id) {
-                            error_log("MKCG CRITICAL FIX: Field {$field_id} - Repair failed, extracting value manually");
-                        }
-                        
-                        // Emergency extraction: try to get the string content manually
-                        $manual_extract = $this->emergency_string_extraction($trimmed, $field_id);
-                        if (!empty($manual_extract)) {
-                            if ($field_id) {
-                                error_log("MKCG CRITICAL FIX: Field {$field_id} - Emergency extraction successful: '{$manual_extract}'");
+                    foreach ($repair_strategies as $strategy_name => $repair_function) {
+                        try {
+                            $repaired_unserialized = $repair_function();
+                            
+                            if ($repaired_unserialized !== false) {
+                                $unserialized = $repaired_unserialized;
+                                if ($field_id) {
+                                    error_log("MKCG CRITICAL FIX: Field {$field_id} - Repair SUCCESSFUL using {$strategy_name}! Data recovered from Formidable bug");
+                                }
+                                break;
                             }
-                            return $manual_extract;
+                        } catch (Exception $e) {
+                            if ($field_id) {
+                                error_log("MKCG CRITICAL FIX: Field {$field_id} - Strategy {$strategy_name} failed: " . $e->getMessage());
+                            }
                         }
-                        
+                    }
+                    
+                    // If all repair strategies failed
+                    if ($unserialized === false) {
+                        if ($field_id) {
+                            error_log("MKCG CRITICAL FIX: Field {$field_id} - All repair strategies failed, returning original string");
+                        }
                         return $trimmed; // Final fallback to original string
                     }
                 }
@@ -1915,7 +1971,7 @@ class MKCG_Formidable_Service {
     }
     
     /**
-     * Check if string looks like serialized data
+     * CRITICAL FIX: Check if string looks like serialized data with enhanced detection
      */
     private function looks_like_serialized_data($data) {
         if (!is_string($data) || empty($data)) {
@@ -1930,6 +1986,295 @@ class MKCG_Formidable_Service {
             (strlen($trimmed) > 4 && substr($trimmed, 0, 2) === 'b:') || // Boolean
             (strlen($trimmed) > 4 && substr($trimmed, 0, 2) === 'O:')    // Object
         );
+    }
+    
+    /**
+     * CRITICAL FIX: Enhanced field value processing with comprehensive error recovery
+     * Addresses the root cause of field 10296 loading issues and similar serialization problems
+     */
+    public function process_field_value_safe($raw_value, $field_id = null, $context = 'general') {
+        error_log("MKCG Enhanced Processing: Starting safe processing for field {$field_id} in context {$context}");
+        
+        // Enhanced null/empty handling
+        if ($raw_value === null || $raw_value === false) {
+            error_log("MKCG Enhanced Processing: Field {$field_id} - NULL/FALSE value detected");
+            return '';
+        }
+        
+        if ($raw_value === '') {
+            error_log("MKCG Enhanced Processing: Field {$field_id} - Empty string detected");
+            return '';
+        }
+        
+        // Enhanced type handling with context awareness
+        if (is_string($raw_value)) {
+            return $this->process_string_value_enhanced($raw_value, $field_id, $context);
+        } elseif (is_array($raw_value)) {
+            return $this->process_array_value_enhanced($raw_value, $field_id, $context);
+        } elseif (is_object($raw_value)) {
+            return $this->process_object_value_enhanced($raw_value, $field_id, $context);
+        } else {
+            // Handle other types (numbers, booleans)
+            $result = (string) $raw_value;
+            error_log("MKCG Enhanced Processing: Field {$field_id} - Direct type conversion: {$result}");
+            return $result;
+        }
+    }
+    
+    /**
+     * CRITICAL FIX: Enhanced string value processing with multiple recovery strategies
+     */
+    private function process_string_value_enhanced($string_value, $field_id, $context) {
+        $trimmed = trim($string_value);
+        
+        error_log("MKCG String Processing: Field {$field_id} - Processing string of length " . strlen($trimmed));
+        
+        // Strategy 1: Check if it's serialized data
+        if ($this->is_serialized($trimmed)) {
+            error_log("MKCG String Processing: Field {$field_id} - Detected serialized data");
+            return $this->process_serialized_data_enhanced($trimmed, $field_id, $context);
+        }
+        
+        // Strategy 2: Check if it's JSON data
+        if ($this->looks_like_json($trimmed)) {
+            error_log("MKCG String Processing: Field {$field_id} - Detected JSON data");
+            return $this->process_json_data_enhanced($trimmed, $field_id);
+        }
+        
+        // Strategy 3: Check for malformed serialized patterns
+        if (preg_match('/^(a:|s:|i:|b:|O:)/', $trimmed)) {
+            error_log("MKCG String Processing: Field {$field_id} - Detected malformed serialization pattern");
+            return $this->recover_malformed_serialization($trimmed, $field_id);
+        }
+        
+        // Strategy 4: Plain string processing
+        error_log("MKCG String Processing: Field {$field_id} - Processing as plain string");
+        return $this->process_plain_string($trimmed, $field_id, $context);
+    }
+    
+    /**
+     * CRITICAL FIX: Enhanced serialized data processing with malformed data recovery
+     */
+    private function process_serialized_data_enhanced($serialized_string, $field_id, $context) {
+        try {
+            // Attempt standard unserialization first
+            $unserialized = @unserialize($serialized_string);
+            
+            if ($unserialized !== false) {
+                error_log("MKCG Serialization: Field {$field_id} - Standard unserialization successful");
+                return $this->extract_value_from_unserialized_enhanced($unserialized, $field_id, $context);
+            }
+            
+            // Fallback to repair system for malformed data
+            error_log("MKCG Serialization: Field {$field_id} - Standard unserialization failed, attempting repair");
+            $repaired = $this->repair_and_unserialize_malformed_data($serialized_string, $field_id);
+            
+            if ($repaired !== false) {
+                error_log("MKCG Serialization: Field {$field_id} - Repair successful");
+                return $this->extract_value_from_unserialized_enhanced($repaired, $field_id, $context);
+            }
+            
+            // Emergency extraction as last resort
+            error_log("MKCG Serialization: Field {$field_id} - Attempting emergency extraction");
+            return $this->emergency_string_extraction($serialized_string, $field_id);
+            
+        } catch (Exception $e) {
+            error_log("MKCG Serialization: Field {$field_id} - Exception during processing: " . $e->getMessage());
+            return $this->emergency_string_extraction($serialized_string, $field_id);
+        }
+    }
+    
+    /**
+     * CRITICAL FIX: Enhanced value extraction from unserialized data
+     */
+    private function extract_value_from_unserialized_enhanced($unserialized, $field_id, $context) {
+        if (is_string($unserialized)) {
+            error_log("MKCG Extraction: Field {$field_id} - Direct string extraction: " . substr($unserialized, 0, 50));
+            return trim($unserialized);
+        }
+        
+        if (is_array($unserialized)) {
+            error_log("MKCG Extraction: Field {$field_id} - Array extraction with " . count($unserialized) . " elements");
+            return $this->extract_best_value_from_array($unserialized, $field_id, $context);
+        }
+        
+        if (is_object($unserialized)) {
+            error_log("MKCG Extraction: Field {$field_id} - Object extraction");
+            return $this->extract_value_from_object($unserialized, $field_id);
+        }
+        
+        // Handle other types
+        $result = (string) $unserialized;
+        error_log("MKCG Extraction: Field {$field_id} - Type conversion result: {$result}");
+        return $result;
+    }
+    
+    /**
+     * CRITICAL FIX: Enhanced array value extraction with context awareness
+     */
+    private function extract_best_value_from_array($array, $field_id, $context) {
+        // Authority hook fields often have specific patterns
+        if ($context === 'authority_hook' || in_array($field_id, ['10296', '10297', '10387', '10298'])) {
+            return $this->extract_authority_hook_value($array, $field_id);
+        }
+        
+        // Topic fields have different patterns
+        if ($context === 'topics' || in_array($field_id, ['8498', '8499', '8500', '8501', '8502'])) {
+            return $this->extract_topic_value($array, $field_id);
+        }
+        
+        // General array processing
+        return $this->extract_general_array_value($array, $field_id);
+    }
+    
+    /**
+     * CRITICAL FIX: Authority hook specific value extraction
+     */
+    private function extract_authority_hook_value($array, $field_id) {
+        error_log("MKCG Authority Extraction: Processing field {$field_id} array");
+        
+        // Strategy 1: Look for first non-empty string value
+        foreach ($array as $key => $value) {
+            if (is_string($value) && trim($value) !== '') {
+                $trimmed = trim($value);
+                error_log("MKCG Authority Extraction: Found string value: {$trimmed}");
+                return $trimmed;
+            }
+        }
+        
+        // Strategy 2: Look for nested values
+        foreach ($array as $key => $value) {
+            if (is_array($value)) {
+                $nested_result = $this->extract_general_array_value($value, $field_id);
+                if (!empty($nested_result)) {
+                    error_log("MKCG Authority Extraction: Found nested value: {$nested_result}");
+                    return $nested_result;
+                }
+            }
+        }
+        
+        error_log("MKCG Authority Extraction: No valid value found in array");
+        return '';
+    }
+    
+    /**
+     * CRITICAL FIX: Topic specific value extraction
+     */
+    private function extract_topic_value($array, $field_id) {
+        error_log("MKCG Topic Extraction: Processing field {$field_id} array");
+        
+        // Topics are usually straightforward strings
+        foreach ($array as $key => $value) {
+            if (is_string($value) && trim($value) !== '') {
+                $trimmed = trim($value);
+                // Filter out obvious placeholders
+                if (!preg_match('/^(Topic|Click|Add|Placeholder|Empty)/i', $trimmed)) {
+                    error_log("MKCG Topic Extraction: Found valid topic: {$trimmed}");
+                    return $trimmed;
+                }
+            }
+        }
+        
+        // If no non-placeholder found, return the first string value
+        foreach ($array as $key => $value) {
+            if (is_string($value) && trim($value) !== '') {
+                $trimmed = trim($value);
+                error_log("MKCG Topic Extraction: Using first available value: {$trimmed}");
+                return $trimmed;
+            }
+        }
+        
+        error_log("MKCG Topic Extraction: No valid value found in array");
+        return '';
+    }
+    
+    /**
+     * CRITICAL FIX: Enhanced malformed serialization recovery
+     */
+    private function recover_malformed_serialization($malformed_string, $field_id) {
+        error_log("MKCG Malformed Recovery: Attempting recovery for field {$field_id}");
+        
+        // Strategy 1: Try repair and unserialize
+        $repaired = $this->repair_and_unserialize_malformed_data($malformed_string, $field_id);
+        if ($repaired !== false) {
+            return $this->extract_value_from_unserialized_enhanced($repaired, $field_id, 'recovery');
+        }
+        
+        // Strategy 2: Emergency string extraction
+        $extracted = $this->emergency_string_extraction($malformed_string, $field_id);
+        if (!empty($extracted)) {
+            return $extracted;
+        }
+        
+        // Strategy 3: Pattern matching for common cases
+        if (preg_match('/s:\d+:"([^"]*)";/', $malformed_string, $matches)) {
+            error_log("MKCG Malformed Recovery: Pattern match successful for field {$field_id}");
+            return $matches[1];
+        }
+        
+        error_log("MKCG Malformed Recovery: All recovery strategies failed for field {$field_id}");
+        return '';
+    }
+    
+    /**
+     * CRITICAL FIX: Enhanced plain string processing
+     */
+    private function process_plain_string($string, $field_id, $context) {
+        // Context-specific processing
+        if ($context === 'authority_hook') {
+            return $this->process_authority_hook_string($string, $field_id);
+        }
+        
+        if ($context === 'topics') {
+            return $this->process_topic_string($string, $field_id);
+        }
+        
+        // General string processing
+        return $this->sanitize_and_validate_string($string, $field_id);
+    }
+    
+    /**
+     * CRITICAL FIX: Authority hook string processing
+     */
+    private function process_authority_hook_string($string, $field_id) {
+        $trimmed = trim($string);
+        
+        // Remove common prefixes/suffixes that might interfere
+        $cleaned = preg_replace('/^(who:|what:|when:|how:)\s*/i', '', $trimmed);
+        $cleaned = trim($cleaned);
+        
+        error_log("MKCG Authority String: Field {$field_id} - Cleaned: {$cleaned}");
+        return $cleaned;
+    }
+    
+    /**
+     * CRITICAL FIX: Topic string processing
+     */
+    private function process_topic_string($string, $field_id) {
+        $trimmed = trim($string);
+        
+        // Remove topic numbering if present
+        $cleaned = preg_replace('/^(topic\s*\d+:?\s*)/i', '', $trimmed);
+        $cleaned = trim($cleaned);
+        
+        error_log("MKCG Topic String: Field {$field_id} - Cleaned: {$cleaned}");
+        return $cleaned;
+    }
+    
+    /**
+     * CRITICAL FIX: General string sanitization and validation
+     */
+    private function sanitize_and_validate_string($string, $field_id) {
+        $cleaned = trim($string);
+        
+        // Remove control characters
+        $cleaned = preg_replace('/[\x00-\x1F\x7F]/', '', $cleaned);
+        
+        // Normalize whitespace
+        $cleaned = preg_replace('/\s+/', ' ', $cleaned);
+        
+        error_log("MKCG String Sanitization: Field {$field_id} - Result: {$cleaned}");
+        return $cleaned;
     }
     
     /**
@@ -2048,5 +2393,218 @@ class MKCG_Formidable_Service {
                 return (bool) preg_match("/^{$token}:[0-9.E-]+;\$/", $data);
         }
         return false;
+    }
+    
+    /**
+     * CRITICAL FIX: Determine processing context based on field ID
+     */
+    private function determine_processing_context($field_id) {
+        // Authority hook fields
+        if (in_array($field_id, ['10296', '10297', '10387', '10298', '10358'])) {
+            return 'authority_hook';
+        }
+        
+        // Topic fields
+        if (in_array($field_id, ['8498', '8499', '8500', '8501', '8502'])) {
+            return 'topics';
+        }
+        
+        // Question fields
+        if (in_array($field_id, ['8505', '8506', '8507', '8508', '8509', '8510', '8511', '8512', '8513', '8514', '10370', '10371', '10372', '10373', '10374', '10375', '10376', '10377', '10378', '10379', '10380', '10381', '10382', '10383', '10384'])) {
+            return 'questions';
+        }
+        
+        return 'general';
+    }
+    
+    /**
+     * CRITICAL FIX: Assess field data quality based on content and context
+     */
+    private function assess_field_data_quality($processed_value, $context) {
+        if (empty($processed_value)) {
+            return 'empty';
+        }
+        
+        $length = strlen($processed_value);
+        
+        // Context-specific quality assessment
+        switch ($context) {
+            case 'authority_hook':
+                if ($length < 5) return 'poor';
+                if ($length < 20) return 'fair';
+                if ($length < 100) return 'good';
+                return 'excellent';
+                
+            case 'topics':
+                if ($length < 10) return 'poor';
+                if ($length < 30) return 'fair';
+                if ($length < 100) return 'good';
+                return 'excellent';
+                
+            case 'questions':
+                if ($length < 10) return 'poor';
+                if ($length < 20) return 'fair';
+                if ($length < 80) return 'good';
+                return 'excellent';
+                
+            default:
+                if ($length < 5) return 'poor';
+                if ($length < 15) return 'fair';
+                if ($length < 50) return 'good';
+                return 'excellent';
+        }
+    }
+    
+    /**
+     * CRITICAL FIX: Generate data quality summary for debugging
+     */
+    private function generate_data_quality_summary($field_data) {
+        $quality_counts = [
+            'excellent' => 0,
+            'good' => 0,
+            'fair' => 0,
+            'poor' => 0,
+            'empty' => 0
+        ];
+        
+        $context_quality = [
+            'authority_hook' => [],
+            'topics' => [],
+            'questions' => [],
+            'general' => []
+        ];
+        
+        foreach ($field_data as $field) {
+            $quality = $field['data_quality'] ?? 'unknown';
+            $context = $field['processing_context'] ?? 'general';
+            
+            if (isset($quality_counts[$quality])) {
+                $quality_counts[$quality]++;
+            }
+            
+            if (isset($context_quality[$context])) {
+                $context_quality[$context][] = $quality;
+            }
+        }
+        
+        return [
+            'overall_counts' => $quality_counts,
+            'context_breakdown' => $context_quality,
+            'total_fields' => count($field_data),
+            'quality_score' => $this->calculate_overall_quality_score($quality_counts)
+        ];
+    }
+    
+    /**
+     * CRITICAL FIX: Calculate overall quality score (0-100)
+     */
+    private function calculate_overall_quality_score($quality_counts) {
+        $total = array_sum($quality_counts);
+        
+        if ($total === 0) {
+            return 0;
+        }
+        
+        $weighted_score = (
+            ($quality_counts['excellent'] * 100) +
+            ($quality_counts['good'] * 75) +
+            ($quality_counts['fair'] * 50) +
+            ($quality_counts['poor'] * 25) +
+            ($quality_counts['empty'] * 0)
+        ) / $total;
+        
+        return round($weighted_score, 1);
+    }
+    
+    /**
+     * CRITICAL FIX: Enhanced JSON data processing
+     */
+    private function process_json_data_enhanced($json_string, $field_id) {
+        try {
+            $decoded = json_decode($json_string, true);
+            
+            if (json_last_error() === JSON_ERROR_NONE) {
+                error_log("MKCG JSON Processing: Field {$field_id} - JSON decoded successfully");
+                
+                if (is_array($decoded)) {
+                    return $this->extract_general_array_value($decoded, $field_id);
+                } elseif (is_string($decoded)) {
+                    return trim($decoded);
+                } else {
+                    return (string) $decoded;
+                }
+            } else {
+                error_log("MKCG JSON Processing: Field {$field_id} - JSON decode failed: " . json_last_error_msg());
+                return trim($json_string); // Return original if JSON decode fails
+            }
+        } catch (Exception $e) {
+            error_log("MKCG JSON Processing: Field {$field_id} - Exception: " . $e->getMessage());
+            return trim($json_string);
+        }
+    }
+    
+    /**
+     * CRITICAL FIX: Enhanced array value processing
+     */
+    private function process_array_value_enhanced($array_value, $field_id, $context) {
+        error_log("MKCG Array Processing: Field {$field_id} - Processing array with " . count($array_value) . " elements");
+        return $this->extract_best_value_from_array($array_value, $field_id, $context);
+    }
+    
+    /**
+     * CRITICAL FIX: Enhanced object value processing
+     */
+    private function process_object_value_enhanced($object_value, $field_id, $context) {
+        error_log("MKCG Object Processing: Field {$field_id} - Processing object");
+        
+        // Convert object to array for processing
+        $array_representation = (array) $object_value;
+        return $this->extract_best_value_from_array($array_representation, $field_id, $context);
+    }
+    
+    /**
+     * CRITICAL FIX: Enhanced general array value extraction
+     */
+    private function extract_general_array_value($array, $field_id) {
+        // Strategy 1: Look for first non-empty string value
+        foreach ($array as $key => $value) {
+            if (is_string($value) && trim($value) !== '') {
+                $trimmed = trim($value);
+                error_log("MKCG General Array: Field {$field_id} - Found string value: {$trimmed}");
+                return $trimmed;
+            }
+        }
+        
+        // Strategy 2: Look for first non-empty non-string value
+        foreach ($array as $key => $value) {
+            if (!empty($value) && !is_array($value) && !is_object($value)) {
+                $converted = trim((string) $value);
+                error_log("MKCG General Array: Field {$field_id} - Found converted value: {$converted}");
+                return $converted;
+            }
+        }
+        
+        // Strategy 3: Handle nested arrays
+        foreach ($array as $key => $value) {
+            if (is_array($value)) {
+                $nested_result = $this->extract_general_array_value($value, $field_id);
+                if (!empty($nested_result)) {
+                    error_log("MKCG General Array: Field {$field_id} - Found nested value: {$nested_result}");
+                    return $nested_result;
+                }
+            }
+        }
+        
+        error_log("MKCG General Array: Field {$field_id} - No valid value found in array");
+        return '';
+    }
+    
+    /**
+     * CRITICAL FIX: Enhanced object value extraction
+     */
+    private function extract_value_from_object($object, $field_id) {
+        // Convert object to array and process
+        $array_representation = (array) $object;
+        return $this->extract_general_array_value($array_representation, $field_id);
     }
 }
