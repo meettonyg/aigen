@@ -618,16 +618,24 @@ class MKCG_Topics_Data_Service {
     }
     
     /**
-     * CRITICAL ROOT FIX: Get authority hook data with NEW taxonomy-based WHO field
-     * COMPREHENSIVE 4-LEVEL FALLBACK STRATEGY:
-     * 1. Custom taxonomy "audience" (NEW - primary source)
-     * 2. WordPress post meta 'authority_who' (current behavior)
+     * ✅ CORRECTED ROOT FIX: Authority Hook data sourcing as per user requirements
+     * 
+     * WHO COMPONENT (4-level fallback):
+     * 1. Custom taxonomy "audience" (primary source)
+     * 2. WordPress post meta 'authority_who' 
      * 3. Formidable field 10296 (existing fallback)
      * 4. Default "your audience" (last resort)
+     * 
+     * RESULT/WHEN/HOW COMPONENTS:
+     * - RESULT: Always from Formidable field 10297
+     * - WHEN: Always from Formidable field 10387 
+     * - HOW: Always from Formidable field 10298
+     * 
+     * This ensures proper data source alignment as specified in user requirements.
      */
     public function get_authority_hook_data($entry_id, $post_id = null) {
         try {
-            error_log('MKCG Topics Data Service: ROOT FIX - Getting authority hook with taxonomy-based WHO field');
+            error_log('MKCG Topics Data Service: ✅ CORRECTED ROOT FIX - Getting authority hook with correct data sourcing');
             
             // Get post_id if not provided
             if (!$post_id && $entry_id) {
@@ -675,16 +683,16 @@ class MKCG_Topics_Data_Service {
                     error_log('MKCG Topics Data Service: Level 4 FINAL FALLBACK - Using default: ' . $who_field);
                 }
                 
-                // Get other components (unchanged - only WHO field uses taxonomy)
+                // CORRECTED ROOT FIX: WHO from custom post, RESULT/WHEN/HOW from Formidable entry fields
                 $components = [
-                    'who' => $who_field, // ROOT FIX: Now uses taxonomy with 4-level fallback
-                    'result' => get_post_meta($post_id, 'authority_result', true), 
-                    'when' => get_post_meta($post_id, 'authority_when', true),
-                    'how' => get_post_meta($post_id, 'authority_how', true),
-                    'complete' => get_post_meta($post_id, 'authority_complete', true)
+                    'who' => $who_field, // ✅ Correct: Uses taxonomy with 4-level fallback
+                    'result' => $this->safe_get_field_value($entry_id, 10297), // ✅ Fixed: Formidable field 10297
+                    'when' => $this->safe_get_field_value($entry_id, 10387),   // ✅ Fixed: Formidable field 10387
+                    'how' => $this->safe_get_field_value($entry_id, 10298),     // ✅ Fixed: Formidable field 10298
+                    'complete' => get_post_meta($post_id, 'authority_complete', true) // Complete hook can still come from post meta
                 ];
                 
-                error_log('MKCG Topics Data Service: ROOT FIX - Final components: ' . json_encode($components));
+                error_log('MKCG Topics Data Service: ✅ CORRECTED ROOT FIX - WHO from post, RESULT/WHEN/HOW from Formidable: ' . json_encode($components));
                 
                 // Fill in defaults for missing components (other than WHO)
                 $components['result'] = $components['result'] ?: 'achieve their goals';
@@ -696,7 +704,7 @@ class MKCG_Topics_Data_Service {
                     $components['complete'] = "I help {$components['who']} {$components['result']} when {$components['when']} {$components['how']}.";
                 }
                 
-                error_log('MKCG Topics Data Service: ✅ ROOT FIX COMPLETE - Authority hook ready with taxonomy-based WHO field');
+                error_log('MKCG Topics Data Service: ✅ CORRECTED ROOT FIX COMPLETE - Authority hook ready with proper data sourcing');
                 return $components;
                 
             } else {
