@@ -8,6 +8,209 @@
 if (!defined('ABSPATH')) {
     exit;
 }
+?>
+
+<style>
+/* Topics Display Container Styles (Matching Questions Generator Design) */
+.topics-generator__topics-container {
+    background: #ffffff;
+    border: 1px solid #e0e6ed;
+    border-radius: 12px;
+    padding: 25px;
+    margin: 25px 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.topics-generator__topics-header {
+    margin-bottom: 20px;
+    border-bottom: 1px solid #f0f0f0;
+    padding-bottom: 15px;
+}
+
+.topics-generator__topics-header h3 {
+    color: #2c3e50;
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 5px 0;
+}
+
+.topics-generator__topics-subheading {
+    font-size: 14px;
+    color: #5a6d7e;
+    margin: 0;
+    font-style: italic;
+}
+
+.topics-generator__topics-display {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.topics-generator__topic-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #e67e22;
+    transition: all 0.2s ease;
+}
+
+.topics-generator__topic-item:hover {
+    background: #f1f3f4;
+    transform: translateX(2px);
+}
+
+.topics-generator__topic-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: #e67e22;
+    color: white;
+    border-radius: 50%;
+    font-weight: 600;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.topics-generator__topic-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.topics-generator__topic-input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: #2c3e50;
+    font-size: 16px;
+    line-height: 1.5;
+    font-weight: 500;
+    padding: 0;
+    outline: none;
+    resize: none;
+}
+
+.topics-generator__topic-input:focus {
+    background: #ffffff;
+    border-radius: 4px;
+    padding: 8px;
+    box-shadow: 0 0 0 2px #e67e22;
+}
+
+.topics-generator__topic-input::placeholder {
+    color: #95a5a6;
+    font-style: italic;
+    font-weight: normal;
+}
+
+.topics-generator__topic-text {
+    color: #2c3e50;
+    font-size: 16px;
+    line-height: 1.5;
+    font-weight: 500;
+}
+
+.topics-generator__topic-placeholder {
+    color: #95a5a6;
+    font-style: italic;
+    font-weight: normal;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .topics-generator__topics-container {
+        padding: 20px;
+        margin: 20px 0;
+    }
+    
+    .topics-generator__topic-item {
+        gap: 12px;
+        padding: 12px;
+    }
+    
+    .topics-generator__topic-number {
+        width: 28px;
+        height: 28px;
+        font-size: 13px;
+    }
+    
+    .topics-generator__topic-input {
+        font-size: 15px;
+    }
+}
+
+/* Save Section Styles */
+.topics-generator__save-section {
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid #f0f0f0;
+    text-align: center;
+}
+
+.topics-generator__save-button {
+    background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(230, 126, 34, 0.3);
+}
+
+.topics-generator__save-button:hover {
+    background: linear-gradient(135deg, #d35400 0%, #a04000 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(230, 126, 34, 0.4);
+}
+
+.topics-generator__save-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(230, 126, 34, 0.3);
+}
+
+.topics-generator__save-button:disabled {
+    background: #bdc3c7;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.topics-generator__save-status {
+    margin-top: 10px;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.topics-generator__save-status--success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.topics-generator__save-status--error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.topics-generator__save-status--loading {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+</style>
+
+<?php
 
 // STANDALONE MODE: Simplified data loading for standalone operation
 $template_data = [];
@@ -153,6 +356,42 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
                     </div>
                 </div>
                 
+                <!-- Topics Display Container with Editable Form Fields -->
+                <div class="topics-generator__topics-container" id="topics-generator-topics-container">
+                    <div class="topics-generator__topics-header">
+                        <h3 id="topics-generator-topics-heading">Interview Topics for Your Authority Hook</h3>
+                        <p class="topics-generator__topics-subheading">Five compelling podcast interview topics</p>
+                    </div>
+                    
+                    <div class="topics-generator__topics-display">
+                        <?php for ($i = 1; $i <= 5; $i++): ?>
+                            <div class="topics-generator__topic-item" id="topics-generator-topic-item-<?php echo $i; ?>">
+                                <div class="topics-generator__topic-number">
+                                    <?php echo $i; ?>
+                                </div>
+                                <div class="topics-generator__topic-content">
+                                    <input type="text" 
+                                           class="topics-generator__topic-input" 
+                                           id="topics-generator-topic-field-<?php echo $i; ?>"
+                                           name="field_<?php echo 8497 + $i; ?>" 
+                                           data-field-id="<?php echo 8497 + $i; ?>" 
+                                           data-topic-number="<?php echo $i; ?>"
+                                           placeholder="<?php echo $i == 5 ? 'Click to add your interview topic' : 'Enter your interview topic ' . $i; ?>"
+                                           value="<?php echo esc_attr($form_field_values['topic_' . $i] ?? ''); ?>">
+                                </div>
+                            </div>
+                        <?php endfor; ?>
+                    </div>
+                    
+                    <!-- Save Button for Topics -->
+                    <div class="topics-generator__save-section">
+                        <button class="topics-generator__save-button" id="topics-generator-save-topics" type="button">
+                            💾 Save All Topics
+                        </button>
+                        <div class="topics-generator__save-status" id="topics-generator-save-status" style="display: none;"></div>
+                    </div>
+                </div>
+                
                 <!-- Field Selection Modal -->
                 <div class="topics-generator__modal" id="topics-generator-field-modal">
                     <div class="topics-generator__modal-content">
@@ -167,70 +406,13 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
                     </div>
                 </div>
                 
-                <!-- Form Fields (Formidable Form Integration) -->
-                <div class="topics-generator__form">
-                    <div class="topics-generator__form-field">
-                        <div class="topics-generator__form-field-label">
-                            <div class="topics-generator__form-field-number">1</div>
-                            <div class="topics-generator__form-field-title">First Interview Topic</div>
-                        </div>
-                        <input type="text" class="topics-generator__form-field-input" id="topics-generator-topic-field-1" 
-                               name="field_8498" data-field-id="8498" data-topic-number="1"
-                               value="<?php echo esc_attr($form_field_values['topic_1'] ?? ''); ?>">
-                        <div class="topics-generator__form-examples">
-                            <p>Examples:</p>
-                            <div class="topics-generator__form-example">How to create magnetic content that attracts ideal clients</div>
-                            <div class="topics-generator__form-example">The 5 most common mistakes when scaling SaaS businesses</div>
-                            <div class="topics-generator__form-example">Building a personal brand that stands out in crowded markets</div>
-                        </div>
-                    </div>
-                    
-                    <div class="topics-generator__form-field">
-                        <div class="topics-generator__form-field-label">
-                            <div class="topics-generator__form-field-number">2</div>
-                            <div class="topics-generator__form-field-title">Second Interview Topic</div>
-                        </div>
-                        <input type="text" class="topics-generator__form-field-input" id="topics-generator-topic-field-2" 
-                               name="field_8499" data-field-id="8499" data-topic-number="2"
-                               value="<?php echo esc_attr($form_field_values['topic_2'] ?? ''); ?>">
-                    </div>
-                    
-                    <div class="topics-generator__form-field">
-                        <div class="topics-generator__form-field-label">
-                            <div class="topics-generator__form-field-number">3</div>
-                            <div class="topics-generator__form-field-title">Third Interview Topic</div>
-                        </div>
-                        <input type="text" class="topics-generator__form-field-input" id="topics-generator-topic-field-3" 
-                               name="field_8500" data-field-id="8500" data-topic-number="3"
-                               value="<?php echo esc_attr($form_field_values['topic_3'] ?? ''); ?>">
-                    </div>
-                    
-                    <div class="topics-generator__form-field">
-                        <div class="topics-generator__form-field-label">
-                            <div class="topics-generator__form-field-number">4</div>
-                            <div class="topics-generator__form-field-title">Fourth Interview Topic</div>
-                        </div>
-                        <input type="text" class="topics-generator__form-field-input" id="topics-generator-topic-field-4" 
-                               name="field_8501" data-field-id="8501" data-topic-number="4"
-                               value="<?php echo esc_attr($form_field_values['topic_4'] ?? ''); ?>">
-                    </div>
-                    
-                    <div class="topics-generator__form-field">
-                        <div class="topics-generator__form-field-label">
-                            <div class="topics-generator__form-field-number">5</div>
-                            <div class="topics-generator__form-field-title">Fifth Interview Topic</div>
-                        </div>
-                        <input type="text" class="topics-generator__form-field-input" id="topics-generator-topic-field-5" 
-                               name="field_8502" data-field-id="8502" data-topic-number="5"
-                               value="<?php echo esc_attr($form_field_values['topic_5'] ?? ''); ?>">
-                    </div>
-                    
-                    <!-- Hidden fields for AJAX -->
-                    <input type="hidden" id="topics-generator-entry-id" value="<?php echo esc_attr($entry_id); ?>">
-                    <input type="hidden" id="topics-generator-entry-key" value="<?php echo esc_attr($entry_key); ?>">
-                    <input type="hidden" id="topics-generator-nonce" value="<?php echo wp_create_nonce('mkcg_nonce'); ?>">
-                    <input type="hidden" id="topics-generator-topics-nonce" value="<?php echo wp_create_nonce('mkcg_nonce'); ?>">
-                </div>
+                <!-- Hidden fields for AJAX -->
+                <input type="hidden" id="topics-generator-entry-id" value="<?php echo esc_attr($entry_id); ?>">
+                <input type="hidden" id="topics-generator-entry-key" value="<?php echo esc_attr($entry_key); ?>">
+                <input type="hidden" id="topics-generator-post-id" value="<?php echo esc_attr(isset($formidable_service) && $entry_id ? $formidable_service->get_post_id_from_entry($entry_id) : ''); ?>">
+                <input type="hidden" id="topics-generator-nonce" value="<?php echo wp_create_nonce('mkcg_nonce'); ?>">
+                <input type="hidden" id="topics-generator-topics-nonce" value="<?php echo wp_create_nonce('mkcg_nonce'); ?>">
+                
             </div>
             
             <!-- RIGHT PANEL -->
@@ -354,6 +536,11 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
     
     console.log('✅ MKCG Topics: Final data loaded', window.MKCG_Topics_Data);
     
+    // Set up AJAX URL for WordPress
+    if (!window.ajaxurl) {
+        window.ajaxurl = '<?php echo admin_url('admin-ajax.php'); ?>';
+    }
+    
     // CRITICAL DEBUG: Check for immediate population
     if (window.MKCG_Topics_Data.hasEntry) {
         console.log('📋 MKCG Topics: Entry found - should populate automatically');
@@ -375,14 +562,172 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
                 console.error(`❌ Topic ${i} field not found`);
             }
         }
+        
     } else {
         console.log('⚠️ MKCG Topics: No entry data - using defaults');
     }
+    
+    // Save Topics Functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const saveButton = document.getElementById('topics-generator-save-topics');
+        const saveStatus = document.getElementById('topics-generator-save-status');
+        
+        if (saveButton) {
+            saveButton.addEventListener('click', function() {
+                saveAllTopics();
+            });
+        }
+        
+        // Auto-save on blur for individual fields
+        for (let i = 1; i <= 5; i++) {
+            const field = document.getElementById(`topics-generator-topic-field-${i}`);
+            if (field) {
+                field.addEventListener('blur', function() {
+                    // Auto-save individual topic on blur
+                    saveSingleTopic(i, this.value);
+                });
+            }
+        }
+    });
+    
+    // Function to save all topics
+    function saveAllTopics() {
+        const saveButton = document.getElementById('topics-generator-save-topics');
+        const saveStatus = document.getElementById('topics-generator-save-status');
+        const entryId = document.getElementById('topics-generator-entry-id')?.value;
+        const nonce = document.getElementById('topics-generator-nonce')?.value;
+        
+        if (!entryId || entryId === '0') {
+            showSaveStatus('error', 'No entry ID found. Please refresh the page.');
+            return;
+        }
+        
+        // Disable button and show loading
+        saveButton.disabled = true;
+        saveButton.textContent = '💾 Saving...';
+        showSaveStatus('loading', 'Saving topics...');
+        
+        // Collect all topic values
+        const topics = {};
+        for (let i = 1; i <= 5; i++) {
+            const field = document.getElementById(`topics-generator-topic-field-${i}`);
+            if (field) {
+                topics[`topic_${i}`] = field.value.trim();
+            }
+        }
+        
+        // Prepare AJAX data
+        const formData = new FormData();
+        formData.append('action', 'mkcg_save_topics_data');
+        formData.append('entry_id', entryId);
+        formData.append('nonce', nonce);
+        
+        // Add topics to form data
+        Object.keys(topics).forEach(key => {
+            formData.append(`topics[${key}]`, topics[key]);
+        });
+        
+        // Get post_id from hidden field
+        const postId = document.getElementById('topics-generator-post-id')?.value;
+        if (postId && postId !== '0') {
+            formData.append('post_id', postId);
+        }
+        
+        // Make AJAX request
+        fetch(window.ajaxurl || '/wp-admin/admin-ajax.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showSaveStatus('success', `✅ Successfully saved ${data.data.saved_count || 'all'} topics!`);
+                console.log('✅ Topics saved successfully:', data);
+            } else {
+                showSaveStatus('error', '❌ Failed to save topics: ' + (data.data?.message || 'Unknown error'));
+                console.error('❌ Save failed:', data);
+            }
+        })
+        .catch(error => {
+            showSaveStatus('error', '❌ Network error while saving topics');
+            console.error('❌ Network error:', error);
+        })
+        .finally(() => {
+            // Re-enable button
+            saveButton.disabled = false;
+            saveButton.textContent = '💾 Save All Topics';
+        });
+    }
+    
+    // Function to save individual topic
+    function saveSingleTopic(topicNumber, topicText) {
+        const entryId = document.getElementById('topics-generator-entry-id')?.value;
+        const nonce = document.getElementById('topics-generator-nonce')?.value;
+        
+        if (!entryId || entryId === '0' || !topicText.trim()) {
+            return; // Skip auto-save if no entry ID or empty text
+        }
+        
+        const formData = new FormData();
+        formData.append('action', 'mkcg_save_topic');
+        formData.append('entry_id', entryId);
+        formData.append('topic_number', topicNumber);
+        formData.append('topic_text', topicText.trim());
+        formData.append('nonce', nonce);
+        
+        // Get post_id from hidden field
+        const postId = document.getElementById('topics-generator-post-id')?.value;
+        if (postId && postId !== '0') {
+            formData.append('post_id', postId);
+        }
+        
+        // Make AJAX request (silent save)
+        fetch(window.ajaxurl || '/wp-admin/admin-ajax.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log(`✅ Topic ${topicNumber} auto-saved`);
+            } else {
+                console.warn(`⚠️ Topic ${topicNumber} auto-save failed:`, data.data?.message);
+            }
+        })
+        .catch(error => {
+            console.warn(`⚠️ Topic ${topicNumber} auto-save network error:`, error);
+        });
+    }
+    
+    // Function to show save status
+    function showSaveStatus(type, message) {
+        const saveStatus = document.getElementById('topics-generator-save-status');
+        if (!saveStatus) return;
+        
+        // Clear previous classes
+        saveStatus.className = 'topics-generator__save-status';
+        
+        // Add appropriate class
+        saveStatus.classList.add(`topics-generator__save-status--${type}`);
+        saveStatus.textContent = message;
+        saveStatus.style.display = 'block';
+        
+        // Auto-hide success/error messages after 5 seconds
+        if (type === 'success' || type === 'error') {
+            setTimeout(() => {
+                saveStatus.style.display = 'none';
+            }, 5000);
+        }
+    }
+    
+    // Make functions globally available
+    window.saveAllTopics = saveAllTopics;
+    window.saveSingleTopic = saveSingleTopic;
 </script>
 
 <!-- Authority Hook Builder functionality is now handled by topics-generator.js - duplicate script removed -->
 
-<!-- TEMPORARY DEBUG: Manual include if needed -->
+<!-- Initialize enhanced elements check -->
 <script>
 // Check if enhanced elements loaded
 setTimeout(() => {
@@ -398,5 +743,7 @@ setTimeout(() => {
     } else {
         console.log('✅ Enhanced elements found - include worked!');
     }
+    
+    console.log('✅ Topics container with editable fields initialized');
 }, 1000);
 </script>

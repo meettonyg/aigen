@@ -707,72 +707,77 @@ The expert's area of expertise is: \"$authority_hook\".
      * UNIFIED AJAX: Handle save topics data request using Topics Data Service (same as Questions Generator)
      */
     public function handle_save_topics_data_ajax() {
-        // Use centralized security validation
-        $security_check = $this->validate_ajax_security(['post_id', 'topics']);
-        if (is_wp_error($security_check)) {
-            wp_send_json_error(['message' => $security_check->get_error_message()]);
-            return;
-        }
-        
-        $post_id = intval($_POST['post_id']);
-        $topics = $_POST['topics'];
-        $entry_id = isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0;
-        
-        if (!$post_id) {
-            wp_send_json_error(['message' => 'Post ID is required']);
-            return;
-        }
-        
-        error_log('MKCG Topics AJAX: 🔄 UNIFIED - Save topics data request (post_id=' . $post_id . ', entry_id=' . $entry_id . ')');
-        
-        // ROOT LEVEL FIX: Use Topics Data Service for consistent data saving (same as Questions Generator)
-        if ($this->is_topics_service_available()) {
-            try {
-                error_log('MKCG Topics AJAX: Using UNIFIED Topics Data Service for save');
-                
-                // Convert topics to format expected by unified service
-                $topics_data = [];
-                if (is_array($topics)) {
-                    for ($i = 1; $i <= 5; $i++) {
-                        $topic_key = 'topic_' . $i;
-                        if (isset($topics[$topic_key])) {
-                            $topics_data[$i] = $topics[$topic_key];
-                        }
+        try {
+            error_log('MKCG Topics AJAX: Starting save topics data request');
+            
+            // Use centralized security validation with more lenient required fields
+            $security_check = $this->validate_ajax_security(['entry_id']);
+            if (is_wp_error($security_check)) {
+                error_log('MKCG Topics AJAX: Security validation failed: ' . $security_check->get_error_message());
+                wp_send_json_error(['message' => $security_check->get_error_message()]);
+                return;
+            }
+            
+            $entry_id = isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0;
+            $topics = isset($_POST['topics']) ? $_POST['topics'] : [];
+            $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
+            
+            // Resolve post_id from entry_id if not provided
+            if (!$post_id && $entry_id) {
+                $post_id = $this->formidable_service->get_post_id_from_entry($entry_id);
+                error_log('MKCG Topics AJAX: Resolved post_id=' . $post_id . ' from entry_id=' . $entry_id);
+            }
+            
+            if (!$entry_id) {
+                wp_send_json_error(['message' => 'Entry ID is required']);
+                return;
+            }
+            
+            error_log('MKCG Topics AJAX: Processing save (entry_id=' . $entry_id . ', post_id=' . $post_id . ')');
+            
+            // Convert topics to format expected by service
+            $topics_data = [];
+            if (is_array($topics)) {
+                foreach ($topics as $key => $value) {
+                    if (strpos($key, 'topic_') === 0 && !empty(trim($value))) {
+                        $topic_number = str_replace('topic_', '', $key);
+                        $topics_data[$topic_number] = trim($value);
                     }
                 }
-                
-                // Use the unified service directly (like Questions Generator)
+            }
+            
+            error_log('MKCG Topics AJAX: Formatted topics data: ' . json_encode($topics_data));
+            
+            // Try unified service first, then fallback to direct save
+            if ($this->is_topics_service_available() && $post_id) {
+                error_log('MKCG Topics AJAX: Using unified service');
                 $result = $this->topics_data_service->save_topics_data($topics_data, $post_id, $entry_id);
-                
-                if ($result['success']) {
-                    error_log('MKCG Topics AJAX: ✅ SUCCESS - Topics saved via unified service');
-                    wp_send_json_success([
-                        'message' => 'Topics saved successfully via unified service',
-                        'saved_count' => $result['saved_count'],
-                        'post_id' => $post_id,
-                        'entry_id' => $entry_id,
-                        'unified_service' => true
-                    ]);
-                } else {
-                    error_log('MKCG Topics AJAX: ⚠️ Unified service save failed: ' . json_encode($result['errors'] ?? []));
-                    wp_send_json_error([
-                        'message' => 'Failed to save topics via unified service',
-                        'errors' => $result['errors'] ?? [],
-                        'unified_service' => true
-                    ]);
-                }
-            } catch (Exception $e) {
-                error_log('MKCG Topics AJAX: ❌ Exception during unified save: ' . $e->getMessage());
+            } else {
+                error_log('MKCG Topics AJAX: Using fallback direct save');
+                $result = $this->save_topics_fallback($topics_data, $entry_id, $post_id);
+            }
+            
+            if ($result['success']) {
+                error_log('MKCG Topics AJAX: ✅ SUCCESS - Topics saved');
+                wp_send_json_success([
+                    'message' => 'Topics saved successfully',
+                    'saved_count' => $result['saved_count'] ?? count($topics_data),
+                    'entry_id' => $entry_id,
+                    'post_id' => $post_id
+                ]);
+            } else {
+                error_log('MKCG Topics AJAX: ❌ Save failed: ' . json_encode($result['errors'] ?? []));
                 wp_send_json_error([
-                    'message' => 'Unified service save error: ' . $e->getMessage(),
-                    'unified_service' => true
+                    'message' => 'Failed to save topics',
+                    'errors' => $result['errors'] ?? ['Unknown error']
                 ]);
             }
-        } else {
-            error_log('MKCG Topics AJAX: ❌ Topics Data Service not available for save');
+            
+        } catch (Exception $e) {
+            error_log('MKCG Topics AJAX: ❌ Critical exception: ' . $e->getMessage());
             wp_send_json_error([
-                'message' => 'Topics Data Service not available for save operation',
-                'unified_service' => false
+                'message' => 'Server error during save',
+                'details' => $e->getMessage()
             ]);
         }
     }
@@ -781,40 +786,64 @@ The expert's area of expertise is: \"$authority_hook\".
      * CRITICAL FIX: Handle save single topic AJAX request
      */
     public function handle_save_topic_ajax() {
-        // Use centralized security validation
-        $security_check = $this->validate_ajax_security(['post_id', 'topic_number', 'topic_text']);
-        if (is_wp_error($security_check)) {
-            wp_send_json_error(['message' => $security_check->get_error_message()]);
-            return;
-        }
-        
-        $post_id = intval($_POST['post_id']);
-        $topic_number = intval($_POST['topic_number']);
-        $topic_text = sanitize_textarea_field($_POST['topic_text']);
-        $entry_id = isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0;
-        
-        if (!$post_id || !$topic_number || empty($topic_text)) {
-            wp_send_json_error(['message' => 'Missing required parameters']);
-            return;
-        }
-        
-        if ($topic_number < 1 || $topic_number > 5) {
-            wp_send_json_error(['message' => 'Topic number must be between 1 and 5']);
-            return;
-        }
-        
-        // Delegate to unified service if available
-        if ($this->unified_data_service) {
-            $topics_service = $this->unified_data_service->get_topics_service();
-            $result = $topics_service->save_single_topic($topic_number, $topic_text, $post_id, $entry_id);
+        try {
+            error_log('MKCG Topics AJAX: Starting save single topic request');
+            
+            // Use centralized security validation with more lenient required fields
+            $security_check = $this->validate_ajax_security(['entry_id']);
+            if (is_wp_error($security_check)) {
+                error_log('MKCG Topics AJAX: Security validation failed: ' . $security_check->get_error_message());
+                wp_send_json_error(['message' => $security_check->get_error_message()]);
+                return;
+            }
+            
+            $entry_id = isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0;
+            $topic_number = isset($_POST['topic_number']) ? intval($_POST['topic_number']) : 0;
+            $topic_text = isset($_POST['topic_text']) ? sanitize_textarea_field($_POST['topic_text']) : '';
+            $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
+            
+            // Resolve post_id from entry_id if not provided
+            if (!$post_id && $entry_id) {
+                $post_id = $this->formidable_service->get_post_id_from_entry($entry_id);
+                error_log('MKCG Topics AJAX: Resolved post_id=' . $post_id . ' from entry_id=' . $entry_id);
+            }
+            
+            if (!$entry_id || !$topic_number || empty($topic_text)) {
+                wp_send_json_error(['message' => 'Entry ID, topic number, and topic text are required']);
+                return;
+            }
+            
+            if ($topic_number < 1 || $topic_number > 5) {
+                wp_send_json_error(['message' => 'Topic number must be between 1 and 5']);
+                return;
+            }
+            
+            error_log('MKCG Topics AJAX: Processing single topic save (entry_id=' . $entry_id . ', topic_number=' . $topic_number . ')');
+            
+            // Try unified service first, then fallback to direct save
+            if ($this->unified_data_service && $post_id) {
+                error_log('MKCG Topics AJAX: Using unified service for single topic');
+                $topics_service = $this->unified_data_service->get_topics_service();
+                $result = $topics_service->save_single_topic($topic_number, $topic_text, $post_id, $entry_id);
+            } else {
+                error_log('MKCG Topics AJAX: Using fallback for single topic');
+                $result = $this->save_single_topic_fallback($topic_number, $topic_text, $entry_id, $post_id);
+            }
             
             if ($result['success']) {
+                error_log('MKCG Topics AJAX: ✅ Single topic saved successfully');
                 wp_send_json_success($result);
             } else {
+                error_log('MKCG Topics AJAX: ❌ Single topic save failed: ' . json_encode($result));
                 wp_send_json_error($result);
             }
-        } else {
-            wp_send_json_error(['message' => 'Unified data service not available']);
+            
+        } catch (Exception $e) {
+            error_log('MKCG Topics AJAX: ❌ Critical exception in save single topic: ' . $e->getMessage());
+            wp_send_json_error([
+                'message' => 'Server error during single topic save',
+                'details' => $e->getMessage()
+            ]);
         }
     }
     
