@@ -39,6 +39,41 @@ class Media_Kit_Content_Generator {
         $this->load_dependencies();
         $this->init_services();
         $this->init_generators();
+        
+        // CRITICAL FIX: Initialize AJAX handlers IMMEDIATELY, not during init hook
+        $this->init_ajax_handlers();
+    }
+    
+    /**
+     * CRITICAL FIX: Initialize AJAX handlers IMMEDIATELY during plugin loading
+     * This must happen early, before WordPress processes AJAX requests
+     */
+    private function init_ajax_handlers() {
+        error_log('MKCG: Starting IMMEDIATE AJAX handler initialization');
+        
+        // Check if services and generators are available
+        if (!$this->api_service || !$this->formidable_service || !$this->authority_hook_service) {
+            error_log('MKCG: ⚠️ Services not available for AJAX handler initialization');
+            return;
+        }
+        
+        // Check if Topics Generator is available
+        if (!isset($this->generators['topics'])) {
+            error_log('MKCG: ⚠️ Topics Generator not available for AJAX handler initialization');
+            return;
+        }
+        
+        // Initialize AJAX handlers with enhanced error handling
+        if (class_exists('MKCG_Topics_AJAX_Handlers')) {
+            try {
+                new MKCG_Topics_AJAX_Handlers($this->generators['topics']);
+                error_log('MKCG: ✅ Topics AJAX Handlers initialized IMMEDIATELY during plugin load');
+            } catch (Exception $e) {
+                error_log('MKCG: ❌ Failed to initialize Topics AJAX Handlers IMMEDIATELY: ' . $e->getMessage());
+            }
+        } else {
+            error_log('MKCG: ⚠️ MKCG_Topics_AJAX_Handlers class not available during immediate initialization');
+        }
     }
     
     private function init_hooks() {
@@ -265,18 +300,6 @@ class Media_Kit_Content_Generator {
                     error_log("MKCG: ❌ Failed to initialize {$class_name}: " . $e->getMessage());
                     // Continue with other generators even if one fails
                 }
-            }
-            
-            // CRITICAL FIX: Initialize AJAX handlers with enhanced error handling
-            if (isset($this->generators['topics']) && class_exists('MKCG_Topics_AJAX_Handlers')) {
-                try {
-                    new MKCG_Topics_AJAX_Handlers($this->generators['topics']);
-                    error_log('MKCG: ✅ Topics AJAX Handlers initialized successfully');
-                } catch (Exception $e) {
-                    error_log('MKCG: ❌ Failed to initialize Topics AJAX Handlers: ' . $e->getMessage());
-                }
-            } else {
-                error_log('MKCG: ⚠️ Topics generator or AJAX handlers class not available');
             }
             
             // Validate generator initialization
