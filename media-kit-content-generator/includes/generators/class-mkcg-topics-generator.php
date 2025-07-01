@@ -581,7 +581,7 @@ The expert's area of expertise is: \"$authority_hook\".
     // REMOVED: Redundant field processing methods - now using centralized Formidable Service
     
     /**
-     * STEP 3 FIX: Unified data source - Enhanced template data loading with robust fallbacks
+     * AUTHORITY HOOK FIX: Enhanced template data loading with Authority Hook focus
      */
     public function get_template_data($entry_key = '') {
         $template_data = [
@@ -595,35 +595,37 @@ The expert's area of expertise is: \"$authority_hook\".
         ];
         
         try {
-            // Step 3A: Resolve entry identifier from multiple sources
+            // CRITICAL FIX: Enhanced entry resolution 
             $resolved_ids = $this->resolve_entry_identifiers($entry_key);
             $template_data['entry_id'] = $resolved_ids['entry_id'];
             $template_data['entry_key'] = $resolved_ids['entry_key'];
             $post_id = $resolved_ids['post_id'];
             
-            error_log('MKCG Step 3: Resolved IDs - entry_id=' . $resolved_ids['entry_id'] . ', post_id=' . $post_id . ', entry_key=' . $resolved_ids['entry_key']);
+            error_log('MKCG Authority Hook Fix: Resolved entry_id=' . $resolved_ids['entry_id'] . ', post_id=' . $post_id);
 
-            // Step 3B: Try unified data loading with comprehensive fallbacks
             if ($template_data['entry_id'] > 0) {
-                $template_data = $this->load_data_via_unified_service($template_data, $post_id);
+                // CRITICAL FIX: Focus on Authority Hook loading first
+                $template_data = $this->load_authority_hook_data_enhanced($template_data, $post_id);
+                
+                // Then load topics data
+                $template_data = $this->load_topics_data_enhanced($template_data, $post_id);
             } else {
-                error_log('MKCG Step 3: No valid entry ID - using default template data');
+                error_log('MKCG Authority Hook Fix: No valid entry ID - using defaults');
                 $template_data['debug_info'][] = 'No valid entry ID resolved';
             }
             
         } catch (Exception $e) {
-            error_log('MKCG Step 3: Exception in get_template_data: ' . $e->getMessage());
+            error_log('MKCG Authority Hook Fix: Exception in get_template_data: ' . $e->getMessage());
             $template_data['debug_info'][] = 'Exception: ' . $e->getMessage();
         }
         
-        // Step 3C: Ensure default authority hook components if not loaded
+        // CRITICAL FIX: Ensure default authority hook components if not loaded
         if (empty($template_data['authority_hook_components']) && $this->authority_hook_service) {
-            $template_data['authority_hook_components'] = $this->authority_hook_service->get_default_components();
-            $template_data['authority_hook_components']['complete'] = $this->authority_hook_service->build_authority_hook($template_data['authority_hook_components']);
+            $template_data['authority_hook_components'] = $this->load_default_authority_hook_components();
             $template_data['data_source'] = 'default_auth_hook';
         }
         
-        // Step 3D: Ensure default topic structure
+        // CRITICAL FIX: Ensure default topic structure
         if (empty($template_data['form_field_values'])) {
             $template_data['form_field_values'] = [
                 'topic_1' => '',
@@ -632,12 +634,217 @@ The expert's area of expertise is: \"$authority_hook\".
                 'topic_4' => '',
                 'topic_5' => ''
             ];
-            if ($template_data['data_source'] === 'default') {
-                $template_data['data_source'] = 'default_complete';
+        }
+        
+        error_log('MKCG Authority Hook Fix: Final template data - source=' . $template_data['data_source'] . ', has_entry=' . ($template_data['has_entry'] ? 'true' : 'false') . ', entry_id=' . $template_data['entry_id']);
+        
+        return $template_data;
+    }
+    
+    /**
+     * AUTHORITY HOOK FIX: Enhanced Authority Hook data loading method
+     */
+    private function load_authority_hook_data_enhanced($template_data, $post_id) {
+        $entry_id = $template_data['entry_id'];
+        
+        error_log('MKCG Authority Hook Fix: Starting enhanced Authority Hook data loading for entry ' . $entry_id);
+        
+        // Strategy 1: Use Authority Hook Service (preferred)
+        if ($this->authority_hook_service) {
+            try {
+                error_log('MKCG Authority Hook Fix: Attempting Authority Hook Service load');
+                $auth_components = $this->authority_hook_service->get_authority_hook_components($entry_id);
+                
+                if (!empty($auth_components) && !empty(array_filter($auth_components))) {
+                    $template_data['authority_hook_components'] = $auth_components;
+                    $template_data['has_entry'] = true;
+                    $template_data['data_source'] = 'authority_hook_service';
+                    error_log('MKCG Authority Hook Fix: ✅ Authority Hook Service SUCCESS');
+                    error_log('MKCG Authority Hook Fix: Loaded components: ' . json_encode($auth_components));
+                    return $template_data;
+                } else {
+                    error_log('MKCG Authority Hook Fix: ⚠️ Authority Hook Service returned empty components');
+                }
+            } catch (Exception $e) {
+                error_log('MKCG Authority Hook Fix: ❌ Authority Hook Service exception: ' . $e->getMessage());
             }
         }
         
-        error_log('MKCG Step 3: Final template data - source=' . $template_data['data_source'] . ', has_entry=' . ($template_data['has_entry'] ? 'true' : 'false') . ', entry_id=' . $template_data['entry_id']);
+        // Strategy 2: Direct Formidable field loading with enhanced processing
+        error_log('MKCG Authority Hook Fix: Attempting direct Formidable field loading');
+        
+        try {
+            $auth_components = $this->load_authority_hook_fields_direct($entry_id);
+            
+            if (!empty(array_filter($auth_components))) {
+                $template_data['authority_hook_components'] = $auth_components;
+                $template_data['has_entry'] = true;
+                $template_data['data_source'] = 'direct_formidable';
+                error_log('MKCG Authority Hook Fix: ✅ Direct Formidable loading SUCCESS');
+                error_log('MKCG Authority Hook Fix: Direct loaded components: ' . json_encode($auth_components));
+                return $template_data;
+            } else {
+                error_log('MKCG Authority Hook Fix: ⚠️ Direct Formidable loading returned empty data');
+            }
+        } catch (Exception $e) {
+            error_log('MKCG Authority Hook Fix: ❌ Direct Formidable loading exception: ' . $e->getMessage());
+        }
+        
+        // Strategy 3: Emergency default loading
+        error_log('MKCG Authority Hook Fix: Using emergency defaults');
+        $template_data['authority_hook_components'] = $this->load_default_authority_hook_components();
+        $template_data['data_source'] = 'emergency_defaults';
+        
+        return $template_data;
+    }
+    
+    /**
+     * AUTHORITY HOOK FIX: Direct Authority Hook field loading from Formidable
+     */
+    private function load_authority_hook_fields_direct($entry_id) {
+        global $wpdb;
+        
+        error_log('MKCG Authority Hook Fix: Loading Authority Hook fields directly from database for entry ' . $entry_id);
+        
+        // CRITICAL FIX: Use exact field mappings from config
+        $auth_field_mappings = [
+            'who' => '10296',    // WHO do you help?
+            'result' => '10297', // WHAT result do you help them achieve? (PROBLEMATIC FIELD)
+            'when' => '10387',   // WHEN do they need you? (PROBLEMATIC FIELD)  
+            'how' => '10298',    // HOW do you help them achieve this result? (PROBLEMATIC FIELD)
+            'complete' => '10358' // Complete Authority Hook
+        ];
+        
+        $auth_components = [
+            'who' => '',
+            'result' => '',
+            'when' => '',
+            'how' => '',
+            'complete' => ''
+        ];
+        
+        $table = $wpdb->prefix . 'frm_item_metas';
+        
+        foreach ($auth_field_mappings as $component => $field_id) {
+            try {
+                // Get raw value directly from database
+                $raw_value = $wpdb->get_var($wpdb->prepare(
+                    "SELECT meta_value FROM {$table} WHERE item_id = %d AND field_id = %d",
+                    $entry_id, $field_id
+                ));
+                
+                if ($raw_value !== null) {
+                    // Use enhanced field processing specifically for problematic fields
+                    if (in_array($field_id, ['10297', '10387', '10298'])) {
+                        $processed_value = $this->formidable_service->process_field_value_enhanced($raw_value, $field_id);
+                    } else {
+                        $processed_value = $this->formidable_service->process_field_value_safe($raw_value, $field_id, 'authority_hook');
+                    }
+                    
+                    if (!empty($processed_value)) {
+                        $auth_components[$component] = $processed_value;
+                        error_log("MKCG Authority Hook Fix: Loaded {$component} from field {$field_id}: '{$processed_value}'");
+                    } else {
+                        error_log("MKCG Authority Hook Fix: Field {$field_id} ({$component}) processed to empty value, using default");
+                        $auth_components[$component] = $this->get_default_component_value($component);
+                    }
+                } else {
+                    error_log("MKCG Authority Hook Fix: No data found for field {$field_id} ({$component}), using default");
+                    $auth_components[$component] = $this->get_default_component_value($component);
+                }
+                
+            } catch (Exception $e) {
+                error_log('MKCG Authority Hook Fix: Error loading authority hook ' . $component . ': ' . $e->getMessage());
+                $auth_components[$component] = $this->get_default_component_value($component);
+            }
+        }
+        
+        // If no complete hook available, try to build it from components
+        if (empty($auth_components['complete']) && $this->authority_hook_service) {
+            try {
+                $auth_components['complete'] = $this->authority_hook_service->build_authority_hook($auth_components);
+                error_log('MKCG Authority Hook Fix: Built complete authority hook from components: ' . $auth_components['complete']);
+            } catch (Exception $e) {
+                error_log('MKCG Authority Hook Fix: Error building authority hook: ' . $e->getMessage());
+                $auth_components['complete'] = 'I help ' . $auth_components['who'] . ' ' . $auth_components['result'] . ' when ' . $auth_components['when'] . ' ' . $auth_components['how'] . '.';
+            }
+        }
+        
+        return $auth_components;
+    }
+    
+    /**
+     * AUTHORITY HOOK FIX: Load default Authority Hook components
+     */
+    private function load_default_authority_hook_components() {
+        $defaults = [
+            'who' => 'your audience',
+            'result' => 'achieve their goals',
+            'when' => 'they need help',
+            'how' => 'through your method'
+        ];
+        
+        if ($this->authority_hook_service) {
+            $defaults['complete'] = $this->authority_hook_service->build_authority_hook($defaults);
+        } else {
+            $defaults['complete'] = 'I help ' . $defaults['who'] . ' ' . $defaults['result'] . ' when ' . $defaults['when'] . ' ' . $defaults['how'] . '.';
+        }
+        
+        error_log('MKCG Authority Hook Fix: Using default components: ' . json_encode($defaults));
+        return $defaults;
+    }
+    
+    /**
+     * AUTHORITY HOOK FIX: Get default value for specific component
+     */
+    private function get_default_component_value($component) {
+        $defaults = [
+            'who' => 'your audience',
+            'result' => 'achieve their goals',
+            'when' => 'they need help',
+            'how' => 'through your method'
+        ];
+        
+        return $defaults[$component] ?? '';
+    }
+    
+    /**
+     * AUTHORITY HOOK FIX: Enhanced topics data loading
+     */
+    private function load_topics_data_enhanced($template_data, $post_id) {
+        $entry_id = $template_data['entry_id'];
+        
+        // Try Topics Data Service first (if available)
+        if ($this->is_topics_service_available()) {
+            try {
+                $service_data = $this->topics_data_service->get_topics_data($entry_id, $template_data['entry_key'], $post_id);
+                
+                if ($service_data['success'] && !empty($service_data['topics'])) {
+                    $template_data['form_field_values'] = $service_data['topics'];
+                    if (!$template_data['has_entry']) {
+                        $template_data['has_entry'] = true;
+                    }
+                    error_log('MKCG Authority Hook Fix: ✅ Topics loaded via Topics Data Service');
+                    return $template_data;
+                }
+            } catch (Exception $e) {
+                error_log('MKCG Authority Hook Fix: Topics Data Service failed: ' . $e->getMessage());
+            }
+        }
+        
+        // Fallback: Direct topics loading
+        try {
+            $topics_data = $this->load_topics_from_formidable($entry_id);
+            if (!empty(array_filter($topics_data))) {
+                $template_data['form_field_values'] = $topics_data;
+                if (!$template_data['has_entry']) {
+                    $template_data['has_entry'] = true;
+                }
+                error_log('MKCG Authority Hook Fix: ✅ Topics loaded via direct Formidable');
+            }
+        } catch (Exception $e) {
+            error_log('MKCG Authority Hook Fix: Direct topics loading failed: ' . $e->getMessage());
+        }
         
         return $template_data;
     }

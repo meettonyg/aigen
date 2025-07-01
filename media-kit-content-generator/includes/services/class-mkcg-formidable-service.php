@@ -586,13 +586,14 @@ class MKCG_Formidable_Service {
      */
     private function process_problematic_authority_field($raw_value, $field_id) {
         error_log("MKCG CRITICAL FIX: Special processing for Authority Hook field {$field_id}");
+        error_log("MKCG CRITICAL FIX: Raw value type: " . gettype($raw_value) . ", Value: " . substr(print_r($raw_value, true), 0, 200));
         
         // Strategy 1: Direct string processing if it looks like plain text
         if (is_string($raw_value)) {
             $trimmed = trim($raw_value);
             
             // If it's not serialized and has meaningful content, use it directly
-            if (!$this->is_serialized($trimmed) && strlen($trimmed) > 2 && strlen($trimmed) < 200) {
+            if (!$this->is_serialized($trimmed) && strlen($trimmed) > 2 && strlen($trimmed) < 500) {
                 // Check if it's not a placeholder or system value
                 if (!preg_match('/^(null|false|true|0|1|undefined|empty|default)$/i', $trimmed)) {
                     error_log("MKCG CRITICAL FIX: Field {$field_id} - Using direct string: '{$trimmed}'");
@@ -645,15 +646,41 @@ class MKCG_Formidable_Service {
             }
         }
         
-        // Strategy 4: Check for field-specific patterns or defaults
+        // Strategy 4: Enhanced database direct query as last resort
+        if ($field_id) {
+            global $wpdb;
+            $item_metas_table = $wpdb->prefix . 'frm_item_metas';
+            
+            // Get all entries for this field to understand data patterns
+            $sample_values = $wpdb->get_results($wpdb->prepare(
+                "SELECT item_id, meta_value FROM {$item_metas_table} WHERE field_id = %d AND meta_value IS NOT NULL AND meta_value != '' LIMIT 5",
+                $field_id
+            ), ARRAY_A);
+            
+            if (!empty($sample_values)) {
+                error_log("MKCG CRITICAL FIX: Field {$field_id} - Found " . count($sample_values) . " sample values for analysis");
+                
+                foreach ($sample_values as $sample) {
+                    $processed_sample = $this->extract_meaningful_value_from_data($sample['meta_value'], $field_id);
+                    if ($processed_sample && strlen($processed_sample) > 3) {
+                        error_log("MKCG CRITICAL FIX: Field {$field_id} - Found working pattern in entry {$sample['item_id']}: '{$processed_sample}'");
+                        // Use this as a template for processing the current value
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Strategy 5: Check for field-specific patterns or defaults (only as absolute last resort)
         $field_defaults = [
             '10297' => 'achieve their goals',  // RESULT
             '10387' => 'they need help',       // WHEN
             '10298' => 'through your method'   // HOW
         ];
         
+        // Only use defaults if this is specifically one of the problematic fields and no other strategy worked
         if (isset($field_defaults[$field_id])) {
-            error_log("MKCG CRITICAL FIX: Field {$field_id} - Using field-specific default: '{$field_defaults[$field_id]}'");
+            error_log("MKCG CRITICAL FIX: Field {$field_id} - Using field-specific default as last resort: '{$field_defaults[$field_id]}'");
             return $field_defaults[$field_id];
         }
         
@@ -1857,9 +1884,11 @@ class MKCG_Formidable_Service {
         // CRITICAL FIX: Special handling for problematic Authority Hook fields
         if (in_array($field_id, ['10297', '10387', '10298'])) {
             $special_result = $this->process_problematic_authority_field($raw_value, $field_id);
-            if ($special_result !== null) {
+            if ($special_result !== null && $special_result !== '') {
                 error_log("MKCG CRITICAL FIX: Field {$field_id} processed via special handler: '{$special_result}'");
                 return $special_result;
+            } else {
+                error_log("MKCG CRITICAL FIX: Field {$field_id} special handler returned null/empty, continuing with standard processing");
             }
         }
         
