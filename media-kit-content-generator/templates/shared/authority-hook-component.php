@@ -200,7 +200,8 @@ if ($entry_id && empty($authority_hook) && isset($authority_hook_service)) {
         </div>
     </div>
     
-    <!-- Live Preview -->
+    <!-- Live Preview - Hidden by default, can be enabled per generator -->
+    <?php if (isset($show_authority_hook_preview) && $show_authority_hook_preview): ?>
     <div class="authority-hook__preview">
         <div class="authority-hook__preview-title">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -231,6 +232,7 @@ if ($entry_id && empty($authority_hook) && isset($authority_hook_service)) {
             </button>
         </div>
     </div>
+    <?php endif; ?>
     
     <!-- Hidden field to store the complete hook -->
     <input type="hidden" id="mkcg-authority-hook" name="authority_hook" value="<?php echo esc_attr($authority_hook); ?>">
