@@ -45,6 +45,10 @@ class MKCG_Topics_AJAX_Handlers {
         add_action('wp_ajax_mkcg_save_topic', [$this, 'save_topic']);
         add_action('wp_ajax_nopriv_mkcg_save_topic', [$this, 'save_topic']);
         
+        // CRITICAL FIX: Add missing bulk topics save handler (template JavaScript calls this)
+        add_action('wp_ajax_mkcg_save_topics_data', [$this, 'save_topics_data']);
+        add_action('wp_ajax_nopriv_mkcg_save_topics_data', [$this, 'save_topics_data']);
+        
         // Topic field saving (for individual topic saves)
         add_action('wp_ajax_mkcg_save_topic_field', [$this, 'save_topic_field']);
         add_action('wp_ajax_nopriv_mkcg_save_topic_field', [$this, 'save_topic_field']);
@@ -62,6 +66,224 @@ class MKCG_Topics_AJAX_Handlers {
         add_action('wp_ajax_nopriv_mkcg_validate_data', [$this, 'validate_data']);
         
         error_log('MKCG Topics AJAX Handlers: All enhanced handlers registered successfully');
+    }
+    
+    /**
+     * CRITICAL FIX: Save topics data (bulk save) - MISSING METHOD IMPLEMENTATION
+     * This method was called by JavaScript but didn't exist, causing JSON parse errors
+     */
+    public function save_topics_data() {
+        error_log('MKCG Topics AJAX: save_topics_data called - IMPLEMENTING MISSING METHOD');
+        
+        // Enhanced nonce verification with multiple fallback strategies
+        $nonce_verified = $this->verify_nonce_with_fallbacks();
+        if (!$nonce_verified) {
+            error_log('MKCG Topics AJAX: save_topics_data - Nonce verification failed');
+            wp_send_json_error([
+                'message' => 'Security check failed',
+                'code' => 'NONCE_FAILED',
+                'debug_info' => 'Multiple nonce verification strategies attempted'
+            ]);
+        }
+        
+        // Validate required fields
+        $entry_id = intval($_POST['entry_id'] ?? 0);
+        if (!$entry_id) {
+            error_log('MKCG Topics AJAX: save_topics_data - Missing entry ID');
+            wp_send_json_error([
+                'message' => 'Entry ID is required',
+                'code' => 'MISSING_ENTRY_ID',
+                'debug_info' => 'No valid entry_id provided in request'
+            ]);
+        }
+        
+        // Verify entry exists and user has permission
+        if (!$this->can_edit_entry($entry_id)) {
+            error_log("MKCG Topics AJAX: save_topics_data - Permission denied for entry {$entry_id}");
+            wp_send_json_error([
+                'message' => 'Permission denied',
+                'code' => 'PERMISSION_DENIED',
+                'debug_info' => "User cannot edit entry {$entry_id}"
+            ]);
+        }
+        
+        try {
+            // Extract and validate topics data from request
+            $topics_data = $this->extract_and_validate_topics_data($_POST);
+            
+            if (empty($topics_data)) {
+                error_log('MKCG Topics AJAX: save_topics_data - No valid topics data provided');
+                wp_send_json_error([
+                    'message' => 'No topics data provided',
+                    'code' => 'NO_TOPICS_DATA',
+                    'debug_info' => 'Request did not contain valid topic fields'
+                ]);
+            }
+            
+            // Get field mappings for topics (Form 515: fields 8498-8502)
+            $field_mappings = $this->get_topics_field_mappings();
+            
+            // Prepare data for saving
+            $save_data = [];
+            $field_id_mappings = [];
+            $saved_topics = [];
+            
+            foreach ($topics_data as $topic_key => $topic_value) {
+                if (isset($field_mappings[$topic_key])) {
+                    $field_id = $field_mappings[$topic_key];
+                    $save_data[$topic_key] = sanitize_textarea_field($topic_value);
+                    $field_id_mappings[$topic_key] = $field_id;
+                    $saved_topics[$topic_key] = $save_data[$topic_key];
+                    
+                    error_log("MKCG Topics AJAX: Preparing to save {$topic_key} (field {$field_id}): {$topic_value}");
+                }
+            }
+            
+            if (empty($save_data)) {
+                throw new Exception('No valid topic mappings found for provided data');
+            }
+            
+            // Save to Formidable using the service
+            if (!$this->topics_generator || !$this->topics_generator->formidable_service) {
+                throw new Exception('Formidable service not available');
+            }
+            
+            $save_result = $this->topics_generator->formidable_service->save_generated_content(
+                $entry_id,
+                $save_data,
+                $field_id_mappings
+            );
+            
+            if (!$save_result['success']) {
+                throw new Exception('Formidable save operation failed: ' . ($save_result['message'] ?? 'Unknown error'));
+            }
+            
+            // Log successful save
+            error_log("MKCG Topics AJAX: save_topics_data - Successfully saved " . count($saved_topics) . " topics for entry {$entry_id}");
+            
+            // Prepare success response with comprehensive data
+            $response_data = [
+                'message' => 'Topics saved successfully',
+                'entry_id' => $entry_id,
+                'topics_saved' => count($saved_topics),
+                'saved_topics' => $saved_topics,
+                'field_mappings' => $field_id_mappings,
+                'timestamp' => current_time('mysql'),
+                'debug_info' => [
+                    'save_result' => $save_result,
+                    'topics_processed' => array_keys($saved_topics)
+                ]
+            ];
+            
+            // Send successful JSON response
+            wp_send_json_success($response_data);
+            
+        } catch (Exception $e) {
+            error_log('MKCG Topics AJAX: save_topics_data - Exception: ' . $e->getMessage());
+            error_log('MKCG Topics AJAX: save_topics_data - Exception trace: ' . $e->getTraceAsString());
+            
+            wp_send_json_error([
+                'message' => 'Failed to save topics data',
+                'code' => 'SAVE_EXCEPTION',
+                'error_details' => $e->getMessage(),
+                'debug_info' => [
+                    'entry_id' => $entry_id,
+                    'exception_file' => $e->getFile(),
+                    'exception_line' => $e->getLine()
+                ]
+            ]);
+        }
+    }
+    
+    /**
+     * HELPER: Extract and validate topics data from request - FIXED FORMAT MATCHING
+     */
+    private function extract_and_validate_topics_data($request_data) {
+        $topics_data = [];
+        
+        error_log('MKCG Topics AJAX: DEBUG - Full request data: ' . print_r($request_data, true));
+        
+        // CRITICAL FIX: Handle the actual JavaScript format: topics[topic_1], topics[topic_2], etc.
+        if (isset($request_data['topics']) && is_array($request_data['topics'])) {
+            error_log('MKCG Topics AJAX: Found topics array in request');
+            
+            foreach ($request_data['topics'] as $key => $value) {
+                if (!empty(trim($value))) {
+                    // JavaScript sends topics[topic_1], topics[topic_2], etc.
+                    // We need to extract the topic key (topic_1, topic_2, etc.)
+                    if (strpos($key, 'topic_') === 0) {
+                        // Key is already in the correct format: topic_1, topic_2, etc.
+                        $topic_key = $key;
+                    } else {
+                        // Convert numeric index to topic_X format
+                        $topic_key = 'topic_' . $key;
+                    }
+                    
+                    $topics_data[$topic_key] = trim($value);
+                    error_log("MKCG Topics AJAX: Found topic in array - {$key} -> {$topic_key}: {$topics_data[$topic_key]}");
+                }
+            }
+        }
+        
+        // Fallback: Look for topics in other possible formats if array format didn't work
+        if (empty($topics_data)) {
+            error_log('MKCG Topics AJAX: No topics found in array format, trying other formats...');
+            
+            $possible_formats = [
+                // Format 1: Direct topic keys: topic_1, topic_2, etc.
+                ['topic_1', 'topic_2', 'topic_3', 'topic_4', 'topic_5'],
+                // Format 2: Numeric topics array: topics[1], topics[2], etc.
+                ['topics[1]', 'topics[2]', 'topics[3]', 'topics[4]', 'topics[5]'],
+                // Format 3: Field names from form
+                ['topics-generator-topic-field-1', 'topics-generator-topic-field-2', 'topics-generator-topic-field-3', 'topics-generator-topic-field-4', 'topics-generator-topic-field-5']
+            ];
+            
+            foreach ($possible_formats as $format_index => $format) {
+                foreach ($format as $index => $field_name) {
+                    if (isset($request_data[$field_name]) && !empty(trim($request_data[$field_name]))) {
+                        $topic_key = 'topic_' . ($index + 1);
+                        $topics_data[$topic_key] = trim($request_data[$field_name]);
+                        error_log("MKCG Topics AJAX: Found topic data (format {$format_index}) - {$field_name} -> {$topic_key}: {$topics_data[$topic_key]}");
+                    }
+                }
+                
+                // If we found topics in this format, use it
+                if (!empty($topics_data)) {
+                    error_log("MKCG Topics AJAX: Using format {$format_index} with " . count($topics_data) . " topics");
+                    break;
+                }
+            }
+        }
+        
+        // ENHANCED DEBUG: Show what we found
+        if (!empty($topics_data)) {
+            error_log('MKCG Topics AJAX: Successfully extracted topics: ' . print_r($topics_data, true));
+        } else {
+            error_log('MKCG Topics AJAX: WARNING - No topics found in any format');
+            error_log('MKCG Topics AJAX: Available request keys: ' . implode(', ', array_keys($request_data)));
+            
+            // Additional debug: check for any topic-related keys
+            $topic_related_keys = array_filter(array_keys($request_data), function($key) {
+                return strpos(strtolower($key), 'topic') !== false;
+            });
+            error_log('MKCG Topics AJAX: Topic-related keys found: ' . implode(', ', $topic_related_keys));
+        }
+        
+        return $topics_data;
+    }
+    
+    
+    /**
+    * HELPER: Get topics field mappings (Form 515)
+     */
+    private function get_topics_field_mappings() {
+        return [
+            'topic_1' => '8498',
+            'topic_2' => '8499',
+            'topic_3' => '8500',
+            'topic_4' => '8501',
+            'topic_5' => '8502'
+        ];
     }
     
     /**
