@@ -716,7 +716,48 @@ class Media_Kit_Content_Generator {
      * Load Topics Generator specific scripts
      */
     private function enqueue_topics_scripts() {
-        error_log('MKCG: Loading Topics Generator scripts');
+        error_log('MKCG: Loading Topics Generator scripts with enhanced modules');
+        
+        // CRITICAL FIX: Load enhanced modules FIRST (dependencies)
+        wp_enqueue_script(
+            'mkcg-enhanced-ui-feedback',
+            MKCG_PLUGIN_URL . 'assets/js/enhanced-ui-feedback.js',
+            [],
+            MKCG_VERSION,
+            true
+        );
+        
+        wp_enqueue_script(
+            'mkcg-enhanced-error-handler',
+            MKCG_PLUGIN_URL . 'assets/js/enhanced-error-handler.js',
+            ['mkcg-enhanced-ui-feedback'],
+            MKCG_VERSION,
+            true
+        );
+        
+        wp_enqueue_script(
+            'mkcg-enhanced-validation-manager',
+            MKCG_PLUGIN_URL . 'assets/js/enhanced-validation-manager.js',
+            ['mkcg-enhanced-error-handler'],
+            MKCG_VERSION,
+            true
+        );
+        
+        wp_enqueue_script(
+            'mkcg-offline-manager',
+            MKCG_PLUGIN_URL . 'assets/js/mkcg-offline-manager.js',
+            ['mkcg-enhanced-ui-feedback'],
+            MKCG_VERSION,
+            true
+        );
+        
+        wp_enqueue_script(
+            'mkcg-enhanced-ajax-manager',
+            MKCG_PLUGIN_URL . 'assets/js/enhanced-ajax-manager.js',
+            ['mkcg-offline-manager', 'mkcg-enhanced-error-handler'],
+            MKCG_VERSION,
+            true
+        );
         
         // Topics needs Authority Hook Builder and Form Utils
         wp_enqueue_script(
@@ -735,11 +776,18 @@ class Media_Kit_Content_Generator {
             true
         );
         
-        // ONLY load Topics Generator script
+        // CRITICAL FIX: Load Topics Generator with ALL enhanced dependencies
         wp_enqueue_script(
             'mkcg-topics-generator', 
             MKCG_PLUGIN_URL . 'assets/js/generators/topics-generator.js', 
-            ['mkcg-authority-hook-builder', 'mkcg-data-manager'], 
+            [
+                'mkcg-authority-hook-builder', 
+                'mkcg-data-manager',
+                'mkcg-enhanced-ajax-manager',
+                'mkcg-enhanced-validation-manager',
+                'mkcg-enhanced-ui-feedback',
+                'mkcg-offline-manager'
+            ], 
             MKCG_VERSION, 
             true
         );
@@ -776,7 +824,48 @@ class Media_Kit_Content_Generator {
      * Load Questions Generator specific scripts
      */
     private function enqueue_questions_scripts() {
-        error_log('MKCG: Loading Questions Generator scripts');
+        error_log('MKCG: Loading Questions Generator scripts with enhanced modules');
+        
+        // CRITICAL FIX: Load enhanced modules FIRST (dependencies)
+        wp_enqueue_script(
+            'mkcg-enhanced-ui-feedback',
+            MKCG_PLUGIN_URL . 'assets/js/enhanced-ui-feedback.js',
+            [],
+            MKCG_VERSION,
+            true
+        );
+        
+        wp_enqueue_script(
+            'mkcg-enhanced-error-handler',
+            MKCG_PLUGIN_URL . 'assets/js/enhanced-error-handler.js',
+            ['mkcg-enhanced-ui-feedback'],
+            MKCG_VERSION,
+            true
+        );
+        
+        wp_enqueue_script(
+            'mkcg-enhanced-validation-manager',
+            MKCG_PLUGIN_URL . 'assets/js/enhanced-validation-manager.js',
+            ['mkcg-enhanced-error-handler'],
+            MKCG_VERSION,
+            true
+        );
+        
+        wp_enqueue_script(
+            'mkcg-offline-manager',
+            MKCG_PLUGIN_URL . 'assets/js/mkcg-offline-manager.js',
+            ['mkcg-enhanced-ui-feedback'],
+            MKCG_VERSION,
+            true
+        );
+        
+        wp_enqueue_script(
+            'mkcg-enhanced-ajax-manager',
+            MKCG_PLUGIN_URL . 'assets/js/enhanced-ajax-manager.js',
+            ['mkcg-offline-manager', 'mkcg-enhanced-error-handler'],
+            MKCG_VERSION,
+            true
+        );
         
         // Questions needs Form Utils (for enhanced FormUtils)
         wp_enqueue_script(
@@ -787,11 +876,18 @@ class Media_Kit_Content_Generator {
             true
         );
         
-        // ONLY load Questions Generator script
+        // CRITICAL FIX: Load Questions Generator with ALL enhanced dependencies
         wp_enqueue_script(
             'mkcg-questions-generator', 
             MKCG_PLUGIN_URL . 'assets/js/generators/questions-generator.js', 
-            ['mkcg-form-utils', 'mkcg-data-manager'], 
+            [
+                'mkcg-form-utils', 
+                'mkcg-data-manager',
+                'mkcg-enhanced-ajax-manager',
+                'mkcg-enhanced-validation-manager',
+                'mkcg-enhanced-ui-feedback',
+                'mkcg-offline-manager'
+            ], 
             MKCG_VERSION, 
             true
         );

@@ -1200,21 +1200,26 @@
     /**
      * ENHANCED: Fallback demo topics generation with standardized handling
      */
-    generateDemoTopicsFallback: function(authorityHook) {
+    generateDemoTopicsFallback: function(authorityHook, updateProgressFn, loadingIds) {
       console.log('⚠️ Topics Generator: MKCG_FormUtils not available, using demo topics fallback');
       
-      updateProgress('fallback', 'FormUtils unavailable - loading demo topics...', 50);
+      if (updateProgressFn) {
+        updateProgressFn('fallback', 'FormUtils unavailable - loading demo topics...', 50);
+      }
       
       setTimeout(() => {
-        updateProgress('demo', 'Preparing demo topics...', 80);
+        if (updateProgressFn) {
+          updateProgressFn('demo', 'Preparing demo topics...', 80);
+        }
         
         setTimeout(() => {
-          updateProgress('complete', 'Demo topics ready!', 100);
-          this.hideLoadingStates({ loadingId, progressId });
+          if (updateProgressFn) {
+            updateProgressFn('complete', 'Demo topics ready!', 100);
+          }
+          this.hideLoadingStates(loadingIds || {});
           this.generateDemoTopics(authorityHook);
         }, 800);
       }, 1500);
-    },
     },
     
     /**
@@ -1553,6 +1558,131 @@
       setTimeout(() => {
         this.clearFieldStateIndicators(fieldElement);
       }, 4000);
+    },
+    
+    /**
+     * CRITICAL FIX: Add missing makeStandardizedAjaxRequest method
+     */
+    makeStandardizedAjaxRequest: function(action, data, options = {}) {
+      console.log(`🔄 Making standardized AJAX request: ${action}`);
+      
+      const requestData = {
+        action: action,
+        nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || '',
+        ...data
+      };
+      
+      // Use enhanced AJAX manager if available, otherwise fallback to FormUtils
+      if (window.EnhancedAjaxManager) {
+        return window.EnhancedAjaxManager.makeRequest(action, requestData, options);
+      } else if (window.MKCG_FormUtils) {
+        return MKCG_FormUtils.wp.makeAjaxRequest(action, requestData, options);
+      } else {
+        console.error('❌ No AJAX manager available');
+        if (options.onError) {
+          options.onError('No AJAX manager available');
+        }
+      }
+    },
+    
+    /**
+     * CRITICAL FIX: Add missing hideLoadingStates method
+     */
+    hideLoadingStates: function(options = {}) {
+      console.log('🔄 Hiding loading states');
+      
+      if (window.EnhancedUIFeedback) {
+        if (options.loadingId) {
+          window.EnhancedUIFeedback.hideLoadingSpinner(options.loadingId);
+        }
+        if (options.progressId) {
+          window.EnhancedUIFeedback.hideProgress(options.progressId);
+        }
+      }
+      
+      this.hideLoading();
+    },
+    
+    /**
+     * CRITICAL FIX: Add missing showUserFeedback method
+     */
+    showUserFeedback: function(feedbackOptions) {
+      console.log('💬 Showing user feedback:', feedbackOptions);
+      
+      if (window.EnhancedUIFeedback) {
+        window.EnhancedUIFeedback.showToast(feedbackOptions, feedbackOptions.type, feedbackOptions.duration);
+      } else {
+        // Fallback to browser alert
+        alert(`${feedbackOptions.title}: ${feedbackOptions.message}`);
+      }
+    },
+    
+    /**
+     * CRITICAL FIX: Add missing autoSaveFieldEnhanced method
+     */
+    autoSaveFieldEnhanced: function(inputElement, callbacks = {}) {
+      console.log('💾 Enhanced auto-save for field:', inputElement.name);
+      
+      const entryId = document.querySelector(this.elements.entryIdField)?.value;
+      if (!entryId || entryId === '0') {
+        console.log('⚠️ No entry ID available for enhanced auto-save');
+        if (callbacks.onError) {
+          callbacks.onError('No entry ID available');
+        }
+        return;
+      }
+      
+      const fieldName = inputElement.getAttribute('name');
+      const fieldValue = inputElement.value;
+      
+      this.makeStandardizedAjaxRequest('mkcg_save_topic_field', {
+        entry_id: entryId,
+        field_name: fieldName,
+        field_value: fieldValue
+      }, {
+        onSuccess: (data) => {
+          console.log('✅ Enhanced auto-save successful');
+          if (callbacks.onSuccess) {
+            callbacks.onSuccess(data);
+          }
+        },
+        onError: (error) => {
+          console.error('❌ Enhanced auto-save failed:', error);
+          if (callbacks.onError) {
+            callbacks.onError(error);
+          }
+        }
+      });
+    },
+    
+    /**
+     * CRITICAL FIX: Add missing showComponentSaveSuccess method
+     */
+    showComponentSaveSuccess: function(component) {
+      console.log(`✅ Component ${component} saved successfully`);
+      
+      if (window.EnhancedUIFeedback) {
+        window.EnhancedUIFeedback.showToast(
+          `${component.toUpperCase()} component saved`,
+          'success',
+          2000
+        );
+      }
+    },
+    
+    /**
+     * CRITICAL FIX: Add missing showComponentSaveError method
+     */
+    showComponentSaveError: function(component, error) {
+      console.error(`❌ Component ${component} save failed:`, error);
+      
+      if (window.EnhancedUIFeedback) {
+        window.EnhancedUIFeedback.showToast(
+          `Failed to save ${component.toUpperCase()} component`,
+          'error',
+          4000
+        );
+      }
     },
     
     /**
