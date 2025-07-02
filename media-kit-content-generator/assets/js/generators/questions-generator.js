@@ -153,30 +153,147 @@ const QuestionsGenerator = {
     },
     
     /**
-     * STANDALONE MODE: Questions Generator works independently (no cross-generator sync)
+     * Setup event bus communication for cross-generator sync
      */
     initializeCentralizedDataManager: function() {
-        console.log('📋 Questions Generator: Running in standalone mode (no cross-generator sync)');
-        // Questions Generator works independently - no data manager initialization needed
+        console.log('📋 Questions Generator: Setting up event bus communication');
+        
+        if (window.AppEvents) {
+            // Listen for topic updates from Topics Generator
+            window.AppEvents.on('topic:updated', (data) => {
+                this.handleTopicUpdate(data);
+            });
+            
+            // Listen for authority hook updates
+            window.AppEvents.on('authority-hook:updated', (data) => {
+                this.handleAuthorityHookUpdate(data);
+            });
+            
+            // Listen for topics data saves
+            window.AppEvents.on('topics:saved', (data) => {
+                this.handleTopicsDataSaved(data);
+            });
+            
+            // Listen for topic selections from Topics Generator
+            window.AppEvents.on('topic:selected', (data) => {
+                this.handleTopicSelection(data);
+            });
+            
+            console.log('✅ Questions Generator: Event bus listeners setup complete');
+        } else {
+            console.warn('⚠️ AppEvents not available - running in standalone mode');
+        }
     },
     
     /**
-     * STANDALONE MODE: No external topic updates (Questions Generator works independently)
+     * Handle topic updates from Topics Generator via event bus
      */
     handleTopicUpdate: function(data) {
-        console.log('📋 Questions Generator: Standalone mode - ignoring external topic updates');
-        // Questions Generator works independently - no external updates needed
+        console.log('📋 Questions Generator: Received topic update', data);
+        
+        if (data.topicId && data.topicText) {
+            // Update our topics data
+            this.topicsData[data.topicId] = data.topicText;
+            
+            // If this is the currently selected topic, update the display
+            if (data.topicId === this.selectedTopicId) {
+                this.selectedTopicText = data.topicText;
+                this.updateSelectedTopic();
+                this.updateSelectedTopicHeading();
+                
+                console.log(`✅ Questions Generator: Updated selected topic ${data.topicId} to: ${data.topicText}`);
+            }
+        }
     },
     
     /**
-     * STANDALONE MODE: No external topic selection (Questions Generator works independently)
+     * Handle authority hook updates from Topics Generator
      */
-    handleTopicSelectionFromOtherGenerator: function(data) {
-        console.log('📋 Questions Generator: Standalone mode - ignoring external topic selection');
-        // Questions Generator works independently - no external selection needed
+    handleAuthorityHookUpdate: function(data) {
+        console.log('📋 Questions Generator: Received authority hook update', data);
+        // Questions Generator can respond to authority hook changes if needed
+        // For now, just log the update
     },
     
-
+    /**
+     * Handle topics data saves from Topics Generator
+     */
+    handleTopicsDataSaved: function(data) {
+        console.log('📋 Questions Generator: Received topics data save', data);
+        
+        if (data.topics) {
+            // Update our local topics data with the latest from Topics Generator
+            Object.assign(this.topicsData, data.topics);
+            
+            // Update selected topic if it changed
+            if (data.topics[this.selectedTopicId]) {
+                this.selectedTopicText = data.topics[this.selectedTopicId];
+                this.updateSelectedTopic();
+                this.updateSelectedTopicHeading();
+            }
+            
+            console.log('✅ Questions Generator: Updated topics data from Topics Generator');
+        }
+    },
+    
+    /**
+     * NEW: Handle topic selection from Topics Generator
+     */
+    handleTopicSelection: function(data) {
+        console.log('📱 Questions Generator: Received topic selection', data);
+        
+        if (data.topicId && data.topicText) {
+            // Update our topics data
+            this.topicsData[data.topicId] = data.topicText;
+            
+            // Set this as the selected topic
+            this.selectedTopicId = data.topicId;
+            this.selectedTopicText = data.topicText;
+            
+            // Update displays
+            this.updateSelectedTopic();
+            this.updateSelectedTopicHeading();
+            
+            // Update the topic card selection if it exists
+            this.updateTopicCardSelection(data.topicId);
+            
+            console.log(`✅ Questions Generator: Selected topic changed to ${data.topicId}: ${data.topicText}`);
+        }
+    },
+    
+    /**
+     * NEW: Update topic card selection in UI
+     */
+    updateTopicCardSelection: function(topicId) {
+        // Remove active state from all cards
+        document.querySelectorAll(this.elements.topicCards).forEach(card => {
+            card.classList.remove('active');
+        });
+        
+        // Set active state on selected card
+        const selectedCard = document.querySelector(`[data-topic="${topicId}"]`);
+        if (selectedCard) {
+            selectedCard.classList.add('active');
+            
+            // Update the topic text in the card if it's different
+            const topicTextElement = selectedCard.querySelector('.mkcg-topic-text');
+            if (topicTextElement && topicTextElement.textContent !== this.selectedTopicText) {
+                topicTextElement.textContent = this.selectedTopicText;
+                
+                // Remove empty state if it was empty
+                selectedCard.removeAttribute('data-empty');
+            }
+        }
+        
+        // Update hidden field
+        const topicIdInput = document.querySelector(this.elements.selectedTopicIdInput);
+        if (topicIdInput) {
+            topicIdInput.value = topicId;
+        }
+        
+        // Show corresponding question set
+        this.showQuestionsForTopic(topicId);
+    },
     
     /**
      * STANDALONE MODE: Simplified validation (no warnings)
@@ -1581,49 +1698,14 @@ const QuestionsGenerator = {
         this.showNotification(message, 'error');
     },
     
-    showNotification: function(message, type = 'info') {
-        // Create notification element if it doesn't exist
-        let notification = document.querySelector('.mkcg-notification');
-        if (!notification) {
-            notification = document.createElement('div');
-            notification.className = 'mkcg-notification';
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                padding: 12px 20px;
-                border-radius: 6px;
-                color: white;
-                font-weight: 500;
-                z-index: 10000;
-                max-width: 400px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                transition: opacity 0.3s ease;
-            `;
-            document.body.appendChild(notification);
+    showNotification: function(message, type = 'info', duration = 5000) {
+        // Use the global simple notification system if available
+        if (window.showNotification) {
+            window.showNotification(message, type, duration);
+        } else {
+            // Fallback to console logging
+            console.log(`📢 ${type.toUpperCase()}: ${message}`);
         }
-        
-        // Set color based on type
-        const colors = {
-            error: '#e74c3c',
-            warning: '#f39c12',
-            info: '#3498db',
-            success: '#27ae60'
-        };
-        
-        notification.style.backgroundColor = colors[type] || colors.info;
-        notification.textContent = message;
-        notification.style.opacity = '1';
-        
-        // Auto-hide after 5 seconds
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 300);
-        }, 5000);
     },
     
     /**

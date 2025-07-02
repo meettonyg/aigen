@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cross-Generator Communication Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .test-section {
+            margin-bottom: 40px;
+            padding: 20px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+        }
+        
+        .test-section h2 {
+            margin-top: 0;
+            color: #1a9bdc;
+            border-bottom: 2px solid #1a9bdc;
+            padding-bottom: 10px;
+        }
+        
+        .event-log {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            height: 200px;
+            overflow-y: auto;
+            margin: 15px 0;
+        }
+        
+        .test-topic-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e8ed;
+            border-radius: 6px;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        
+        .test-button {
+            background: #1a9bdc;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 5px;
+            transition: all 0.2s ease;
+        }
+        
+        .test-button:hover {
+            background: #1485c4;
+            transform: translateY(-1px);
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .status-connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .questions-display {
+            background: #f8f9ff;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #1a9bdc;
+            margin: 15px 0;
+        }
+        
+        #selectedTopicDisplay {
+            font-weight: bold;
+            color: #1a9bdc;
+            padding: 10px;
+            background: #f0f8ff;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔄 Cross-Generator Communication Test</h1>
+        <p>This test verifies that the simple event bus system correctly facilitates communication between the Topics and Questions generators.</p>
+        
+        <!-- Event Bus Status -->
+        <div class="test-section">
+            <h2>📡 Event Bus Status</h2>
+            <p>Simple Event Bus: <span id="eventBusStatus" class="status-indicator status-disconnected">Not Loaded</span></p>
+            <p>Topics Generator: <span id="topicsGeneratorStatus" class="status-indicator status-disconnected">Not Loaded</span></p>
+            <p>Questions Generator: <span id="questionsGeneratorStatus" class="status-indicator status-disconnected">Not Loaded</span></p>
+            
+            <button class="test-button" onclick="checkSystemStatus()">🔍 Check System Status</button>
+        </div>
+        
+        <!-- Topics Generator Simulation -->
+        <div class="test-section">
+            <h2>📝 Topics Generator Simulator</h2>
+            <p>Simulate a user entering topics in the Topics Generator:</p>
+            
+            <div>
+                <label for="topicInput1"><strong>Topic 1:</strong></label>
+                <input type="text" id="topicInput1" class="test-topic-input" 
+                       placeholder="Enter a topic (e.g., 'Building Authority Through Content Marketing')"
+                       onblur="simulateTopicSelection(1, this.value)">
+            </div>
+            
+            <div>
+                <label for="topicInput2"><strong>Topic 2:</strong></label>
+                <input type="text" id="topicInput2" class="test-topic-input" 
+                       placeholder="Enter a topic (e.g., 'Podcast Guesting Strategies')"
+                       onblur="simulateTopicSelection(2, this.value)">
+            </div>
+            
+            <div>
+                <label for="topicInput3"><strong>Topic 3:</strong></label>
+                <input type="text" id="topicInput3" class="test-topic-input" 
+                       placeholder="Enter a topic (e.g., 'Converting Interviews into Clients')"
+                       onblur="simulateTopicSelection(3, this.value)">
+            </div>
+            
+            <button class="test-button" onclick="loadSampleTopics()">📋 Load Sample Topics</button>
+            <button class="test-button" onclick="clearAllTopics()">🗑️ Clear All Topics</button>
+        </div>
+        
+        <!-- Questions Generator Response -->
+        <div class="test-section">
+            <h2>❓ Questions Generator Response</h2>
+            <p>This section simulates how the Questions Generator responds to topic selections:</p>
+            
+            <div id="selectedTopicDisplay">No topic selected</div>
+            
+            <div class="questions-display">
+                <h4>Questions for Selected Topic:</h4>
+                <div id="questionsDisplay">Select a topic above to see how the Questions Generator responds</div>
+            </div>
+        </div>
+        
+        <!-- Event Log -->
+        <div class="test-section">
+            <h2>📋 Event Communication Log</h2>
+            <p>Live log of events being triggered and received:</p>
+            <div id="eventLog" class="event-log">Event log will appear here...</div>
+            <button class="test-button" onclick="clearEventLog()">🗑️ Clear Log</button>
+        </div>
+        
+        <!-- Manual Testing -->
+        <div class="test-section">
+            <h2>🧪 Manual Test Controls</h2>
+            <p>Direct event testing:</p>
+            
+            <button class="test-button" onclick="testDirectEvent()">🎯 Trigger Test Event</button>
+            <button class="test-button" onclick="testMultipleEvents()">🔄 Test Multiple Events</button>
+            <button class="test-button" onclick="testEventValidation()">✅ Test Event Validation</button>
+        </div>
+    </div>
+
+    <!-- Load Required Scripts -->
+    <script src="assets/js/simple-event-bus.js"></script>
+    <script>
+        // Test Variables
+        let eventLogElement;
+        let selectedTopicElement;
+        let questionsDisplayElement;
+        
+        // Initialize test interface
+        document.addEventListener('DOMContentLoaded', function() {
+            eventLogElement = document.getElementById('eventLog');
+            selectedTopicElement = document.getElementById('selectedTopicDisplay');
+            questionsDisplayElement = document.getElementById('questionsDisplay');
+            
+            logEvent('Test interface initialized');
+            checkSystemStatus();
+            setupEventListeners();
+        });
+        
+        // Setup event listeners for cross-generator communication
+        function setupEventListeners() {
+            if (window.AppEvents) {
+                // Listen for topic selection events (like Questions Generator would)
+                window.AppEvents.on('topic:selected', function(data) {
+                    logEvent(`✅ RECEIVED: topic:selected - Topic ${data.topicId}: "${data.topicText}"`);
+                    
+                    // Update the Questions Generator simulation
+                    updateQuestionsGeneratorDisplay(data.topicId, data.topicText);
+                });
+                
+                // Listen for topic updates
+                window.AppEvents.on('topic:updated', function(data) {
+                    logEvent(`🔄 RECEIVED: topic:updated - Topic ${data.topicId}: "${data.topicText}"`);
+                });
+                
+                // Listen for authority hook updates
+                window.AppEvents.on('authority-hook:updated', function(data) {
+                    logEvent(`🎯 RECEIVED: authority-hook:updated - "${data.text?.substring(0, 50)}..."`);
+                });
+                
+                logEvent('✅ Event listeners setup complete');
+            } else {
+                logEvent('❌ ERROR: AppEvents not available - event bus not loaded');
+            }
+        }
+        
+        // Check system status
+        function checkSystemStatus() {
+            // Check Event Bus
+            const eventBusStatus = document.getElementById('eventBusStatus');
+            if (window.AppEvents) {
+                eventBusStatus.textContent = 'Connected';
+                eventBusStatus.className = 'status-indicator status-connected';
+                logEvent('✅ Event Bus: Connected');
+            } else {
+                eventBusStatus.textContent = 'Not Available';
+                eventBusStatus.className = 'status-indicator status-disconnected';
+                logEvent('❌ Event Bus: Not Available');
+            }
+            
+            // Check Topics Generator
+            const topicsStatus = document.getElementById('topicsGeneratorStatus');
+            if (window.TopicsGenerator) {
+                topicsStatus.textContent = 'Loaded';
+                topicsStatus.className = 'status-indicator status-connected';
+                logEvent('✅ Topics Generator: Available');
+            } else {
+                topicsStatus.textContent = 'Not Loaded';
+                topicsStatus.className = 'status-indicator status-disconnected';
+                logEvent('⚠️ Topics Generator: Not Available (normal for isolated test)');
+            }
+            
+            // Check Questions Generator
+            const questionsStatus = document.getElementById('questionsGeneratorStatus');
+            if (window.QuestionsGenerator) {
+                questionsStatus.textContent = 'Loaded';
+                questionsStatus.className = 'status-indicator status-connected';
+                logEvent('✅ Questions Generator: Available');
+            } else {
+                questionsStatus.textContent = 'Not Loaded';
+                questionsStatus.className = 'status-indicator status-disconnected';
+                logEvent('⚠️ Questions Generator: Not Available (normal for isolated test)');
+            }
+        }
+        
+        // Simulate topic selection (like Topics Generator would trigger)
+        function simulateTopicSelection(topicId, topicText) {
+            if (!topicText || !topicText.trim()) {
+                logEvent(`⚠️ Empty topic for Topic ${topicId} - no event triggered`);
+                return;
+            }
+            
+            topicText = topicText.trim();
+            
+            if (window.AppEvents) {
+                // Trigger the event like Topics Generator would
+                window.AppEvents.trigger('topic:selected', {
+                    topicId: topicId,
+                    topicText: topicText,
+                    source: 'test-simulator',
+                    timestamp: Date.now()
+                });
+                
+                logEvent(`📡 TRIGGERED: topic:selected - Topic ${topicId}: "${topicText}"`);
+            } else {
+                logEvent('❌ ERROR: Cannot trigger event - AppEvents not available');
+            }
+        }
+        
+        // Update Questions Generator display simulation
+        function updateQuestionsGeneratorDisplay(topicId, topicText) {
+            // Update selected topic display
+            selectedTopicElement.textContent = `Topic ${topicId}: ${topicText}`;
+            
+            // Generate sample questions based on the topic
+            const sampleQuestions = [
+                `What led you to develop your approach to ${topicText.toLowerCase()}?`,
+                `Can you walk us through your step-by-step method for ${topicText.toLowerCase()}?`,
+                `What kind of results have people seen from implementing your ${topicText.toLowerCase()} strategy?`,
+                `What are the biggest mistakes people make with ${topicText.toLowerCase()}?`,
+                `Can you share a success story related to ${topicText.toLowerCase()}?`
+            ];
+            
+            let questionsHtml = `<h4>Interview Questions for "${topicText}"</h4><ol>`;
+            sampleQuestions.forEach(question => {
+                questionsHtml += `<li>${question}</li>`;
+            });
+            questionsHtml += '</ol>';
+            
+            questionsDisplayElement.innerHTML = questionsHtml;
+            
+            logEvent(`🎯 Questions Generator updated heading and questions for Topic ${topicId}`);
+        }
+        
+        // Load sample topics for testing
+        function loadSampleTopics() {
+            const sampleTopics = [
+                'Building Authority Through Content Marketing',
+                'Podcast Guesting Strategies for Entrepreneurs',
+                'Converting Interviews into High-Value Clients'
+            ];
+            
+            sampleTopics.forEach((topic, index) => {
+                const input = document.getElementById(`topicInput${index + 1}`);
+                if (input) {
+                    input.value = topic;
+                    // Trigger the event
+                    simulateTopicSelection(index + 1, topic);
+                }
+            });
+            
+            logEvent('📋 Sample topics loaded and events triggered');
+        }
+        
+        // Clear all topics
+        function clearAllTopics() {
+            for (let i = 1; i <= 3; i++) {
+                const input = document.getElementById(`topicInput${i}`);
+                if (input) {
+                    input.value = '';
+                }
+            }
+            
+            selectedTopicElement.textContent = 'No topic selected';
+            questionsDisplayElement.innerHTML = 'Select a topic above to see how the Questions Generator responds';
+            
+            logEvent('🗑️ All topics cleared');
+        }
+        
+        // Direct event testing
+        function testDirectEvent() {
+            if (window.AppEvents) {
+                window.AppEvents.trigger('topic:selected', {
+                    topicId: 99,
+                    topicText: 'Direct Test Topic - Advanced Strategies',
+                    source: 'direct-test',
+                    timestamp: Date.now()
+                });
+                
+                logEvent('🧪 Direct test event triggered');
+            } else {
+                logEvent('❌ Cannot test - AppEvents not available');
+            }
+        }
+        
+        // Test multiple events
+        function testMultipleEvents() {
+            if (!window.AppEvents) {
+                logEvent('❌ Cannot test - AppEvents not available');
+                return;
+            }
+            
+            const testTopics = [
+                'First Rapid Test Topic',
+                'Second Rapid Test Topic',
+                'Third Rapid Test Topic'
+            ];
+            
+            testTopics.forEach((topic, index) => {
+                setTimeout(() => {
+                    window.AppEvents.trigger('topic:selected', {
+                        topicId: index + 10,
+                        topicText: topic,
+                        source: 'rapid-test',
+                        timestamp: Date.now()
+                    });
+                    
+                    logEvent(`⚡ Rapid test ${index + 1}/3: "${topic}"`);
+                }, index * 500);
+            });
+        }
+        
+        // Test event validation
+        function testEventValidation() {
+            if (!window.AppEvents) {
+                logEvent('❌ Cannot test - AppEvents not available');
+                return;
+            }
+            
+            // Test valid event
+            window.AppEvents.trigger('topic:selected', {
+                topicId: 1,
+                topicText: 'Valid Test Topic',
+                source: 'validation-test',
+                timestamp: Date.now()
+            });
+            logEvent('✅ Valid event triggered');
+            
+            // Test invalid events
+            try {
+                window.AppEvents.trigger('topic:selected', {
+                    topicId: null,
+                    topicText: 'Missing Topic ID',
+                    source: 'validation-test'
+                });
+                logEvent('⚠️ Invalid event 1 triggered (missing topicId)');
+            } catch (error) {
+                logEvent(`❌ Invalid event 1 failed: ${error.message}`);
+            }
+            
+            try {
+                window.AppEvents.trigger('topic:selected', {
+                    topicId: 2,
+                    topicText: '',
+                    source: 'validation-test'
+                });
+                logEvent('⚠️ Invalid event 2 triggered (empty topicText)');
+            } catch (error) {
+                logEvent(`❌ Invalid event 2 failed: ${error.message}`);
+            }
+        }
+        
+        // Event logging
+        function logEvent(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logLine = `[${timestamp}] ${message}`;
+            
+            if (eventLogElement) {
+                eventLogElement.innerHTML += logLine + '\\n';
+                eventLogElement.scrollTop = eventLogElement.scrollHeight;
+            }
+            
+            console.log('Event Bus Test:', logLine);
+        }
+        
+        // Clear event log
+        function clearEventLog() {
+            if (eventLogElement) {
+                eventLogElement.innerHTML = 'Event log cleared...\\n';
+            }
+            logEvent('🗑️ Event log cleared');
+        }
+    </script>
+</body>
+</html>

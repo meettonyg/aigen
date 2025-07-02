@@ -195,51 +195,26 @@ const MKCG_FormUtils = {
     // WordPress/AJAX utilities - ENHANCED with enterprise-grade error handling
     wp: {
         makeAjaxRequest: function(action, data, callbacks = {}) {
-            MKCG_FormUtils.log('Making ENHANCED AJAX request', { action, data });
+            MKCG_FormUtils.log('Making SIMPLIFIED AJAX request', { action, data });
             
-            // Use Enhanced AJAX Manager if available, fallback to legacy
-            if (window.EnhancedAjaxManager) {
-                return window.EnhancedAjaxManager.makeRequest(action, data, {
-                    onStart: callbacks.onStart,
-                    onProgress: callbacks.onProgress,
-                    onSuccess: (result) => {
-                        MKCG_FormUtils.log('Enhanced AJAX success', result);
-                        if (callbacks.onSuccess) {
-                            callbacks.onSuccess(result);
-                        }
-                    },
-                    onError: (error) => {
-                        MKCG_FormUtils.log('Enhanced AJAX error', error);
-                        
-                        // Use Enhanced Error Handler if available
-                        if (window.EnhancedErrorHandler) {
-                            window.EnhancedErrorHandler.handleError(error, {
-                                action: action,
-                                data: data,
-                                source: 'mkcg_form_utils'
-                            });
-                        }
-                        
-                        if (callbacks.onError) {
-                            callbacks.onError(error.message || error);
-                        }
-                    },
-                    onComplete: callbacks.onComplete,
-                    timeout: callbacks.timeout || 30000,
-                    retryAttempts: callbacks.retryAttempts || 3
-                }).catch(error => {
-                    // Final error handling
-                    MKCG_FormUtils.log('Enhanced AJAX final error', error);
-                    if (callbacks.onError) {
-                        callbacks.onError(error.message || 'Request failed');
-                    }
+            const { onStart, onSuccess, onError, onComplete } = callbacks;
+            
+            if (onStart) onStart();
+            
+            return makeAjaxRequest(action, data)
+                .then(result => {
+                    MKCG_FormUtils.log('AJAX success', result);
+                    if (onSuccess) onSuccess(result);
+                    return result;
+                })
+                .catch(error => {
+                    MKCG_FormUtils.log('AJAX error', error);
+                    if (onError) onError(error.message || error);
                     throw error;
+                })
+                .finally(() => {
+                    if (onComplete) onComplete();
                 });
-            } else {
-                // Legacy fallback with basic error handling
-                console.warn('⚠️ Enhanced AJAX Manager not available, using legacy method');
-                return this.makeLegacyAjaxRequest(action, data, callbacks);
-            }
         },
         
         // Legacy AJAX method for fallback

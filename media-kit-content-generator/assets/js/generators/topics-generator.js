@@ -1,15 +1,14 @@
 /**
- * Topics Generator JavaScript - BEM Methodology
+ * Topics Generator JavaScript - Simplified Version
  * Handles topics generation with Authority Hook Builder integration
- * Version: 2.1.0 - PHASE 2 Enhanced Error Recovery & Retry Mechanisms
+ * Version: 2.2.0 - SIMPLIFIED Initialization & AJAX Systems
  * 
- * PHASE 2 ENHANCEMENTS:
- * - Exponential backoff retry system
- * - Advanced connection monitoring
- * - Intelligent error recovery
- * - Enhanced user feedback systems
- * - Circuit breaker pattern for failed requests
- * - 95%+ AJAX success rate target
+ * PHASE 2.2 SIMPLIFICATIONS:
+ * - Removed complex initialization phases
+ * - Eliminated error recovery and retry systems
+ * - Removed connection monitoring and health checks
+ * - Simplified to 3-step initialization: load data, bind events, update display
+ * - Clean, maintainable, straightforward approach
  */
 
 (function() {
@@ -49,11 +48,33 @@
     },
     
     /**
-     * Handle topic selection changes
+     * Setup event bus communication for cross-generator sync
+     */
+    setupEventBusCommunication: function() {
+      if (window.AppEvents) {
+        // Listen for external topic selection changes
+        window.AppEvents.on('topic:selected', (data) => {
+          this.handleTopicSelectionChange(data);
+        });
+        
+        console.log('✅ Topics Generator: Event bus communication setup complete');
+      } else {
+        console.warn('⚠️ AppEvents not available - running in standalone mode');
+      }
+    },
+    
+    /**
+     * Handle topic selection changes via event bus
      */
     handleTopicSelectionChange: function(data) {
-      // This will be used when Questions Generator selects topics
-      console.log('🎯 Topics Generator: Topic selection changed to', data.topicId, data.topicText);
+      console.log('🎯 Topics Generator: External topic selection received', data.topicId, data.topicText);
+      
+      // Update our internal state if needed
+      if (data.topicId && data.topicText) {
+        this.selectedTopicId = data.topicId;
+        this.selectedTopicText = data.topicText;
+        this.updateDisplay();
+      }
     },
     
     // Field values - Initialize from existing data, not hardcoded
@@ -68,601 +89,152 @@
     generatedTopics: [],
     selectedTopic: null,
     
-    // PHASE 2: Enhanced Error Recovery & Retry System
-    errorRecovery: {
-      retryAttempts: {},
-      circuitBreakers: {},
-      connectionMonitor: {
-        lastSuccessTime: Date.now(),
-        consecutiveFailures: 0,
-        isHealthy: true
-      },
-      backoffDelays: [1000, 2000, 4000, 8000, 16000], // Exponential backoff
-      maxRetries: 3,
-      healthCheckInterval: null
-    },
-    
-    // PHASE 2: Request queue for failed operations
-    requestQueue: {
-      pending: [],
-      processing: false,
-      maxQueueSize: 50
-    },
-    
     /**
-     * Initialize the Topics Generator
+     * SIMPLIFIED: Initialize the Topics Generator - Clean and Simple
      */
     init: function() {
-      console.log('🎯 Topics Generator: Initializing with PHASE 2 Enhanced Error Recovery');
+      console.log('🎯 Topics Generator: Initializing with simplified approach');
       
-      // PHASE 1 TASK 1: Validate enhanced modules and setup fallbacks
-      this.validateAndSetupEnhancedModules();
-      
-      // PHASE 2: Initialize Enhanced Error Recovery Systems
-      this.initializeErrorRecoverySystem();
-      
-      // CRITICAL FIX: Initialize centralized data manager first
-      this.initializeDataManager();
-      
-      // Load existing data FIRST before doing anything else
+      // 1. Load existing data from server
       this.loadExistingData();
       
+      // 2. Bind form events
       this.bindEvents();
-      // Don't call updateAuthorityHook() here - let loadExistingData() handle it
       
-      // PHASE 2: Start connection monitoring
-      this.startConnectionHealthMonitoring();
+      // 3. Update display
+      this.updateDisplay();
       
-      console.log('✅ PHASE 2: Topics Generator initialized with enhanced error recovery');
+      // 4. Setup event bus communication
+      this.setupEventBusCommunication();
+      
+      console.log('✅ Topics Generator: Simple initialization completed');
     },
     
     /**
-     * PHASE 1 TASK 1: Validate enhanced modules and setup comprehensive fallbacks
+     * SIMPLIFIED: Update display after loading data
      */
-    validateAndSetupEnhancedModules: function() {
-      console.log('🔍 Phase 1: Validating enhanced modules availability...');
-      
-      this.enhancedModules = {
-        ajax: null,
-        uiFeedback: null,
-        errorHandler: null,
-        validationManager: null,
-        offlineManager: null
-      };
-      
-      // Test and validate each enhanced module
-      try {
-        if (window.EnhancedAjaxManager && typeof window.EnhancedAjaxManager.makeRequest === 'function') {
-          this.enhancedModules.ajax = window.EnhancedAjaxManager;
-          console.log('✅ EnhancedAjaxManager validated');
-        } else {
-          console.log('⚠️ EnhancedAjaxManager not available - using fallback');
-        }
-        
-        if (window.EnhancedUIFeedback && typeof window.EnhancedUIFeedback.showToast === 'function') {
-          this.enhancedModules.uiFeedback = window.EnhancedUIFeedback;
-          console.log('✅ EnhancedUIFeedback validated');
-        } else {
-          console.log('⚠️ EnhancedUIFeedback not available - using fallback');
-        }
-        
-        if (window.EnhancedErrorHandler && typeof window.EnhancedErrorHandler.handleError === 'function') {
-          this.enhancedModules.errorHandler = window.EnhancedErrorHandler;
-          console.log('✅ EnhancedErrorHandler validated');
-        } else {
-          console.log('⚠️ EnhancedErrorHandler not available - using fallback');
-        }
-        
-        if (window.EnhancedValidationManager && typeof window.EnhancedValidationManager.validateField === 'function') {
-          this.enhancedModules.validationManager = window.EnhancedValidationManager;
-          console.log('✅ EnhancedValidationManager validated');
-        } else {
-          console.log('⚠️ EnhancedValidationManager not available - using fallback');
-        }
-        
-        if (window.MKCG_OfflineManager && typeof window.MKCG_OfflineManager.getNetworkStatus === 'function') {
-          this.enhancedModules.offlineManager = window.MKCG_OfflineManager;
-          console.log('✅ MKCG_OfflineManager validated');
-        } else {
-          console.log('⚠️ MKCG_OfflineManager not available - using fallback');
-        }
-        
-      } catch (error) {
-        console.error('❌ Error during enhanced module validation:', error);
-        // All modules will remain null, fallbacks will be used
+    updateDisplay: function() {
+      // Update authority hook display if we have data
+      if (this.fields.who || this.fields.result || this.fields.when || this.fields.how) {
+        this.updateAuthorityHook(false); // false = no server save during initialization
       }
       
-      // Count available enhanced modules
-      const availableModules = Object.values(this.enhancedModules).filter(module => module !== null).length;
-      const totalModules = Object.keys(this.enhancedModules).length;
-      
-      console.log(`📊 Enhanced modules status: ${availableModules}/${totalModules} available`);
-      
-      if (availableModules === 0) {
-        console.log('⚠️ No enhanced modules available - running in basic compatibility mode');
-        this.enhancedMode = false;
-      } else if (availableModules < totalModules) {
-        console.log(`⚠️ Limited enhanced systems (${availableModules}/${totalModules}) - running in hybrid mode`);
-        this.enhancedMode = 'hybrid';
-      } else {
-        console.log('✅ Full enhanced system available - running in enhanced mode');
-        this.enhancedMode = true;
-      }
-      
-      // Set up module availability flags for easy checking
-      this.hasEnhancedAjax = !!this.enhancedModules.ajax;
-      this.hasEnhancedUI = !!this.enhancedModules.uiFeedback;
-      this.hasEnhancedValidation = !!this.enhancedModules.validationManager;
-      this.hasEnhancedOffline = !!this.enhancedModules.offlineManager;
-      
-      console.log('🎯 Phase 1 Task 1: Enhanced module validation complete');
+      console.log('📝 Display updated with current data');
     },
     
     /**
-     * PHASE 2: Initialize Enhanced Error Recovery System
+     * Trigger events for cross-generator communication
      */
-    initializeErrorRecoverySystem: function() {
-      console.log('🔄 PHASE 2: Initializing Enhanced Error Recovery System');
-      
-      // Reset error recovery state
-      this.errorRecovery.retryAttempts = {};
-      this.errorRecovery.circuitBreakers = {};
-      this.errorRecovery.connectionMonitor = {
-        lastSuccessTime: Date.now(),
-        consecutiveFailures: 0,
-        isHealthy: true
-      };
-      
-      // Initialize request queue
-      this.requestQueue = {
-        pending: [],
-        processing: false,
-        maxQueueSize: 50
-      };
-      
-      // Set up error recovery event listeners
-      this.setupErrorRecoveryListeners();
-      
-      console.log('✅ PHASE 2: Error Recovery System initialized');
-    },
-    
-    /**
-     * PHASE 2: Setup Error Recovery Event Listeners
-     */
-    setupErrorRecoveryListeners: function() {
-      // Listen for window online/offline events
-      window.addEventListener('online', () => {
-        console.log('🌐 PHASE 2: Connection restored - processing queued requests');
-        this.onConnectionRestored();
-      });
-      
-      window.addEventListener('offline', () => {
-        console.log('📵 PHASE 2: Connection lost - enabling offline mode');
-        this.onConnectionLost();
-      });
-      
-      // Listen for unhandled promise rejections (failed AJAX)
-      window.addEventListener('unhandledrejection', (event) => {
-        console.log('⚠️ PHASE 2: Unhandled promise rejection detected:', event.reason);
-        this.handleUnhandledError(event.reason);
-      });
-    },
-    
-    /**
-     * PHASE 2: Start Connection Health Monitoring
-     */
-    startConnectionHealthMonitoring: function() {
-      console.log('🔍 PHASE 2: Starting connection health monitoring');
-      
-      // Health check every 30 seconds
-      this.errorRecovery.healthCheckInterval = setInterval(() => {
-        this.performHealthCheck();
-      }, 30000);
-      
-      // Initial health check
-      setTimeout(() => this.performHealthCheck(), 2000);
-    },
-    
-    /**
-     * PHASE 2: Perform Connection Health Check
-     */
-    performHealthCheck: function() {
-      const healthCheckData = {
-        action: 'mkcg_health_check',
-        nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || '',
-        timestamp: Date.now()
-      };
-      
-      this.makeEnhancedAjaxRequest('mkcg_health_check', healthCheckData, {
-        timeout: 5000,
-        context: 'health_check',
-        retryAttempts: 1,
-        onSuccess: (data) => {
-          this.updateConnectionHealth(true);
-          console.log('✅ PHASE 2: Health check passed');
-        },
-        onError: (error) => {
-          this.updateConnectionHealth(false);
-          console.log('❌ PHASE 2: Health check failed:', error);
-        }
-      });
-    },
-    
-    /**
-     * PHASE 2: Update Connection Health Status
-     */
-    updateConnectionHealth: function(isHealthy) {
-      const monitor = this.errorRecovery.connectionMonitor;
-      
-      if (isHealthy) {
-        monitor.lastSuccessTime = Date.now();
-        monitor.consecutiveFailures = 0;
-        monitor.isHealthy = true;
+    triggerAuthorityHookUpdated: function() {
+      if (window.AppEvents) {
+        const hookText = document.querySelector(this.elements.authorityHookText)?.textContent || '';
         
-        // Process any queued requests
-        if (this.requestQueue.pending.length > 0) {
-          this.processQueuedRequests();
-        }
-      } else {
-        monitor.consecutiveFailures++;
-        monitor.isHealthy = false;
-        
-        // Show connection warning after 3 consecutive failures
-        if (monitor.consecutiveFailures >= 3) {
-          this.showConnectionWarning();
-        }
-      }
-    },
-    
-    /**
-     * PHASE 2: Handle Connection Restored
-     */
-    onConnectionRestored: function() {
-      this.updateConnectionHealth(true);
-      
-      this.showUserFeedback({
-        type: 'success',
-        title: 'Connection Restored',
-        message: 'Internet connection is back. Processing saved changes...',
-        duration: 3000
-      });
-      
-      // Process queued requests
-      this.processQueuedRequests();
-    },
-    
-    /**
-     * PHASE 2: Handle Connection Lost
-     */
-    onConnectionLost: function() {
-      this.updateConnectionHealth(false);
-      
-      this.showUserFeedback({
-        type: 'warning',
-        title: 'Connection Lost',
-        message: 'Working offline. Your changes will be saved when connection returns.',
-        duration: 5000
-      });
-    },
-    
-    /**
-     * PHASE 2: Show Connection Warning
-     */
-    showConnectionWarning: function() {
-      this.showUserFeedback({
-        type: 'warning',
-        title: 'Connection Issues Detected',
-        message: 'Having trouble reaching the server. Some features may be limited.',
-        actions: [
-          'Your work is being saved locally',
-          'Try refreshing if problems persist'
-        ],
-        duration: 8000
-      });
-    },
-    
-    /**
-     * PHASE 2: Process Queued Requests
-     */
-    processQueuedRequests: function() {
-      if (this.requestQueue.processing || this.requestQueue.pending.length === 0) {
-        return;
-      }
-      
-      console.log(`🔄 PHASE 2: Processing ${this.requestQueue.pending.length} queued requests`);
-      
-      this.requestQueue.processing = true;
-      
-      const processNext = () => {
-        if (this.requestQueue.pending.length === 0) {
-          this.requestQueue.processing = false;
-          console.log('✅ PHASE 2: All queued requests processed');
-          return;
-        }
-        
-        const request = this.requestQueue.pending.shift();
-        
-        this.makeEnhancedAjaxRequest(request.action, request.data, {
-          ...request.options,
-          onSuccess: (data) => {
-            console.log('✅ PHASE 2: Queued request completed:', request.action);
-            if (request.options.onSuccess) {
-              request.options.onSuccess(data);
-            }
-            setTimeout(processNext, 500); // Small delay between requests
+        window.AppEvents.trigger('authority-hook:updated', {
+          text: hookText,
+          components: {
+            who: this.fields.who,
+            result: this.fields.result,
+            when: this.fields.when,
+            how: this.fields.how
           },
-          onError: (error) => {
-            console.log('❌ PHASE 2: Queued request failed:', request.action, error);
-            if (request.options.onError) {
-              request.options.onError(error);
-            }
-            setTimeout(processNext, 1000); // Longer delay after failure
-          }
+          timestamp: Date.now()
         });
-      };
-      
-      processNext();
-    },
-    
-    /**
-     * PHASE 2: Queue Request for Later Processing
-     */
-    queueRequest: function(action, data, options) {
-      if (this.requestQueue.pending.length >= this.requestQueue.maxQueueSize) {
-        console.log('⚠️ PHASE 2: Request queue full, dropping oldest request');
-        this.requestQueue.pending.shift();
+        
+        console.log('📡 Topics Generator: Authority hook update event triggered');
       }
-      
-      this.requestQueue.pending.push({
-        action: action,
-        data: data,
-        options: options,
-        timestamp: Date.now()
-      });
-      
-      console.log(`📜 PHASE 2: Request queued (${this.requestQueue.pending.length} pending):`, action);
     },
     
-    /**
-     * PHASE 2: Handle Unhandled Errors
-     */
-    handleUnhandledError: function(error) {
-      console.error('❌ PHASE 2: Handling unhandled error:', error);
-      
-      // Check if it's a network-related error
-      if (this.isNetworkError(error)) {
-        this.updateConnectionHealth(false);
+    triggerTopicsDataSaved: function() {
+      if (window.AppEvents) {
+        // Collect current topic data
+        const topics = {};
+        for (let i = 1; i <= 5; i++) {
+          const field = document.querySelector(`#topics-generator-topic-field-${i}`);
+          if (field && field.value.trim()) {
+            topics[i] = field.value.trim();
+          }
+        }
+        
+        window.AppEvents.trigger('topics:saved', {
+          topics: topics,
+          timestamp: Date.now()
+        });
+        
+        console.log('📡 Topics Generator: Topics data saved event triggered');
       }
-      
-      // Show user-friendly error message
-      this.showUserFeedback({
-        type: 'error',
-        title: 'Unexpected Error',
-        message: 'Something went wrong. Your work is being saved locally.',
-        duration: 5000
-      });
+    },
+    
+    triggerTopicUpdated: function(topicId, topicText) {
+      if (window.AppEvents) {
+        window.AppEvents.trigger('topic:updated', {
+          topicId: topicId,
+          topicText: topicText,
+          timestamp: Date.now()
+        });
+        
+        console.log(`📡 Topics Generator: Topic ${topicId} update event triggered`);
+      }
     },
     
     /**
-     * PHASE 2: Check if Error is Network-Related
+     * NEW: Trigger topic selection events for Questions Generator
      */
-    isNetworkError: function(error) {
-      const networkErrorPatterns = [
-        /network/i,
-        /timeout/i,
-        /connection/i,
-        /fetch/i,
-        /failed to fetch/i,
-        /net::/i
-      ];
-      
-      const errorString = error ? error.toString() : '';
-      return networkErrorPatterns.some(pattern => pattern.test(errorString));
+    triggerTopicSelected: function(topicId, topicText) {
+      if (window.AppEvents) {
+        window.AppEvents.trigger('topic:selected', {
+          topicId: topicId,
+          topicText: topicText,
+          source: 'topics-generator',
+          timestamp: Date.now()
+        });
+        
+        console.log(`📡 Topics Generator: Topic selection event triggered - Topic ${topicId}: ${topicText}`);
+      }
     },
     
     /**
-     * PHASE 2: Enhanced AJAX Request with Intelligent Retry
+     * SIMPLIFIED: User feedback - simple notification
+     */
+    showUserFeedback: function(options) {
+      // Simple user feedback using our simple notification system
+      const message = typeof options === 'string' ? options : (options.message || options.title || 'Notification');
+      const type = typeof options === 'object' ? (options.type || 'info') : 'info';
+      const duration = typeof options === 'object' ? (options.duration || 3000) : 3000;
+      
+      // Use simple notifications
+      if (window.showNotification) {
+        window.showNotification(message, type, duration);
+      } else {
+        console.log('💬 User Notification:', message);
+      }
+    },
+    
+
+    /**
+     * SIMPLIFIED: Make AJAX Request using simple system
      */
     makeEnhancedAjaxRequest: function(action, data, options = {}) {
-      console.log(`🚀 PHASE 2: Enhanced AJAX request: ${action}`);
+      console.log(`🚀 SIMPLIFIED: AJAX request: ${action}`);
       
-      const requestId = `${action}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const context = options.context || action;
+      const { onSuccess, onError, onComplete } = options;
       
-      // Check circuit breaker
-      if (this.isCircuitBreakerOpen(context)) {
-        console.log(`⚡ PHASE 2: Circuit breaker open for ${context}, queuing request`);
-        this.queueRequest(action, data, options);
-        return Promise.reject('Circuit breaker open');
-      }
-      
-      // Check connection health
-      if (!this.errorRecovery.connectionMonitor.isHealthy && !navigator.onLine) {
-        console.log(`📵 PHASE 2: Connection unhealthy, queuing request: ${action}`);
-        this.queueRequest(action, data, options);
-        return Promise.reject('Connection unhealthy');
-      }
-      
-      const retryAttempts = options.retryAttempts || this.errorRecovery.maxRetries;
-      const timeout = options.timeout || 30000;
-      
-      return this.executeAjaxWithRetry(action, data, options, requestId, retryAttempts, 0);
-    },
-    
-    /**
-     * PHASE 2: Execute AJAX with Exponential Backoff Retry
-     */
-    executeAjaxWithRetry: function(action, data, options, requestId, maxRetries, attemptNumber) {
-      console.log(`🔄 PHASE 2: Attempt ${attemptNumber + 1}/${maxRetries + 1} for ${action}`);
-      
-      return new Promise((resolve, reject) => {
-        // Call the original makeStandardizedAjaxRequest
-        this.makeStandardizedAjaxRequest(action, data, {
-          ...options,
-          onSuccess: (data) => {
-            console.log(`✅ PHASE 2: Request successful on attempt ${attemptNumber + 1}: ${action}`);
-            this.recordSuccess(options.context || action);
-            if (options.onSuccess) options.onSuccess(data);
-            resolve(data);
-          },
-          onError: (error) => {
-            console.log(`❌ PHASE 2: Request failed on attempt ${attemptNumber + 1}: ${action}`, error);
-            this.recordFailure(options.context || action);
-            
-            if (attemptNumber < maxRetries && this.shouldRetry(error)) {
-              const delay = this.calculateBackoffDelay(attemptNumber);
-              console.log(`⏳ PHASE 2: Retrying ${action} in ${delay}ms`);
-              
-              setTimeout(() => {
-                this.executeAjaxWithRetry(action, data, options, requestId, maxRetries, attemptNumber + 1)
-                  .then(resolve)
-                  .catch(reject);
-              }, delay);
-            } else {
-              console.log(`❌ PHASE 2: All retry attempts exhausted for ${action}`);
-              if (options.onError) options.onError(error);
-              reject(error);
-            }
-          }
-        }).catch(error => {
-          console.log(`❌ PHASE 2: Request error: ${action}`, error);
-          this.recordFailure(options.context || action);
-          
-          if (attemptNumber < maxRetries && this.shouldRetry(error)) {
-            const delay = this.calculateBackoffDelay(attemptNumber);
-            console.log(`⏳ PHASE 2: Retrying ${action} in ${delay}ms`);
-            
-            setTimeout(() => {
-              this.executeAjaxWithRetry(action, data, options, requestId, maxRetries, attemptNumber + 1)
-                .then(resolve)
-                .catch(reject);
-            }, delay);
-          } else {
-            console.log(`❌ PHASE 2: All retry attempts exhausted for ${action}`);
-            if (options.onError) options.onError(error);
-            reject(error);
-          }
+      return makeAjaxRequest(action, data)
+        .then(result => {
+          console.log(`✅ AJAX success: ${action}`);
+          if (onSuccess) onSuccess(result);
+          return result;
+        })
+        .catch(error => {
+          console.error(`❌ AJAX error: ${action}`, error);
+          if (onError) onError(error);
+          throw error;
+        })
+        .finally(() => {
+          if (onComplete) onComplete();
         });
-      });
     },
     
-    /**
-     * PHASE 2: Calculate Exponential Backoff Delay
-     */
-    calculateBackoffDelay: function(attemptNumber) {
-      const baseDelay = this.errorRecovery.backoffDelays[attemptNumber] || 16000;
-      const jitter = Math.random() * 1000; // Add jitter to prevent thundering herd
-      return baseDelay + jitter;
-    },
-    
-    /**
-     * PHASE 2: Determine if Request Should be Retried
-     */
-    shouldRetry: function(error) {
-      // Don't retry authentication errors or client errors
-      if (error && error.toString().includes('403')) return false;
-      if (error && error.toString().includes('401')) return false;
-      if (error && error.toString().includes('400')) return false;
-      
-      // Retry network errors, timeouts, and server errors
-      return this.isNetworkError(error) || 
-             (error && error.toString().includes('500')) ||
-             (error && error.toString().includes('502')) ||
-             (error && error.toString().includes('503')) ||
-             (error && error.toString().includes('504'));
-    },
-    
-    /**
-     * PHASE 2: Record Request Success
-     */
-    recordSuccess: function(context) {
-      this.updateConnectionHealth(true);
-      
-      // Reset circuit breaker
-      if (this.errorRecovery.circuitBreakers[context]) {
-        this.errorRecovery.circuitBreakers[context].failures = 0;
-        this.errorRecovery.circuitBreakers[context].lastFailure = 0;
-        this.errorRecovery.circuitBreakers[context].state = 'closed';
-      }
-    },
-    
-    /**
-     * PHASE 2: Record Request Failure
-     */
-    recordFailure: function(context) {
-      this.updateConnectionHealth(false);
-      
-      // Update circuit breaker
-      if (!this.errorRecovery.circuitBreakers[context]) {
-        this.errorRecovery.circuitBreakers[context] = {
-          failures: 0,
-          lastFailure: 0,
-          state: 'closed',
-          threshold: 5
-        };
-      }
-      
-      const breaker = this.errorRecovery.circuitBreakers[context];
-      breaker.failures++;
-      breaker.lastFailure = Date.now();
-      
-      if (breaker.failures >= breaker.threshold) {
-        breaker.state = 'open';
-        console.log(`⚡ PHASE 2: Circuit breaker opened for ${context}`);
-      }
-    },
-    
-    /**
-     * PHASE 2: Check if Circuit Breaker is Open
-     */
-    isCircuitBreakerOpen: function(context) {
-      const breaker = this.errorRecovery.circuitBreakers[context];
-      if (!breaker || breaker.state !== 'open') return false;
-      
-      // Check if enough time has passed to try again (60 seconds)
-      const timeSinceLastFailure = Date.now() - breaker.lastFailure;
-      if (timeSinceLastFailure > 60000) {
-        breaker.state = 'half-open';
-        console.log(`🔄 PHASE 2: Circuit breaker half-open for ${context}`);
-        return false;
-      }
-      
-      return true;
-    },
-    
-    /**
-     * STANDALONE MODE: Topics Generator works independently (no data manager needed)
-     */
-    initializeDataManager: function() {
-      console.log('📋 Topics Generator: Running in standalone mode (no cross-generator sync)');
-      this.dataManagerAvailable = false;
-      // Topics Generator works independently - no data manager initialization needed
-    },
-    
-    /**
-     * STANDALONE MODE: No data synchronization (Topics Generator works independently)
-     */
-    setupDataSyncListeners: function() {
-      console.log('📋 Topics Generator: Standalone mode - no sync listeners needed');
-      // Topics Generator works independently - no sync listeners needed
-    },
-    
-    /**
-     * STANDALONE MODE: No external topic updates (Topics Generator works independently)
-     */
-    handleExternalTopicUpdate: function(data) {
-      console.log('📋 Topics Generator: Standalone mode - ignoring external topic updates');
-      // Topics Generator works independently - no external updates needed
-    },
-    
-    /**
-     * STANDALONE MODE: No centralized data updates (Topics Generator works independently)
-     */
-    updateDataManager: function(topicId, topicText) {
-      console.log('📋 Topics Generator: Standalone mode - no centralized data updates needed');
-      // Topics Generator works independently - no centralized updates needed
-    },
-    
+
     /**
     * STANDALONE: Load existing data from Formidable/Custom Post (independent operation)
     */
@@ -1134,12 +706,30 @@
         console.log('✅ Save All Topics button event bound');
       }
       
-      // Auto-save on blur for individual topic fields
+      // Auto-save on blur for individual topic fields with cross-generator communication
       for (let i = 1; i <= 5; i++) {
         const field = document.querySelector(`#topics-generator-topic-field-${i}`);
         if (field) {
           field.addEventListener('blur', () => {
             this.autoSaveField(field);
+            
+            // Trigger topic update event if field has content
+            if (field.value.trim()) {
+              this.triggerTopicSelected(i, field.value.trim());
+            }
+          });
+          
+          // Also trigger on input change for real-time updates
+          field.addEventListener('input', () => {
+            if (field.value.trim()) {
+              // Debounce the event triggering
+              clearTimeout(this.topicUpdateTimers?.[i]);
+              if (!this.topicUpdateTimers) this.topicUpdateTimers = {};
+              
+              this.topicUpdateTimers[i] = setTimeout(() => {
+                this.triggerTopicSelected(i, field.value.trim());
+              }, 1000);
+            }
           });
         }
       }
@@ -1669,6 +1259,9 @@
           if (data.authority_hook) {
             this.updateAuthorityHookText(data.authority_hook);
           }
+          
+          // Trigger event for cross-generator communication  
+          this.triggerAuthorityHookUpdated();
         },
         onError: (error) => {
           console.error(`❌ Topics Generator: Failed to save ${component} component:`, error);
@@ -2465,6 +2058,9 @@
         
         // STANDALONE MODE: Topics Generator works independently
         console.log('📋 Topics Generator: Standalone mode - topic saved locally');
+        
+        // Trigger event for cross-generator communication
+        this.triggerTopicSelected(fieldNumber, this.selectedTopic.text);
       } else {
         console.error(`❌ Topics Generator: Field element not found: ${fieldSelector}`);
         this.showUserFeedback({
@@ -2603,37 +2199,13 @@
     },
     
     /**
-     * PHASE 1 TASK 1: Enhanced makeStandardizedAjaxRequest with comprehensive fallbacks
+     * SIMPLIFIED: Standardized AJAX Request using simple system
      */
     makeStandardizedAjaxRequest: function(action, data, options = {}) {
-      console.log(`🔄 Phase 1: Making standardized AJAX request: ${action}`);
+      console.log(`🔄 SIMPLIFIED: Making AJAX request: ${action}`);
       
-      const requestData = {
-        action: action,
-        nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || '',
-        ...data
-      };
-      
-      // PHASE 1: Use validated enhanced modules with comprehensive error boundaries
-      try {
-        if (this.hasEnhancedAjax && this.enhancedModules.ajax) {
-          console.log('🚀 Using validated EnhancedAjaxManager');
-          return this.enhancedModules.ajax.makeRequest(action, requestData, options);
-        } else if (window.MKCG_FormUtils && typeof window.MKCG_FormUtils.wp.makeAjaxRequest === 'function') {
-          console.log('🔄 Using FormUtils fallback');
-          return window.MKCG_FormUtils.wp.makeAjaxRequest(action, requestData, options);
-        } else {
-          // PHASE 1: Native jQuery AJAX fallback with error handling
-          console.log('⚠️ Using native jQuery AJAX fallback');
-          return this.makeNativeAjaxRequest(action, requestData, options);
-        }
-      } catch (error) {
-        console.error('❌ Error in makeStandardizedAjaxRequest:', error);
-        if (options.onError) {
-          options.onError('AJAX request failed: ' + error.message);
-        }
-        return Promise.reject(error);
-      }
+      // Use the simple global AJAX function
+      return this.makeEnhancedAjaxRequest(action, data, options);
     },
     
     /**
@@ -2712,117 +2284,8 @@
     },
     
     /**
-     * PHASE 1 TASK 1: Enhanced showUserFeedback with comprehensive fallbacks
+     * SIMPLIFIED: User feedback - simple notification (duplicate removed)
      */
-    showUserFeedback: function(feedbackOptions) {
-      console.log('💬 Phase 1: Showing user feedback with validated modules:', feedbackOptions);
-      
-      try {
-        if (this.hasEnhancedUI && this.enhancedModules.uiFeedback) {
-          console.log('🚀 Using validated EnhancedUIFeedback');
-          this.enhancedModules.uiFeedback.showToast(feedbackOptions, feedbackOptions.type, feedbackOptions.duration);
-        } else {
-          console.log('🔧 Using basic user feedback fallback');
-          this.showBasicUserFeedback(feedbackOptions);
-        }
-      } catch (error) {
-        console.error('❌ Error showing user feedback:', error);
-        // Ultimate fallback to basic alert
-        this.showBasicUserFeedback(feedbackOptions);
-      }
-    },
-    
-    /**
-     * PHASE 1 TASK 1: Basic user feedback fallback when enhanced UI is not available
-     */
-    showBasicUserFeedback: function(feedbackOptions) {
-      console.log('🔔 Phase 1: Using basic user feedback fallback');
-      
-      // Create a simple notification element if possible, otherwise use alert
-      try {
-        const notificationContainer = this.getOrCreateNotificationContainer();
-        const notification = this.createBasicNotification(feedbackOptions);
-        notificationContainer.appendChild(notification);
-        
-        // Auto-remove after specified duration or 5 seconds
-        setTimeout(() => {
-          if (notification.parentNode) {
-            notification.parentNode.removeChild(notification);
-          }
-        }, feedbackOptions.duration || 5000);
-        
-      } catch (error) {
-        console.error('❌ Basic notification creation failed:', error);
-        // Ultimate fallback to browser alert
-        const message = feedbackOptions.title ? 
-          `${feedbackOptions.title}: ${feedbackOptions.message}` : 
-          feedbackOptions.message || 'Notification';
-        alert(message);
-      }
-    },
-    
-    /**
-     * PHASE 1 TASK 1: Get or create notification container for basic feedback
-     */
-    getOrCreateNotificationContainer: function() {
-      let container = document.getElementById('mkcg-basic-notifications');
-      if (!container) {
-        container = document.createElement('div');
-        container.id = 'mkcg-basic-notifications';
-        container.style.cssText = `
-          position: fixed;
-          top: 20px;
-          right: 20px;
-          z-index: 10000;
-          max-width: 400px;
-        `;
-        document.body.appendChild(container);
-      }
-      return container;
-    },
-    
-    /**
-     * PHASE 1 TASK 1: Create basic notification element
-     */
-    createBasicNotification: function(feedbackOptions) {
-      const notification = document.createElement('div');
-      notification.style.cssText = `
-        background: ${this.getNotificationColor(feedbackOptions.type)};
-        color: white;
-        padding: 12px 16px;
-        margin-bottom: 10px;
-        border-radius: 4px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        animation: slideInRight 0.3s ease;
-        cursor: pointer;
-      `;
-      
-      const title = feedbackOptions.title ? `<strong>${feedbackOptions.title}</strong><br>` : '';
-      const message = feedbackOptions.message || 'Notification';
-      notification.innerHTML = title + message;
-      
-      // Click to dismiss
-      notification.addEventListener('click', () => {
-        if (notification.parentNode) {
-          notification.parentNode.removeChild(notification);
-        }
-      });
-      
-      return notification;
-    },
-    
-    /**
-     * PHASE 1 TASK 1: Get notification color based on type
-     */
-    getNotificationColor: function(type) {
-      switch (type) {
-        case 'success': return '#27ae60';
-        case 'error': return '#e74c3c';
-        case 'warning': return '#f39c12';
-        case 'info': return '#3498db';
-        default: return '#34495e';
-      }
-    },
     
     /**
      * PHASE 1 TASK 1: Enhanced autoSaveFieldEnhanced with validated modules

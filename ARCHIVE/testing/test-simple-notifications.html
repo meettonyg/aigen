@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Notifications Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 40px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 8px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .test-button:hover {
+            background: #005a87;
+        }
+        .test-button--success {
+            background: #27ae60;
+        }
+        .test-button--error {
+            background: #e74c3c;
+        }
+        .test-button--warning {
+            background: #f39c12;
+        }
+        .test-button--info {
+            background: #3498db;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Simple Notifications System Test</h1>
+        <p>Click the buttons below to test different notification types:</p>
+        
+        <button class="test-button test-button--success" onclick="testSuccess()">✅ Success Notification</button>
+        <button class="test-button test-button--error" onclick="testError()">❌ Error Notification</button>
+        <button class="test-button test-button--warning" onclick="testWarning()">⚠️ Warning Notification</button>
+        <button class="test-button test-button--info" onclick="testInfo()">ℹ️ Info Notification</button>
+        
+        <br><br>
+        
+        <button class="test-button" onclick="testLongMessage()">📝 Long Message Test</button>
+        <button class="test-button" onclick="testMultiple()">🔄 Multiple Notifications</button>
+        <button class="test-button" onclick="testPersistent()">🔒 No Auto-Dismiss</button>
+        <button class="test-button" onclick="clearAll()">🗑️ Clear All</button>
+        
+        <h3>Usage Instructions:</h3>
+        <ul>
+            <li><strong>Success:</strong> Use for successful operations (saves, generations)</li>
+            <li><strong>Error:</strong> Use for failed operations or validation errors</li>
+            <li><strong>Warning:</strong> Use for caution messages or partial success</li>
+            <li><strong>Info:</strong> Use for general information or status updates</li>
+        </ul>
+        
+        <h3>Implementation Examples:</h3>
+        <pre><code>// Simple usage
+showNotification('Topic saved successfully!', 'success');
+
+// With custom duration
+showNotification('Processing...', 'info', 2000);
+
+// Using convenience methods
+SimpleNotifications.success('Operation completed!');
+SimpleNotifications.error('Something went wrong');</code></pre>
+    </div>
+
+    <!-- Load the simple notifications system -->
+    <script src="./assets/js/simple-notifications.js"></script>
+    
+    <script>
+        function testSuccess() {
+            showNotification('Topic saved successfully! All data has been synchronized.', 'success');
+        }
+        
+        function testError() {
+            showNotification('Failed to save topic. Please check your connection and try again.', 'error');
+        }
+        
+        function testWarning() {
+            showNotification('Topic saved locally but server sync failed. Changes will sync automatically when online.', 'warning');
+        }
+        
+        function testInfo() {
+            showNotification('Generating topics with AI... This may take a few moments.', 'info');
+        }
+        
+        function testLongMessage() {
+            showNotification('This is a longer notification message to test how the system handles text wrapping and longer content. It should display nicely without breaking the layout.', 'info', 6000);
+        }
+        
+        function testMultiple() {
+            showNotification('First notification', 'info', 8000);
+            setTimeout(() => showNotification('Second notification', 'success', 6000), 500);
+            setTimeout(() => showNotification('Third notification', 'warning', 4000), 1000);
+        }
+        
+        function testPersistent() {
+            showNotification('This notification will not auto-dismiss. Click to close.', 'info', 0);
+        }
+        
+        function clearAll() {
+            SimpleNotifications.clearAll();
+            showNotification('All notifications cleared!', 'success', 2000);
+        }
+        
+        // Auto-run demo on page load
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                showNotification('Simple Notifications system loaded successfully!', 'success');
+            }, 500);
+        });
+    </script>
+</body>
+</html>

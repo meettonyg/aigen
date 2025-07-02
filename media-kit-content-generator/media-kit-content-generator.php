@@ -57,102 +57,11 @@ class Media_Kit_Content_Generator {
     }
     
     private function load_dependencies() {
-        // SIMPLIFIED: Load only essential simplified classes
-        $required_files = [
-            // Essential services only
-            'includes/services/class-mkcg-config.php' => 'MKCG_Config',
-            'includes/services/class-mkcg-api-service.php' => 'MKCG_API_Service',
-            'includes/services/enhanced_formidable_service.php' => 'Enhanced_Formidable_Service',
-            
-            // Simplified generators and handlers
-            'includes/generators/enhanced_topics_generator.php' => 'Enhanced_Topics_Generator',
-            'includes/generators/enhanced_ajax_handlers.php' => 'Enhanced_AJAX_Handlers'
-        ];
-        
-        $loading_errors = [];
-        
-        foreach ($required_files as $file_path => $expected_class) {
-            $full_path = MKCG_PLUGIN_PATH . $file_path;
-            
-            // Check file existence
-            if (!file_exists($full_path)) {
-                $loading_errors[] = "File not found: {$file_path}";
-                error_log("MKCG: CRITICAL - File not found: {$full_path}");
-                continue;
-            }
-            
-            // Check file readability
-            if (!is_readable($full_path)) {
-                $loading_errors[] = "File not readable: {$file_path}";
-                error_log("MKCG: CRITICAL - File not readable: {$full_path}");
-                continue;
-            }
-            
-            // Include file with error catching
-            try {
-                require_once $full_path;
-                
-                // Verify class was successfully loaded
-                if (!class_exists($expected_class)) {
-                    $loading_errors[] = "Class {$expected_class} not found after loading {$file_path}";
-                    error_log("MKCG: CRITICAL - Class {$expected_class} not defined after loading {$full_path}");
-                } else {
-                    error_log("MKCG: ✅ Successfully loaded {$expected_class} from {$file_path}");
-                }
-                
-            } catch (ParseError $e) {
-                $loading_errors[] = "Parse error in {$file_path}: " . $e->getMessage();
-                error_log("MKCG: CRITICAL - Parse error in {$full_path}: " . $e->getMessage());
-            } catch (Error $e) {
-                $loading_errors[] = "Fatal error in {$file_path}: " . $e->getMessage();
-                error_log("MKCG: CRITICAL - Fatal error in {$full_path}: " . $e->getMessage());
-            } catch (Exception $e) {
-                $loading_errors[] = "Exception in {$file_path}: " . $e->getMessage();
-                error_log("MKCG: CRITICAL - Exception in {$full_path}: " . $e->getMessage());
-            }
-        }
-        
-        // Report loading status
-        if (empty($loading_errors)) {
-            error_log('MKCG: ✅ All dependencies loaded successfully');
-        } else {
-            error_log('MKCG: ❌ Dependency loading errors: ' . implode('; ', $loading_errors));
-            
-            // Add admin notice for critical errors
-            add_action('admin_notices', function() use ($loading_errors) {
-                echo '<div class="notice notice-error"><p><strong>Media Kit Content Generator:</strong> Critical loading errors detected. Check error logs for details.</p></div>';
-            });
-        }
-        
-        // ROOT-LEVEL FIX: Final verification with enhanced error reporting
-        $critical_classes = ['MKCG_API_Service', 'Enhanced_Formidable_Service', 'Enhanced_Topics_Generator', 'Enhanced_AJAX_Handlers'];
-        $missing_classes = [];
-        
-        foreach ($critical_classes as $class) {
-            if (!class_exists($class)) {
-                $missing_classes[] = $class;
-                error_log("MKCG: FATAL - Critical class {$class} is not available");
-            } else {
-                error_log("MKCG: ✅ Critical class {$class} is available");
-            }
-        }
-        
-        if (!empty($missing_classes)) {
-            $error_msg = "Media Kit Content Generator: Critical dependencies failed to load: " . implode(', ', $missing_classes);
-            error_log("MKCG: FATAL - " . $error_msg);
-            
-            // Show admin notice instead of wp_die to allow troubleshooting
-            add_action('admin_notices', function() use ($missing_classes) {
-                echo '<div class="notice notice-error"><p><strong>Media Kit Content Generator:</strong> Missing critical classes: ' . implode(', ', $missing_classes) . '. Check error logs.</p></div>';
-            });
-        }
-        
-        // ROOT-LEVEL FIX: Log admin integration status
-        if (class_exists('MKCG_Authority_Hook_Test_Admin')) {
-            error_log('MKCG: ✅ Authority Hook Test Admin integration loaded successfully');
-        } else {
-            error_log('MKCG: ⚠️ Authority Hook Test Admin integration not loaded (may be normal in non-admin contexts)');
-        }
+        require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-config.php';
+        require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-api-service.php';
+        require_once MKCG_PLUGIN_PATH . 'includes/services/enhanced_formidable_service.php';
+        require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_topics_generator.php';
+        require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_ajax_handlers.php';
     }
     
     /**
@@ -441,23 +350,41 @@ class Media_Kit_Content_Generator {
         // Load jQuery
         wp_enqueue_script('jquery');
         
-        // Load Simple AJAX Manager
+        // Load Simple Notifications System (loaded first for global availability)
         wp_enqueue_script(
-            'simple-ajax-manager',
-            MKCG_PLUGIN_URL . 'assets/js/simple_ajax_manager.js',
+            'simple-notifications',
+            MKCG_PLUGIN_URL . 'assets/js/simple-notifications.js',
+            [],
+            MKCG_VERSION,
+            true
+        );
+        
+        // Load Simple Event Bus (replaces complex MKCG_DataManager)
+        wp_enqueue_script(
+            'simple-event-bus',
+            MKCG_PLUGIN_URL . 'assets/js/simple-event-bus.js',
+            [],
+            MKCG_VERSION,
+            true
+        );
+        
+        // Load Simple AJAX System
+        wp_enqueue_script(
+            'simple-ajax',
+            MKCG_PLUGIN_URL . 'assets/js/simple-ajax.js',
             ['jquery'],
             MKCG_VERSION,
             true
         );
         
         // Pass data to JavaScript
-        wp_localize_script('simple-ajax-manager', 'mkcg_vars', [
+        wp_localize_script('simple-ajax', 'mkcg_vars', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('mkcg_nonce'),
             'plugin_url' => MKCG_PLUGIN_URL
         ]);
         
-        error_log('MKCG: Simplified script loading completed');
+        error_log('MKCG: Simplified script loading completed with simple notifications');
     }
     
     // SIMPLIFIED: No complex generator detection needed
