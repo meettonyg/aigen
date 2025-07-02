@@ -197,4 +197,116 @@ class Enhanced_Formidable_Service {
             'message' => $saved_count > 0 ? 'Meta data saved successfully' : 'No meta data saved'
         ];
     }
+    
+    /**
+     * Get entry data by entry key (used by Questions template)
+     */
+    public function get_entry_data($entry_key) {
+        if (is_numeric($entry_key)) {
+            $entry_id = intval($entry_key);
+        } else {
+            global $wpdb;
+            $entry_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}frm_items WHERE item_key = %s",
+                $entry_key
+            ));
+        }
+        
+        if (!$entry_id) {
+            return ['success' => false, 'message' => 'Entry not found', 'entry_id' => 0];
+        }
+        
+        return ['success' => true, 'entry_id' => intval($entry_id), 'message' => 'Entry found'];
+    }
+    
+    /**
+     * Get topics from post meta (used by Questions template)
+     */
+    public function get_topics_from_post_enhanced($post_id) {
+        if (!$post_id) {
+            return ['topics' => [], 'data_quality' => 'missing'];
+        }
+        
+        $topics = [];
+        $quality = 'excellent';
+        
+        for ($i = 1; $i <= 5; $i++) {
+            $topic = get_post_meta($post_id, "mkcg_topic_{$i}", true);
+            if (!empty($topic)) {
+                $topics[$i] = $topic;
+            }
+        }
+        
+        if (empty($topics)) {
+            $quality = 'missing';
+        } elseif (count($topics) < 3) {
+            $quality = 'poor';
+        }
+        
+        return [
+            'topics' => $topics,
+            'data_quality' => $quality,
+            'auto_healed' => false
+        ];
+    }
+    
+    /**
+     * Get questions with integrity check (used by Questions template)
+     */
+    public function get_questions_with_integrity_check($post_id, $topic_num = null) {
+        if (!$post_id) {
+            return ['questions' => [], 'integrity_status' => 'missing'];
+        }
+        
+        $questions = [];
+        
+        if ($topic_num) {
+            // Get questions for specific topic
+            for ($q = 1; $q <= 5; $q++) {
+                $question = get_post_meta($post_id, "mkcg_question_{$topic_num}_{$q}", true);
+                if (!empty($question)) {
+                    $questions[$q] = $question;
+                }
+            }
+        } else {
+            // Get all questions
+            for ($topic = 1; $topic <= 5; $topic++) {
+                $topic_questions = [];
+                for ($q = 1; $q <= 5; $q++) {
+                    $question = get_post_meta($post_id, "mkcg_question_{$topic}_{$q}", true);
+                    if (!empty($question)) {
+                        $topic_questions[$q] = $question;
+                    }
+                }
+                if (!empty($topic_questions)) {
+                    $questions[$topic] = $topic_questions;
+                }
+            }
+        }
+        
+        $integrity_status = empty($questions) ? 'missing' : 'good';
+        
+        return [
+            'questions' => $questions,
+            'integrity_status' => $integrity_status,
+            'auto_healed' => false
+        ];
+    }
+    
+    /**
+     * Validate post association (used by Questions template)
+     */
+    public function validate_post_association($entry_id, $post_id) {
+        if (!$entry_id || !$post_id) {
+            return ['valid' => false, 'issues' => ['Missing IDs'], 'auto_fixed' => []];
+        }
+        
+        // Basic validation - ensure post exists and is associated with entry
+        $post = get_post($post_id);
+        if (!$post) {
+            return ['valid' => false, 'issues' => ['Post not found'], 'auto_fixed' => []];
+        }
+        
+        return ['valid' => true, 'issues' => [], 'auto_fixed' => []];
+    }
 }

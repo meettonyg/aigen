@@ -61,6 +61,7 @@ class Media_Kit_Content_Generator {
         require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-api-service.php';
         require_once MKCG_PLUGIN_PATH . 'includes/services/enhanced_formidable_service.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_topics_generator.php';
+        require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_questions_generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_ajax_handlers.php';
     }
     
@@ -181,16 +182,28 @@ class Media_Kit_Content_Generator {
                 error_log('MKCG: Available Generator-related classes: ' . implode(', ', $generator_classes));
             }
             
-            // ROOT-LEVEL FIX: Add Questions Generator if needed
+            // Initialize Questions Generator
             if (class_exists('Enhanced_Questions_Generator')) {
                 error_log('MKCG: ✅ Enhanced_Questions_Generator class found, attempting initialization...');
                 $this->generators['questions'] = new Enhanced_Questions_Generator(
                     $this->api_service,
                     $this->formidable_service
                 );
-                error_log('MKCG: ✅ Enhanced Questions Generator initialized');
+                
+                $generator_class = get_class($this->generators['questions']);
+                error_log('MKCG: ✅ Enhanced Questions Generator initialized as: ' . $generator_class);
+                
+                // Verify generator methods exist
+                $required_methods = ['get_template_data', 'generate_questions_for_topic', 'save_questions'];
+                foreach ($required_methods as $method) {
+                    if (method_exists($this->generators['questions'], $method)) {
+                        error_log('MKCG: ✅ Questions generator method verified: ' . $method);
+                    } else {
+                        error_log('MKCG: ❌ Questions generator missing method: ' . $method);
+                    }
+                }
             } else {
-                error_log('MKCG: ⚠️ Enhanced_Questions_Generator class not found (may be normal)');
+                error_log('MKCG: ❌ Enhanced_Questions_Generator class not found - check file loading');
             }
             
             error_log('MKCG: ✅ ROOT-LEVEL enhanced generator initialization completed - ' . count($this->generators) . ' generators loaded');
@@ -321,15 +334,33 @@ class Media_Kit_Content_Generator {
         // CRITICAL FIX: Set ALL required global variables for template
         global $formidable_service, $generator_instance, $generator_type;
         $formidable_service = $this->formidable_service;
-        $generator_instance = $this->generators['questions'];
+        $generator_instance = isset($this->generators['questions']) ? $this->generators['questions'] : null;
         $generator_type = 'questions';
         
         // Also make services available
-        global $api_service, $authority_hook_service;
+        global $api_service;
         $api_service = $this->api_service;
-        $authority_hook_service = $this->authority_hook_service;
+        
+        // CRITICAL FIX: Get template data using Questions Generator if available
+        if ($generator_instance && method_exists($generator_instance, 'get_template_data')) {
+            $template_data = $generator_instance->get_template_data($entry_key);
+            error_log('MKCG Shortcode: Got template data from Questions Generator: ' . json_encode(array_keys($template_data)));
+        } else {
+            error_log('MKCG Shortcode: Questions generator not available - using basic data');
+            $template_data = ['topics' => [], 'questions' => [], 'has_data' => false];
+        }
         
         error_log('MKCG Shortcode: Loading questions template with generator_instance available: ' . (is_object($generator_instance) ? 'YES' : 'NO'));
+        
+        if (!$generator_instance) {
+            error_log('MKCG Shortcode: WARNING - Questions generator instance not found. Available generators: ' . implode(', ', array_keys($this->generators)));
+        }
+        
+        // Pass template data to Questions template
+        global $mkcg_template_data;
+        $mkcg_template_data = isset($template_data) ? $template_data : [];
+        
+        error_log('MKCG Shortcode: Passing template data: ' . json_encode(array_keys($mkcg_template_data)));
         
         // Include the template
         include MKCG_PLUGIN_PATH . 'templates/generators/questions/default.php';
@@ -373,6 +404,23 @@ class Media_Kit_Content_Generator {
             'simple-ajax',
             MKCG_PLUGIN_URL . 'assets/js/simple-ajax.js',
             ['jquery'],
+            MKCG_VERSION,
+            true
+        );
+        
+        // Load generators
+        wp_enqueue_script(
+            'topics-generator',
+            MKCG_PLUGIN_URL . 'assets/js/generators/topics-generator.js',
+            ['simple-event-bus', 'simple-ajax'],
+            MKCG_VERSION,
+            true
+        );
+        
+        wp_enqueue_script(
+            'questions-generator',
+            MKCG_PLUGIN_URL . 'assets/js/generators/questions-generator.js',
+            ['simple-event-bus', 'simple-ajax'],
             MKCG_VERSION,
             true
         );
