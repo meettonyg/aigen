@@ -25,7 +25,7 @@
         addTagBtn: document.getElementById('add_tag'),
         
         // Authority Hook display
-        authorityHookContent: document.getElementById('authority-hook-content'),
+        authorityHookContent: document.getElementById('topics-generator-authority-hook-text'),
         authorityHookField: document.getElementById('mkcg-authority-hook'),
         
         // Buttons

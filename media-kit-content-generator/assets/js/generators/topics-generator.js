@@ -33,7 +33,7 @@
       editComponentsButton: '#edit-authority-components',
       addButtons: '.topics-generator__add-button',
       generateButton: '#topics-generator-generate-topics',
-      authorityHookText: '#authority-hook-content',
+      authorityHookText: '#topics-generator-authority-hook-text',
       loadingIndicator: '#topics-generator-loading',
       topicsResult: '#topics-generator-topics-result',
       topicsList: '#topics-generator-topics-list',

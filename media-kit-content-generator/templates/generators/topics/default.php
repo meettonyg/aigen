@@ -306,6 +306,7 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
                         'authority_hook' => $authority_hook_components['complete']
                     ];
                     $entry_id = $entry_id; // Pass entry ID to shared component
+                    $show_authority_hook_preview = true; // Enable authority hook preview
                     
                     // Include the enhanced shared component
                     $shared_component_path = MKCG_PLUGIN_PATH . 'templates/shared/authority-hook-component.php';

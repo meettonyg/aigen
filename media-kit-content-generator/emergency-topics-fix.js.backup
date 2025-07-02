@@ -1,0 +1,313 @@
+/**
+ * CRITICAL FIX: Emergency Root Level Topics Generator Repair
+ * This script fixes the core issues preventing Topics Generator from working
+ */
+
+console.log('🚨 EMERGENCY FIX: Starting root level Topics Generator repair');
+
+// 1. Fix authority hook display mismatch
+function fixAuthorityHookDisplay() {
+    console.log('🔧 Fixing authority hook display selectors...');
+    
+    // Find the main authority hook text element
+    const mainHookText = document.querySelector('#topics-generator-authority-hook-text');
+    const sharedHookText = document.querySelector('#authority-hook-content');
+    
+    if (mainHookText && !sharedHookText) {
+        // Create the missing authority-hook-content element that JavaScript expects
+        const newElement = document.createElement('div');
+        newElement.id = 'authority-hook-content';
+        newElement.className = 'authority-hook__content';
+        newElement.textContent = mainHookText.textContent;
+        
+        // Insert it near the main element
+        mainHookText.parentNode.insertBefore(newElement, mainHookText.nextSibling);
+        
+        console.log('✅ Created missing authority-hook-content element');
+    }
+    
+    // Sync content between elements
+    if (mainHookText && sharedHookText) {
+        // Keep them in sync
+        const syncContent = (source, target) => {
+            target.textContent = source.textContent;
+        };
+        
+        // Initial sync
+        syncContent(mainHookText, sharedHookText);
+        
+        // Set up observers
+        const observer = new MutationObserver(() => {
+            syncContent(mainHookText, sharedHookText);
+        });
+        
+        observer.observe(mainHookText, { childList: true, subtree: true, characterData: true });
+        
+        console.log('✅ Authority hook elements synced');
+    }
+}
+
+// 2. Fix missing topic data population
+function fixTopicDataPopulation() {
+    console.log('🔧 Fixing topic data population...');
+    
+    if (!window.MKCG_Topics_Data) {
+        console.log('⚠️ No MKCG_Topics_Data found, checking for entry data');
+        
+        // Try to extract from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const entryKey = urlParams.get('entry');
+        const entryId = document.querySelector('#topics-generator-entry-id')?.value;
+        
+        if (entryId && entryId !== '0') {
+            console.log('📡 Loading data via AJAX for entry:', entryId);
+            
+            // Make AJAX request to load data
+            if (window.makeAjaxRequest) {
+                makeAjaxRequest('mkcg_get_topics_data', { entry_id: entryId })
+                    .then(data => {
+                        console.log('✅ Loaded topic data:', data);
+                        populateFields(data);
+                    })
+                    .catch(error => {
+                        console.error('❌ Failed to load topic data:', error);
+                        setDefaultData();
+                    });
+            } else {
+                console.log('⚠️ AJAX not available, using defaults');
+                setDefaultData();
+            }
+        } else {
+            console.log('⚠️ No entry ID, using default data');
+            setDefaultData();
+        }
+    } else {
+        console.log('✅ MKCG_Topics_Data found, populating fields');
+        populateFieldsFromPHP(window.MKCG_Topics_Data);
+    }
+}
+
+// 3. Populate fields from PHP data
+function populateFieldsFromPHP(data) {
+    console.log('📋 Populating fields from PHP data');
+    
+    // Populate authority hook components
+    if (data.authorityHook) {
+        const componentFields = [
+            { id: 'mkcg-who', value: data.authorityHook.who },
+            { id: 'mkcg-result', value: data.authorityHook.result },
+            { id: 'mkcg-when', value: data.authorityHook.when },
+            { id: 'mkcg-how', value: data.authorityHook.how }
+        ];
+        
+        componentFields.forEach(({ id, value }) => {
+            const field = document.getElementById(id);
+            if (field && value && value.trim()) {
+                field.value = value;
+                console.log(`✅ Populated ${id} with: "${value}"`);
+            }
+        });
+        
+        // Update complete authority hook display
+        if (data.authorityHook.complete) {
+            updateAuthorityHookDisplay(data.authorityHook.complete);
+        }
+    }
+    
+    // Populate topic fields
+    if (data.topics) {
+        for (let i = 1; i <= 5; i++) {
+            const topicKey = `topic_${i}`;
+            const fieldId = `topics-generator-topic-field-${i}`;
+            const field = document.getElementById(fieldId);
+            
+            if (field && data.topics[topicKey] && data.topics[topicKey].trim()) {
+                field.value = data.topics[topicKey];
+                console.log(`✅ Populated topic ${i}: "${data.topics[topicKey]}"`);
+            }
+        }
+    }
+}
+
+// 4. Update authority hook display
+function updateAuthorityHookDisplay(hookText) {
+    const displays = [
+        '#topics-generator-authority-hook-text',
+        '#authority-hook-content'
+    ];
+    
+    displays.forEach(selector => {
+        const element = document.querySelector(selector);
+        if (element) {
+            element.textContent = hookText;
+            console.log(`✅ Updated ${selector} with: "${hookText}"`);
+        }
+    });
+}
+
+// 5. Set default data when no entry found
+function setDefaultData() {
+    console.log('🔧 Setting default authority hook data');
+    
+    const defaults = {
+        who: 'your audience',
+        result: 'achieve their goals',
+        when: 'they need help',
+        how: 'through your method'
+    };
+    
+    Object.keys(defaults).forEach(component => {
+        const field = document.getElementById(`mkcg-${component}`);
+        if (field && !field.value.trim()) {
+            field.value = defaults[component];
+        }
+    });
+    
+    const defaultHook = `I help ${defaults.who} ${defaults.result} when ${defaults.when} ${defaults.how}.`;
+    updateAuthorityHookDisplay(defaultHook);
+}
+
+// 6. Fix Topics Generator initialization
+function fixTopicsGeneratorInit() {
+    console.log('🔧 Ensuring Topics Generator is properly initialized');
+    
+    if (window.TopicsGenerator) {
+        console.log('✅ TopicsGenerator found, checking initialization');
+        
+        // Re-initialize if needed
+        if (typeof window.TopicsGenerator.init === 'function') {
+            try {
+                window.TopicsGenerator.init();
+                console.log('✅ TopicsGenerator re-initialized successfully');
+            } catch (error) {
+                console.error('❌ TopicsGenerator re-initialization failed:', error);
+            }
+        }
+        
+        // Ensure elements are properly mapped
+        if (window.TopicsGenerator.elements) {
+            const criticalElements = [
+                'authorityHookText',
+                'generateButton',
+                'whoInput',
+                'resultInput',
+                'whenInput',
+                'howInput'
+            ];
+            
+            criticalElements.forEach(key => {
+                const selector = window.TopicsGenerator.elements[key];
+                const element = document.querySelector(selector);
+                console.log(`Element ${key} (${selector}):`, !!element);
+            });
+        }
+    } else {
+        console.log('⚠️ TopicsGenerator not found - check if script loaded');
+    }
+}
+
+// 7. Ensure authority hook updates work
+function fixAuthorityHookUpdates() {
+    console.log('🔧 Setting up authority hook update functionality');
+    
+    const componentFields = ['mkcg-who', 'mkcg-result', 'mkcg-when', 'mkcg-how'];
+    
+    componentFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            // Remove old listeners and add new ones
+            field.removeEventListener('input', updateHookFromComponents);
+            field.addEventListener('input', updateHookFromComponents);
+            
+            field.removeEventListener('change', updateHookFromComponents);
+            field.addEventListener('change', updateHookFromComponents);
+        }
+    });
+    
+    console.log('✅ Authority hook update listeners attached');
+}
+
+// Function to update hook from components
+function updateHookFromComponents() {
+    const who = document.getElementById('mkcg-who')?.value || 'your audience';
+    const result = document.getElementById('mkcg-result')?.value || 'achieve their goals';
+    const when = document.getElementById('mkcg-when')?.value || 'they need help';
+    const how = document.getElementById('mkcg-how')?.value || 'through your method';
+    
+    const hookText = `I help ${who} ${result} when ${when} ${how}.`;
+    updateAuthorityHookDisplay(hookText);
+}
+
+// 8. Ensure AJAX is working
+function verifyAjaxSystem() {
+    console.log('🔧 Verifying AJAX system functionality');
+    
+    if (!window.makeAjaxRequest) {
+        console.error('❌ makeAjaxRequest not found - AJAX system not loaded');
+        return false;
+    }
+    
+    const ajaxUrl = window.ajaxurl || window.mkcg_vars?.ajax_url;
+    const nonce = window.mkcg_vars?.nonce;
+    
+    if (!ajaxUrl) {
+        console.error('❌ No AJAX URL found');
+        return false;
+    }
+    
+    if (!nonce) {
+        console.error('❌ No nonce found');
+        return false;
+    }
+    
+    console.log('✅ AJAX system verified');
+    console.log('- AJAX URL:', ajaxUrl);
+    console.log('- Nonce available:', !!nonce);
+    
+    return true;
+}
+
+// Execute all fixes
+function executeEmergencyFixes() {
+    console.log('🚀 Executing emergency fixes...');
+    
+    try {
+        fixAuthorityHookDisplay();
+        fixTopicDataPopulation();
+        fixTopicsGeneratorInit();
+        fixAuthorityHookUpdates();
+        verifyAjaxSystem();
+        
+        console.log('✅ Emergency fixes completed successfully');
+        
+        // Test functionality
+        setTimeout(() => {
+            console.log('🧪 Testing functionality...');
+            
+            // Test authority hook update
+            updateHookFromComponents();
+            
+            // Test Topics Generator
+            if (window.TopicsGenerator) {
+                console.log('✅ TopicsGenerator ready for use');
+            }
+            
+            console.log('🎯 Emergency repair complete - Topics Generator should now work');
+        }, 1000);
+        
+    } catch (error) {
+        console.error('❌ Emergency fixes failed:', error);
+    }
+}
+
+// Run fixes immediately
+executeEmergencyFixes();
+
+// Also run when DOM is fully ready (in case elements load later)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', executeEmergencyFixes);
+} else {
+    setTimeout(executeEmergencyFixes, 500);
+}
+
+console.log('🎯 Emergency fix script loaded - check above for results');

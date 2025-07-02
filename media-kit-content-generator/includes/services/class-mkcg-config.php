@@ -87,7 +87,8 @@ class MKCG_Config {
         // Load authority hook components (hybrid sources)
         foreach ($mappings['authority_hook'] as $component => $config) {
             if ($config['source'] === 'post_meta') {
-                // Load from custom post meta (WHO field)\n                $value = get_post_meta($post_id, $config['key'], true);
+                // Load from custom post meta (WHO field)
+                $value = get_post_meta($post_id, $config['key'], true);
                 if (!empty($value)) {
                     $data['authority_hook_components'][$component] = $value;
                     error_log("MKCG Config: Loaded {$component} from post meta: {$value}");
