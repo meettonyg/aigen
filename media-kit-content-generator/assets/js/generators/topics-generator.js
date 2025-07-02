@@ -1120,6 +1120,494 @@
           this.autoSaveField(input);
         });
       });
+      
+      // Save All Topics button - Both ID variations for compatibility
+      const saveAllBtn = document.querySelector('#save-all-topics') || document.querySelector('#topics-generator-save-topics');
+      if (saveAllBtn) {
+        saveAllBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          this.saveAllTopics();
+        });
+        
+        // Update button text
+        saveAllBtn.innerHTML = '💾 Save All Topics & Authority Hook';
+        console.log('✅ Save All Topics button event bound');
+      }
+      
+      // Auto-save on blur for individual topic fields
+      for (let i = 1; i <= 5; i++) {
+        const field = document.querySelector(`#topics-generator-topic-field-${i}`);
+        if (field) {
+          field.addEventListener('blur', () => {
+            this.autoSaveField(field);
+          });
+        }
+      }
+    },
+    
+    /**
+     * ENHANCED: Save All Topics and Authority Hook - Comprehensive dual-save operation with visual feedback
+     */
+    saveAllTopics: function() {
+      console.log('💾 Topics Generator: Starting comprehensive save operation');
+      
+      const entryId = document.querySelector(this.elements.entryIdField)?.value;
+      const saveButton = document.querySelector('#topics-generator-save-topics');
+      const nonce = window.topics_vars?.nonce || window.mkcg_vars?.nonce || document.querySelector(this.elements.nonceField)?.value || '';
+      
+      if (!entryId || entryId === '0') {
+        this.showComprehensiveSaveError('No entry ID found. Please refresh the page.');
+        return;
+      }
+      
+      // Initialize comprehensive save UI
+      this.initializeComprehensiveSaveUI();
+      
+      // Collect all 5 topic field values
+      const topics = {};
+      let topicsCount = 0;
+      for (let i = 1; i <= 5; i++) {
+        const field = document.querySelector(`#topics-generator-topic-field-${i}`);
+        if (field && field.value.trim()) {
+          topics[`topic_${i}`] = field.value.trim();
+          topicsCount++;
+        }
+      }
+      
+      // Collect all 4 Authority Hook component values
+      const authorityHook = {};
+      let componentsCount = 0;
+      const components = [
+        { key: 'who', elementId: 'mkcg-who' },
+        { key: 'result', elementId: 'mkcg-result' },
+        { key: 'when', elementId: 'mkcg-when' },
+        { key: 'how', elementId: 'mkcg-how' }
+      ];
+      
+      components.forEach(component => {
+        const element = document.querySelector(`#${component.elementId}`);
+        if (element && element.value.trim()) {
+          authorityHook[component.key] = element.value.trim();
+          componentsCount++;
+        }
+      });
+      
+      // Validate we have something to save
+      if (topicsCount === 0 && componentsCount === 0) {
+        this.showComprehensiveSaveError('No data to save. Please enter some topics or authority hook components.');
+        return;
+      }
+      
+      // Show save UI with item counts
+      this.updateSaveProgress(10, `Preparing to save ${topicsCount} topics and ${componentsCount} authority hook components...`);
+      
+      // Package data according to specified structure
+      const requestData = {
+        action: 'mkcg_save_topics_data',
+        entry_id: entryId,
+        topics: topics,
+        authority_hook: authorityHook,
+        nonce: nonce
+      };
+      
+      // Get post_id if available
+      const postId = document.querySelector('#topics-generator-post-id')?.value;
+      if (postId && postId !== '0') {
+        requestData.post_id = postId;
+      }
+      
+      console.log('📋 Save All Topics: Prepared data structure:', requestData);
+      
+      // Update progress
+      this.updateSaveProgress(30, 'Connecting to server...');
+      
+      // Make enhanced AJAX request for dual-save operation
+      this.makeEnhancedAjaxRequest('mkcg_save_topics_data', requestData, {
+        context: 'save_all_topics',
+        timeout: 45000,
+        retryAttempts: 2,
+        onSuccess: (data) => {
+          console.log('✅ Save All Topics: Dual-save operation successful:', data);
+          
+          this.updateSaveProgress(80, 'Finalizing save operation...');
+          
+          // Extract save results
+          const result = data.data || data;
+          const wpSuccess = result.post_meta && result.post_meta.success;
+          const formidableSuccess = result.formidable && result.formidable.success;
+          
+          // Update status indicators
+          this.updateWordPressStatus(wpSuccess, result.post_meta);
+          this.updateFormidableStatus(formidableSuccess, result.formidable);
+          
+          // Show final status
+          setTimeout(() => {
+            this.updateSaveProgress(100, 'Save operation completed!');
+            
+            // Show success message
+            const successMessage = this.buildSuccessMessage(result, topicsCount, componentsCount);
+            this.showComprehensiveSaveSuccess(successMessage);
+            
+            // Update timestamp
+            this.updateSaveTimestamp();
+            
+            // Hide progress after delay
+            setTimeout(() => {
+              const progressElement = document.getElementById('topics-generator-save-progress');
+              if (progressElement) {
+                progressElement.style.display = 'none';
+              }
+            }, 3000);
+            
+            // Update authority hook display if provided
+            if (result.authority_hook_complete || data.authority_hook_complete) {
+              this.updateAuthorityHookText(result.authority_hook_complete || data.authority_hook_complete);
+            }
+          }, 500);
+        },
+        onError: (error) => {
+          console.error('❌ Save All Topics: Dual-save operation failed:', error);
+          
+          // Handle failure
+          this.updateSaveProgress(0, 'Save operation failed');
+          
+          const errorData = {};
+          this.updateWordPressStatus(false, errorData.post_meta);
+          this.updateFormidableStatus(false, errorData.formidable);
+          
+          const errorMessage = errorData.message || 'Failed to save data';
+          this.showComprehensiveSaveError(errorMessage, errorData.errors);
+          
+          // Attempt individual saves as fallback
+          console.log('🔄 Attempting individual saves as fallback...');
+          this.fallbackIndividualSaves(topics, authorityHook, entryId);
+        },
+        onComplete: () => {
+          console.log('🏁 Save All Topics: Dual-save operation completed');
+          
+          // Re-enable button
+          if (saveButton) {
+            saveButton.disabled = false;
+            saveButton.innerHTML = '💾 Save All Topics & Authority Hook';
+          }
+        }
+      });
+    },
+    
+    /**
+     * Initialize comprehensive save UI
+     */
+    initializeComprehensiveSaveUI: function() {
+      const saveButton = document.getElementById('topics-generator-save-topics');
+      const statusContainer = document.getElementById('topics-generator-save-status-container');
+      const progressContainer = document.getElementById('topics-generator-save-progress');
+      
+      // Disable button and update text
+      if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.innerHTML = '💾 Saving...';
+      }
+      
+      // Show status container
+      if (statusContainer) {
+        statusContainer.style.display = 'block';
+      }
+      
+      // Reset status indicators
+      this.updateWordPressStatus(null, null); // null = loading state
+      this.updateFormidableStatus(null, null);
+      
+      // Show and reset progress
+      if (progressContainer) {
+        progressContainer.style.display = 'block';
+        const progressFill = document.getElementById('topics-generator-save-progress-fill');
+        if (progressFill) {
+          progressFill.style.width = '0%';
+        }
+      }
+      
+      // Clear previous messages
+      const messagesContainer = document.getElementById('topics-generator-save-messages');
+      if (messagesContainer) {
+        messagesContainer.innerHTML = '';
+      }
+    },
+    
+    /**
+     * Update WordPress save status
+     */
+    updateWordPressStatus: function(success, data) {
+      const statusElement = document.getElementById('topics-generator-save-status-wordpress');
+      if (!statusElement) return;
+      
+      const iconElement = statusElement.querySelector('.topics-generator__save-status-icon');
+      const textElement = statusElement.querySelector('.topics-generator__save-status-text');
+      
+      if (!iconElement || !textElement) return;
+      
+      if (success === null) {
+        // Loading state
+        iconElement.textContent = '🔄';
+        textElement.textContent = 'Preparing...';
+        statusElement.className = 'topics-generator__save-status topics-generator__save-status--wordpress topics-generator__save-status--loading';
+      } else if (success) {
+        // Success state
+        iconElement.textContent = '✅';
+        textElement.textContent = 'Saved';
+        statusElement.className = 'topics-generator__save-status topics-generator__save-status--wordpress topics-generator__save-status--success';
+      } else {
+        // Error state
+        iconElement.textContent = '❌';
+        const errorCount = data && data.errors ? data.errors.length : 0;
+        textElement.textContent = errorCount > 0 ? `Failed (${errorCount} errors)` : 'Failed';
+        statusElement.className = 'topics-generator__save-status topics-generator__save-status--wordpress topics-generator__save-status--error';
+      }
+    },
+    
+    /**
+     * Update Formidable save status
+     */
+    updateFormidableStatus: function(success, data) {
+      const statusElement = document.getElementById('topics-generator-save-status-formidable');
+      if (!statusElement) return;
+      
+      const iconElement = statusElement.querySelector('.topics-generator__save-status-icon');
+      const textElement = statusElement.querySelector('.topics-generator__save-status-text');
+      
+      if (!iconElement || !textElement) return;
+      
+      if (success === null) {
+        // Loading state
+        iconElement.textContent = '🔄';
+        textElement.textContent = 'Preparing...';
+        statusElement.className = 'topics-generator__save-status topics-generator__save-status--formidable topics-generator__save-status--loading';
+      } else if (success) {
+        // Success state
+        iconElement.textContent = '✅';
+        const savedCount = data && data.saved_fields ? Object.keys(data.saved_fields).length : 0;
+        textElement.textContent = savedCount > 0 ? `Saved (${savedCount} fields)` : 'Saved';
+        statusElement.className = 'topics-generator__save-status topics-generator__save-status--formidable topics-generator__save-status--success';
+      } else {
+        // Error state
+        iconElement.textContent = '❌';
+        const errorCount = data && data.errors ? data.errors.length : 0;
+        textElement.textContent = errorCount > 0 ? `Failed (${errorCount} errors)` : 'Failed';
+        statusElement.className = 'topics-generator__save-status topics-generator__save-status--formidable topics-generator__save-status--error';
+      }
+    },
+    
+    /**
+     * Update save progress
+     */
+    updateSaveProgress: function(percentage, message) {
+      const progressFill = document.getElementById('topics-generator-save-progress-fill');
+      const progressText = document.getElementById('topics-generator-save-progress-text');
+      
+      if (progressFill) {
+        progressFill.style.width = percentage + '%';
+        progressFill.style.transition = 'width 0.3s ease';
+      }
+      
+      if (progressText) {
+        progressText.textContent = message;
+      }
+    },
+    
+    /**
+     * Build success message based on results
+     */
+    buildSuccessMessage: function(result, topicsCount, componentsCount) {
+      const wpSuccess = result.post_meta && result.post_meta.success;
+      const formidableSuccess = result.formidable && result.formidable.success;
+      const totalItems = topicsCount + componentsCount;
+      
+      if (wpSuccess && formidableSuccess) {
+        return `✅ Successfully saved ${totalItems} items to both WordPress and Formidable!`;
+      } else if (wpSuccess) {
+        return `✅ Saved ${totalItems} items to WordPress. Formidable sync pending.`;
+      } else if (formidableSuccess) {
+        return `✅ Saved ${totalItems} items to Formidable. WordPress sync pending.`;
+      } else {
+        return 'Save operation completed with mixed results. Check the status indicators above.';
+      }
+    },
+    
+    /**
+     * Show comprehensive save success
+     */
+    showComprehensiveSaveSuccess: function(message) {
+      const messagesContainer = document.getElementById('topics-generator-save-messages');
+      if (!messagesContainer) return;
+      
+      messagesContainer.innerHTML = `
+        <div class="topics-generator__save-message topics-generator__save-message--success">
+          <strong>Success!</strong> ${message}
+        </div>
+      `;
+      
+      // Auto-hide after 8 seconds
+      setTimeout(() => {
+        messagesContainer.innerHTML = '';
+      }, 8000);
+    },
+    
+    /**
+     * Show comprehensive save error
+     */
+    showComprehensiveSaveError: function(message, errors = []) {
+      const messagesContainer = document.getElementById('topics-generator-save-messages');
+      if (!messagesContainer) return;
+      
+      let errorHtml = `
+        <div class="topics-generator__save-message topics-generator__save-message--error">
+          <strong>Error!</strong> ${message}
+      `;
+      
+      if (errors && errors.length > 0) {
+        errorHtml += '<ul class="topics-generator__save-errors">';
+        errors.forEach(error => {
+          errorHtml += `<li>${error}</li>`;
+        });
+        errorHtml += '</ul>';
+      }
+      
+      errorHtml += '</div>';
+      messagesContainer.innerHTML = errorHtml;
+      
+      // Auto-hide after 10 seconds
+      setTimeout(() => {
+        messagesContainer.innerHTML = '';
+      }, 10000);
+    },
+    
+    /**
+     * Update save timestamp
+     */
+    updateSaveTimestamp: function() {
+      const timestampContainer = document.getElementById('topics-generator-save-timestamp');
+      const timestampValue = document.getElementById('topics-generator-save-timestamp-value');
+      
+      if (timestampContainer && timestampValue) {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString();
+        const dateString = now.toLocaleDateString();
+        timestampValue.textContent = `${dateString} at ${timeString}`;
+        timestampContainer.style.display = 'block';
+      }
+    },
+    
+    /**
+     * Fallback individual saves when comprehensive save fails
+     */
+    fallbackIndividualSaves: function(topics, authorityHook, entryId) {
+      console.log('🔄 Executing fallback individual saves');
+      
+      let successCount = 0;
+      let totalAttempts = 0;
+      
+      // Save individual topics
+      Object.entries(topics).forEach(([key, value]) => {
+        if (value && value.trim()) {
+          totalAttempts++;
+          
+          this.makeEnhancedAjaxRequest('mkcg_save_topic_field', {
+            entry_id: entryId,
+            field_name: key,
+            field_value: value
+          }, {
+            context: 'fallback_topic_save',
+            retryAttempts: 1,
+            onSuccess: () => {
+              successCount++;
+              console.log(`✅ Fallback: ${key} saved successfully`);
+              
+              if (successCount === totalAttempts) {
+                this.showFallbackResults(successCount, totalAttempts);
+              }
+            },
+            onError: (error) => {
+              console.log(`❌ Fallback: ${key} save failed:`, error);
+              
+              if (successCount + (totalAttempts - successCount) === totalAttempts) {
+                this.showFallbackResults(successCount, totalAttempts);
+              }
+            }
+          });
+        }
+      });
+      
+      // Save authority hook components
+      if (Object.values(authorityHook).some(v => v && v.trim())) {
+        totalAttempts++;
+        
+        this.makeEnhancedAjaxRequest('mkcg_save_authority_hook', {
+          entry_id: entryId,
+          who: authorityHook.who,
+          result: authorityHook.result,
+          when: authorityHook.when,
+          how: authorityHook.how
+        }, {
+          context: 'fallback_authority_save',
+          retryAttempts: 1,
+          onSuccess: () => {
+            successCount++;
+            console.log('✅ Fallback: Authority hook saved successfully');
+            
+            if (successCount === totalAttempts) {
+              this.showFallbackResults(successCount, totalAttempts);
+            }
+          },
+          onError: (error) => {
+            console.log('❌ Fallback: Authority hook save failed:', error);
+            
+            if (successCount + (totalAttempts - successCount) === totalAttempts) {
+              this.showFallbackResults(successCount, totalAttempts);
+            }
+          }
+        });
+      }
+      
+      if (totalAttempts === 0) {
+        this.showUserFeedback({
+          type: 'warning',
+          title: 'No Fallback Data',
+          message: 'No individual items could be saved as fallback.',
+          duration: 4000
+        });
+      }
+    },
+    
+    /**
+     * Show results of fallback individual saves
+     */
+    showFallbackResults: function(successCount, totalAttempts) {
+      const failureCount = totalAttempts - successCount;
+      
+      if (successCount === totalAttempts) {
+        this.showUserFeedback({
+          type: 'success',
+          title: 'Partial Success via Individual Saves',
+          message: `Successfully saved ${successCount} items individually.`,
+          actions: ['All items have been preserved'],
+          duration: 6000
+        });
+      } else if (successCount > 0) {
+        this.showUserFeedback({
+          type: 'warning',
+          title: 'Partial Save Completed',
+          message: `Saved ${successCount} of ${totalAttempts} items. ${failureCount} items could not be saved.`,
+          actions: ['Try saving the remaining items manually', 'Check your connection and try again'],
+          duration: 8000
+        });
+      } else {
+        this.showUserFeedback({
+          type: 'error',
+          title: 'Individual Saves Failed',
+          message: 'Unable to save any items, even individually.',
+          actions: ['Check your connection', 'Try refreshing the page', 'Contact support if the problem persists'],
+          duration: 10000
+        });
+      }
     },
     
     /**

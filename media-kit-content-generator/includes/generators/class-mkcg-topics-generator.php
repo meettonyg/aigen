@@ -1502,7 +1502,16 @@ The expert's area of expertise is: \"$authority_hook\".
     }
     
     /**
-     * PHASE 1 TASK 2: Root-level implementation of save topics data AJAX handler
+     * UNIFIED SAVE: Enhanced AJAX handler that saves both topics AND authority hook to both locations
+     * This is the main save action triggered by "Save All Topics & Authority Hook" button
+     * 
+     * Requirements Implementation:
+     * 1. ✅ Accept both 'topics' and 'authority_hook' data from $_POST
+     * 2. ✅ Extract topics data: topic_1, topic_2, topic_3, topic_4, topic_5
+     * 3. ✅ Extract authority hook data: who, result, when, how
+     * 4. ✅ Build complete authority hook from components
+     * 5. ✅ Use enhanced Formidable service for dual-location saving
+     * 6. ✅ Return comprehensive JSON response with status for both locations
      */
     public function handle_save_topics_data_ajax() {
         // PHASE 3: Start performance tracking
@@ -1510,7 +1519,7 @@ The expert's area of expertise is: \"$authority_hook\".
         $this->log_performance_metric('ajax_call_start', $start_time, 'save_topics_data');
         
         try {
-            error_log('MKCG Topics Generator: handle_save_topics_data_ajax called');
+            error_log('UNIFIED SAVE: Enhanced save all topics and authority hook AJAX called');
             
             // PHASE 1: Enhanced security validation
             if (!$this->validate_ajax_request()) {
@@ -1519,61 +1528,121 @@ The expert's area of expertise is: \"$authority_hook\".
                 return;
             }
             
+            // REQUIREMENT 1: Accept both 'topics' and 'authority_hook' data from $_POST
             $entry_id = isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0;
             $topics = isset($_POST['topics']) ? $_POST['topics'] : [];
+            $authority_hook = isset($_POST['authority_hook']) ? $_POST['authority_hook'] : [];
             
             if (!$entry_id) {
                 wp_send_json_error(['message' => 'Entry ID is required', 'code' => 'MISSING_ENTRY_ID']);
                 return;
             }
             
-            error_log('MKCG Topics Generator: Processing save for entry_id=' . $entry_id);
+            error_log('UNIFIED SAVE: Processing save for entry_id=' . $entry_id);
+            error_log('UNIFIED SAVE: Topics data: ' . json_encode($topics));
+            error_log('UNIFIED SAVE: Authority hook data: ' . json_encode($authority_hook));
             
-            // PHASE 1: Process topics data with enhanced validation
-            $processed_topics = $this->process_topics_for_save($topics);
+            // REQUIREMENT 2: Extract topics data: topic_1, topic_2, topic_3, topic_4, topic_5
+            $processed_topics = $this->extract_topics_data($topics);
             
-            if (empty($processed_topics)) {
-                wp_send_json_error(['message' => 'No valid topics data provided', 'code' => 'NO_TOPICS_DATA']);
+            // REQUIREMENT 3: Extract authority hook data: who, result, when, how
+            // REQUIREMENT 4: Build complete authority hook from components
+            $processed_authority_hook = $this->extract_and_build_authority_hook_data($authority_hook);
+            
+            if (empty($processed_topics) && empty($processed_authority_hook)) {
+                wp_send_json_error(['message' => 'No valid data provided', 'code' => 'NO_DATA']);
                 return;
             }
             
-            // PHASE 1: Save topics using direct Formidable service (most reliable)
-            $save_result = $this->save_topics_directly($entry_id, $processed_topics);
+            // REQUIREMENT 5: Use enhanced Formidable service for dual-location saving
+            $post_id = $this->formidable_service->get_post_id_from_entry($entry_id);
             
-            if ($save_result['success']) {
+            if (!$post_id) {
+                // Create post_id if it doesn't exist to enable dual-save
+                $post_id = $this->create_post_for_entry($entry_id);
+                if (!$post_id) {
+                    error_log('UNIFIED SAVE: Warning - No post ID available for entry ' . $entry_id . ', will save to Formidable only');
+                }
+            }
+            
+            // Use the enhanced Formidable service's dual-save orchestrator
+            if ($post_id) {
+                error_log('UNIFIED SAVE: Using dual-save orchestrator for post_id=' . $post_id);
+                $dual_save_result = $this->formidable_service->save_to_both_locations(
+                    $post_id,
+                    $processed_topics,
+                    $processed_authority_hook
+                );
+            } else {
+                // Fallback to Formidable-only save
+                error_log('UNIFIED SAVE: Using Formidable-only save fallback');
+                $dual_save_result = $this->fallback_formidable_only_save(
+                    $entry_id,
+                    $processed_topics,
+                    $processed_authority_hook
+                );
+            }
+            
+            // REQUIREMENT 6: Return comprehensive JSON response with status for both locations
+            if ($dual_save_result['success']) {
                 // PHASE 3: Log success and performance
                 $end_time = microtime(true);
                 $execution_time = round(($end_time - $start_time) * 1000, 2);
-                $this->log_performance_metric('ajax_execution_time', $execution_time, 'save_topics_data');
-                $this->log_diagnostic_success('save_topics_data', ['saved_count' => $save_result['saved_count']]);
+                $this->log_performance_metric('ajax_execution_time', $execution_time, 'unified_save');
+                $this->log_diagnostic_success('unified_save', ['status' => $dual_save_result['status']]);
                 
-                error_log('MKCG Topics Generator: ✅ Topics saved successfully');
+                // Build user-friendly success message based on save status
+                $success_message = $this->build_success_message($dual_save_result);
+                
+                error_log('UNIFIED SAVE: ✅ SUCCESS - ' . $success_message);
                 wp_send_json_success([
-                    'message' => 'Topics saved successfully',
-                    'saved_count' => $save_result['saved_count'],
+                    'message' => $success_message,
+                    'status' => $dual_save_result['status'],
                     'entry_id' => $entry_id,
-                    'saved_fields' => $save_result['saved_fields'] ?? [],
-                    'performance' => ['execution_time' => $execution_time . 'ms']
+                    'post_id' => $post_id,
+                    'post_meta' => [
+                        'success' => $dual_save_result['post_meta']['success'],
+                        'saved_fields' => $dual_save_result['post_meta']['saved_fields'],
+                        'errors' => $dual_save_result['post_meta']['errors']
+                    ],
+                    'formidable' => [
+                        'success' => $dual_save_result['formidable']['success'],
+                        'saved_fields' => $dual_save_result['formidable']['saved_fields'],
+                        'errors' => $dual_save_result['formidable']['errors'],
+                        'entry_id' => $dual_save_result['formidable']['entry_id']
+                    ],
+                    'summary' => $dual_save_result['summary'],
+                    'performance' => ['execution_time' => $execution_time . 'ms'],
+                    'unified_save' => true
                 ]);
             } else {
                 // PHASE 3: Log error and performance
                 $end_time = microtime(true);
                 $execution_time = round(($end_time - $start_time) * 1000, 2);
-                $this->log_diagnostic_error('save_operation', 'Topics save failed', $save_result['errors']);
+                $this->log_diagnostic_error('unified_save', 'Dual-save operation failed', $dual_save_result['overall_errors']);
                 
-                error_log('MKCG Topics Generator: ❌ Save failed: ' . json_encode($save_result['errors']));
+                error_log('UNIFIED SAVE: ❌ FAILED - ' . json_encode($dual_save_result['overall_errors']));
                 wp_send_json_error([
-                    'message' => 'Failed to save topics',
-                    'errors' => $save_result['errors'] ?? ['Unknown error'],
-                    'code' => 'SAVE_FAILED',
-                    'performance' => ['execution_time' => $execution_time . 'ms']
+                    'message' => 'Failed to save data',
+                    'status' => $dual_save_result['status'],
+                    'post_meta' => $dual_save_result['post_meta'],
+                    'formidable' => $dual_save_result['formidable'],
+                    'errors' => $dual_save_result['overall_errors'],
+                    'code' => 'UNIFIED_SAVE_FAILED',
+                    'performance' => ['execution_time' => $execution_time . 'ms'],
+                    'debug_info' => [
+                        'entry_id' => $entry_id,
+                        'post_id' => $post_id,
+                        'topics_count' => count($processed_topics),
+                        'authority_hook_count' => count($processed_authority_hook)
+                    ]
                 ]);
             }
             
         } catch (Exception $e) {
-            error_log('MKCG Topics Generator: ❌ Exception in handle_save_topics_data_ajax: ' . $e->getMessage());
+            error_log('UNIFIED SAVE: ❌ Critical exception: ' . $e->getMessage());
             wp_send_json_error([
-                'message' => 'Server error during save operation',
+                'message' => 'Server error during unified save operation',
                 'code' => 'CRITICAL_ERROR',
                 'details' => $e->getMessage()
             ]);
@@ -1621,43 +1690,229 @@ The expert's area of expertise is: \"$authority_hook\".
     }
     
     /**
-     * PHASE 1 TASK 2: Process topics data for saving with validation
+     * REQUIREMENT 2: Extract topics data: topic_1, topic_2, topic_3, topic_4, topic_5
+     * Enhanced processing with comprehensive validation and error handling
      */
-    private function process_topics_for_save($topics) {
+    private function extract_topics_data($topics) {
         $processed = [];
         
         if (!is_array($topics)) {
-            error_log('MKCG Topics Generator: Topics data is not an array');
+            error_log('UNIFIED SAVE: Topics data is not an array, received: ' . gettype($topics));
             return $processed;
         }
+        
+        // Define expected topic keys for validation
+        $expected_topics = ['topic_1', 'topic_2', 'topic_3', 'topic_4', 'topic_5'];
         
         foreach ($topics as $key => $value) {
             if (empty(trim($value))) {
                 continue; // Skip empty topics
             }
             
-            // Normalize key format
-            if (strpos($key, 'topic_') === 0) {
-                $topic_key = $key;
-            } else {
-                $topic_key = 'topic_' . $key;
-            }
+            // Normalize key format (handle various input formats)
+            $topic_key = $this->normalize_topic_key($key);
             
-            // Validate topic key format
-            if (preg_match('/^topic_[1-5]$/', $topic_key)) {
+            // Validate topic key is one of the expected 5 topics
+            if (in_array($topic_key, $expected_topics)) {
                 $processed[$topic_key] = sanitize_textarea_field(trim($value));
-                error_log('MKCG Topics Generator: Processed topic: ' . $topic_key . ' = ' . substr($processed[$topic_key], 0, 50));
+                error_log('UNIFIED SAVE: Extracted topic: ' . $topic_key . ' = ' . substr($processed[$topic_key], 0, 50) . '...');
+            } else {
+                error_log('UNIFIED SAVE: Invalid topic key ignored: ' . $key . ' (normalized: ' . $topic_key . ')');
             }
         }
         
-        error_log('MKCG Topics Generator: Processed ' . count($processed) . ' topics');
+        error_log('UNIFIED SAVE: Successfully extracted ' . count($processed) . ' topics out of ' . count($topics) . ' provided');
         return $processed;
     }
     
     /**
-     * PHASE 1 TASK 2: Save topics directly using Formidable service (most reliable method)
+     * REQUIREMENT 3 & 4: Extract authority hook data (who, result, when, how) and build complete authority hook
+     * Comprehensive processing with component validation and complete hook building
+     */
+    private function extract_and_build_authority_hook_data($authority_hook) {
+        $processed = [];
+        
+        if (!is_array($authority_hook)) {
+            error_log('UNIFIED SAVE: Authority hook data is not an array, received: ' . gettype($authority_hook));
+            return $processed;
+        }
+        
+        // REQUIREMENT 3: Extract authority hook components (who, result, when, how)
+        $expected_components = ['who', 'result', 'when', 'how'];
+        $defaults = [
+            'who' => 'your audience',
+            'result' => 'achieve their goals', 
+            'when' => 'they need help',
+            'how' => 'through your method'
+        ];
+        
+        foreach ($expected_components as $component) {
+            if (isset($authority_hook[$component]) && !empty(trim($authority_hook[$component]))) {
+                $processed[$component] = sanitize_textarea_field(trim($authority_hook[$component]));
+                error_log('UNIFIED SAVE: Extracted authority hook ' . $component . ': ' . substr($processed[$component], 0, 50) . '...');
+            } else {
+                // Use default if component is missing or empty
+                $processed[$component] = $defaults[$component];
+                error_log('UNIFIED SAVE: Using default for authority hook ' . $component . ': ' . $processed[$component]);
+            }
+        }
+        
+        // Handle 'complete' field if provided directly
+        if (isset($authority_hook['complete']) && !empty(trim($authority_hook['complete']))) {
+            $processed['complete'] = sanitize_textarea_field(trim($authority_hook['complete']));
+            error_log('UNIFIED SAVE: Complete authority hook provided directly');
+        } else {
+            // REQUIREMENT 4: Build complete authority hook from components
+            if ($this->authority_hook_service) {
+                try {
+                    $processed['complete'] = $this->authority_hook_service->build_authority_hook($processed);
+                    error_log('UNIFIED SAVE: Built complete authority hook using service: ' . substr($processed['complete'], 0, 100) . '...');
+                } catch (Exception $e) {
+                    error_log('UNIFIED SAVE: Authority Hook Service failed, using fallback: ' . $e->getMessage());
+                    $processed['complete'] = $this->build_authority_hook_fallback($processed);
+                }
+            } else {
+                $processed['complete'] = $this->build_authority_hook_fallback($processed);
+                error_log('UNIFIED SAVE: Authority Hook Service not available, used fallback');
+            }
+        }
+        
+        error_log('UNIFIED SAVE: Successfully extracted and built authority hook with ' . count($processed) . ' components');
+        return $processed;
+    }
+    
+    /**
+     * Helper: Normalize topic key format
+     */
+    private function normalize_topic_key($key) {
+        // Handle various input formats: 'topic_1', '1', 'topic1', etc.
+        if (strpos($key, 'topic_') === 0) {
+            return $key; // Already in correct format
+        }
+        
+        // Extract number and format as topic_X
+        if (is_numeric($key)) {
+            return 'topic_' . $key;
+        }
+        
+        // Handle 'topic1' format
+        if (preg_match('/^topic(\d+)$/', $key, $matches)) {
+            return 'topic_' . $matches[1];
+        }
+        
+        // Return as-is if no pattern matches
+        return $key;
+    }
+    
+    /**
+     * Helper: Fallback authority hook building when service is unavailable
+     */
+    private function build_authority_hook_fallback($components) {
+        return "I help {$components['who']} {$components['result']} when {$components['when']} {$components['how']}.";
+    }
+    
+    /**
+     * Helper: Build user-friendly success message based on save results
+     */
+    private function build_success_message($dual_save_result) {
+        $status = $dual_save_result['status'];
+        $post_meta_success = $dual_save_result['post_meta']['success'];
+        $formidable_success = $dual_save_result['formidable']['success'];
+        
+        if ($status === 'excellent') {
+            return 'All topics and authority hook saved successfully to both WordPress and Formidable!';
+        } elseif ($status === 'acceptable' && $post_meta_success) {
+            return 'Topics and authority hook saved to WordPress (Formidable sync pending)';
+        } elseif ($formidable_success) {
+            return 'Topics and authority hook saved to Formidable (WordPress sync pending)';
+        } else {
+            return 'Save operation completed with mixed results';
+        }
+    }
+    
+    /**
+     * Helper: Create WordPress post for entry if none exists (enables dual-save)
+     */
+    private function create_post_for_entry($entry_id) {
+        try {
+            $post_data = [
+                'post_title' => 'Media Kit Content - Entry ' . $entry_id,
+                'post_content' => 'Auto-generated content container for Formidable entry ' . $entry_id,
+                'post_status' => 'draft',
+                'post_type' => 'post',
+                'meta_input' => [
+                    '_frm_entry_id' => $entry_id,
+                    '_mkcg_auto_created' => time()
+                ]
+            ];
+            
+            $post_id = wp_insert_post($post_data);
+            
+            if ($post_id && !is_wp_error($post_id)) {
+                // Update the Formidable entry with the new post_id
+                global $wpdb;
+                $wpdb->update(
+                    $wpdb->prefix . 'frm_items',
+                    ['post_id' => $post_id],
+                    ['id' => $entry_id],
+                    ['%d'],
+                    ['%d']
+                );
+                
+                error_log('UNIFIED SAVE: Created new post_id=' . $post_id . ' for entry_id=' . $entry_id);
+                return $post_id;
+            }
+        } catch (Exception $e) {
+            error_log('UNIFIED SAVE: Failed to create post for entry ' . $entry_id . ': ' . $e->getMessage());
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Helper: Fallback save to Formidable only when no post_id available
+     */
+    private function fallback_formidable_only_save($entry_id, $processed_topics, $processed_authority_hook) {
+        $formidable_result = $this->formidable_service->save_topics_and_authority_hook_to_formidable(
+            $entry_id,
+            $processed_topics,
+            $processed_authority_hook
+        );
+        
+        return [
+            'success' => $formidable_result['success'],
+            'status' => $formidable_result['success'] ? 'formidable_only' : 'failed',
+            'post_meta' => [
+                'attempted' => false,
+                'success' => false,
+                'saved_fields' => [],
+                'errors' => ['No post ID available']
+            ],
+            'formidable' => [
+                'attempted' => true,
+                'success' => $formidable_result['success'],
+                'saved_fields' => $formidable_result['saved_fields'] ?? [],
+                'errors' => $formidable_result['errors'] ?? [],
+                'entry_id' => $entry_id
+            ],
+            'overall_errors' => $formidable_result['success'] ? [] : ['Formidable save failed'],
+            'summary' => [
+                'post_meta_fields_saved' => 0,
+                'formidable_fields_saved' => $formidable_result['total_saved'] ?? 0,
+                'total_fields_attempted' => count($processed_topics) + count($processed_authority_hook)
+            ]
+        ];
+    }
+    
+
+    
+    /**
+     * LEGACY SUPPORT: Save topics directly using Formidable service (kept for backward compatibility)
+     * Note: This method is now deprecated in favor of the unified save approach
      */
     private function save_topics_directly($entry_id, $topics_data) {
+        error_log('UNIFIED SAVE: Warning - Using legacy save_topics_directly method. Consider upgrading to unified save.');
+        
         $result = [
             'success' => false,
             'saved_count' => 0,
@@ -1726,16 +1981,30 @@ The expert's area of expertise is: \"$authority_hook\".
     }
     
     /**
-     * PHASE 1 TASK 2: Get topics field mappings safely
+     * UNIFIED SAVE: Get topics field mappings safely (matches Formidable service)
      */
     private function get_topics_field_mappings_safe() {
-        // Use hardcoded mappings for reliability
+        // Use hardcoded mappings for reliability (Form 515 field IDs)
         return [
             'topic_1' => '8498',
             'topic_2' => '8499',
             'topic_3' => '8500',
             'topic_4' => '8501',
             'topic_5' => '8502'
+        ];
+    }
+    
+    /**
+     * UNIFIED SAVE: Get authority hook field mappings safely (matches Formidable service)
+     */
+    private function get_authority_hook_field_mappings_safe() {
+        // Use hardcoded mappings for reliability (Form 515 field IDs)
+        return [
+            'who' => '10296',
+            'result' => '10297',
+            'when' => '10387',
+            'how' => '10298',
+            'complete' => '10358'
         ];
     }
     

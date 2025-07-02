@@ -383,12 +383,56 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
                         <?php endfor; ?>
                     </div>
                     
-                    <!-- Save Button for Topics -->
+                    <!-- Enhanced Save Section - Comprehensive Save to Both Locations -->
                     <div class="topics-generator__save-section">
-                        <button class="topics-generator__save-button" id="topics-generator-save-topics" type="button">
-                            💾 Save All Topics
+                        <!-- Prominent Save Button with Enhanced Functionality -->
+                        <button class="topics-generator__save-button topics-generator__save-button--enhanced" id="topics-generator-save-topics" type="button">
+                            💾 Save All Topics & Authority Hook
                         </button>
-                        <div class="topics-generator__save-status" id="topics-generator-save-status" style="display: none;"></div>
+                        
+                        <!-- Descriptive Help Text -->
+                        <div class="topics-generator__save-description">
+                            <p class="topics-generator__save-help">
+                                💡 <strong>Comprehensive Save:</strong> Saves all 5 topics and 4 authority hook components to both WordPress custom post meta and Formidable entry fields in a single atomic operation.
+                            </p>
+                        </div>
+                        
+                        <!-- Dual-Location Status Indicators -->
+                        <div class="topics-generator__save-status-container" id="topics-generator-save-status-container" style="display: none;">
+                            <!-- WordPress Status -->
+                            <div class="topics-generator__save-status topics-generator__save-status--wordpress" id="topics-generator-save-status-wordpress">
+                                <span class="topics-generator__save-status-icon">🔄</span>
+                                <span class="topics-generator__save-status-label">WordPress:</span>
+                                <span class="topics-generator__save-status-text">Preparing...</span>
+                            </div>
+                            
+                            <!-- Formidable Status -->
+                            <div class="topics-generator__save-status topics-generator__save-status--formidable" id="topics-generator-save-status-formidable">
+                                <span class="topics-generator__save-status-icon">🔄</span>
+                                <span class="topics-generator__save-status-label">Formidable:</span>
+                                <span class="topics-generator__save-status-text">Preparing...</span>
+                            </div>
+                            
+                            <!-- Overall Progress Indicator -->
+                            <div class="topics-generator__save-progress" id="topics-generator-save-progress">
+                                <div class="topics-generator__save-progress-bar">
+                                    <div class="topics-generator__save-progress-fill" id="topics-generator-save-progress-fill"></div>
+                                </div>
+                                <div class="topics-generator__save-progress-text" id="topics-generator-save-progress-text">
+                                    Initializing comprehensive save operation...
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Timestamp of Last Successful Save -->
+                        <div class="topics-generator__save-timestamp" id="topics-generator-save-timestamp" style="display: none;">
+                            <small class="topics-generator__save-timestamp-text">
+                                🕒 Last saved: <span id="topics-generator-save-timestamp-value">Never</span>
+                            </small>
+                        </div>
+                        
+                        <!-- Enhanced Error/Success Messages -->
+                        <div class="topics-generator__save-messages" id="topics-generator-save-messages"></div>
                     </div>
                 </div>
                 
@@ -567,162 +611,19 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
         console.log('⚠️ MKCG Topics: No entry data - using defaults');
     }
     
-    // Save Topics Functionality
-    document.addEventListener('DOMContentLoaded', function() {
-        const saveButton = document.getElementById('topics-generator-save-topics');
-        const saveStatus = document.getElementById('topics-generator-save-status');
-        
-        if (saveButton) {
-            saveButton.addEventListener('click', function() {
-                saveAllTopics();
-            });
-        }
-        
-        // Auto-save on blur for individual fields
-        for (let i = 1; i <= 5; i++) {
-            const field = document.getElementById(`topics-generator-topic-field-${i}`);
-            if (field) {
-                field.addEventListener('blur', function() {
-                    // Auto-save individual topic on blur
-                    saveSingleTopic(i, this.value);
-                });
-            }
-        }
-    });
+    // COMPREHENSIVE SAVE: Initialize when DOM is ready - delegated to main JavaScript file
+    // The saveAllTopics functionality is now handled by topics-generator.js
+    // which already has enhanced UI feedback integration
     
-    // Function to save all topics
-    function saveAllTopics() {
-        const saveButton = document.getElementById('topics-generator-save-topics');
-        const saveStatus = document.getElementById('topics-generator-save-status');
-        const entryId = document.getElementById('topics-generator-entry-id')?.value;
-        const nonce = document.getElementById('topics-generator-nonce')?.value;
-        
-        if (!entryId || entryId === '0') {
-            showSaveStatus('error', 'No entry ID found. Please refresh the page.');
-            return;
+    // Global reference for backward compatibility
+    window.saveAllTopicsEnhanced = function() {
+        console.log('🔄 Delegating to TopicsGenerator.saveAllTopics()');
+        if (window.TopicsGenerator && typeof window.TopicsGenerator.saveAllTopics === 'function') {
+            window.TopicsGenerator.saveAllTopics();
+        } else {
+            console.warn('⚠️ TopicsGenerator not initialized yet');
         }
-        
-        // Disable button and show loading
-        saveButton.disabled = true;
-        saveButton.textContent = '💾 Saving...';
-        showSaveStatus('loading', 'Saving topics...');
-        
-        // Collect all topic values
-        const topics = {};
-        for (let i = 1; i <= 5; i++) {
-            const field = document.getElementById(`topics-generator-topic-field-${i}`);
-            if (field) {
-                topics[`topic_${i}`] = field.value.trim();
-            }
-        }
-        
-        // Prepare AJAX data
-        const formData = new FormData();
-        formData.append('action', 'mkcg_save_topics_data');
-        formData.append('entry_id', entryId);
-        formData.append('nonce', nonce);
-        
-        // Add topics to form data
-        Object.keys(topics).forEach(key => {
-            formData.append(`topics[${key}]`, topics[key]);
-        });
-        
-        // Get post_id from hidden field
-        const postId = document.getElementById('topics-generator-post-id')?.value;
-        if (postId && postId !== '0') {
-            formData.append('post_id', postId);
-        }
-        
-        // Make AJAX request
-        fetch(window.ajaxurl || '/wp-admin/admin-ajax.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showSaveStatus('success', `✅ Successfully saved ${data.data.saved_count || 'all'} topics!`);
-                console.log('✅ Topics saved successfully:', data);
-            } else {
-                showSaveStatus('error', '❌ Failed to save topics: ' + (data.data?.message || 'Unknown error'));
-                console.error('❌ Save failed:', data);
-            }
-        })
-        .catch(error => {
-            showSaveStatus('error', '❌ Network error while saving topics');
-            console.error('❌ Network error:', error);
-        })
-        .finally(() => {
-            // Re-enable button
-            saveButton.disabled = false;
-            saveButton.textContent = '💾 Save All Topics';
-        });
-    }
-    
-    // Function to save individual topic
-    function saveSingleTopic(topicNumber, topicText) {
-        const entryId = document.getElementById('topics-generator-entry-id')?.value;
-        const nonce = document.getElementById('topics-generator-nonce')?.value;
-        
-        if (!entryId || entryId === '0' || !topicText.trim()) {
-            return; // Skip auto-save if no entry ID or empty text
-        }
-        
-        const formData = new FormData();
-        formData.append('action', 'mkcg_save_topic');
-        formData.append('entry_id', entryId);
-        formData.append('topic_number', topicNumber);
-        formData.append('topic_text', topicText.trim());
-        formData.append('nonce', nonce);
-        
-        // Get post_id from hidden field
-        const postId = document.getElementById('topics-generator-post-id')?.value;
-        if (postId && postId !== '0') {
-            formData.append('post_id', postId);
-        }
-        
-        // Make AJAX request (silent save)
-        fetch(window.ajaxurl || '/wp-admin/admin-ajax.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                console.log(`✅ Topic ${topicNumber} auto-saved`);
-            } else {
-                console.warn(`⚠️ Topic ${topicNumber} auto-save failed:`, data.data?.message);
-            }
-        })
-        .catch(error => {
-            console.warn(`⚠️ Topic ${topicNumber} auto-save network error:`, error);
-        });
-    }
-    
-    // Function to show save status
-    function showSaveStatus(type, message) {
-        const saveStatus = document.getElementById('topics-generator-save-status');
-        if (!saveStatus) return;
-        
-        // Clear previous classes
-        saveStatus.className = 'topics-generator__save-status';
-        
-        // Add appropriate class
-        saveStatus.classList.add(`topics-generator__save-status--${type}`);
-        saveStatus.textContent = message;
-        saveStatus.style.display = 'block';
-        
-        // Auto-hide success/error messages after 5 seconds
-        if (type === 'success' || type === 'error') {
-            setTimeout(() => {
-                saveStatus.style.display = 'none';
-            }, 5000);
-        }
-    }
-    
-    // Make functions globally available
-    window.saveAllTopics = saveAllTopics;
-    window.saveSingleTopic = saveSingleTopic;
+    };
     
     // CRITICAL FIX: Authority Hook Pre-population Enhancement
     // Implements automatic field population, AJAX fallback, and real-time updates
