@@ -699,12 +699,13 @@ The expert's area of expertise is: \"$authority_hook\".
     }
     
     /**
-     * AUTHORITY HOOK FIX: Direct Authority Hook field loading from Formidable
+     * CRITICAL FIX: Enhanced Authority Hook field loading with specialized processing for problematic fields
+     * This method implements the ROOT LEVEL FIX for fields 10297, 10387, 10298 that are not pre-populating correctly
      */
-    private function load_authority_hook_fields_direct($entry_id) {
+    public function load_authority_hook_fields_direct($entry_id) {
         global $wpdb;
         
-        error_log('MKCG Authority Hook Fix: Loading Authority Hook fields directly from database for entry ' . $entry_id);
+        error_log('MKCG CRITICAL FIX: Loading Authority Hook fields directly from database for entry ' . $entry_id);
         
         // CRITICAL FIX: Use exact field mappings from config
         $auth_field_mappings = [
@@ -734,27 +735,27 @@ The expert's area of expertise is: \"$authority_hook\".
                 ));
                 
                 if ($raw_value !== null) {
-                    // Use enhanced field processing specifically for problematic fields
+                    // CRITICAL FIX: Use enhanced processing specifically for problematic fields
                     if (in_array($field_id, ['10297', '10387', '10298'])) {
-                        $processed_value = $this->formidable_service->process_field_value_enhanced($raw_value, $field_id);
+                        $processed_value = $this->process_problematic_authority_field_enhanced($raw_value, $field_id);
                     } else {
                         $processed_value = $this->formidable_service->process_field_value_safe($raw_value, $field_id, 'authority_hook');
                     }
                     
                     if (!empty($processed_value)) {
                         $auth_components[$component] = $processed_value;
-                        error_log("MKCG Authority Hook Fix: Loaded {$component} from field {$field_id}: '{$processed_value}'");
+                        error_log("MKCG CRITICAL FIX: Loaded {$component} from field {$field_id}: '{$processed_value}'");
                     } else {
-                        error_log("MKCG Authority Hook Fix: Field {$field_id} ({$component}) processed to empty value, using default");
+                        error_log("MKCG CRITICAL FIX: Field {$field_id} ({$component}) processed to empty value, using default");
                         $auth_components[$component] = $this->get_default_component_value($component);
                     }
                 } else {
-                    error_log("MKCG Authority Hook Fix: No data found for field {$field_id} ({$component}), using default");
+                    error_log("MKCG CRITICAL FIX: No data found for field {$field_id} ({$component}), using default");
                     $auth_components[$component] = $this->get_default_component_value($component);
                 }
                 
             } catch (Exception $e) {
-                error_log('MKCG Authority Hook Fix: Error loading authority hook ' . $component . ': ' . $e->getMessage());
+                error_log('MKCG CRITICAL FIX: Error loading authority hook ' . $component . ': ' . $e->getMessage());
                 $auth_components[$component] = $this->get_default_component_value($component);
             }
         }
@@ -763,14 +764,227 @@ The expert's area of expertise is: \"$authority_hook\".
         if (empty($auth_components['complete']) && $this->authority_hook_service) {
             try {
                 $auth_components['complete'] = $this->authority_hook_service->build_authority_hook($auth_components);
-                error_log('MKCG Authority Hook Fix: Built complete authority hook from components: ' . $auth_components['complete']);
+                error_log('MKCG CRITICAL FIX: Built complete authority hook from components: ' . $auth_components['complete']);
             } catch (Exception $e) {
-                error_log('MKCG Authority Hook Fix: Error building authority hook: ' . $e->getMessage());
+                error_log('MKCG CRITICAL FIX: Error building authority hook: ' . $e->getMessage());
                 $auth_components['complete'] = 'I help ' . $auth_components['who'] . ' ' . $auth_components['result'] . ' when ' . $auth_components['when'] . ' ' . $auth_components['how'] . '.';
             }
         }
         
         return $auth_components;
+    }
+    
+    /**
+     * CRITICAL FIX: Specialized processor for problematic Authority Hook fields 10297, 10387, 10298
+     * Implements enhanced processing for malformed serialized data that requires multiple recovery strategies
+     */
+    private function process_problematic_authority_field_enhanced($raw_value, $field_id) {
+        error_log("MKCG CRITICAL FIX: Enhanced processing for problematic field {$field_id}");
+        error_log("MKCG CRITICAL FIX: Raw value type: " . gettype($raw_value) . ", Value: " . substr(print_r($raw_value, true), 0, 200));
+        
+        // Strategy 1: Direct string processing if it looks like plain text
+        if (is_string($raw_value)) {
+            $trimmed = trim($raw_value);
+            
+            // If it's not serialized and has meaningful content, use it directly
+            if (!$this->is_serialized($trimmed) && strlen($trimmed) > 2 && strlen($trimmed) < 500) {
+                // Check if it's not a placeholder or system value
+                if (!preg_match('/^(null|false|true|0|1|undefined|empty|default)$/i', $trimmed)) {
+                    error_log("MKCG CRITICAL FIX: Field {$field_id} - Using direct string: '{$trimmed}'");
+                    return $trimmed;
+                }
+            }
+            
+            // Strategy 2: Enhanced serialization handling
+            if ($this->is_serialized($trimmed)) {
+                error_log("MKCG CRITICAL FIX: Field {$field_id} - Attempting enhanced serialization processing");
+                
+                // Try multiple unserialize approaches
+                $unserialized = @unserialize($trimmed);
+                
+                if ($unserialized !== false) {
+                    error_log("MKCG CRITICAL FIX: Field {$field_id} - Standard unserialize successful");
+                    return $this->extract_meaningful_value_from_data($unserialized, $field_id);
+                }
+                
+                // Try repair if standard unserialization failed
+                $repaired = $this->repair_and_unserialize_malformed_data($trimmed, $field_id);
+                if ($repaired !== false) {
+                    error_log("MKCG CRITICAL FIX: Field {$field_id} - Repair successful");
+                    return $this->extract_meaningful_value_from_data($repaired, $field_id);
+                }
+                
+                // Emergency regex extraction
+                if (preg_match('/"([^"]{3,})"/', $trimmed, $matches)) {
+                    $extracted = trim($matches[1]);
+                    if (!preg_match('/^(null|false|true|0|1|undefined|empty|default)$/i', $extracted)) {
+                        error_log("MKCG CRITICAL FIX: Field {$field_id} - Regex extraction: '{$extracted}'");
+                        return $extracted;
+                    }
+                }
+            }
+        }
+        
+        // Strategy 3: Array handling
+        if (is_array($raw_value)) {
+            error_log("MKCG CRITICAL FIX: Field {$field_id} - Processing array with " . count($raw_value) . " elements");
+            
+            foreach ($raw_value as $key => $value) {
+                $clean_value = trim((string)$value);
+                if (!empty($clean_value) && strlen($clean_value) > 2) {
+                    if (!preg_match('/^(null|false|true|0|1|undefined|empty|default)$/i', $clean_value)) {
+                        error_log("MKCG CRITICAL FIX: Field {$field_id} - Array value found: '{$clean_value}'");
+                        return $clean_value;
+                    }
+                }
+            }
+        }
+        
+        // Strategy 4: Check for field-specific patterns or defaults (only as absolute last resort)
+        $field_defaults = [
+            '10297' => 'achieve their goals',  // RESULT
+            '10387' => 'they need help',       // WHEN
+            '10298' => 'through your method'   // HOW
+        ];
+        
+        // Only use defaults if this is specifically one of the problematic fields and no other strategy worked
+        if (isset($field_defaults[$field_id])) {
+            error_log("MKCG CRITICAL FIX: Field {$field_id} - Using field-specific default as last resort: '{$field_defaults[$field_id]}'");
+            return $field_defaults[$field_id];
+        }
+        
+        error_log("MKCG CRITICAL FIX: Field {$field_id} - No meaningful value found, returning null");
+        return null;
+    }
+    
+    /**
+     * CRITICAL FIX: Extract meaningful value from processed data
+     */
+    private function extract_meaningful_value_from_data($data, $field_id) {
+        if (is_string($data)) {
+            $clean = trim($data);
+            if (!empty($clean) && strlen($clean) > 2) {
+                error_log("MKCG CRITICAL FIX: Field {$field_id} - Meaningful string value: '{$clean}'");
+                return $clean;
+            }
+        }
+        
+        if (is_array($data)) {
+            foreach ($data as $key => $value) {
+                $clean = trim((string)$value);
+                if (!empty($clean) && strlen($clean) > 2) {
+                    // Skip obvious system values
+                    if (!preg_match('/^(null|false|true|0|1|undefined|empty|default)$/i', $clean)) {
+                        error_log("MKCG CRITICAL FIX: Field {$field_id} - Meaningful array value: '{$clean}'");
+                        return $clean;
+                    }
+                }
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * CRITICAL FIX: Repair malformed serialized data (helper method)
+     */
+    private function repair_and_unserialize_malformed_data($serialized_string, $field_id) {
+        try {
+            // Check if this looks like a malformed array with string length issues
+            if (preg_match('/^a:\d+:\{.*\}$/', $serialized_string)) {
+                error_log("MKCG CRITICAL FIX: Field {$field_id} - Attempting to repair array serialization");
+                
+                // Try to extract string values and rebuild the serialization
+                if (preg_match_all('/s:(\d+):"([^"]*)";\//', $serialized_string, $matches, PREG_SET_ORDER)) {
+                    $repaired = $serialized_string;
+                    
+                    foreach ($matches as $match) {
+                        $declared_length = intval($match[1]);
+                        $actual_string = $match[2];
+                        $actual_length = strlen($actual_string);
+                        
+                        if ($declared_length !== $actual_length) {
+                            error_log("MKCG CRITICAL FIX: Field {$field_id} - Found length mismatch: declared={$declared_length}, actual={$actual_length}, string='{$actual_string}'");
+                            
+                            // Replace the incorrect length with the correct one
+                            $old_part = "s:{$declared_length}:\"{$actual_string}\"";
+                            $new_part = "s:{$actual_length}:\"{$actual_string}\"";
+                            $repaired = str_replace($old_part, $new_part, $repaired);
+                        }
+                    }
+                    
+                    if ($repaired !== $serialized_string) {
+                        $result = @unserialize($repaired);
+                        if ($result !== false) {
+                            error_log("MKCG CRITICAL FIX: Field {$field_id} - Repair successful!");
+                            return $result;
+                        }
+                    }
+                }
+            }
+            
+            // If we can't repair it, try a simple regex extraction as last resort
+            if (preg_match('/"([^"]+)"/', $serialized_string, $extract_match)) {
+                $extracted_value = $extract_match[1];
+                error_log("MKCG CRITICAL FIX: Field {$field_id} - Regex extraction found: '{$extracted_value}'");
+                // Return as a single-element array to match expected structure
+                return array(0 => $extracted_value);
+            }
+            
+        } catch (Exception $e) {
+            error_log("MKCG CRITICAL FIX: Field {$field_id} - Exception during repair: " . $e->getMessage());
+        }
+        
+        return false;
+    }
+    
+    /**
+     * CRITICAL FIX: Check if string is serialized (helper method)
+     */
+    private function is_serialized($data) {
+        if (!is_string($data)) {
+            return false;
+        }
+        $data = trim($data);
+        if (empty($data)) {
+            return false;
+        }
+        if ($data === 'b:0;') {
+            return true;
+        }
+        if ($data === 'b:1;') {
+            return true;
+        }
+        if ($data === 'N;') {
+            return true;
+        }
+        if (strlen($data) < 4) {
+            return false;
+        }
+        if ($data[1] !== ':') {
+            return false;
+        }
+        $lastc = substr($data, -1);
+        if (';' !== $lastc && '}' !== $lastc) {
+            return false;
+        }
+        $token = $data[0];
+        switch ($token) {
+            case 's':
+                if ('"' !== substr($data, -2, 1)) {
+                    return false;
+                }
+                // no break
+            case 'a':
+            case 'O':
+                return (bool) preg_match("/^{$token}:[0-9]+:/s", $data);
+            case 'b':
+            case 'i':
+            case 'd':
+                $end = $lastc === ';' ? ';' : '';
+                return (bool) preg_match("/^{$token}:[0-9.E+-]+$end$/", $data);
+        }
+        return false;
     }
     
     /**

@@ -688,33 +688,7 @@ class MKCG_Formidable_Service {
         return null;
     }
     
-    /**
-     * CRITICAL FIX: Extract meaningful value from processed data
-     */
-    private function extract_meaningful_value_from_data($data, $field_id) {
-        if (is_string($data)) {
-            $clean = trim($data);
-            if (!empty($clean) && strlen($clean) > 2) {
-                error_log("MKCG CRITICAL FIX: Field {$field_id} - Meaningful string value: '{$clean}'");
-                return $clean;
-            }
-        }
-        
-        if (is_array($data)) {
-            foreach ($data as $key => $value) {
-                $clean = trim((string)$value);
-                if (!empty($clean) && strlen($clean) > 2) {
-                    // Skip obvious system values
-                    if (!preg_match('/^(null|false|true|0|1|undefined|empty|default)$/i', $clean)) {
-                        error_log("MKCG CRITICAL FIX: Field {$field_id} - Meaningful array value: '{$clean}'");
-                        return $clean;
-                    }
-                }
-            }
-        }
-        
-        return null;
-    }
+
     
     /**
      * CRITICAL FIX: Direct diagnostic method for Authority Hook fields
@@ -1859,6 +1833,117 @@ class MKCG_Formidable_Service {
         }
         
         return $healing_result;
+    }
+    
+    /**
+     * CRITICAL FIX: Specialized processing for problematic Authority Hook fields
+     * This method handles the enhanced processing for fields 10297, 10387, 10298 that contain malformed data
+     */
+    public function process_problematic_authority_field_enhanced($raw_value, $field_id) {
+        error_log("MKCG CRITICAL FIX: Enhanced processing for problematic field {$field_id}");
+        error_log("MKCG CRITICAL FIX: Raw value type: " . gettype($raw_value) . ", Value: " . substr(print_r($raw_value, true), 0, 200));
+        
+        // Strategy 1: Direct string processing if it looks like plain text
+        if (is_string($raw_value)) {
+            $trimmed = trim($raw_value);
+            
+            // If it's not serialized and has meaningful content, use it directly
+            if (!$this->is_serialized($trimmed) && strlen($trimmed) > 2 && strlen($trimmed) < 500) {
+                // Check if it's not a placeholder or system value
+                if (!preg_match('/^(null|false|true|0|1|undefined|empty|default)$/i', $trimmed)) {
+                    error_log("MKCG CRITICAL FIX: Field {$field_id} - Using direct string: '{$trimmed}'");
+                    return $trimmed;
+                }
+            }
+            
+            // Strategy 2: Enhanced serialization handling
+            if ($this->is_serialized($trimmed)) {
+                error_log("MKCG CRITICAL FIX: Field {$field_id} - Attempting enhanced serialization processing");
+                
+                // Try multiple unserialize approaches
+                $unserialized = @unserialize($trimmed);
+                
+                if ($unserialized !== false) {
+                    error_log("MKCG CRITICAL FIX: Field {$field_id} - Standard unserialize successful");
+                    return $this->extract_meaningful_value_from_data($unserialized, $field_id);
+                }
+                
+                // Try repair if standard unserialization failed
+                $repaired = $this->repair_and_unserialize_malformed_data($trimmed, $field_id);
+                if ($repaired !== false) {
+                    error_log("MKCG CRITICAL FIX: Field {$field_id} - Repair successful");
+                    return $this->extract_meaningful_value_from_data($repaired, $field_id);
+                }
+                
+                // Emergency regex extraction
+                if (preg_match('/"([^"]{3,})"/', $trimmed, $matches)) {
+                    $extracted = trim($matches[1]);
+                    if (!preg_match('/^(null|false|true|0|1|undefined|empty|default)$/i', $extracted)) {
+                        error_log("MKCG CRITICAL FIX: Field {$field_id} - Regex extraction: '{$extracted}'");
+                        return $extracted;
+                    }
+                }
+            }
+        }
+        
+        // Strategy 3: Array handling
+        if (is_array($raw_value)) {
+            error_log("MKCG CRITICAL FIX: Field {$field_id} - Processing array with " . count($raw_value) . " elements");
+            
+            foreach ($raw_value as $key => $value) {
+                $clean_value = trim((string)$value);
+                if (!empty($clean_value) && strlen($clean_value) > 2) {
+                    if (!preg_match('/^(null|false|true|0|1|undefined|empty|default)$/i', $clean_value)) {
+                        error_log("MKCG CRITICAL FIX: Field {$field_id} - Array value found: '{$clean_value}'");
+                        return $clean_value;
+                    }
+                }
+            }
+        }
+        
+        // Strategy 4: Check for field-specific patterns or defaults (only as absolute last resort)
+        $field_defaults = [
+            '10297' => 'achieve their goals',  // RESULT
+            '10387' => 'they need help',       // WHEN
+            '10298' => 'through your method'   // HOW
+        ];
+        
+        // Only use defaults if this is specifically one of the problematic fields and no other strategy worked
+        if (isset($field_defaults[$field_id])) {
+            error_log("MKCG CRITICAL FIX: Field {$field_id} - Using field-specific default as last resort: '{$field_defaults[$field_id]}'");
+            return $field_defaults[$field_id];
+        }
+        
+        error_log("MKCG CRITICAL FIX: Field {$field_id} - No meaningful value found, returning null");
+        return null;
+    }
+    
+    /**
+     * CRITICAL FIX: Extract meaningful value from processed data
+     */
+    private function extract_meaningful_value_from_data($data, $field_id) {
+        if (is_string($data)) {
+            $clean = trim($data);
+            if (!empty($clean) && strlen($clean) > 2) {
+                error_log("MKCG CRITICAL FIX: Field {$field_id} - Meaningful string value: '{$clean}'");
+                return $clean;
+            }
+        }
+        
+        if (is_array($data)) {
+            foreach ($data as $key => $value) {
+                $clean = trim((string)$value);
+                if (!empty($clean) && strlen($clean) > 2) {
+                    // Skip obvious system values
+                    if (!preg_match('/^(null|false|true|0|1|undefined|empty|default)$/i', $clean)) {
+                        error_log("MKCG CRITICAL FIX: Field {$field_id} - Meaningful array value: '{$clean}'");
+                        return $clean;
+                    }
+                }
+            }
+        }
+        
+        return null;
     }
     
     /**

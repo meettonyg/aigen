@@ -723,6 +723,226 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
     // Make functions globally available
     window.saveAllTopics = saveAllTopics;
     window.saveSingleTopic = saveSingleTopic;
+    
+    // CRITICAL FIX: Authority Hook Pre-population Enhancement
+    // Implements automatic field population, AJAX fallback, and real-time updates
+    
+    // Function to populate authority hook fields from PHP data
+    function populateAuthorityHookFields() {
+        console.log('🔧 CRITICAL FIX: Starting Authority Hook field population');
+        
+        if (window.MKCG_Topics_Data && window.MKCG_Topics_Data.authorityHook) {
+            const data = window.MKCG_Topics_Data.authorityHook;
+            
+            // Populate individual component fields
+            const fieldMappings = {
+                'mkcg-who': data.who || 'your audience',
+                'mkcg-result': data.result || 'achieve their goals', 
+                'mkcg-when': data.when || 'they need help',
+                'mkcg-how': data.how || 'through your method'
+            };
+            
+            let fieldsPopulated = 0;
+            
+            Object.keys(fieldMappings).forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                const value = fieldMappings[fieldId];
+                
+                if (field && value && value.trim() !== '') {
+                    field.value = value;
+                    fieldsPopulated++;
+                    console.log(`✅ CRITICAL FIX: Populated ${fieldId} with: '${value}'`);
+                    
+                    // Add change listener for auto-save
+                    field.addEventListener('change', function() {
+                        updateCompleteAuthorityHook();
+                        autoSaveAuthorityHookComponent(fieldId, this.value);
+                    });
+                } else {
+                    console.warn(`⚠️ CRITICAL FIX: Could not populate ${fieldId} - field: ${!!field}, value: '${value}'`);
+                }
+            });
+            
+            // Update the complete authority hook display
+            updateCompleteAuthorityHook();
+            
+            console.log(`✅ CRITICAL FIX: Successfully populated ${fieldsPopulated}/4 authority hook component fields`);
+            
+            return fieldsPopulated > 0;
+        } else {
+            console.warn('⚠️ CRITICAL FIX: No authority hook data available in window.MKCG_Topics_Data');
+            return false;
+        }
+    }
+    
+    // Function to update the complete authority hook display in real-time
+    function updateCompleteAuthorityHook() {
+        const whoField = document.getElementById('mkcg-who');
+        const resultField = document.getElementById('mkcg-result');
+        const whenField = document.getElementById('mkcg-when');
+        const howField = document.getElementById('mkcg-how');
+        const displayElement = document.getElementById('topics-generator-authority-hook-text');
+        
+        if (whoField && resultField && whenField && howField && displayElement) {
+            const who = whoField.value || 'your audience';
+            const result = resultField.value || 'achieve their goals';
+            const when = whenField.value || 'they need help';
+            const how = howField.value || 'through your method';
+            
+            const completeHook = `I help ${who} ${result} when ${when} ${how}.`;
+            displayElement.textContent = completeHook;
+            
+            console.log('🔄 CRITICAL FIX: Updated complete authority hook display');
+        }
+    }
+    
+    // Function to auto-save individual authority hook components
+    function autoSaveAuthorityHookComponent(fieldId, value) {
+        const entryId = document.getElementById('topics-generator-entry-id')?.value;
+        const nonce = document.getElementById('topics-generator-nonce')?.value;
+        
+        if (!entryId || entryId === '0') {
+            console.log('⚠️ CRITICAL FIX: No entry ID for auto-save');
+            return;
+        }
+        
+        // Map field IDs to component names
+        const componentMap = {
+            'mkcg-who': 'who',
+            'mkcg-result': 'result',
+            'mkcg-when': 'when',
+            'mkcg-how': 'how'
+        };
+        
+        const componentName = componentMap[fieldId];
+        if (!componentName) {
+            console.warn(`⚠️ CRITICAL FIX: Unknown field ID for auto-save: ${fieldId}`);
+            return;
+        }
+        
+        console.log(`💾 CRITICAL FIX: Auto-saving ${componentName}: '${value}'`);
+        
+        // Prepare the data for all components (get current values)
+        const formData = new FormData();
+        formData.append('action', 'mkcg_save_authority_hook_components_safe');
+        formData.append('entry_id', entryId);
+        formData.append('nonce', nonce);
+        
+        // Get all current values
+        formData.append('who', document.getElementById('mkcg-who')?.value || 'your audience');
+        formData.append('result', document.getElementById('mkcg-result')?.value || 'achieve their goals');
+        formData.append('when', document.getElementById('mkcg-when')?.value || 'they need help');
+        formData.append('how', document.getElementById('mkcg-how')?.value || 'through your method');
+        
+        // Make silent AJAX request
+        fetch(window.ajaxurl || '/wp-admin/admin-ajax.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log(`✅ CRITICAL FIX: Auto-saved ${componentName}`);
+            } else {
+                console.warn(`⚠️ CRITICAL FIX: Auto-save failed for ${componentName}:`, data.data?.message);
+            }
+        })
+        .catch(error => {
+            console.warn(`⚠️ CRITICAL FIX: Auto-save network error for ${componentName}:`, error);
+        });
+    }
+    
+    // AJAX fallback function to reload authority hook data if PHP population failed
+    function ajaxFallbackLoadAuthorityHook() {
+        const entryId = document.getElementById('topics-generator-entry-id')?.value;
+        const nonce = document.getElementById('topics-generator-nonce')?.value;
+        
+        if (!entryId || entryId === '0') {
+            console.log('⚠️ CRITICAL FIX: No entry ID for AJAX fallback');
+            return;
+        }
+        
+        console.log('🔄 CRITICAL FIX: Attempting AJAX fallback for authority hook data');
+        
+        const formData = new FormData();
+        formData.append('action', 'mkcg_get_authority_hook_data');
+        formData.append('entry_id', entryId);
+        formData.append('nonce', nonce);
+        
+        fetch(window.ajaxurl || '/wp-admin/admin-ajax.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data.components) {
+                console.log('✅ CRITICAL FIX: AJAX fallback successful');
+                
+                // Update the window data
+                window.MKCG_Topics_Data.authorityHook = data.data.components;
+                
+                // Re-populate the fields
+                populateAuthorityHookFields();
+            } else {
+                console.warn('⚠️ CRITICAL FIX: AJAX fallback failed:', data.data?.message);
+            }
+        })
+        .catch(error => {
+            console.warn('⚠️ CRITICAL FIX: AJAX fallback network error:', error);
+        });
+    }
+    
+    // Diagnostic function for debugging
+    function diagnoseAuthorityHookFields() {
+        console.log('🔍 CRITICAL FIX: Authority Hook Field Diagnosis');
+        console.log('Entry ID:', document.getElementById('topics-generator-entry-id')?.value);
+        console.log('PHP Data:', window.MKCG_Topics_Data?.authorityHook);
+        
+        const fields = ['mkcg-who', 'mkcg-result', 'mkcg-when', 'mkcg-how'];
+        fields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            console.log(`${fieldId}:`, {
+                exists: !!field,
+                value: field?.value || 'N/A',
+                placeholder: field?.placeholder || 'N/A'
+            });
+        });
+        
+        const displayElement = document.getElementById('topics-generator-authority-hook-text');
+        console.log('Complete hook display:', {
+            exists: !!displayElement,
+            text: displayElement?.textContent || 'N/A'
+        });
+    }
+    
+    // Make diagnostic function globally available
+    window.diagnoseAuthorityHookFields = diagnoseAuthorityHookFields;
+    
+    // Initialize when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 CRITICAL FIX: Initializing Authority Hook Pre-population');
+        
+        // Try immediate population
+        const populated = populateAuthorityHookFields();
+        
+        // If immediate population failed and we have an entry ID, try AJAX fallback
+        if (!populated && window.MKCG_Topics_Data?.entryId && window.MKCG_Topics_Data.entryId > 0) {
+            console.log('🔄 CRITICAL FIX: Immediate population failed, trying AJAX fallback in 1 second');
+            setTimeout(ajaxFallbackLoadAuthorityHook, 1000);
+        }
+        
+        // Set up real-time update listeners for all authority hook fields
+        const authFields = ['mkcg-who', 'mkcg-result', 'mkcg-when', 'mkcg-how'];
+        authFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.addEventListener('input', updateCompleteAuthorityHook);
+                field.addEventListener('change', updateCompleteAuthorityHook);
+            }
+        });
+        
+        console.log('✅ CRITICAL FIX: Authority Hook Pre-population initialization complete');
+    });
 </script>
 
 <!-- Authority Hook Builder functionality is now handled by topics-generator.js - duplicate script removed -->

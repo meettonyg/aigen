@@ -73,6 +73,10 @@ class MKCG_Topics_AJAX_Handlers {
         add_action('wp_ajax_mkcg_health_check', [$this, 'handle_health_check']);
         add_action('wp_ajax_nopriv_mkcg_health_check', [$this, 'handle_health_check']);
         
+        // CRITICAL FIX: Add missing authority hook data handler that JavaScript calls
+        add_action('wp_ajax_mkcg_get_authority_hook_data', [$this, 'get_authority_hook_data']);
+        add_action('wp_ajax_nopriv_mkcg_get_authority_hook_data', [$this, 'get_authority_hook_data']);
+        
         error_log('MKCG Topics AJAX Handlers: All enhanced handlers registered successfully');
     }
     
@@ -863,6 +867,63 @@ class MKCG_Topics_AJAX_Handlers {
                 'error' => $e->getMessage(),
                 'ajax_handler' => 'working_with_errors',
                 'timestamp' => current_time('mysql')
+            ]);
+        }
+    }
+    
+    /**
+     * CRITICAL FIX: Get authority hook data via AJAX
+     * This method implements the missing AJAX handler for loading authority hook components
+     */
+    public function get_authority_hook_data() {
+        error_log('MKCG Topics AJAX: get_authority_hook_data called - CRITICAL FIX for Authority Hook Pre-population');
+        
+        try {
+            // CRITICAL FIX: Enhanced nonce verification
+            if (!$this->verify_nonce_with_fallbacks()) {
+                wp_send_json_error(['message' => 'Security check failed']);
+                return;
+            }
+            
+            $entry_id = isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0;
+            
+            if (!$entry_id) {
+                wp_send_json_error(['message' => 'Entry ID required']);
+                return;
+            }
+            
+            if (!$this->can_edit_entry($entry_id)) {
+                wp_send_json_error(['message' => 'Permission denied']);
+                return;
+            }
+            
+            // CRITICAL FIX: Use the enhanced loading method from Topics Generator
+            if (!$this->topics_generator) {
+                wp_send_json_error(['message' => 'Topics Generator service not available']);
+                return;
+            }
+            
+            try {
+                // Use the enhanced loading method that implements the CRITICAL FIX
+                $auth_components = $this->topics_generator->load_authority_hook_fields_direct($entry_id);
+                
+                wp_send_json_success([
+                    'components' => $auth_components,
+                    'entry_id' => $entry_id,
+                    'source' => 'ajax_enhanced_loading',
+                    'fix_applied' => true
+                ]);
+                
+            } catch (Exception $e) {
+                error_log('MKCG Topics AJAX: Exception in enhanced loading: ' . $e->getMessage());
+                wp_send_json_error(['message' => 'Failed to load data: ' . $e->getMessage()]);
+            }
+            
+        } catch (Exception $e) {
+            error_log('MKCG Topics AJAX: ❌ Critical exception in get_authority_hook_data: ' . $e->getMessage());
+            wp_send_json_error([
+                'message' => 'Server error during data loading',
+                'error_details' => $e->getMessage()
             ]);
         }
     }
