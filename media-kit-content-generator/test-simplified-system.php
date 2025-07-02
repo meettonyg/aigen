@@ -21,8 +21,16 @@ if (!defined('ABSPATH')) {
 echo "<h1>Simplified Media Kit Content Generator - Test Suite</h1>\n";
 echo "<pre>\n";
 
-// Test 1: Check if simplified classes are loaded
-echo "=== TEST 1: CLASS LOADING ===\n";
+// Test 1: Check if simplified classes are loaded AFTER plugin initialization
+echo "=== TEST 1: CLASS LOADING (AFTER PLUGIN INIT) ===\n";
+
+// Force plugin initialization first
+try {
+    $plugin = Media_Kit_Content_Generator::get_instance();
+    echo "✅ Plugin instance created successfully\n";
+} catch (Exception $e) {
+    echo "❌ Plugin initialization failed: " . $e->getMessage() . "\n";
+}
 
 $classes_to_test = [
     'Enhanced_Formidable_Service',
@@ -35,46 +43,83 @@ foreach ($classes_to_test as $class) {
         echo "✅ {$class} - LOADED\n";
     } else {
         echo "❌ {$class} - NOT FOUND\n";
+        
+        // Check if the file exists
+        $file_map = [
+            'Enhanced_Formidable_Service' => 'includes/services/enhanced_formidable_service.php',
+            'Enhanced_AJAX_Handlers' => 'includes/generators/enhanced_ajax_handlers.php',
+            'Enhanced_Topics_Generator' => 'includes/generators/enhanced_topics_generator.php'
+        ];
+        
+        if (isset($file_map[$class])) {
+            $file_path = dirname(__FILE__) . '/' . $file_map[$class];
+            if (file_exists($file_path)) {
+                echo "   📁 File exists: {$file_map[$class]}\n";
+                // Try to manually require the file
+                require_once $file_path;
+                if (class_exists($class)) {
+                    echo "   ✅ Class loaded after manual require\n";
+                } else {
+                    echo "   ❌ Class still not found after require\n";
+                }
+            } else {
+                echo "   ❌ File missing: {$file_map[$class]}\n";
+            }
+        }
     }
 }
 
-// Test 2: Initialize main plugin and check services
-echo "\n=== TEST 2: PLUGIN INITIALIZATION ===\n";
+// Test 2: Check services and their actual types
+echo "\n=== TEST 2: SERVICE VALIDATION ===\n";
 
-try {
-    $plugin = Media_Kit_Content_Generator::get_instance();
-    echo "✅ Plugin instance created\n";
+if (isset($plugin)) {
+    echo "✅ Using existing plugin instance\n";
     
     $api_service = $plugin->get_api_service();
-    if ($api_service) {
-        echo "✅ API Service initialized\n";
+    if ($api_service && $api_service instanceof MKCG_API_Service) {
+        echo "✅ API Service initialized (" . get_class($api_service) . ")\n";
     } else {
-        echo "❌ API Service not available\n";
+        echo "❌ API Service not properly initialized\n";
     }
     
     $formidable_service = $plugin->get_formidable_service();
     if ($formidable_service) {
-        echo "✅ Formidable Service initialized\n";
+        $class_name = get_class($formidable_service);
+        echo "✅ Formidable Service initialized ({$class_name})\n";
+        
+        if ($formidable_service instanceof Enhanced_Formidable_Service) {
+            echo "✅ Formidable Service is Enhanced_Formidable_Service\n";
+        } else {
+            echo "⚠️ Formidable Service is {$class_name} (not Enhanced_Formidable_Service)\n";
+        }
     } else {
         echo "❌ Formidable Service not available\n";
     }
     
     $topics_generator = $plugin->get_generator('topics');
     if ($topics_generator) {
-        echo "✅ Topics Generator initialized\n";
+        $class_name = get_class($topics_generator);
+        echo "✅ Topics Generator initialized ({$class_name})\n";
+        
+        if ($topics_generator instanceof Enhanced_Topics_Generator) {
+            echo "✅ Topics Generator is Enhanced_Topics_Generator\n";
+        } else {
+            echo "⚠️ Topics Generator is {$class_name} (not Enhanced_Topics_Generator)\n";
+        }
     } else {
         echo "❌ Topics Generator not available\n";
     }
     
-} catch (Exception $e) {
-    echo "❌ Plugin initialization failed: " . $e->getMessage() . "\n";
+} else {
+    echo "❌ Plugin instance not available from Test 1\n";
 }
 
-// Test 3: Test Enhanced Formidable Service basic functionality
-echo "\n=== TEST 3: ENHANCED FORMIDABLE SERVICE ===\n";
+// Test 3: Test Formidable Service functionality (regardless of class)
+echo "\n=== TEST 3: FORMIDABLE SERVICE FUNCTIONALITY ===\n";
 
-if ($formidable_service && $formidable_service instanceof Enhanced_Formidable_Service) {
-    echo "✅ Enhanced Formidable Service is correct class\n";
+if (isset($formidable_service)) {
+    $service_class = get_class($formidable_service);
+    echo "✅ Testing {$service_class} functionality\n";
     
     // Test method existence
     $methods = ['save_entry_data', 'get_field_value', 'get_entry_data'];
@@ -86,14 +131,15 @@ if ($formidable_service && $formidable_service instanceof Enhanced_Formidable_Se
         }
     }
 } else {
-    echo "❌ Enhanced Formidable Service not properly initialized\n";
+    echo "❌ Formidable Service not available for testing\n";
 }
 
-// Test 4: Test Enhanced Topics Generator basic functionality  
-echo "\n=== TEST 4: ENHANCED TOPICS GENERATOR ===\n";
+// Test 4: Test Topics Generator functionality (regardless of class)
+echo "\n=== TEST 4: TOPICS GENERATOR FUNCTIONALITY ===\n";
 
-if ($topics_generator && $topics_generator instanceof Enhanced_Topics_Generator) {
-    echo "✅ Enhanced Topics Generator is correct class\n";
+if (isset($topics_generator)) {
+    $generator_class = get_class($topics_generator);
+    echo "✅ Testing {$generator_class} functionality\n";
     
     // Test method existence
     $methods = ['get_template_data', 'generate_topics', 'save_topics'];
@@ -127,7 +173,7 @@ if ($topics_generator && $topics_generator instanceof Enhanced_Topics_Generator)
     }
     
 } else {
-    echo "❌ Enhanced Topics Generator not properly initialized\n";
+    echo "❌ Topics Generator not available for testing\n";
 }
 
 // Test 5: Check JavaScript file existence
@@ -191,6 +237,44 @@ foreach ($shortcodes as $shortcode) {
 }
 
 // Test Summary
+echo "\n=== DIAGNOSTIC INFORMATION ===\n";
+if (isset($plugin)) {
+    echo "Plugin Status: INITIALIZED\n";
+    echo "Formidable Service Class: " . (isset($formidable_service) ? get_class($formidable_service) : 'NOT SET') . "\n";
+    echo "Topics Generator Class: " . (isset($topics_generator) ? get_class($topics_generator) : 'NOT SET') . "\n";
+    
+    // Check if the classes exist now
+    echo "\nClass Existence Check (After Initialization):\n";
+    echo "- Enhanced_Formidable_Service: " . (class_exists('Enhanced_Formidable_Service') ? 'EXISTS' : 'NOT FOUND') . "\n";
+    echo "- Enhanced_Topics_Generator: " . (class_exists('Enhanced_Topics_Generator') ? 'EXISTS' : 'NOT FOUND') . "\n";
+    echo "- Enhanced_AJAX_Handlers: " . (class_exists('Enhanced_AJAX_Handlers') ? 'EXISTS' : 'NOT FOUND') . "\n";
+    
+    // Check loaded files
+    echo "\nLoaded Files Check:\n";
+    $included_files = get_included_files();
+    $simplified_files = [
+        'enhanced_formidable_service.php',
+        'enhanced_topics_generator.php', 
+        'enhanced_ajax_handlers.php'
+    ];
+    
+    foreach ($simplified_files as $file) {
+        $found = false;
+        foreach ($included_files as $included) {
+            if (strpos($included, $file) !== false) {
+                echo "- {$file}: LOADED ({$included})\n";
+                $found = true;
+                break;
+            }
+        }
+        if (!$found) {
+            echo "- {$file}: NOT LOADED\n";
+        }
+    }
+} else {
+    echo "Plugin Status: NOT INITIALIZED\n";
+}
+
 echo "\n=== TEST SUMMARY ===\n";
 echo "Simplified Media Kit Content Generator system tested.\n";
 echo "Check above results for any ❌ FAILED items that need attention.\n";

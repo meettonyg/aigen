@@ -124,13 +124,27 @@ class Media_Kit_Content_Generator {
             });
         }
         
-        // Final verification of critical classes
-        $critical_classes = ['MKCG_API_Service', 'Enhanced_Formidable_Service'];
+        // ROOT-LEVEL FIX: Final verification with enhanced error reporting
+        $critical_classes = ['MKCG_API_Service', 'Enhanced_Formidable_Service', 'Enhanced_Topics_Generator', 'Enhanced_AJAX_Handlers'];
+        $missing_classes = [];
+        
         foreach ($critical_classes as $class) {
             if (!class_exists($class)) {
+                $missing_classes[] = $class;
                 error_log("MKCG: FATAL - Critical class {$class} is not available");
-                wp_die("Media Kit Content Generator: Critical dependency {$class} failed to load. Please check file permissions and paths.");
+            } else {
+                error_log("MKCG: ✅ Critical class {$class} is available");
             }
+        }
+        
+        if (!empty($missing_classes)) {
+            $error_msg = "Media Kit Content Generator: Critical dependencies failed to load: " . implode(', ', $missing_classes);
+            error_log("MKCG: FATAL - " . $error_msg);
+            
+            // Show admin notice instead of wp_die to allow troubleshooting
+            add_action('admin_notices', function() use ($missing_classes) {
+                echo '<div class="notice notice-error"><p><strong>Media Kit Content Generator:</strong> Missing critical classes: ' . implode(', ', $missing_classes) . '. Check error logs.</p></div>';
+            });
         }
         
         // ROOT-LEVEL FIX: Log admin integration status
@@ -142,37 +156,67 @@ class Media_Kit_Content_Generator {
     }
     
     /**
-     * SIMPLIFIED: Basic service initialization with essential services only
+     * ROOT-LEVEL FIX: Enhanced service initialization with detailed debugging
      */
     private function init_services() {
-        error_log('MKCG: Starting simplified service initialization');
+        error_log('MKCG: Starting ROOT-LEVEL enhanced service initialization');
         
         try {
             // 1. API Service (no dependencies)
             if (class_exists('MKCG_API_Service')) {
                 $this->api_service = new MKCG_API_Service();
-                error_log('MKCG: ✅ API Service initialized');
+                $api_class = get_class($this->api_service);
+                error_log('MKCG: ✅ API Service initialized as: ' . $api_class);
             } else {
+                error_log('MKCG: ❌ MKCG_API_Service class not found - checking available classes');
+                $available_classes = get_declared_classes();
+                $api_classes = array_filter($available_classes, function($class) {
+                    return strpos($class, 'API') !== false;
+                });
+                error_log('MKCG: Available API-related classes: ' . implode(', ', $api_classes));
                 throw new Exception('MKCG_API_Service class not found');
             }
             
-            // 2. Enhanced Formidable Service (no dependencies)
+            // 2. Enhanced Formidable Service (no dependencies) 
             if (class_exists('Enhanced_Formidable_Service')) {
                 $this->formidable_service = new Enhanced_Formidable_Service();
-                error_log('MKCG: ✅ Enhanced Formidable Service initialized');
+                $formidable_class = get_class($this->formidable_service);
+                error_log('MKCG: ✅ Enhanced Formidable Service initialized as: ' . $formidable_class);
+                
+                // Verify methods exist
+                $required_methods = ['save_entry_data', 'get_field_value', 'get_entry_data'];
+                foreach ($required_methods as $method) {
+                    if (method_exists($this->formidable_service, $method)) {
+                        error_log('MKCG: ✅ Method verified: ' . $method);
+                    } else {
+                        error_log('MKCG: ❌ Missing method: ' . $method);
+                    }
+                }
             } else {
+                error_log('MKCG: ❌ Enhanced_Formidable_Service class not found - checking available classes');
+                $available_classes = get_declared_classes();
+                $formidable_classes = array_filter($available_classes, function($class) {
+                    return strpos(strtolower($class), 'formidable') !== false;
+                });
+                error_log('MKCG: Available Formidable-related classes: ' . implode(', ', $formidable_classes));
                 throw new Exception('Enhanced_Formidable_Service class not found');
             }
             
-            // Simplified validation
+            // ROOT-LEVEL FIX: Enhanced validation with type checking
             if (!$this->api_service || !$this->formidable_service) {
                 throw new Exception('Core services failed to initialize');
             }
             
-            error_log('MKCG: ✅ All simplified services initialized successfully');
+            if (!is_object($this->api_service) || !is_object($this->formidable_service)) {
+                throw new Exception('Services are not valid objects');
+            }
+            
+            error_log('MKCG: ✅ All ROOT-LEVEL enhanced services initialized successfully');
+            error_log('MKCG: Final service types - API: ' . get_class($this->api_service) . ', Formidable: ' . get_class($this->formidable_service));
             
         } catch (Exception $e) {
-            error_log('MKCG: ❌ CRITICAL - Service initialization failed: ' . $e->getMessage());
+            error_log('MKCG: ❌ CRITICAL - ROOT-LEVEL service initialization failed: ' . $e->getMessage());
+            error_log('MKCG: Stack trace: ' . $e->getTraceAsString());
             
             // Set services to null on failure
             $this->api_service = null;
@@ -183,34 +227,69 @@ class Media_Kit_Content_Generator {
     // SIMPLIFIED: Basic validation no longer needed with simplified architecture
     
     /**
-     * SIMPLIFIED: Basic generator initialization with essential generators only
+     * ROOT-LEVEL FIX: Enhanced generator initialization with detailed debugging
      */
     private function init_generators() {
-        error_log('MKCG: Starting simplified generator initialization');
+        error_log('MKCG: Starting ROOT-LEVEL enhanced generator initialization');
         
         // Check if services are available
         if (!$this->api_service || !$this->formidable_service) {
             error_log('MKCG: ⚠️ Services not available - skipping generator initialization');
+            error_log('MKCG: API Service available: ' . ($this->api_service ? 'YES' : 'NO'));
+            error_log('MKCG: Formidable Service available: ' . ($this->formidable_service ? 'YES' : 'NO'));
             return;
         }
         
         try {
             // Initialize only the enhanced topics generator
             if (class_exists('Enhanced_Topics_Generator')) {
+                error_log('MKCG: ✅ Enhanced_Topics_Generator class found, attempting initialization...');
+                
                 $this->generators['topics'] = new Enhanced_Topics_Generator(
                     $this->api_service,
                     $this->formidable_service
                 );
                 
-                error_log('MKCG: ✅ Enhanced Topics Generator initialized successfully');
+                $generator_class = get_class($this->generators['topics']);
+                error_log('MKCG: ✅ Enhanced Topics Generator initialized as: ' . $generator_class);
+                
+                // Verify generator methods exist
+                $required_methods = ['get_template_data', 'generate_topics', 'save_topics'];
+                foreach ($required_methods as $method) {
+                    if (method_exists($this->generators['topics'], $method)) {
+                        error_log('MKCG: ✅ Generator method verified: ' . $method);
+                    } else {
+                        error_log('MKCG: ❌ Generator missing method: ' . $method);
+                    }
+                }
+                
             } else {
-                error_log('MKCG: ❌ Enhanced_Topics_Generator class not found');
+                error_log('MKCG: ❌ Enhanced_Topics_Generator class not found - checking available classes');
+                $available_classes = get_declared_classes();
+                $generator_classes = array_filter($available_classes, function($class) {
+                    return strpos(strtolower($class), 'generator') !== false;
+                });
+                error_log('MKCG: Available Generator-related classes: ' . implode(', ', $generator_classes));
             }
             
-            error_log('MKCG: ✅ Simplified generator initialization completed - ' . count($this->generators) . ' generators loaded');
+            // ROOT-LEVEL FIX: Add Questions Generator if needed
+            if (class_exists('Enhanced_Questions_Generator')) {
+                error_log('MKCG: ✅ Enhanced_Questions_Generator class found, attempting initialization...');
+                $this->generators['questions'] = new Enhanced_Questions_Generator(
+                    $this->api_service,
+                    $this->formidable_service
+                );
+                error_log('MKCG: ✅ Enhanced Questions Generator initialized');
+            } else {
+                error_log('MKCG: ⚠️ Enhanced_Questions_Generator class not found (may be normal)');
+            }
+            
+            error_log('MKCG: ✅ ROOT-LEVEL enhanced generator initialization completed - ' . count($this->generators) . ' generators loaded');
+            error_log('MKCG: Available generators: ' . implode(', ', array_keys($this->generators)));
             
         } catch (Exception $e) {
-            error_log('MKCG: ❌ CRITICAL - Generator initialization failed: ' . $e->getMessage());
+            error_log('MKCG: ❌ CRITICAL - ROOT-LEVEL generator initialization failed: ' . $e->getMessage());
+            error_log('MKCG: Stack trace: ' . $e->getTraceAsString());
         }
     }
     
