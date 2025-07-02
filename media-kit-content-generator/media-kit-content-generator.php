@@ -100,6 +100,9 @@ class Media_Kit_Content_Generator {
         add_action('wp_head', [$this, 'add_ajax_url_to_head']);
         register_activation_hook(__FILE__, [$this, 'activate']);
         register_deactivation_hook(__FILE__, [$this, 'deactivate']);
+        
+        // ROOT-LEVEL FIX: Enhanced admin notices for better user experience
+        add_action('admin_notices', [$this, 'show_admin_notices']);
     }
     
     private function load_dependencies() {
@@ -125,7 +128,10 @@ class Media_Kit_Content_Generator {
             'includes/generators/class-mkcg-questions-generator.php' => 'MKCG_Questions_Generator',
             
             // AJAX handlers
-            'includes/generators/class-mkcg-topics-ajax-handlers.php' => 'MKCG_Topics_AJAX_Handlers'
+            'includes/generators/class-mkcg-topics-ajax-handlers.php' => 'MKCG_Topics_AJAX_Handlers',
+            
+            // ROOT-LEVEL FIX: Admin test integration
+            'includes/admin/authority-hook-test-admin.php' => 'MKCG_Authority_Hook_Test_Admin'
         ];
         
         $loading_errors = [];
@@ -190,6 +196,13 @@ class Media_Kit_Content_Generator {
                 error_log("MKCG: FATAL - Critical class {$class} is not available");
                 wp_die("Media Kit Content Generator: Critical dependency {$class} failed to load. Please check file permissions and paths.");
             }
+        }
+        
+        // ROOT-LEVEL FIX: Log admin integration status
+        if (class_exists('MKCG_Authority_Hook_Test_Admin')) {
+            error_log('MKCG: ✅ Authority Hook Test Admin integration loaded successfully');
+        } else {
+            error_log('MKCG: ⚠️ Authority Hook Test Admin integration not loaded (may be normal in non-admin contexts)');
         }
     }
     
@@ -1038,6 +1051,26 @@ class Media_Kit_Content_Generator {
     public function deactivate() {
         // Plugin deactivation tasks
         flush_rewrite_rules();
+    }
+    
+    /**
+     * ROOT-LEVEL FIX: Enhanced admin notices
+     */
+    public function show_admin_notices() {
+        // Only show notices to users who can manage options
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+        
+        // Check if test script exists and show helpful notice
+        $test_script_path = MKCG_PLUGIN_PATH . 'test-authority-hook-fix.php';
+        if (file_exists($test_script_path) && isset($_GET['page']) && $_GET['page'] !== 'mkcg-authority-hook-test') {
+            echo '<div class="notice notice-info is-dismissible">';
+            echo '<p><strong>Media Kit Content Generator:</strong> Authority Hook test tools are available. ';
+            echo '<a href="' . admin_url('tools.php?page=mkcg-authority-hook-test') . '">Access via Tools > Authority Hook Test</a> ';
+            echo 'for a better testing experience.</p>';
+            echo '</div>';
+        }
     }
     
     // ENHANCED: Getter methods for services with validation
