@@ -3,7 +3,12 @@
  * Simplified Formidable Service
  * Single responsibility: Handle Formidable Forms data operations cleanly
  * Eliminates: Dual-save complexity, excessive error tracking, multiple fallback strategies
+ * 
+ * FIXED: Removed duplicate get_entry_data() method that was causing fatal error
  */
+
+// Prevent class redeclaration
+if (!class_exists('Enhanced_Formidable_Service')) {
 
 class Enhanced_Formidable_Service {
     
@@ -81,7 +86,7 @@ class Enhanced_Formidable_Service {
     }
     
     /**
-     * Get all field data for an entry
+     * Get all field data for an entry by entry ID
      */
     public function get_entry_data($entry_id) {
         if (!$entry_id) {
@@ -108,6 +113,28 @@ class Enhanced_Formidable_Service {
             'entry_id' => $entry_id,
             'field_data' => $field_data
         ];
+    }
+    
+    /**
+     * Get entry data by entry key (used by Questions template)
+     * RENAMED to avoid duplicate method conflict with get_entry_data()
+     */
+    public function get_entry_by_key($entry_key) {
+        if (is_numeric($entry_key)) {
+            $entry_id = intval($entry_key);
+        } else {
+            global $wpdb;
+            $entry_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}frm_items WHERE item_key = %s",
+                $entry_key
+            ));
+        }
+        
+        if (!$entry_id) {
+            return ['success' => false, 'message' => 'Entry not found', 'entry_id' => 0];
+        }
+        
+        return ['success' => true, 'entry_id' => intval($entry_id), 'message' => 'Entry found'];
     }
     
     /**
@@ -196,27 +223,6 @@ class Enhanced_Formidable_Service {
             'saved_count' => $saved_count,
             'message' => $saved_count > 0 ? 'Meta data saved successfully' : 'No meta data saved'
         ];
-    }
-    
-    /**
-     * Get entry data by entry key (used by Questions template)
-     */
-    public function get_entry_data($entry_key) {
-        if (is_numeric($entry_key)) {
-            $entry_id = intval($entry_key);
-        } else {
-            global $wpdb;
-            $entry_id = $wpdb->get_var($wpdb->prepare(
-                "SELECT id FROM {$wpdb->prefix}frm_items WHERE item_key = %s",
-                $entry_key
-            ));
-        }
-        
-        if (!$entry_id) {
-            return ['success' => false, 'message' => 'Entry not found', 'entry_id' => 0];
-        }
-        
-        return ['success' => true, 'entry_id' => intval($entry_id), 'message' => 'Entry found'];
     }
     
     /**
@@ -310,3 +316,5 @@ class Enhanced_Formidable_Service {
         return ['valid' => true, 'issues' => [], 'auto_fixed' => []];
     }
 }
+
+} // End class_exists check
