@@ -255,7 +255,7 @@ $has_entry = $template_data['has_entry'];
 error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_entry=' . ($has_entry ? 'true' : 'false'));
 ?>
 
-<div class="topics-generator">
+<div class="topics-generator" data-generator="topics">
     <div class="topics-generator__container">
         <div class="topics-generator__header">
             <h1 class="topics-generator__title">Create Your Interview Topics</h1>
@@ -294,7 +294,7 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
                 </div>
                 
                 <!-- Authority Hook Builder - ENHANCED SHARED COMPONENT -->
-                <div class="topics-generator__builder topics-generator__builder--hidden" id="topics-generator-authority-hook-builder">
+                <div class="topics-generator__builder topics-generator__builder--hidden mkcg-authority-hook authority-hook-builder" id="topics-generator-authority-hook-builder" data-component="authority-hook">
                     <?php 
                     // Use the enhanced shared Authority Hook component
                     $generator_type = 'topics'; // Specify generator type
@@ -371,11 +371,12 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
                                 </div>
                                 <div class="topics-generator__topic-content">
                                     <input type="text" 
-                                           class="topics-generator__topic-input" 
+                                           class="topics-generator__topic-input mkcg-topic-field" 
                                            id="topics-generator-topic-field-<?php echo $i; ?>"
                                            name="field_<?php echo 8497 + $i; ?>" 
                                            data-field-id="<?php echo 8497 + $i; ?>" 
                                            data-topic-number="<?php echo $i; ?>"
+                                           data-field-type="topic"
                                            placeholder="<?php echo $i == 5 ? 'Click to add your interview topic' : 'Enter your interview topic ' . $i; ?>"
                                            value="<?php echo esc_attr($form_field_values['topic_' . $i] ?? ''); ?>">
                                 </div>

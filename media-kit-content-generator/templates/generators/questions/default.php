@@ -192,7 +192,7 @@ if (!$has_meaningful_content && count($displayable_topics) === 0) {
 }
 ?>
 
-<div class="mkcg-questions-generator-wrapper">
+<div class="mkcg-questions-generator-wrapper" data-generator="questions">
     <style>
     /* Enhanced styles for data quality indicators and error handling */
     .mkcg-topic-questions-subheading {
@@ -547,9 +547,10 @@ if (!$has_meaningful_content && count($displayable_topics) === 0) {
                                     ?></div>
                                 </div>
                                     <textarea 
-                                        class="mkcg-form-field-input" 
+                                        class="mkcg-form-field-input mkcg-question-field" 
                                         id="mkcg-question-field-<?php echo $topic_num; ?>-<?php echo $q; ?>" 
                                         name="field_question_<?php echo $topic_num; ?>_<?php echo $q; ?>" 
+                                        data-field-type="question"
                                         placeholder="Enter the <?php echo $ordinals[$q-1]; ?> interview question for this topic..."
                                         rows="3"
                                     ><?php echo isset($topic_questions[$q]) ? esc_textarea($topic_questions[$q]) : ''; ?></textarea>

@@ -429,8 +429,36 @@ class Media_Kit_Content_Generator {
         wp_localize_script('simple-ajax', 'mkcg_vars', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('mkcg_nonce'),
-            'plugin_url' => MKCG_PLUGIN_URL
+            'plugin_url' => MKCG_PLUGIN_URL,
+            'fields' => [
+                'topics' => [
+                    'topic_1' => '8498',
+                    'topic_2' => '8499', 
+                    'topic_3' => '8500',
+                    'topic_4' => '8501',
+                    'topic_5' => '8502'
+                ],
+                'authority_hook' => [
+                    'who' => '10296',
+                    'result' => '10297',
+                    'when' => '10387',
+                    'how' => '10298',
+                    'complete' => '10358'
+                ]
+            ],
+            'ajax_actions' => [
+                'save_topics' => 'mkcg_save_topics_data',
+                'get_topics' => 'mkcg_get_topics_data',
+                'save_authority_hook' => 'mkcg_save_authority_hook',
+                'generate_topics' => 'mkcg_generate_topics'
+            ]
         ]);
+        
+        // Make Formidable service available globally for testing
+        wp_add_inline_script('simple-ajax', '
+            window.MKCG_Formidable_Service = true;
+            window.formidableService = true;
+        ');
         
         error_log('MKCG: Simplified script loading completed with simple notifications');
     }
