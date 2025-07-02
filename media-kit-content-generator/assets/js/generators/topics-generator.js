@@ -1274,7 +1274,7 @@
     },
     
     /**
-     * PHASE 2B: Enhanced auto-save with professional visual feedback and state management
+     * SIMPLIFIED: Auto-save with simple AJAX system
      */
     autoSaveField: function(inputElement) {
       const entryId = document.querySelector(this.elements.entryIdField)?.value;
@@ -1288,91 +1288,26 @@
       
       if (!fieldName || !fieldValue.trim()) return;
       
-      // STANDALONE MODE: No centralized data manager updates
-      const topicMatch = inputElement.id.match(/topic-field-(\d+)/);
-      if (topicMatch) {
-        const topicId = parseInt(topicMatch[1]);
-        console.log('📋 Topics Generator: Standalone mode - saving topic', topicId, 'locally only');
-      }
+      console.log('💾 SIMPLIFIED: Auto-save for field:', fieldName);
       
-      // PHASE 2B: Professional auto-save with comprehensive state management
-      if (window.MKCG_FormUtils) {
-        console.log('💾 PHASE 2B Enhanced auto-save for field:', fieldName, 'with value:', fieldValue);
-        
-        // Clear previous state indicators
-        this.clearFieldStateIndicators(inputElement);
-        
-        // Validate field before saving with Enhanced Validation Manager
-        if (window.EnhancedValidationManager) {
-          const validation = window.EnhancedValidationManager.validateField(
-            fieldName.includes('topic') ? 'topic' : fieldName, 
-            fieldValue,
-            { context: 'auto_save' }
-          );
-          
-          if (!validation.valid) {
-            console.log('⚠️ Field validation failed, showing validation feedback:', validation.errors);
-            this.showFieldValidationError(inputElement, validation.errors);
-            return;
-          }
-          
-          // Show validation warnings if any
-          if (validation.warnings.length > 0) {
-            this.showFieldValidationWarning(inputElement, validation.warnings);
-          }
-        }
-        
-        // Show saving state
-        this.showFieldSavingState(inputElement);
-        
-        MKCG_FormUtils.wp.makeAjaxRequest('mkcg_save_topic_field', {
+      // Use simple AJAX system instead of complex FormUtils
+      if (window.makeAjaxRequest) {
+        makeAjaxRequest('mkcg_save_topic_field', {
           entry_id: entryId,
           field_name: fieldName,
           field_value: fieldValue,
-          nonce: window.topics_vars?.nonce || window.mkcg_vars?.nonce || document.querySelector(this.elements.nonceField)?.value || ''
-        }, {
-          onStart: () => {
-            // Additional loading state setup if needed
-            console.log('🔄 Auto-save started for:', fieldName);
-          },
-          onSuccess: (response) => {
-            console.log('✅ PHASE 2B Enhanced auto-save successful for field:', fieldName);
-            this.showFieldSavedState(inputElement);
-            
-            // Optional: Show success toast for important saves
-            if (fieldName.includes('authority') && window.EnhancedUIFeedback) {
-              window.EnhancedUIFeedback.showToast(
-                'Authority hook saved successfully',
-                'success',
-                2000
-              );
-            }
-          },
-          onError: (error) => {
-            console.log('❌ PHASE 2B Enhanced auto-save failed for field:', fieldName, error);
-            this.showFieldErrorState(inputElement, error);
-            
-            // Show enhanced error notification
-            if (window.EnhancedUIFeedback) {
-              window.EnhancedUIFeedback.showToast({
-                title: 'Auto-save Failed',
-                message: `Failed to save ${fieldName}. Your changes are preserved locally.`,
-                actions: ['Try saving manually', 'Check your connection']
-              }, 'warning', 5000);
-            }
-          },
-          timeout: 10000, // 10 second timeout for auto-save
-          retryAttempts: 2 // 2 retries for auto-save with enhanced feedback
+          nonce: window.mkcg_vars?.nonce || ''
+        })
+        .then(response => {
+          console.log('✅ SIMPLIFIED: Auto-save successful for field:', fieldName);
+          this.showFieldSavedState(inputElement);
+        })
+        .catch(error => {
+          console.log('❌ SIMPLIFIED: Auto-save failed for field:', fieldName, error);
+          this.showFieldErrorState(inputElement, error);
         });
       } else {
-        console.log('⚠️ MKCG_FormUtils not available for auto-save');
-        if (window.EnhancedUIFeedback) {
-          window.EnhancedUIFeedback.showToast({
-            title: 'Auto-save Unavailable',
-            message: 'Please save your changes manually.',
-            actions: ['Use the save button', 'Refresh the page if the problem persists']
-          }, 'warning', 4000);
-        }
+        console.log('⚠️ Simple AJAX system not available for auto-save');
       }
     },
     
@@ -2436,127 +2371,19 @@
     }
   };
 
-  // Initialize when DOM is ready with enhanced dependency loading
+  // Initialize when DOM is ready with SIMPLIFIED dependency loading
   document.addEventListener('DOMContentLoaded', function() {
-    console.log('🎯 PHASE 2B: Topics Generator DOM Ready - Enhanced Version');
+    console.log('🎯 SIMPLIFIED: Topics Generator DOM Ready - Simplified Version');
     
-    // Wait for all required dependencies
-    const waitForDependencies = () => {
-      const requiredDependencies = {
-        FormUtils: window.MKCG_FormUtils,
-        OfflineManager: window.MKCG_OfflineManager,
-        EnhancedUIFeedback: window.EnhancedUIFeedback,
-        EnhancedAjaxManager: window.EnhancedAjaxManager
-      };
-      
-      const missing = Object.keys(requiredDependencies).filter(dep => !requiredDependencies[dep]);
-      
-      if (missing.length === 0) {
-        console.log('✅ PHASE 2B: All dependencies loaded - Starting enhanced initialization');
-        
-        // Initialize Topics Generator
-        TopicsGenerator.init();
-        
-        // Setup network awareness
-        if (window.MKCG_OfflineManager) {
-          window.MKCG_OfflineManager.addNetworkStatusListener((isOnline) => {
-            TopicsGenerator.updateNetworkStatus(isOnline);
-          });
-          
-          // Get initial network status
-          const networkStatus = window.MKCG_OfflineManager.getNetworkStatus();
-          TopicsGenerator.updateNetworkStatus(networkStatus.isOnline);
-          
-          console.log('🌐 PHASE 2B: Network awareness integrated');
-        }
-        
-        // Replace auto-save method with offline-aware version
-        document.querySelectorAll('.topics-generator__form-field-input').forEach(input => {
-          input.removeEventListener('blur', TopicsGenerator.autoSaveField);
-          input.addEventListener('blur', () => {
-            TopicsGenerator.autoSaveFieldWithOfflineSupport(input);
-          });
-        });
-        
-        // Replace generate button with offline-aware version
-        const generateBtn = document.querySelector(TopicsGenerator.elements.generateButton);
-        if (generateBtn) {
-          generateBtn.removeEventListener('click', TopicsGenerator.generateTopics);
-          generateBtn.addEventListener('click', () => {
-            TopicsGenerator.generateTopicsWithOfflineCheck();
-          });
-        }
-        
-        console.log('✅ PHASE 2B: Enhanced Topics Generator fully initialized');
-        
-      } else {
-        console.log(`⏳ PHASE 2B: Waiting for dependencies: ${missing.join(', ')}`);
-        setTimeout(waitForDependencies, 100);
-      }
-    };
-    
-    waitForDependencies();
+    // DIRECT INITIALIZATION - No complex dependency waiting
+    console.log('✅ SIMPLIFIED: Starting direct initialization');
+    TopicsGenerator.init();
+    console.log('✅ SIMPLIFIED: Topics Generator fully initialized');
   });
 
-  // PHASE 2B: Make globally available with enhanced debugging
+  // SIMPLIFIED: Make globally available
   window.TopicsGenerator = TopicsGenerator;
   
-  // PHASE 2B: Add global debugging helpers
-  window.MKCG_Debug = {
-    getTopicsGeneratorStatus: () => ({
-      initialized: !!window.TopicsGenerator,
-      networkStatus: TopicsGenerator.networkStatus,
-      formUtils: !!window.MKCG_FormUtils,
-      offlineManager: !!window.MKCG_OfflineManager,
-      enhancedUI: !!window.EnhancedUIFeedback,
-      enhancedAjax: !!window.EnhancedAjaxManager
-    }),
-    
-    getOfflineStatus: () => {
-      return window.MKCG_OfflineManager ? window.MKCG_OfflineManager.getNetworkStatus() : null;
-    },
-    
-    forceSync: () => {
-      if (window.MKCG_OfflineManager) {
-        window.MKCG_OfflineManager.forcSync();
-      }
-    },
-    
-    clearOfflineQueue: () => {
-      if (window.MKCG_OfflineManager) {
-        window.MKCG_OfflineManager.clearOfflineQueue();
-      }
-    }
-  };
-  
-  console.log('✅ PHASE 2B: Topics Generator with full offline support loaded successfully');
-  
-  // PHASE 2: SUCCESS METRICS TRACKING
-  window.MKCG_Phase2_Metrics = {
-    initialized: true,
-    version: '2.1.0',
-    enhancementDate: new Date().toISOString(),
-    features: {
-      exponentialBackoffRetry: true,
-      circuitBreakerPattern: true,
-      connectionHealthMonitoring: true,
-      requestQueuing: true,
-      enhancedErrorRecovery: true,
-      networkAwareness: true,
-      intelligentRetryLogic: true
-    },
-    targetSuccessRate: '95%',
-    phase: 'PHASE_2_COMPLETE'
-  };
-  
-  console.log('\n=== PHASE 2 IMPLEMENTATION COMPLETE ===');
-  console.log('📊 Target Success Rate: 95%+ AJAX requests');
-  console.log('🔄 Exponential backoff retry system: ACTIVE');
-  console.log('⚡ Circuit breaker pattern: ACTIVE');
-  console.log('🔍 Connection health monitoring: ACTIVE');
-  console.log('📜 Request queuing system: ACTIVE');
-  console.log('🌐 Network awareness: ACTIVE');
-  console.log('✅ Enhanced error recovery: ACTIVE');
-  console.log('========================================\n');
+  console.log('✅ SIMPLIFIED: Topics Generator loaded successfully');
 
 })();

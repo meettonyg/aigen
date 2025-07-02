@@ -63,60 +63,101 @@ class Enhanced_Topics_Generator {
     }
     
     /**
-     * Get template data for rendering - single strategy, no fallbacks
+     * CRITICAL FIX: Get template data for rendering - Proper structure with correct field mappings
      */
     public function get_template_data($entry_key = '') {
+        error_log('MKCG Topics Generator: Starting get_template_data for entry_key: ' . $entry_key);
+        
         $template_data = [
             'entry_id' => 0,
             'entry_key' => $entry_key,
-            'topics' => $this->get_empty_topics_array(),
-            'authority_hook' => $this->get_empty_authority_hook(),
-            'has_data' => false
+            'form_field_values' => [
+                'topic_1' => '',
+                'topic_2' => '',
+                'topic_3' => '',
+                'topic_4' => '',
+                'topic_5' => ''
+            ],
+            'authority_hook_components' => [
+                'who' => 'your audience',
+                'result' => 'achieve their goals',
+                'when' => 'they need help',
+                'how' => 'through your method',
+                'complete' => 'I help your audience achieve their goals when they need help through your method.'
+            ],
+            'has_entry' => false
         ];
         
         // Get entry ID from entry key
         if (!empty($entry_key)) {
             $template_data['entry_id'] = $this->resolve_entry_id($entry_key);
+            error_log('MKCG Topics Generator: Resolved entry ID: ' . $template_data['entry_id']);
         }
         
-        // Load data if entry ID found
+        // Load actual data if entry ID found
         if ($template_data['entry_id'] > 0) {
-            $template_data = $this->load_template_data($template_data);
+            $template_data = $this->load_template_data_fixed($template_data);
+            error_log('MKCG Topics Generator: Template data loaded for entry ' . $template_data['entry_id']);
+        } else {
+            error_log('MKCG Topics Generator: No valid entry ID - using default data');
         }
         
         return $template_data;
     }
     
     /**
-     * Load actual data from Formidable
+     * CRITICAL FIX: Load actual data from Formidable with proper error handling
      */
-    private function load_template_data($template_data) {
+    private function load_template_data_fixed($template_data) {
         $entry_id = $template_data['entry_id'];
         
-        // Load topics
-        $topics_fields = $this->get_topics_field_mappings();
-        $topics = [];
-        foreach ($topics_fields as $topic_key => $field_id) {
-            $value = $this->formidable_service->get_field_value($entry_id, $field_id);
-            $topics[$topic_key] = $value ?: '';
-        }
-        
-        if (!empty(array_filter($topics))) {
-            $template_data['topics'] = $topics;
-            $template_data['has_data'] = true;
-        }
-        
-        // Load authority hook
-        $auth_fields = $this->get_authority_hook_field_mappings();
-        $auth_components = [];
-        foreach ($auth_fields as $component => $field_id) {
-            $value = $this->formidable_service->get_field_value($entry_id, $field_id);
-            $auth_components[$component] = $value ?: '';
-        }
-        
-        if (!empty(array_filter($auth_components))) {
-            $template_data['authority_hook'] = $auth_components;
-            $template_data['has_data'] = true;
+        try {
+            // Load topic field values with proper mapping
+            $topics_fields = $this->get_topics_field_mappings();
+            $has_topic_data = false;
+            
+            foreach ($topics_fields as $topic_key => $field_id) {
+                $value = $this->formidable_service->get_field_value($entry_id, $field_id);
+                if (!empty($value)) {
+                    $template_data['form_field_values'][$topic_key] = $value;
+                    $has_topic_data = true;
+                    error_log("MKCG Topics Generator: Loaded {$topic_key} from field {$field_id}: {$value}");
+                }
+            }
+            
+            // Load authority hook components
+            $auth_fields = $this->get_authority_hook_field_mappings();
+            $has_auth_data = false;
+            
+            foreach ($auth_fields as $component => $field_id) {
+                $value = $this->formidable_service->get_field_value($entry_id, $field_id);
+                if (!empty($value)) {
+                    $template_data['authority_hook_components'][$component] = $value;
+                    $has_auth_data = true;
+                    error_log("MKCG Topics Generator: Loaded {$component} from field {$field_id}: {$value}");
+                }
+            }
+            
+            // Build complete authority hook if we have components
+            if ($has_auth_data) {
+                $complete_hook = sprintf(
+                    'I help %s %s when %s %s.',
+                    $template_data['authority_hook_components']['who'],
+                    $template_data['authority_hook_components']['result'],
+                    $template_data['authority_hook_components']['when'],
+                    $template_data['authority_hook_components']['how']
+                );
+                $template_data['authority_hook_components']['complete'] = $complete_hook;
+                error_log('MKCG Topics Generator: Built complete authority hook: ' . $complete_hook);
+            }
+            
+            if ($has_topic_data || $has_auth_data) {
+                $template_data['has_entry'] = true;
+                error_log('MKCG Topics Generator: Data successfully loaded from entry');
+            }
+            
+        } catch (Exception $e) {
+            error_log('MKCG Topics Generator: Error loading template data: ' . $e->getMessage());
         }
         
         return $template_data;
