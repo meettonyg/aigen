@@ -26,25 +26,21 @@ class Enhanced_Questions_Generator {
     }
     
     /**
-     * Get template data for Questions Generator
+     * Get template data for Questions Generator using centralized configuration
      */
     public function get_template_data($entry_key = '') {
-        $template_data = [
-            'entry_id' => 0,
-            'entry_key' => $entry_key,
-            'topics' => [],
-            'questions' => [],
-            'has_data' => false
-        ];
+        $template_data = MKCG_Config::get_default_data();
+        $template_data['entry_key'] = $entry_key;
         
         // Get entry ID from entry key
         if (!empty($entry_key)) {
             $template_data['entry_id'] = $this->resolve_entry_id($entry_key);
         }
         
-        // Load data if entry ID found
+        // Load data using centralized configuration
         if ($template_data['entry_id'] > 0) {
-            $template_data = $this->load_template_data($template_data);
+            $loaded_data = MKCG_Config::load_data_for_entry($template_data['entry_id'], $this->formidable_service);
+            $template_data = array_merge($template_data, $loaded_data);
         }
         
         return $template_data;

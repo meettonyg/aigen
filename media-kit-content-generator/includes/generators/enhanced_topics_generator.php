@@ -63,30 +63,14 @@ class Enhanced_Topics_Generator {
     }
     
     /**
-     * CRITICAL FIX: Get template data for rendering - Proper structure with correct field mappings
+     * CRITICAL FIX: Get template data using centralized configuration
+     * Handles hybrid data sources: post meta + Formidable fields
      */
     public function get_template_data($entry_key = '') {
         error_log('MKCG Topics Generator: Starting get_template_data for entry_key: ' . $entry_key);
         
-        $template_data = [
-            'entry_id' => 0,
-            'entry_key' => $entry_key,
-            'form_field_values' => [
-                'topic_1' => '',
-                'topic_2' => '',
-                'topic_3' => '',
-                'topic_4' => '',
-                'topic_5' => ''
-            ],
-            'authority_hook_components' => [
-                'who' => 'your audience',
-                'result' => 'achieve their goals',
-                'when' => 'they need help',
-                'how' => 'through your method',
-                'complete' => 'I help your audience achieve their goals when they need help through your method.'
-            ],
-            'has_entry' => false
-        ];
+        $template_data = MKCG_Config::get_default_data();
+        $template_data['entry_key'] = $entry_key;
         
         // Get entry ID from entry key
         if (!empty($entry_key)) {
@@ -94,10 +78,11 @@ class Enhanced_Topics_Generator {
             error_log('MKCG Topics Generator: Resolved entry ID: ' . $template_data['entry_id']);
         }
         
-        // Load actual data if entry ID found
+        // Load actual data using centralized configuration
         if ($template_data['entry_id'] > 0) {
-            $template_data = $this->load_template_data_fixed($template_data);
-            error_log('MKCG Topics Generator: Template data loaded for entry ' . $template_data['entry_id']);
+            $loaded_data = MKCG_Config::load_data_for_entry($template_data['entry_id'], $this->formidable_service);
+            $template_data = array_merge($template_data, $loaded_data);
+            error_log('MKCG Topics Generator: Template data loaded using centralized config');
         } else {
             error_log('MKCG Topics Generator: No valid entry ID - using default data');
         }
@@ -192,7 +177,7 @@ class Enhanced_Topics_Generator {
     }
     
     /**
-     * Save topics to Formidable entry
+     * Save topics using centralized configuration
      */
     public function save_topics($entry_id, $topics_data) {
         if (!$entry_id || empty($topics_data)) {
@@ -202,20 +187,11 @@ class Enhanced_Topics_Generator {
             ];
         }
         
-        $field_mappings = $this->get_topics_field_mappings();
-        $formidable_data = [];
-        
-        foreach ($topics_data as $topic_key => $topic_value) {
-            if (isset($field_mappings[$topic_key]) && !empty($topic_value)) {
-                $formidable_data[$field_mappings[$topic_key]] = $topic_value;
-            }
-        }
-        
-        return $this->formidable_service->save_entry_data($entry_id, $formidable_data);
+        return MKCG_Config::save_data_for_entry($entry_id, ['topics' => $topics_data], $this->formidable_service);
     }
     
     /**
-     * Save authority hook to Formidable entry
+     * Save authority hook using centralized configuration
      */
     public function save_authority_hook($entry_id, $authority_hook_data) {
         if (!$entry_id || empty($authority_hook_data)) {
@@ -225,16 +201,7 @@ class Enhanced_Topics_Generator {
             ];
         }
         
-        $field_mappings = $this->get_authority_hook_field_mappings();
-        $formidable_data = [];
-        
-        foreach ($authority_hook_data as $component => $value) {
-            if (isset($field_mappings[$component]) && !empty($value)) {
-                $formidable_data[$field_mappings[$component]] = $value;
-            }
-        }
-        
-        return $this->formidable_service->save_entry_data($entry_id, $formidable_data);
+        return MKCG_Config::save_data_for_entry($entry_id, ['authority_hook' => $authority_hook_data], $this->formidable_service);
     }
     
     /**

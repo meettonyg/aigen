@@ -1,445 +1,263 @@
 <?php
 /**
  * MKCG Centralized Configuration
- * 
- * Single source of truth for all field mappings, meta keys, and system configuration.
- * As recommended by Gemini - this decouples the service from implementation details.
+ * Single source of truth for all field mappings and data sources
  */
 
 class MKCG_Config {
     
     /**
-     * 🗃️ FIELD MAPPINGS - Formidable Form 515 field IDs
+     * Get field mappings for all generators - CENTRALIZED CONFIGURATION
      */
     public static function get_field_mappings() {
         return [
+            // Topics - stored in CUSTOM POST META
             'topics' => [
+                'source' => 'post_meta',
                 'fields' => [
-                    'topic_1' => 8498,
-                    'topic_2' => 8499,
-                    'topic_3' => 8500,
-                    'topic_4' => 8501,
-                    'topic_5' => 8502
-                ],
-                'meta_prefix' => 'topic_',
-                'max_items' => 5,
-                'type' => 'single_value'
-            ],
-            'questions' => [
-                'fields' => [
-                    1 => ['8505', '8506', '8507', '8508', '8509'],     // Topic 1 → Questions 1-5
-                    2 => ['8510', '8511', '8512', '8513', '8514'],     // Topic 2 → Questions 6-10
-                    3 => ['10370', '10371', '10372', '10373', '10374'], // Topic 3 → Questions 11-15
-                    4 => ['10375', '10376', '10377', '10378', '10379'], // Topic 4 → Questions 16-20
-                    5 => ['10380', '10381', '10382', '10383', '10384']  // Topic 5 → Questions 21-25
-                ],
-                'meta_prefix' => 'question_',
-                'max_items' => 25,
-                'type' => 'grouped_values',
-                'items_per_group' => 5
-            ],
-            'authority_hook' => [
-                'fields' => [
-                    'who' => 10296,     // WHO do you help? (specific niches)
-                    'result' => 10297,  // WHAT result do you help them achieve?
-                    'when' => 10387,    // WHEN do they need you?
-                    'how' => 10298,     // HOW do you help them achieve this result?
-                    'where' => 10359,   // WHERE have you demonstrated specific results or credentials
-                    'why' => 10360,     // WHY are you passionate about what you do?
-                    'complete' => 10358 // Complete Authority Hook
-                ],
-                'meta_prefix' => 'authority_hook_',
-                'max_items' => 7,
-                'type' => 'component_based'
-            ],
-            // PLACEHOLDER: Biography and Offers field mappings (to prevent warnings)
-            'biography' => [
-                'fields' => [
-                    // Placeholder field mappings - update when Biography generator is implemented
-                    'short_bio' => 99001,    // Unique placeholder ID
-                    'medium_bio' => 99002,   // Unique placeholder ID
-                    'long_bio' => 99003      // Unique placeholder ID
-                ],
-                'meta_prefix' => 'biography_',
-                'max_items' => 3,
-                'type' => 'multi_length',
-                'status' => 'placeholder'
-            ],
-            'offers' => [
-                'fields' => [
-                    // Placeholder field mappings - update when Offers generator is implemented
-                    'offer_1' => 99004,      // Unique placeholder ID
-                    'offer_2' => 99005,      // Unique placeholder ID
-                    'offer_3' => 99006       // Unique placeholder ID
-                ],
-                'meta_prefix' => 'offer_',
-                'max_items' => 3,
-                'type' => 'single_value',
-                'status' => 'placeholder'
-            ]
-        ];
-    }
-    
-    /**
-     * Get a specific field ID for cleaner code access
-     * @param string $data_type The data type (topics, questions, etc.)
-     * @param string|int $field_key The field key
-     * @return string|null The field ID or null if not found
-     */
-    public static function get_field_id(string $data_type, string|int $field_key) {
-        $field_mappings = self::get_field_mappings();
-        
-        if (!isset($field_mappings[$data_type]['fields'])) {
-            return null;
-        }
-        
-        return $field_mappings[$data_type]['fields'][$field_key] ?? null;
-    }
-    
-    /**
-     * 🔑 META KEY PATTERNS - WordPress post meta key generation
-     */
-    public static function get_meta_key_pattern($data_type) {
-        $patterns = [
-            'topics' => 'topic_%d',          // topic_1, topic_2, etc.
-            'questions' => 'question_%d',    // question_1, question_2, etc.
-            'authority_hook' => 'authority_hook_%s', // authority_hook_who, etc.
-        ];
-        
-        return $patterns[$data_type] ?? null;
-    }
-    
-    /**
-     * 📋 VALIDATION RULES - Data validation configuration
-     */
-    public static function get_validation_rules($data_type) {
-        $rules = [
-            'topics' => [
-                'min_length' => 5,
-                'max_length' => 500,
-                'required_count' => 0, // At least 0 topics required
-                'max_count' => 5,
-                'sanitization' => 'sanitize_textarea_field'
-            ],
-            'questions' => [
-                'min_length' => 10,
-                'max_length' => 1000,
-                'required_count' => 0,
-                'max_count' => 25,
-                'sanitization' => 'sanitize_textarea_field'
-            ],
-            'authority_hook' => [
-                'components' => [
-                    'who' => ['min_length' => 2, 'max_length' => 100],
-                    'result' => ['min_length' => 5, 'max_length' => 200],
-                    'when' => ['min_length' => 2, 'max_length' => 100],
-                    'how' => ['min_length' => 2, 'max_length' => 100]
-                ],
-                'complete' => ['min_length' => 20, 'max_length' => 500],
-                'sanitization' => 'sanitize_text_field'
-            ]
-        ];
-        
-        return $rules[$data_type] ?? null;
-    }
-    
-    /**
-     * 🔧 AJAX ACTIONS - Centralized AJAX action names
-     */
-    public static function get_ajax_actions() {
-        return [
-            'get_data' => 'mkcg_get_data',
-            'save_data' => 'mkcg_save_data', 
-            'save_item' => 'mkcg_save_item',
-            'authority_hook' => 'mkcg_authority_hook',
-            
-            // Legacy support for existing implementations
-            'legacy_topics' => 'generate_interview_topics',
-            'legacy_questions' => 'generate_interview_questions',
-            'legacy_get_topics' => 'mkcg_get_topics'
-        ];
-    }
-    
-    /**
-     * 🔐 SECURITY CONFIGURATION - Nonce actions and verification
-     */
-    public static function get_security_config() {
-        return [
-            'nonce_actions' => [
-                'primary' => 'mkcg_nonce',
-                'save' => 'mkcg_save_nonce',
-                'legacy' => 'generate_topics_nonce'
-            ],
-            'nonce_fields' => [
-                'security', 'nonce', 'save_nonce', 'mkcg_nonce', '_wpnonce'
-            ],
-            'cache_duration' => 3600 // 1 hour
-        ];
-    }
-    
-    /**
-     * 📊 RESPONSE TEMPLATES - Standardized response structures
-     */
-    public static function get_response_template($type = 'success') {
-        $templates = [
-            'success' => [
-                'success' => true,
-                'data' => [
-                    'message' => '',
-                    'items' => [],
-                    'count' => 0,
-                    'post_id' => 0,
-                    'warnings' => [],
-                    'metadata' => []
+                    'topic_1' => 'mkcg_topic_1',
+                    'topic_2' => 'mkcg_topic_2',
+                    'topic_3' => 'mkcg_topic_3', 
+                    'topic_4' => 'mkcg_topic_4',
+                    'topic_5' => 'mkcg_topic_5'
                 ]
             ],
-            'error' => [
-                'success' => false,
-                'data' => [
-                    'message' => '',
-                    'errors' => [],
-                    'debug' => null,
-                    'validation_errors' => []
-                ]
-            ]
-        ];
-        
-        return $templates[$type] ?? $templates['error'];
-    }
-    
-    /**
-     * 🎯 DATA TYPE CONFIGURATION - Supported content types
-     */
-    public static function get_supported_data_types() {
-        return [
-            'topics' => [
-                'label' => 'Interview Topics',
-                'description' => 'AI-generated podcast interview topics',
-                'generator_class' => 'MKCG_Topics_Generator',
-                'ai_enabled' => true
-            ],
-            'questions' => [
-                'label' => 'Interview Questions',
-                'description' => 'AI-generated questions for specific topics',
-                'generator_class' => 'MKCG_Questions_Generator', 
-                'ai_enabled' => true
-            ],
+            
+            // Authority Hook Components - HYBRID STORAGE
             'authority_hook' => [
-                'label' => 'Authority Hook',
-                'description' => 'Expert positioning statement',
-                'generator_class' => null, // No generator needed
-                'ai_enabled' => false
+                // WHO field comes from CUSTOM POST META
+                'who' => [
+                    'source' => 'post_meta',
+                    'key' => 'mkcg_who'
+                ],
+                // RESULT, WHEN, HOW come from FORMIDABLE FIELDS
+                'result' => [
+                    'source' => 'formidable',
+                    'field_id' => '10297'
+                ],
+                'when' => [
+                    'source' => 'formidable',
+                    'field_id' => '10387'
+                ],
+                'how' => [
+                    'source' => 'formidable',
+                    'field_id' => '10298'
+                ],
+                'complete' => [
+                    'source' => 'formidable',
+                    'field_id' => '10358'
+                ]
             ],
             
-            // Future data types can be added here
-            'biography' => [
-                'label' => 'Media Biography',
-                'description' => 'AI-generated media kit biography',
-                'generator_class' => 'MKCG_Biography_Generator',
-                'ai_enabled' => true
-            ],
-            'offers' => [
-                'label' => 'Service Offers',
-                'description' => 'AI-generated service offerings',
-                'generator_class' => 'MKCG_Offers_Generator', 
-                'ai_enabled' => true
+            // Questions - stored in CUSTOM POST META
+            'questions' => [
+                'source' => 'post_meta',
+                'pattern' => 'mkcg_question_{topic}_{question}' // e.g., mkcg_question_1_1
             ]
         ];
     }
     
     /**
-     * 📁 FILE PATHS - Plugin file structure
+     * Get data from centralized configuration
      */
-    public static function get_file_paths() {
-        $base_path = plugin_dir_path(__FILE__);
-        
-        return [
-            'generators' => $base_path . 'includes/generators/',
-            'services' => $base_path . 'includes/services/',
-            'templates' => $base_path . 'templates/',
-            'assets' => $base_path . 'assets/',
-            'css' => $base_path . 'assets/css/',
-            'js' => $base_path . 'assets/js/'
-        ];
-    }
-    
-    /**
-     * ⚙️ SYSTEM CONFIGURATION - Plugin-wide settings
-     */
-    public static function get_system_config() {
-        return [
-            'plugin_version' => '1.0.0',
-            'min_wordpress_version' => '5.0',
-            'required_plugins' => ['formidable/formidable.php'],
-            'form_id' => 515, // Primary Formidable form
-            'post_type' => 'media_kit_content',
-            'taxonomy' => 'content_category',
-            'cache_prefix' => 'mkcg_',
-            'log_prefix' => 'MKCG',
-            'api_timeout' => 30,
-            'max_retries' => 3
-        ];
-    }
-    
-    /**
-     * 🔍 CONFIGURATION VALIDATION - Ensure config is valid
-     */
-    public static function validate_configuration() {
-        $validation = [
-            'valid' => true,
-            'errors' => [],
-            'warnings' => []
-        ];
-        
-        // Check field mappings exist
-        $field_mappings = self::get_field_mappings();
-        if (empty($field_mappings)) {
-            $validation['valid'] = false;
-            $validation['errors'][] = 'No field mappings configured';
+    public static function load_data_for_entry($entry_id, $formidable_service) {
+        if (!$entry_id || !$formidable_service) {
+            return self::get_default_data();
         }
         
-        // Check for duplicate field IDs
-        $all_fields = [];
-        foreach ($field_mappings as $data_type => $config) {
-            // Skip placeholder configurations from duplicate field ID checks
-            if (isset($config['status']) && $config['status'] === 'placeholder') {
-                continue;
+        // Get associated post ID
+        $post_id = $formidable_service->get_post_id_from_entry($entry_id);
+        if (!$post_id) {
+            error_log('MKCG Config: No associated post found for entry ' . $entry_id);
+            return self::get_default_data();
+        }
+        
+        $mappings = self::get_field_mappings();
+        $data = self::get_default_data();
+        
+        // Load topics from post meta
+        foreach ($mappings['topics']['fields'] as $topic_key => $meta_key) {
+            $value = get_post_meta($post_id, $meta_key, true);
+            if (!empty($value)) {
+                $data['form_field_values'][$topic_key] = $value;
+                error_log("MKCG Config: Loaded {$topic_key} from post meta: {$value}");
             }
+        }
+        
+        // Load authority hook components (hybrid sources)
+        foreach ($mappings['authority_hook'] as $component => $config) {
+            if ($config['source'] === 'post_meta') {
+                // Load from custom post meta (WHO field)\n                $value = get_post_meta($post_id, $config['key'], true);
+                if (!empty($value)) {
+                    $data['authority_hook_components'][$component] = $value;
+                    error_log("MKCG Config: Loaded {$component} from post meta: {$value}");
+                }
+            } elseif ($config['source'] === 'formidable') {
+                // Load from Formidable field (RESULT, WHEN, HOW, COMPLETE)
+                $value = $formidable_service->get_field_value($entry_id, $config['field_id']);
+                if (!empty($value)) {
+                    $data['authority_hook_components'][$component] = $value;
+                    error_log("MKCG Config: Loaded {$component} from Formidable field {$config['field_id']}: {$value}");
+                }
+            }
+        }
+        
+        // Load questions from post meta if needed
+        $data['questions'] = self::load_questions_from_post_meta($post_id);
+        
+        // Build complete authority hook if we have components
+        $components = $data['authority_hook_components'];
+        if (!empty($components['who']) && !empty($components['result']) && 
+            !empty($components['when']) && !empty($components['how'])) {
             
-            if (isset($config['fields'])) {
-                foreach ($config['fields'] as $field_key => $field_id) {
-                    if (is_array($field_id)) {
-                        foreach ($field_id as $sub_field) {
-                            if (in_array($sub_field, $all_fields)) {
-                                $validation['warnings'][] = "Duplicate field ID: {$sub_field}";
-                            }
-                            $all_fields[] = $sub_field;
-                        }
-                    } else {
-                        if (in_array($field_id, $all_fields)) {
-                            $validation['warnings'][] = "Duplicate field ID: {$field_id}";
-                        }
-                        $all_fields[] = $field_id;
+            $complete_hook = sprintf(
+                'I help %s %s when %s %s.',
+                $components['who'],
+                $components['result'], 
+                $components['when'],
+                $components['how']
+            );
+            $data['authority_hook_components']['complete'] = $complete_hook;
+            error_log('MKCG Config: Built complete authority hook: ' . $complete_hook);
+        }
+        
+        // Mark as having data if we loaded anything meaningful
+        $has_topics = !empty(array_filter($data['form_field_values']));
+        $has_auth = !empty($components['who']) || !empty($components['result']);
+        $data['has_entry'] = $has_topics || $has_auth;
+        
+        error_log('MKCG Config: Data loading complete - Topics: ' . ($has_topics ? 'YES' : 'NO') . ', Auth: ' . ($has_auth ? 'YES' : 'NO'));
+        
+        return $data;
+    }
+    
+    /**
+     * Load questions from post meta for Questions Generator
+     */
+    private static function load_questions_from_post_meta($post_id) {
+        $questions = [];
+        
+        for ($topic = 1; $topic <= 5; $topic++) {
+            $topic_questions = [];
+            for ($q = 1; $q <= 5; $q++) {
+                $meta_key = "mkcg_question_{$topic}_{$q}";
+                $value = get_post_meta($post_id, $meta_key, true);
+                if (!empty($value)) {
+                    $topic_questions[$q] = $value;
+                }
+            }
+            if (!empty($topic_questions)) {
+                $questions[$topic] = $topic_questions;
+            }
+        }
+        
+        return $questions;
+    }
+    
+    /**
+     * Get default data structure
+     */
+    public static function get_default_data() {
+        return [
+            'entry_id' => 0,
+            'entry_key' => '',
+            'form_field_values' => [
+                'topic_1' => '',
+                'topic_2' => '',
+                'topic_3' => '',
+                'topic_4' => '',
+                'topic_5' => ''
+            ],
+            'authority_hook_components' => [
+                'who' => 'your audience',
+                'result' => 'achieve their goals',
+                'when' => 'they need help',
+                'how' => 'through your method',
+                'complete' => 'I help your audience achieve their goals when they need help through your method.'
+            ],
+            'questions' => [],
+            'has_entry' => false
+        ];
+    }
+    
+    /**
+     * Save data using centralized configuration
+     */
+    public static function save_data_for_entry($entry_id, $data, $formidable_service) {
+        if (!$entry_id || !$formidable_service) {
+            return ['success' => false, 'message' => 'Invalid parameters'];
+        }
+        
+        $post_id = $formidable_service->get_post_id_from_entry($entry_id);
+        if (!$post_id) {
+            return ['success' => false, 'message' => 'No associated post found'];
+        }
+        
+        $mappings = self::get_field_mappings();
+        $saved_count = 0;
+        
+        // Save topics to post meta
+        if (isset($data['topics'])) {
+            foreach ($data['topics'] as $topic_key => $topic_value) {
+                if (isset($mappings['topics']['fields'][$topic_key]) && !empty($topic_value)) {
+                    $meta_key = $mappings['topics']['fields'][$topic_key];
+                    $result = update_post_meta($post_id, $meta_key, $topic_value);
+                    if ($result !== false) {
+                        $saved_count++;
+                        error_log("MKCG Config: Saved {$topic_key} to post meta {$meta_key}");
                     }
                 }
             }
         }
         
-        // Check supported data types have configuration
-        $data_types = self::get_supported_data_types();
-        foreach ($data_types as $type => $config) {
-            if (!isset($field_mappings[$type])) {
-                $validation['warnings'][] = "Data type '{$type}' has no field mapping";
-            } elseif (isset($field_mappings[$type]['status']) && $field_mappings[$type]['status'] === 'placeholder') {
-                // Silently skip placeholder configurations - they're expected to be incomplete
-                continue;
+        // Save authority hook components (hybrid approach)
+        if (isset($data['authority_hook'])) {
+            foreach ($data['authority_hook'] as $component => $value) {
+                if (isset($mappings['authority_hook'][$component]) && !empty($value)) {
+                    $config = $mappings['authority_hook'][$component];
+                    
+                    if ($config['source'] === 'post_meta') {
+                        // Save WHO to post meta
+                        $result = update_post_meta($post_id, $config['key'], $value);
+                        if ($result !== false) {
+                            $saved_count++;
+                            error_log("MKCG Config: Saved {$component} to post meta {$config['key']}");
+                        }
+                    } elseif ($config['source'] === 'formidable') {
+                        // Save RESULT, WHEN, HOW to Formidable
+                        $result = $formidable_service->save_entry_data($entry_id, [$config['field_id'] => $value]);
+                        if ($result['success']) {
+                            $saved_count++;
+                            error_log("MKCG Config: Saved {$component} to Formidable field {$config['field_id']}");
+                        }
+                    }
+                }
             }
         }
         
-        return $validation;
+        return [
+            'success' => $saved_count > 0,
+            'saved_count' => $saved_count,
+            'message' => $saved_count > 0 ? 'Data saved successfully' : 'No data saved'
+        ];
     }
     
     /**
-     * 🔄 LEGACY COMPATIBILITY - Map old configurations to new structure
+     * Get JavaScript configuration for templates
      */
-    public static function get_legacy_field_mapping($generator_type) {
-        $legacy_mappings = [
-            'topics' => [
-                8498 => 'topic_1',
-                8499 => 'topic_2', 
-                8500 => 'topic_3',
-                8501 => 'topic_4',
-                8502 => 'topic_5'
-            ],
-            'questions' => [
-                // Topic 1
-                8505 => 'question_1',
-                8506 => 'question_2',
-                8507 => 'question_3', 
-                8508 => 'question_4',
-                8509 => 'question_5',
-                // Topic 2
-                8510 => 'question_6',
-                8511 => 'question_7',
-                8512 => 'question_8',
-                8513 => 'question_9',
-                8514 => 'question_10',
-                // Continue for all 25 questions...
+    public static function get_js_config() {
+        $mappings = self::get_field_mappings();
+        
+        return [
+            'fieldMappings' => $mappings,
+            'ajaxActions' => [
+                'save_topics' => 'mkcg_save_topics_data',
+                'get_topics' => 'mkcg_get_topics_data',
+                'save_authority_hook' => 'mkcg_save_authority_hook',
+                'generate_topics' => 'mkcg_generate_topics',
+                'save_questions' => 'mkcg_save_questions',
+                'generate_questions' => 'mkcg_generate_questions'
             ]
         ];
-        
-        return $legacy_mappings[$generator_type] ?? [];
-    }
-    
-    /**
-     * 🔍 DATA FLOW VALIDATION - Validate that data extraction is working correctly
-     */
-    public static function validate_data_extraction($entry_id, $data_type = 'topics') {
-        $validation_result = [
-            'success' => false,
-            'entry_id' => $entry_id,
-            'data_type' => $data_type,
-            'fields_tested' => 0,
-            'fields_found' => 0,
-            'field_details' => [],
-            'errors' => [],
-            'timestamp' => time()
-        ];
-        
-        if (!$entry_id) {
-            $validation_result['errors'][] = 'No entry ID provided';
-            return $validation_result;
-        }
-        
-        // Get field mappings for the data type
-        $field_mappings = self::get_field_mappings();
-        if (!isset($field_mappings[$data_type])) {
-            $validation_result['errors'][] = "No field mappings found for data type: {$data_type}";
-            return $validation_result;
-        }
-        
-        $fields_to_test = $field_mappings[$data_type]['fields'];
-        $validation_result['fields_tested'] = count($fields_to_test);
-        
-        // Test database connectivity
-        global $wpdb;
-        $item_metas_table = $wpdb->prefix . 'frm_item_metas';
-        
-        foreach ($fields_to_test as $field_key => $field_id) {
-            $field_test = [
-                'field_key' => $field_key,
-                'field_id' => $field_id,
-                'found' => false,
-                'value_length' => 0,
-                'value_preview' => '',
-                'raw_type' => 'unknown'
-            ];
-            
-            try {
-                $raw_value = $wpdb->get_var($wpdb->prepare(
-                    "SELECT meta_value FROM {$item_metas_table} WHERE item_id = %d AND field_id = %d",
-                    $entry_id, $field_id
-                ));
-                
-                if ($raw_value !== null) {
-                    $field_test['found'] = true;
-                    $field_test['raw_type'] = gettype($raw_value);
-                    $field_test['value_length'] = is_string($raw_value) ? strlen($raw_value) : 0;
-                    $field_test['value_preview'] = substr((string)$raw_value, 0, 50);
-                    $validation_result['fields_found']++;
-                }
-                
-            } catch (Exception $e) {
-                $field_test['error'] = $e->getMessage();
-                $validation_result['errors'][] = "Field {$field_id} query failed: " . $e->getMessage();
-            }
-            
-            $validation_result['field_details'][$field_key] = $field_test;
-        }
-        
-        $validation_result['success'] = ($validation_result['fields_found'] > 0);
-        
-        return $validation_result;
     }
 }
-?>

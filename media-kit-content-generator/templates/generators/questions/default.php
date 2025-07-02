@@ -113,7 +113,9 @@ if ($post_id) {
 // UNIFIED: Always ensure we have 5 topic slots with consistent data source
 $all_topics = [];
 for ($i = 1; $i <= 5; $i++) {
-    if (isset($available_topics[$i]) && !empty($available_topics[$i])) {
+    if (isset($mkcg_template_data['form_field_values']) && isset($mkcg_template_data['form_field_values']['topic_' . $i])) {
+        $all_topics[$i] = $mkcg_template_data['form_field_values']['topic_' . $i];
+    } elseif (isset($available_topics[$i]) && !empty($available_topics[$i])) {
         $all_topics[$i] = $available_topics[$i];
     } else {
         $all_topics[$i] = '';
