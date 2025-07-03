@@ -108,36 +108,66 @@ class Enhanced_Topics_Generator {
     }
     
     /**
-     * Get post_id from request parameters - handles entry ID conversion
+     * Get post_id from request parameters - ENHANCED with multiple detection strategies
      */
     private function get_post_id_from_request() {
-        // Check for direct post_id parameter (new format)
-        if (isset($_GET['post_id'])) {
-            return intval($_GET['post_id']);
+        error_log('MKCG Topics Generator: Starting enhanced post ID detection');
+        
+        // Strategy 1: Direct post_id parameter (new format)
+        if (isset($_GET['post_id']) && intval($_GET['post_id']) > 0) {
+            $post_id = intval($_GET['post_id']);
+            error_log('MKCG Topics Generator: Found post_id parameter: ' . $post_id);
+            return $post_id;
         }
         
-        // Handle legacy entry parameter by converting to post_id
-        if (isset($_GET['entry'])) {
-            $entry_id = intval($_GET['entry']);
+        // Strategy 2: Handle legacy entry parameter by converting to post_id
+        if (isset($_GET['entry']) && !empty($_GET['entry'])) {
+            $entry_param = $_GET['entry'];
+            $entry_id = is_numeric($entry_param) ? intval($entry_param) : 0;
+            
             if ($entry_id > 0) {
                 // Get the associated custom post ID for this entry
                 $post_id = $this->get_post_id_from_entry($entry_id);
                 error_log('MKCG Topics Generator: Converted entry ' . $entry_id . ' to post_id ' . $post_id);
-                return $post_id;
+                
+                if ($post_id > 0) {
+                    return $post_id;
+                }
             }
         }
         
-        // Check for global post context
+        // Strategy 3: Check for global post context
         global $post;
-        if ($post && $post->ID) {
+        if ($post && $post->ID && $post->post_type === 'guests') {
+            error_log('MKCG Topics Generator: Using global post context: ' . $post->ID);
             return $post->ID;
         }
         
-        // Check if we're on a post page
+        // Strategy 4: Check if we're on a guest post page
         if (is_single() || is_page()) {
-            return get_the_ID();
+            $current_id = get_the_ID();
+            if ($current_id && get_post_type($current_id) === 'guests') {
+                error_log('MKCG Topics Generator: Found guest post page: ' . $current_id);
+                return $current_id;
+            }
         }
         
+        // Strategy 5: Look for the most recent guest post for testing
+        $recent_guest = get_posts([
+            'post_type' => 'guests',
+            'post_status' => 'publish',
+            'numberposts' => 1,
+            'orderby' => 'date',
+            'order' => 'DESC'
+        ]);
+        
+        if (!empty($recent_guest)) {
+            $post_id = $recent_guest[0]->ID;
+            error_log('MKCG Topics Generator: Using most recent guest post for testing: ' . $post_id);
+            return $post_id;
+        }
+        
+        error_log('MKCG Topics Generator: No valid post ID found with any strategy');
         return 0;
     }
     

@@ -41,61 +41,155 @@ class MKCG_Pods_Service {
     }
     
     /**
-     * Get topics from Pods fields
+     * Get topics from Pods fields - ENHANCED with multiple data sources
      */
     public function get_topics($post_id) {
         $topics = [];
         
-        // Get topics 1-5 from Pods fields
-        for ($i = 1; $i <= 5; $i++) {
-            $topic = get_post_meta($post_id, "topic_{$i}", true);
-            if (!empty($topic)) {
-                $topics["topic_{$i}"] = $topic;
-            } else {
-                $topics["topic_{$i}"] = '';
+        error_log("MKCG Pods Service: Loading topics for post {$post_id}");
+        
+        // Method 1: Try Pods API first (most reliable)
+        if (function_exists('pods')) {
+            $pod = pods('guests', $post_id);
+            if ($pod && $pod->exists()) {
+                for ($i = 1; $i <= 5; $i++) {
+                    $field_name = "topic_{$i}";
+                    $topic = $pod->field($field_name);
+                    $topics[$field_name] = !empty($topic) ? $topic : '';
+                    
+                    if (!empty($topic)) {
+                        error_log("MKCG Pods Service: Found {$field_name} via Pods API: {$topic}");
+                    }
+                }
+                
+                $filled_count = count(array_filter($topics));
+                error_log("MKCG Pods Service: Loaded {$filled_count}/5 topics via Pods API for post {$post_id}");
+                
+                if ($filled_count > 0) {
+                    return $topics;
+                }
             }
         }
         
-        error_log("MKCG Pods Service: Loaded " . count(array_filter($topics)) . " topics for post {$post_id}");
+        // Method 2: Fallback to post meta (backup method)
+        error_log("MKCG Pods Service: Trying post meta fallback for topics");
+        for ($i = 1; $i <= 5; $i++) {
+            $field_name = "topic_{$i}";
+            $topic = get_post_meta($post_id, $field_name, true);
+            $topics[$field_name] = !empty($topic) ? $topic : '';
+            
+            if (!empty($topic)) {
+                error_log("MKCG Pods Service: Found {$field_name} via post meta: {$topic}");
+            }
+        }
+        
+        $filled_count = count(array_filter($topics));
+        error_log("MKCG Pods Service: Final result - {$filled_count}/5 topics loaded for post {$post_id}");
+        
         return $topics;
     }
     
     /**
-     * Get authority hook components from Pods fields
+     * Get authority hook components from Pods fields - ENHANCED with multiple data sources
      */
     public function get_authority_hook_components($post_id) {
-        // Map Pods fields to authority hook components
-        $when = get_post_meta($post_id, 'hook_when', true) ?: 'they need help';
-        $what = get_post_meta($post_id, 'hook_what', true) ?: 'achieve their goals';
-        $how = get_post_meta($post_id, 'hook_how', true) ?: 'through your method';
-        $where = get_post_meta($post_id, 'hook_where', true) ?: 'in their situation';
-        $why = get_post_meta($post_id, 'hook_why', true) ?: 'because they deserve success';
+        error_log("MKCG Pods Service: Loading authority hook components for post {$post_id}");
         
-        // Get WHO from messaging section
-        $who = get_post_meta($post_id, 'guest_title', true) ?: 'your audience';
-        if (empty($who) || $who === 'your audience') {
+        $components = [];
+        
+        // Method 1: Try Pods API first (most reliable)
+        if (function_exists('pods')) {
+            $pod = pods('guests', $post_id);
+            if ($pod && $pod->exists()) {
+                error_log("MKCG Pods Service: Using Pods API for authority hook components");
+                
+                $when = $pod->field('hook_when') ?: 'they need help';
+                $what = $pod->field('hook_what') ?: 'achieve their goals';
+                $how = $pod->field('hook_how') ?: 'through your method';
+                $where = $pod->field('hook_where') ?: 'in their situation';
+                $why = $pod->field('hook_why') ?: 'because they deserve success';
+                $who = $pod->field('guest_title') ?: 'your audience';
+                
+                // Log what we found
+                error_log("MKCG Pods Service: Pods API results - who: {$who}, what: {$what}, when: {$when}, how: {$how}");
+                
+                $components = [
+                    'who' => $who,
+                    'what' => $what,
+                    'when' => $when,
+                    'how' => $how,
+                    'where' => $where,
+                    'why' => $why
+                ];
+                
+                // Check if we got meaningful data
+                $meaningful_count = 0;
+                foreach ($components as $key => $value) {
+                    if (!empty($value) && !in_array($value, ['they need help', 'achieve their goals', 'through your method', 'in their situation', 'because they deserve success', 'your audience'])) {
+                        $meaningful_count++;
+                    }
+                }
+                
+                if ($meaningful_count > 0) {
+                    error_log("MKCG Pods Service: Found {$meaningful_count} meaningful authority hook components via Pods API");
+                } else {
+                    error_log("MKCG Pods Service: No meaningful data via Pods API, trying post meta fallback");
+                }
+            }
+        }
+        
+        // Method 2: Fallback to post meta if Pods didn't work or no meaningful data
+        if (empty($components) || $this->hasOnlyDefaults($components)) {
+            error_log("MKCG Pods Service: Using post meta fallback for authority hook components");
+            
+            $when = get_post_meta($post_id, 'hook_when', true) ?: 'they need help';
+            $what = get_post_meta($post_id, 'hook_what', true) ?: 'achieve their goals';
+            $how = get_post_meta($post_id, 'hook_how', true) ?: 'through your method';
+            $where = get_post_meta($post_id, 'hook_where', true) ?: 'in their situation';
+            $why = get_post_meta($post_id, 'hook_why', true) ?: 'because they deserve success';
+            $who = get_post_meta($post_id, 'guest_title', true) ?: 'your audience';
+            
+            error_log("MKCG Pods Service: Post meta results - who: {$who}, what: {$what}, when: {$when}, how: {$how}");
+            
+            $components = [
+                'who' => $who,
+                'what' => $what,
+                'when' => $when,
+                'how' => $how,
+                'where' => $where,
+                'why' => $why
+            ];
+        }
+        
+        // Enhance WHO field if needed
+        if (empty($components['who']) || $components['who'] === 'your audience') {
             // Try introduction field as fallback
             $intro = get_post_meta($post_id, 'introduction', true);
             if (!empty($intro)) {
                 // Extract audience from introduction if possible
-                $who = $this->extract_audience_from_intro($intro);
+                $extracted_who = $this->extract_audience_from_intro($intro);
+                if ($extracted_who !== 'your audience') {
+                    $components['who'] = $extracted_who;
+                    error_log("MKCG Pods Service: Enhanced WHO from introduction: {$extracted_who}");
+                }
             }
         }
         
         // Build complete authority hook
-        $complete = $this->build_complete_authority_hook($who, $what, $when, $how, $where, $why);
+        $complete = $this->build_complete_authority_hook(
+            $components['who'], 
+            $components['what'], 
+            $components['when'], 
+            $components['how'], 
+            $components['where'], 
+            $components['why']
+        );
         
-        $components = [
-            'who' => $who,
-            'what' => $what,
-            'when' => $when,
-            'how' => $how,
-            'where' => $where,
-            'why' => $why,
-            'complete' => $complete
-        ];
+        $components['complete'] = $complete;
         
-        error_log("MKCG Pods Service: Loaded authority hook components for post {$post_id}");
+        error_log("MKCG Pods Service: Final authority hook components loaded for post {$post_id}");
+        error_log("MKCG Pods Service: Complete hook: {$complete}");
+        
         return $components;
     }
     
@@ -311,6 +405,21 @@ class MKCG_Pods_Service {
         }
         
         return 'your audience'; // Default fallback
+    }
+    
+    /**
+     * Check if components have only default values
+     */
+    private function hasOnlyDefaults($components) {
+        $defaults = ['they need help', 'achieve their goals', 'through your method', 'in their situation', 'because they deserve success', 'your audience'];
+        
+        foreach ($components as $value) {
+            if (!empty($value) && !in_array($value, $defaults)) {
+                return false;
+            }
+        }
+        
+        return true;
     }
     
     /**

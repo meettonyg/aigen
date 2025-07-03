@@ -212,37 +212,100 @@ if (!defined('ABSPATH')) {
 
 <?php
 
-// STANDALONE MODE: Simplified data loading for standalone operation
+// ENHANCED DATA LOADING: Root-level fixes for Pods data loading
 $template_data = [];
+$debug_info = [];
 
-// Try to get data from generator instance if available
+// Primary Method: Try to get data from generator instance
 if (isset($generator_instance) && method_exists($generator_instance, 'get_template_data')) {
     $entry_key = isset($_GET['entry']) ? sanitize_text_field($_GET['entry']) : '';
     $template_data = $generator_instance->get_template_data($entry_key);
+    $debug_info[] = '✅ Got data from generator instance';
     error_log('MKCG Topics Template: Got data from generator instance');
 } else {
-    // Fallback: Create default structure
-    $entry_key = isset($_GET['entry']) ? sanitize_text_field($_GET['entry']) : '';
-    $template_data = [
-        'entry_id' => 0,
-        'entry_key' => $entry_key,
-        'authority_hook_components' => [
-            'who' => 'your audience',
-            'result' => 'achieve their goals',
-            'when' => 'they need help',
-            'how' => 'through your method',
-            'complete' => 'I help your audience achieve their goals when they need help through your method.'
-        ],
-        'form_field_values' => [
-            'topic_1' => '',
-            'topic_2' => '',
-            'topic_3' => '',
-            'topic_4' => '',
-            'topic_5' => ''
-        ],
-        'has_entry' => false
-    ];
-    error_log('MKCG Topics Template: Using fallback data - generator not available');
+    $debug_info[] = '⚠️ Generator instance not available';
+    
+    // Fallback Method: Try direct Pods service
+    if (class_exists('MKCG_Pods_Service')) {
+        $pods_service = new MKCG_Pods_Service();
+        
+        // Try to get post ID from various sources
+        $post_id = 0;
+        if (isset($_GET['post_id']) && intval($_GET['post_id']) > 0) {
+            $post_id = intval($_GET['post_id']);
+            $debug_info[] = "📍 Using post_id from URL: {$post_id}";
+        } elseif (isset($_GET['entry']) && intval($_GET['entry']) > 0) {
+            $entry_id = intval($_GET['entry']);
+            global $wpdb;
+            $post_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT post_id FROM {$wpdb->prefix}frm_items WHERE id = %d",
+                $entry_id
+            ));
+            if ($post_id) {
+                $debug_info[] = "🔄 Converted entry {$entry_id} to post_id {$post_id}";
+            }
+        } else {
+            // Get the most recent guest post for testing
+            $recent_guest = get_posts([
+                'post_type' => 'guests',
+                'post_status' => 'publish',
+                'numberposts' => 1,
+                'orderby' => 'date',
+                'order' => 'DESC'
+            ]);
+            if (!empty($recent_guest)) {
+                $post_id = $recent_guest[0]->ID;
+                $debug_info[] = "🎯 Using most recent guest post: {$post_id}";
+            }
+        }
+        
+        if ($post_id > 0) {
+            $guest_data = $pods_service->get_guest_data($post_id);
+            $template_data = [
+                'post_id' => $post_id,
+                'entry_id' => $pods_service->get_entry_id_from_post($post_id),
+                'entry_key' => isset($_GET['entry']) ? sanitize_text_field($_GET['entry']) : '',
+                'authority_hook_components' => $guest_data['authority_hook_components'],
+                'form_field_values' => $guest_data['topics'],
+                'has_entry' => $guest_data['has_data']
+            ];
+            $debug_info[] = "✅ Loaded data via direct Pods service";
+            $debug_info[] = "📊 Topics found: " . count(array_filter($guest_data['topics']));
+            $debug_info[] = "🔑 Authority hook WHO: " . $guest_data['authority_hook_components']['who'];
+        } else {
+            $debug_info[] = "❌ No valid post ID found";
+        }
+    } else {
+        $debug_info[] = "❌ MKCG_Pods_Service not available";
+    }
+    
+    // Ultimate Fallback: Create default structure
+    if (empty($template_data)) {
+        $entry_key = isset($_GET['entry']) ? sanitize_text_field($_GET['entry']) : '';
+        $template_data = [
+            'post_id' => 0,
+            'entry_id' => 0,
+            'entry_key' => $entry_key,
+            'authority_hook_components' => [
+                'who' => 'your audience',
+                'result' => 'achieve their goals',
+                'when' => 'they need help',
+                'how' => 'through your method',
+                'complete' => 'I help your audience achieve their goals when they need help through your method.'
+            ],
+            'form_field_values' => [
+                'topic_1' => '',
+                'topic_2' => '',
+                'topic_3' => '',
+                'topic_4' => '',
+                'topic_5' => ''
+            ],
+            'has_entry' => false
+        ];
+        $debug_info[] = "⚠️ Using fallback default data";
+    }
+    
+    error_log('MKCG Topics Template: ' . implode(' | ', $debug_info));
 }
 
 // Extract data for easier access in template
@@ -256,6 +319,19 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
 ?>
 
 <div class="topics-generator" data-generator="topics">
+    <!-- DEBUG INFO: Root Fixes Status -->
+    <?php if (current_user_can('administrator') && !empty($debug_info)): ?>
+    <div style="background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%); border: 1px solid #2196f3; padding: 15px; margin: 10px 0; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 12px;">
+        <strong style="color: #1976d2; font-size: 14px;">🔧 ROOT FIXES DEBUG INFO (Admin Only)</strong><br>
+        <strong>Data Loading Status:</strong><br>
+        <?php foreach ($debug_info as $info): ?>
+            • <?php echo esc_html($info); ?><br>
+        <?php endforeach; ?>
+        <strong style="color: #d32f2f;">Data Summary:</strong> Post ID: <?php echo $template_data['post_id']; ?> | Has Data: <?php echo $template_data['has_entry'] ? 'YES' : 'NO'; ?> | Topics: <?php echo count(array_filter($template_data['form_field_values'])); ?>/5<br>
+        <small style="color: #666;">💡 If you see "Using fallback default data", create a guest post with topic/authority hook data</small>
+    </div>
+    <?php endif; ?>
+    
     <div class="topics-generator__container">
         <div class="topics-generator__header">
             <h1 class="topics-generator__title">Create Your Interview Topics</h1>
