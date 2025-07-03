@@ -192,10 +192,26 @@ const MKCG_FormUtils = {
         }
     },
     
-    // WordPress/AJAX utilities - ENHANCED with enterprise-grade error handling
+    // WordPress utilities (AJAX functionality moved to simple-ajax.js)
     wp: {
+        // Get Formidable entry data
+        getFormidableData: function() {
+            const entryElement = document.querySelector('#actual-entry-id');
+            const entryId = entryElement ? entryElement.value : '';
+            
+            if (!entryId) {
+                // Try to get from URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const entryKey = urlParams.get('entry');
+                return { entry_key: entryKey };
+            }
+            
+            return { entry_id: entryId };
+        },
+        
+        // Delegate AJAX to global simple system
         makeAjaxRequest: function(action, data, callbacks = {}) {
-            MKCG_FormUtils.log('Making SIMPLIFIED AJAX request', { action, data });
+            MKCG_FormUtils.log('Delegating AJAX request to simple system', { action, data });
             
             const { onStart, onSuccess, onError, onComplete } = callbacks;
             
@@ -215,92 +231,6 @@ const MKCG_FormUtils = {
                 .finally(() => {
                     if (onComplete) onComplete();
                 });
-        },
-        
-        // Legacy AJAX method for fallback
-        makeLegacyAjaxRequest: function(action, data, callbacks = {}) {
-            const postData = new URLSearchParams();
-            postData.append('action', action);
-            postData.append('security', mkcg_vars?.nonce || '');
-            
-            // Add data to post
-            Object.keys(data).forEach(key => {
-                if (typeof data[key] === 'object') {
-                    postData.append(key, JSON.stringify(data[key]));
-                } else {
-                    postData.append(key, data[key]);
-                }
-            });
-            
-            // Show loading if callback provided
-            if (callbacks.onStart) {
-                callbacks.onStart();
-            }
-            
-            const ajaxUrl = mkcg_vars?.ajax_url || window.ajaxurl || '/wp-admin/admin-ajax.php';
-            
-            return fetch(ajaxUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                },
-                body: postData.toString()
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                return response.json();
-            })
-            .then(response => {
-                MKCG_FormUtils.log('Legacy AJAX response received', response);
-                
-                if (callbacks.onComplete) {
-                    callbacks.onComplete();
-                }
-                
-                if (response.success) {
-                    if (callbacks.onSuccess) {
-                        callbacks.onSuccess(response.data);
-                    }
-                    return response.data;
-                } else {
-                    const errorMessage = response.data?.message || 'Request failed';
-                    MKCG_FormUtils.log('Legacy AJAX error', response);
-                    if (callbacks.onError) {
-                        callbacks.onError(errorMessage);
-                    }
-                    throw new Error(errorMessage);
-                }
-            })
-            .catch(error => {
-                MKCG_FormUtils.log('Legacy AJAX fetch error', error);
-                
-                if (callbacks.onComplete) {
-                    callbacks.onComplete();
-                }
-                
-                const errorMessage = error.message || 'Network error occurred';
-                if (callbacks.onError) {
-                    callbacks.onError(errorMessage);
-                }
-                throw error;
-            });
-        },
-        
-        // Get Formidable entry data
-        getFormidableData: function() {
-            const entryElement = document.querySelector('#actual-entry-id');
-            const entryId = entryElement ? entryElement.value : '';
-            
-            if (!entryId) {
-                // Try to get from URL
-                const urlParams = new URLSearchParams(window.location.search);
-                const entryKey = urlParams.get('entry');
-                return { entry_key: entryKey };
-            }
-            
-            return { entry_id: entryId };
         }
     },
     

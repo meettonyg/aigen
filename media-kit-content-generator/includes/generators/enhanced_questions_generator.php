@@ -26,24 +26,47 @@ class Enhanced_Questions_Generator {
     }
     
     /**
-     * Get template data for Questions Generator using centralized configuration
+     * Get template data using POST ID as primary key
      */
-    public function get_template_data($entry_key = '') {
-        $template_data = MKCG_Config::get_default_data();
-        $template_data['entry_key'] = $entry_key;
-        
-        // Get entry ID from entry key
-        if (!empty($entry_key)) {
-            $template_data['entry_id'] = $this->resolve_entry_id($entry_key);
+    public function get_template_data($post_id = null) {
+        // Get post_id from parameter or request
+        if (!$post_id) {
+            $post_id = $this->get_post_id_from_request();
         }
         
-        // Load data using centralized configuration
-        if ($template_data['entry_id'] > 0) {
-            $loaded_data = MKCG_Config::load_data_for_entry($template_data['entry_id'], $this->formidable_service);
+        $template_data = MKCG_Config::get_default_data();
+        $template_data['post_id'] = $post_id;
+        
+        // Load data using POST ID
+        if ($post_id > 0) {
+            $loaded_data = MKCG_Config::load_data_for_post($post_id, $this->formidable_service);
             $template_data = array_merge($template_data, $loaded_data);
         }
         
         return $template_data;
+    }
+    
+    /**
+     * ADDED: Get post_id from request parameters
+     */
+    private function get_post_id_from_request() {
+        // Check for direct post_id parameter
+        if (isset($_GET['post_id'])) {
+            return intval($_GET['post_id']);
+        }
+        
+        // Check for global post context
+        global $post;
+        if ($post && $post->ID) {
+            return $post->ID;
+        }
+        
+        // Check if we're on a post page
+        if (is_single() || is_page()) {
+            return get_the_ID();
+        }
+        
+        return 0;
     }
     
     /**
@@ -114,7 +137,7 @@ class Enhanced_Questions_Generator {
     }
     
     /**
-     * Handle save questions AJAX request
+     * Handle save questions AJAX request using POST ID
      */
     public function handle_save_questions() {
         if (!$this->verify_request()) {
@@ -122,9 +145,9 @@ class Enhanced_Questions_Generator {
             return;
         }
         
-        $entry_id = $this->get_entry_id();
-        if (!$entry_id) {
-            wp_send_json_error(['message' => 'Entry ID required']);
+        $post_id = $this->get_post_id();
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID required']);
             return;
         }
         
@@ -134,13 +157,13 @@ class Enhanced_Questions_Generator {
             return;
         }
         
-        $result = $this->save_questions($entry_id, $questions_data);
+        $result = $this->save_questions($post_id, $questions_data);
         
         if ($result['success']) {
             wp_send_json_success([
                 'message' => 'Questions saved successfully',
                 'saved_count' => $result['saved_count'],
-                'entry_id' => $entry_id
+                'post_id' => $post_id
             ]);
         } else {
             wp_send_json_error(['message' => $result['message']]);
@@ -148,7 +171,7 @@ class Enhanced_Questions_Generator {
     }
     
     /**
-     * Handle get questions AJAX request
+     * Handle get questions AJAX request using POST ID
      */
     public function handle_get_questions() {
         if (!$this->verify_request()) {
@@ -156,16 +179,9 @@ class Enhanced_Questions_Generator {
             return;
         }
         
-        $entry_id = $this->get_entry_id();
-        if (!$entry_id) {
-            wp_send_json_error(['message' => 'Entry ID required']);
-            return;
-        }
-        
-        $post_id = $this->formidable_service->get_post_id_from_entry($entry_id);
-        
+        $post_id = $this->get_post_id();
         if (!$post_id) {
-            wp_send_json_error(['message' => 'No associated post found']);
+            wp_send_json_error(['message' => 'Post ID required']);
             return;
         }
         
@@ -185,7 +201,6 @@ class Enhanced_Questions_Generator {
         }
         
         wp_send_json_success([
-            'entry_id' => $entry_id,
             'post_id' => $post_id,
             'questions' => $questions,
             'has_data' => !empty($questions)
@@ -207,13 +222,11 @@ class Enhanced_Questions_Generator {
     }
     
     /**
-     * Save questions to database
+     * Save questions using POST ID as primary key
      */
-    public function save_questions($entry_id, $questions_data) {
-        $post_id = $this->formidable_service->get_post_id_from_entry($entry_id);
-        
+    public function save_questions($post_id, $questions_data) {
         if (!$post_id) {
-            return ['success' => false, 'message' => 'No associated post found'];
+            return ['success' => false, 'message' => 'Post ID required'];
         }
         
         $saved_count = 0;
@@ -282,6 +295,13 @@ class Enhanced_Questions_Generator {
      */
     private function get_entry_id() {
         return isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0;
+    }
+    
+    /**
+     * ADDED: Get post ID from request
+     */
+    private function get_post_id() {
+        return isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
     }
     
     /**

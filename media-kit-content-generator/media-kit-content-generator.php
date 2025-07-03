@@ -51,9 +51,6 @@ class Media_Kit_Content_Generator {
         add_action('wp_head', [$this, 'add_ajax_url_to_head']);
         register_activation_hook(__FILE__, [$this, 'activate']);
         register_deactivation_hook(__FILE__, [$this, 'deactivate']);
-        
-        // ROOT-LEVEL FIX: Enhanced admin notices for better user experience
-        add_action('admin_notices', [$this, 'show_admin_notices']);
     }
     
     private function load_dependencies() {
@@ -66,176 +63,40 @@ class Media_Kit_Content_Generator {
     }
     
     /**
-     * ROOT-LEVEL FIX: Enhanced service initialization with detailed debugging
+     * SIMPLIFIED: Service initialization - WordPress will handle errors naturally
      */
     private function init_services() {
-        error_log('MKCG: Starting ROOT-LEVEL enhanced service initialization');
+        // Initialize API Service
+        $this->api_service = new MKCG_API_Service();
         
-        try {
-            // 1. API Service (no dependencies)
-            if (class_exists('MKCG_API_Service')) {
-                $this->api_service = new MKCG_API_Service();
-                $api_class = get_class($this->api_service);
-                error_log('MKCG: ✅ API Service initialized as: ' . $api_class);
-            } else {
-                error_log('MKCG: ❌ MKCG_API_Service class not found - checking available classes');
-                $available_classes = get_declared_classes();
-                $api_classes = array_filter($available_classes, function($class) {
-                    return strpos($class, 'API') !== false;
-                });
-                error_log('MKCG: Available API-related classes: ' . implode(', ', $api_classes));
-                throw new Exception('MKCG_API_Service class not found');
-            }
-            
-            // 2. Enhanced Formidable Service (no dependencies) 
-            if (class_exists('Enhanced_Formidable_Service')) {
-                $this->formidable_service = new Enhanced_Formidable_Service();
-                $formidable_class = get_class($this->formidable_service);
-                error_log('MKCG: ✅ Enhanced Formidable Service initialized as: ' . $formidable_class);
-                
-                // Verify methods exist
-                $required_methods = ['save_entry_data', 'get_field_value', 'get_entry_data'];
-                foreach ($required_methods as $method) {
-                    if (method_exists($this->formidable_service, $method)) {
-                        error_log('MKCG: ✅ Method verified: ' . $method);
-                    } else {
-                        error_log('MKCG: ❌ Missing method: ' . $method);
-                    }
-                }
-            } else {
-                error_log('MKCG: ❌ Enhanced_Formidable_Service class not found - checking available classes');
-                $available_classes = get_declared_classes();
-                $formidable_classes = array_filter($available_classes, function($class) {
-                    return strpos(strtolower($class), 'formidable') !== false;
-                });
-                error_log('MKCG: Available Formidable-related classes: ' . implode(', ', $formidable_classes));
-                throw new Exception('Enhanced_Formidable_Service class not found');
-            }
-            
-            // ROOT-LEVEL FIX: Enhanced validation with type checking
-            if (!$this->api_service || !$this->formidable_service) {
-                throw new Exception('Core services failed to initialize');
-            }
-            
-            if (!is_object($this->api_service) || !is_object($this->formidable_service)) {
-                throw new Exception('Services are not valid objects');
-            }
-            
-            error_log('MKCG: ✅ All ROOT-LEVEL enhanced services initialized successfully');
-            error_log('MKCG: Final service types - API: ' . get_class($this->api_service) . ', Formidable: ' . get_class($this->formidable_service));
-            
-        } catch (Exception $e) {
-            error_log('MKCG: ❌ CRITICAL - ROOT-LEVEL service initialization failed: ' . $e->getMessage());
-            error_log('MKCG: Stack trace: ' . $e->getTraceAsString());
-            
-            // Set services to null on failure
-            $this->api_service = null;
-            $this->formidable_service = null;
-        }
+        // Initialize Formidable Service  
+        $this->formidable_service = new Enhanced_Formidable_Service();
+        
+        error_log('MKCG: Services initialized');
     }
     
     // SIMPLIFIED: Basic validation no longer needed with simplified architecture
     
     /**
-     * ROOT-LEVEL FIX: Enhanced generator initialization with detailed debugging
+     * SIMPLIFIED: Generator initialization
      */
     private function init_generators() {
-        error_log('MKCG: Starting ROOT-LEVEL enhanced generator initialization');
+        // Initialize Topics Generator
+        $this->generators['topics'] = new Enhanced_Topics_Generator(
+            $this->api_service,
+            $this->formidable_service
+        );
         
-        // Check if services are available
-        if (!$this->api_service || !$this->formidable_service) {
-            error_log('MKCG: ⚠️ Services not available - skipping generator initialization');
-            error_log('MKCG: API Service available: ' . ($this->api_service ? 'YES' : 'NO'));
-            error_log('MKCG: Formidable Service available: ' . ($this->formidable_service ? 'YES' : 'NO'));
-            return;
-        }
+        // Initialize Questions Generator
+        $this->generators['questions'] = new Enhanced_Questions_Generator(
+            $this->api_service,
+            $this->formidable_service
+        );
         
-        try {
-            // Initialize only the enhanced topics generator
-            if (class_exists('Enhanced_Topics_Generator')) {
-                error_log('MKCG: ✅ Enhanced_Topics_Generator class found, attempting initialization...');
-                
-                $this->generators['topics'] = new Enhanced_Topics_Generator(
-                    $this->api_service,
-                    $this->formidable_service
-                );
-                
-                $generator_class = get_class($this->generators['topics']);
-                error_log('MKCG: ✅ Enhanced Topics Generator initialized as: ' . $generator_class);
-                
-                // Verify generator methods exist
-                $required_methods = ['get_template_data', 'generate_topics', 'save_topics'];
-                foreach ($required_methods as $method) {
-                    if (method_exists($this->generators['topics'], $method)) {
-                        error_log('MKCG: ✅ Generator method verified: ' . $method);
-                    } else {
-                        error_log('MKCG: ❌ Generator missing method: ' . $method);
-                    }
-                }
-                
-            } else {
-                error_log('MKCG: ❌ Enhanced_Topics_Generator class not found - checking available classes');
-                $available_classes = get_declared_classes();
-                $generator_classes = array_filter($available_classes, function($class) {
-                    return strpos(strtolower($class), 'generator') !== false;
-                });
-                error_log('MKCG: Available Generator-related classes: ' . implode(', ', $generator_classes));
-            }
-            
-            // Initialize Questions Generator
-            if (class_exists('Enhanced_Questions_Generator')) {
-                error_log('MKCG: ✅ Enhanced_Questions_Generator class found, attempting initialization...');
-                $this->generators['questions'] = new Enhanced_Questions_Generator(
-                    $this->api_service,
-                    $this->formidable_service
-                );
-                
-                $generator_class = get_class($this->generators['questions']);
-                error_log('MKCG: ✅ Enhanced Questions Generator initialized as: ' . $generator_class);
-                
-                // Verify generator methods exist
-                $required_methods = ['get_template_data', 'generate_questions_for_topic', 'save_questions'];
-                foreach ($required_methods as $method) {
-                    if (method_exists($this->generators['questions'], $method)) {
-                        error_log('MKCG: ✅ Questions generator method verified: ' . $method);
-                    } else {
-                        error_log('MKCG: ❌ Questions generator missing method: ' . $method);
-                    }
-                }
-            } else {
-                error_log('MKCG: ❌ Enhanced_Questions_Generator class not found - check file loading');
-            }
-            
-            error_log('MKCG: ✅ ROOT-LEVEL enhanced generator initialization completed - ' . count($this->generators) . ' generators loaded');
-            error_log('MKCG: Available generators: ' . implode(', ', array_keys($this->generators)));
-            
-        } catch (Exception $e) {
-            error_log('MKCG: ❌ CRITICAL - ROOT-LEVEL generator initialization failed: ' . $e->getMessage());
-            error_log('MKCG: Stack trace: ' . $e->getTraceAsString());
-        }
+        error_log('MKCG: Generators initialized: ' . implode(', ', array_keys($this->generators)));
     }
     
-    /**
-     * CRITICAL FIX: Validate generator initialization
-     */
-    private function validate_generator_initialization() {
-        $expected_generators = ['topics', 'questions'];
-        $initialized_generators = array_keys($this->generators);
-        
-        $missing_generators = array_diff($expected_generators, $initialized_generators);
-        
-        if (!empty($missing_generators)) {
-            error_log('MKCG: ⚠️ Missing critical generators: ' . implode(', ', $missing_generators));
-        }
-        
-        foreach ($this->generators as $type => $generator) {
-            if (!is_object($generator)) {
-                error_log("MKCG: ❌ Generator '{$type}' is not a valid object");
-            } else {
-                error_log("MKCG: ✅ Generator '{$type}' validated successfully");
-            }
-        }
-    }
+
     
     /**
      * SIMPLIFIED: Basic initialization
@@ -381,11 +242,11 @@ class Media_Kit_Content_Generator {
         // Load jQuery
         wp_enqueue_script('jquery');
         
-        // Load Simple Notifications System (loaded first for global availability)
+        // Load Simple AJAX System (single AJAX solution)
         wp_enqueue_script(
-            'simple-notifications',
-            MKCG_PLUGIN_URL . 'assets/js/simple-notifications.js',
-            [],
+            'simple-ajax',
+            MKCG_PLUGIN_URL . 'assets/js/simple-ajax.js',
+            ['jquery'],
             MKCG_VERSION,
             true
         );
@@ -399,11 +260,11 @@ class Media_Kit_Content_Generator {
             true
         );
         
-        // Load Simple AJAX System
+        // Load Simple Notifications System
         wp_enqueue_script(
-            'simple-ajax',
-            MKCG_PLUGIN_URL . 'assets/js/simple-ajax.js',
-            ['jquery'],
+            'simple-notifications',
+            MKCG_PLUGIN_URL . 'assets/js/simple-notifications.js',
+            [],
             MKCG_VERSION,
             true
         );
@@ -515,25 +376,7 @@ class Media_Kit_Content_Generator {
         flush_rewrite_rules();
     }
     
-    /**
-     * ROOT-LEVEL FIX: Enhanced admin notices
-     */
-    public function show_admin_notices() {
-        // Only show notices to users who can manage options
-        if (!current_user_can('manage_options')) {
-            return;
-        }
-        
-        // Check if test script exists and show helpful notice
-        $test_script_path = MKCG_PLUGIN_PATH . 'test-authority-hook-fix.php';
-        if (file_exists($test_script_path) && isset($_GET['page']) && $_GET['page'] !== 'mkcg-authority-hook-test') {
-            echo '<div class="notice notice-info is-dismissible">';
-            echo '<p><strong>Media Kit Content Generator:</strong> Authority Hook test tools are available. ';
-            echo '<a href="' . admin_url('tools.php?page=mkcg-authority-hook-test') . '">Access via Tools > Authority Hook Test</a> ';
-            echo 'for a better testing experience.</p>';
-            echo '</div>';
-        }
-    }
+
     
     // SIMPLIFIED: Basic getter methods
     public function get_api_service() {

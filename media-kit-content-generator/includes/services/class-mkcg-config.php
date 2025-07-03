@@ -58,17 +58,17 @@ class MKCG_Config {
     }
     
     /**
-     * Get data from centralized configuration
+     * Get data from centralized configuration using POST ID as primary key
+     * UPDATED: Now uses post_id directly instead of entry_id lookup
      */
-    public static function load_data_for_entry($entry_id, $formidable_service) {
-        if (!$entry_id || !$formidable_service) {
+    public static function load_data_for_post($post_id, $formidable_service = null) {
+        if (!$post_id) {
             return self::get_default_data();
         }
         
-        // Get associated post ID
-        $post_id = $formidable_service->get_post_id_from_entry($entry_id);
-        if (!$post_id) {
-            error_log('MKCG Config: No associated post found for entry ' . $entry_id);
+        // Validate post exists
+        if (!get_post($post_id)) {
+            error_log('MKCG Config: Post not found: ' . $post_id);
             return self::get_default_data();
         }
         
@@ -93,12 +93,17 @@ class MKCG_Config {
                     $data['authority_hook_components'][$component] = $value;
                     error_log("MKCG Config: Loaded {$component} from post meta: {$value}");
                 }
-            } elseif ($config['source'] === 'formidable') {
-                // Load from Formidable field (RESULT, WHEN, HOW, COMPLETE)
-                $value = $formidable_service->get_field_value($entry_id, $config['field_id']);
-                if (!empty($value)) {
-                    $data['authority_hook_components'][$component] = $value;
-                    error_log("MKCG Config: Loaded {$component} from Formidable field {$config['field_id']}: {$value}");
+            } elseif ($config['source'] === 'formidable' && $formidable_service) {
+                // Load from Formidable field (RESULT, WHEN, HOW, COMPLETE) - requires entry_id lookup
+                $entry_id = $formidable_service->get_entry_id_from_post($post_id);
+                if ($entry_id) {
+                    $value = $formidable_service->get_field_value($entry_id, $config['field_id']);
+                    if (!empty($value)) {
+                        $data['authority_hook_components'][$component] = $value;
+                        error_log("MKCG Config: Loaded {$component} from Formidable field {$config['field_id']}: {$value}");
+                    }
+                } else {
+                    error_log("MKCG Config: Cannot load {$component} from Formidable - no entry_id found for post {$post_id}");
                 }
             }
         }
@@ -126,8 +131,9 @@ class MKCG_Config {
         $has_topics = !empty(array_filter($data['form_field_values']));
         $has_auth = !empty($components['who']) || !empty($components['result']);
         $data['has_entry'] = $has_topics || $has_auth;
+        $data['post_id'] = $post_id; // Add post_id to the data for reference
         
-        error_log('MKCG Config: Data loading complete - Topics: ' . ($has_topics ? 'YES' : 'NO') . ', Auth: ' . ($has_auth ? 'YES' : 'NO'));
+        error_log('MKCG Config: Data loading complete - Post ID: ' . $post_id . ', Topics: ' . ($has_topics ? 'YES' : 'NO') . ', Auth: ' . ($has_auth ? 'YES' : 'NO'));
         
         return $data;
     }
@@ -182,16 +188,17 @@ class MKCG_Config {
     }
     
     /**
-     * Save data using centralized configuration
+     * Save data using centralized configuration using POST ID as primary key
+     * UPDATED: Now uses post_id directly instead of entry_id lookup
      */
-    public static function save_data_for_entry($entry_id, $data, $formidable_service) {
-        if (!$entry_id || !$formidable_service) {
+    public static function save_data_for_post($post_id, $data, $formidable_service = null) {
+        if (!$post_id) {
             return ['success' => false, 'message' => 'Invalid parameters'];
         }
         
-        $post_id = $formidable_service->get_post_id_from_entry($entry_id);
-        if (!$post_id) {
-            return ['success' => false, 'message' => 'No associated post found'];
+        // Validate post exists
+        if (!get_post($post_id)) {
+            return ['success' => false, 'message' => 'Post not found'];
         }
         
         $mappings = self::get_field_mappings();
@@ -224,12 +231,17 @@ class MKCG_Config {
                             $saved_count++;
                             error_log("MKCG Config: Saved {$component} to post meta {$config['key']}");
                         }
-                    } elseif ($config['source'] === 'formidable') {
-                        // Save RESULT, WHEN, HOW to Formidable
-                        $result = $formidable_service->save_entry_data($entry_id, [$config['field_id'] => $value]);
-                        if ($result['success']) {
-                            $saved_count++;
-                            error_log("MKCG Config: Saved {$component} to Formidable field {$config['field_id']}");
+                    } elseif ($config['source'] === 'formidable' && $formidable_service) {
+                        // Save RESULT, WHEN, HOW to Formidable (requires entry_id)
+                        $entry_id = $formidable_service->get_entry_id_from_post($post_id);
+                        if ($entry_id) {
+                            $result = $formidable_service->save_entry_data($entry_id, [$config['field_id'] => $value]);
+                            if ($result['success']) {
+                                $saved_count++;
+                                error_log("MKCG Config: Saved {$component} to Formidable field {$config['field_id']}");
+                            }
+                        } else {
+                            error_log("MKCG Config: Cannot save {$component} to Formidable - no entry_id found for post {$post_id}");
                         }
                     }
                 }

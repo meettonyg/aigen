@@ -227,6 +227,7 @@ class Enhanced_Formidable_Service {
     
     /**
      * Get topics from post meta (used by Questions template)
+     * ENHANCED: Now optimized for direct post_id access
      */
     public function get_topics_from_post_enhanced($post_id) {
         if (!$post_id) {
@@ -252,12 +253,14 @@ class Enhanced_Formidable_Service {
         return [
             'topics' => $topics,
             'data_quality' => $quality,
-            'auto_healed' => false
+            'auto_healed' => false,
+            'post_id' => $post_id  // Include post_id for reference
         ];
     }
     
     /**
      * Get questions with integrity check (used by Questions template)
+     * ENHANCED: Now optimized for direct post_id access
      */
     public function get_questions_with_integrity_check($post_id, $topic_num = null) {
         if (!$post_id) {
@@ -296,6 +299,52 @@ class Enhanced_Formidable_Service {
             'questions' => $questions,
             'integrity_status' => $integrity_status,
             'auto_healed' => false
+        ];
+    }
+    
+    /**
+     * ENHANCED: Get all data for a post (topics + questions + authority hook)
+     * Direct post_id method for improved performance
+     */
+    public function get_all_post_data($post_id) {
+        if (!$post_id) {
+            return ['success' => false, 'message' => 'Post ID required'];
+        }
+        
+        $data = [];
+        
+        // Get topics
+        $topics = $this->get_topics_from_post_enhanced($post_id);
+        $data['topics'] = $topics['topics'];
+        $data['topics_quality'] = $topics['data_quality'];
+        
+        // Get questions
+        $questions = $this->get_questions_with_integrity_check($post_id);
+        $data['questions'] = $questions['questions'];
+        $data['questions_integrity'] = $questions['integrity_status'];
+        
+        // Get authority hook components from post meta
+        $data['authority_hook'] = [
+            'who' => get_post_meta($post_id, 'mkcg_who', true) ?: 'your audience',
+            'result' => get_post_meta($post_id, 'mkcg_result', true) ?: 'achieve their goals',
+            'when' => get_post_meta($post_id, 'mkcg_when', true) ?: 'they need help',
+            'how' => get_post_meta($post_id, 'mkcg_how', true) ?: 'through your method'
+        ];
+        
+        // Build complete authority hook
+        $components = $data['authority_hook'];
+        $data['authority_hook']['complete'] = sprintf(
+            'I help %s %s when %s %s.',
+            $components['who'],
+            $components['result'],
+            $components['when'],
+            $components['how']
+        );
+        
+        return [
+            'success' => true,
+            'post_id' => $post_id,
+            'data' => $data
         ];
     }
     

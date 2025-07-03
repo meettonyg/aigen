@@ -635,14 +635,6 @@
   box-sizing: border-box;
 }
 
-body {
-  font-family: var(--font-family);
-  margin: 0;
-  padding: var(--spacing-md);
-  background-color: var(--bg-tertiary);
-  color: var(--text-primary);
-  line-height: 1.5;
-}
 
 /* =============================================================================
    TOPICS GENERATOR

@@ -1,22 +1,21 @@
 <?php
 /**
- * Simplified Topics Generator
- * Single responsibility: Generate interview topics cleanly
- * Eliminates: Complex initialization, multiple loading strategies, diagnostic systems
+ * Simplified Topics Generator - WordPress Post Meta Only
+ * Single responsibility: Generate interview topics using WordPress custom posts
+ * Eliminates: Formidable dependency, complex dual-source data loading
  */
 
 class Enhanced_Topics_Generator {
     
     private $api_service;
-    private $formidable_service;
     private $ajax_handlers;
     
     /**
-     * Simple constructor - direct initialization, no phases or race condition workarounds
+     * Simple constructor - WordPress posts only
      */
-    public function __construct($api_service, $formidable_service) {
+    public function __construct($api_service, $formidable_service = null) {
         $this->api_service = $api_service;
-        $this->formidable_service = $formidable_service;
+        // Note: $formidable_service kept for backwards compatibility but not used
         $this->init();
     }
     
@@ -24,8 +23,8 @@ class Enhanced_Topics_Generator {
      * Initialize - direct and simple
      */
     public function init() {
-        // Initialize AJAX handlers
-        $this->ajax_handlers = new Enhanced_AJAX_Handlers($this->formidable_service, $this);
+        // Initialize AJAX handlers (pass null for formidable service since we don't use it)
+        $this->ajax_handlers = new Enhanced_AJAX_Handlers(null, $this);
         
         // Add any WordPress hooks needed
         add_action('wp_enqueue_scripts', [$this, 'enqueue_scripts']);
@@ -63,89 +62,147 @@ class Enhanced_Topics_Generator {
     }
     
     /**
-     * CRITICAL FIX: Get template data using centralized configuration
-     * Handles hybrid data sources: post meta + Formidable fields
+     * Get template data using POST ID ONLY - No Formidable dependency
      */
     public function get_template_data($entry_key = '') {
-        error_log('MKCG Topics Generator: Starting get_template_data for entry_key: ' . $entry_key);
+        error_log('MKCG Topics Generator: Starting get_template_data - POST ID ONLY');
         
-        $template_data = MKCG_Config::get_default_data();
-        $template_data['entry_key'] = $entry_key;
+        // Get post_id from request parameters
+        $post_id = $this->get_post_id_from_request();
         
-        // Get entry ID from entry key
-        if (!empty($entry_key)) {
-            $template_data['entry_id'] = $this->resolve_entry_id($entry_key);
-            error_log('MKCG Topics Generator: Resolved entry ID: ' . $template_data['entry_id']);
+        if (!$post_id) {
+            error_log('MKCG Topics Generator: No valid post ID found');
+            return $this->get_default_template_data();
         }
         
-        // Load actual data using centralized configuration
-        if ($template_data['entry_id'] > 0) {
-            $loaded_data = MKCG_Config::load_data_for_entry($template_data['entry_id'], $this->formidable_service);
-            $template_data = array_merge($template_data, $loaded_data);
-            error_log('MKCG Topics Generator: Template data loaded using centralized config');
-        } else {
-            error_log('MKCG Topics Generator: No valid entry ID - using default data');
-        }
+        error_log('MKCG Topics Generator: Loading data for post ID: ' . $post_id);
         
+        // Load ALL data directly from WordPress post meta
+        $template_data = [
+            'post_id' => $post_id,
+            'entry_id' => 0, // Legacy compatibility
+            'entry_key' => '', // Legacy compatibility
+            'has_entry' => true,
+            'authority_hook_components' => $this->load_authority_hook_from_post($post_id),
+            'form_field_values' => $this->load_topics_from_post($post_id)
+        ];
+        
+        error_log('MKCG Topics Generator: Data loaded successfully from post meta');
         return $template_data;
     }
     
     /**
-     * CRITICAL FIX: Load actual data from Formidable with proper error handling
+     * Get post_id from request parameters - handles entry ID conversion
      */
-    private function load_template_data_fixed($template_data) {
-        $entry_id = $template_data['entry_id'];
-        
-        try {
-            // Load topic field values with proper mapping
-            $topics_fields = $this->get_topics_field_mappings();
-            $has_topic_data = false;
-            
-            foreach ($topics_fields as $topic_key => $field_id) {
-                $value = $this->formidable_service->get_field_value($entry_id, $field_id);
-                if (!empty($value)) {
-                    $template_data['form_field_values'][$topic_key] = $value;
-                    $has_topic_data = true;
-                    error_log("MKCG Topics Generator: Loaded {$topic_key} from field {$field_id}: {$value}");
-                }
-            }
-            
-            // Load authority hook components
-            $auth_fields = $this->get_authority_hook_field_mappings();
-            $has_auth_data = false;
-            
-            foreach ($auth_fields as $component => $field_id) {
-                $value = $this->formidable_service->get_field_value($entry_id, $field_id);
-                if (!empty($value)) {
-                    $template_data['authority_hook_components'][$component] = $value;
-                    $has_auth_data = true;
-                    error_log("MKCG Topics Generator: Loaded {$component} from field {$field_id}: {$value}");
-                }
-            }
-            
-            // Build complete authority hook if we have components
-            if ($has_auth_data) {
-                $complete_hook = sprintf(
-                    'I help %s %s when %s %s.',
-                    $template_data['authority_hook_components']['who'],
-                    $template_data['authority_hook_components']['result'],
-                    $template_data['authority_hook_components']['when'],
-                    $template_data['authority_hook_components']['how']
-                );
-                $template_data['authority_hook_components']['complete'] = $complete_hook;
-                error_log('MKCG Topics Generator: Built complete authority hook: ' . $complete_hook);
-            }
-            
-            if ($has_topic_data || $has_auth_data) {
-                $template_data['has_entry'] = true;
-                error_log('MKCG Topics Generator: Data successfully loaded from entry');
-            }
-            
-        } catch (Exception $e) {
-            error_log('MKCG Topics Generator: Error loading template data: ' . $e->getMessage());
+    private function get_post_id_from_request() {
+        // Check for direct post_id parameter (new format)
+        if (isset($_GET['post_id'])) {
+            return intval($_GET['post_id']);
         }
         
-        return $template_data;
+        // Handle legacy entry parameter by converting to post_id
+        if (isset($_GET['entry'])) {
+            $entry_id = intval($_GET['entry']);
+            if ($entry_id > 0) {
+                // Get the associated custom post ID for this entry
+                $post_id = $this->get_post_id_from_entry($entry_id);
+                error_log('MKCG Topics Generator: Converted entry ' . $entry_id . ' to post_id ' . $post_id);
+                return $post_id;
+            }
+        }
+        
+        // Check for global post context
+        global $post;
+        if ($post && $post->ID) {
+            return $post->ID;
+        }
+        
+        // Check if we're on a post page
+        if (is_single() || is_page()) {
+            return get_the_ID();
+        }
+        
+        return 0;
+    }
+    
+    /**
+     * Convert entry ID to post ID (for legacy URL support)
+     */
+    private function get_post_id_from_entry($entry_id) {
+        global $wpdb;
+        
+        // Query to find the post_id associated with this entry_id
+        $post_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->prefix}frm_items WHERE id = %d",
+            $entry_id
+        ));
+        
+        return $post_id ? intval($post_id) : 0;
+    }
+    
+    /**
+     * Load authority hook components from WordPress post meta
+     */
+    private function load_authority_hook_from_post($post_id) {
+        $who = get_post_meta($post_id, 'mkcg_who', true) ?: 'your audience';
+        $result = get_post_meta($post_id, 'mkcg_result', true) ?: 'achieve their goals';
+        $when = get_post_meta($post_id, 'mkcg_when', true) ?: 'they need help';
+        $how = get_post_meta($post_id, 'mkcg_how', true) ?: 'through your method';
+        
+        // Build complete authority hook
+        $complete = sprintf('I help %s %s when %s %s.', $who, $result, $when, $how);
+        
+        error_log('MKCG Topics Generator: Loaded authority hook from post meta');
+        
+        return [
+            'who' => $who,
+            'result' => $result,
+            'when' => $when,
+            'how' => $how,
+            'complete' => $complete
+        ];
+    }
+    
+    /**
+     * Load topics from WordPress post meta
+     */
+    private function load_topics_from_post($post_id) {
+        $topics = [];
+        
+        for ($i = 1; $i <= 5; $i++) {
+            $topic = get_post_meta($post_id, "mkcg_topic_{$i}", true);
+            $topics["topic_{$i}"] = $topic ?: '';
+        }
+        
+        error_log('MKCG Topics Generator: Loaded topics from post meta');
+        
+        return $topics;
+    }
+    
+    /**
+     * Get default template data structure
+     */
+    private function get_default_template_data() {
+        return [
+            'post_id' => 0,
+            'entry_id' => 0,
+            'entry_key' => '',
+            'has_entry' => false,
+            'authority_hook_components' => [
+                'who' => 'your audience',
+                'result' => 'achieve their goals',
+                'when' => 'they need help',
+                'how' => 'through your method',
+                'complete' => 'I help your audience achieve their goals when they need help through your method.'
+            ],
+            'form_field_values' => [
+                'topic_1' => '',
+                'topic_2' => '',
+                'topic_3' => '',
+                'topic_4' => '',
+                'topic_5' => ''
+            ]
+        ];
     }
     
     /**
@@ -177,31 +234,65 @@ class Enhanced_Topics_Generator {
     }
     
     /**
-     * Save topics using centralized configuration
+     * Save topics directly to WordPress post meta
      */
-    public function save_topics($entry_id, $topics_data) {
-        if (!$entry_id || empty($topics_data)) {
+    public function save_topics($post_id, $topics_data) {
+        if (!$post_id || empty($topics_data)) {
             return [
                 'success' => false,
                 'message' => 'Invalid parameters'
             ];
         }
         
-        return MKCG_Config::save_data_for_entry($entry_id, ['topics' => $topics_data], $this->formidable_service);
+        $saved_count = 0;
+        
+        foreach ($topics_data as $topic_key => $topic_value) {
+            if (!empty($topic_value)) {
+                $meta_key = 'mkcg_' . $topic_key;
+                $result = update_post_meta($post_id, $meta_key, $topic_value);
+                if ($result !== false) {
+                    $saved_count++;
+                    error_log("MKCG Topics Generator: Saved {$topic_key} to post meta");
+                }
+            }
+        }
+        
+        return [
+            'success' => $saved_count > 0,
+            'saved_count' => $saved_count,
+            'message' => $saved_count > 0 ? 'Topics saved successfully' : 'No topics saved'
+        ];
     }
     
     /**
-     * Save authority hook using centralized configuration
+     * Save authority hook directly to WordPress post meta
      */
-    public function save_authority_hook($entry_id, $authority_hook_data) {
-        if (!$entry_id || empty($authority_hook_data)) {
+    public function save_authority_hook($post_id, $authority_hook_data) {
+        if (!$post_id || empty($authority_hook_data)) {
             return [
                 'success' => false,
                 'message' => 'Invalid parameters'
             ];
         }
         
-        return MKCG_Config::save_data_for_entry($entry_id, ['authority_hook' => $authority_hook_data], $this->formidable_service);
+        $saved_count = 0;
+        
+        foreach ($authority_hook_data as $component => $value) {
+            if (!empty($value)) {
+                $meta_key = 'mkcg_' . $component;
+                $result = update_post_meta($post_id, $meta_key, $value);
+                if ($result !== false) {
+                    $saved_count++;
+                    error_log("MKCG Topics Generator: Saved {$component} to post meta");
+                }
+            }
+        }
+        
+        return [
+            'success' => $saved_count > 0,
+            'saved_count' => $saved_count,
+            'message' => $saved_count > 0 ? 'Authority hook saved successfully' : 'No authority hook saved'
+        ];
     }
     
     /**
@@ -298,31 +389,7 @@ class Enhanced_Topics_Generator {
         ];
     }
     
-    /**
-     * Get topics field mappings - should come from centralized config
-     */
-    private function get_topics_field_mappings() {
-        return [
-            'topic_1' => '8498',
-            'topic_2' => '8499',
-            'topic_3' => '8500',
-            'topic_4' => '8501',
-            'topic_5' => '8502'
-        ];
-    }
-    
-    /**
-     * Get authority hook field mappings - should come from centralized config
-     */
-    private function get_authority_hook_field_mappings() {
-        return [
-            'who' => '10296',
-            'result' => '10297',
-            'when' => '10387',
-            'how' => '10298',
-            'complete' => '10358'
-        ];
-    }
+
     
     /**
      * Validate input data
