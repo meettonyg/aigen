@@ -66,7 +66,7 @@ class Media_Kit_Content_Generator {
     
     /**
      * SIMPLIFIED: Service initialization - WordPress will handle errors naturally
-     * UPDATED: Now uses Pods service as primary data source
+     * UPDATED: Pure Pods service, no Formidable dependencies
      */
     private function init_services() {
         // Initialize API Service
@@ -87,13 +87,12 @@ class Media_Kit_Content_Generator {
      * SIMPLIFIED: Generator initialization
      */
     private function init_generators() {
-        // Initialize Topics Generator
+        // Initialize Topics Generator (pure Pods)
         $this->generators['topics'] = new Enhanced_Topics_Generator(
-            $this->api_service,
-            $this->formidable_service
+            $this->api_service
         );
         
-        // Initialize Questions Generator
+        // Initialize Questions Generator (with backwards compatibility service)
         $this->generators['questions'] = new Enhanced_Questions_Generator(
             $this->api_service,
             $this->formidable_service
@@ -139,12 +138,11 @@ class Media_Kit_Content_Generator {
     }
     
     /**
-     * Topics Generator Shortcode
+     * Topics Generator Shortcode - Pure Pods integration
      */
     public function topics_shortcode($atts) {
         $atts = shortcode_atts([
-            'entry_id' => 0,
-            'entry_key' => ''
+            'post_id' => 0
         ], $atts);
         
         // Force load scripts for shortcode
@@ -153,8 +151,7 @@ class Media_Kit_Content_Generator {
         ob_start();
         
         // SIMPLIFIED: Set required global variables for template
-        global $formidable_service, $pods_service, $generator_instance, $generator_type;
-        $formidable_service = $this->formidable_service; // Keep for backwards compatibility
+        global $pods_service, $generator_instance, $generator_type;
         $pods_service = $this->pods_service; // Primary data source
         $generator_instance = isset($this->generators['topics']) ? $this->generators['topics'] : null;
         $generator_type = 'topics';
@@ -163,7 +160,7 @@ class Media_Kit_Content_Generator {
         global $api_service;
         $api_service = $this->api_service;
         
-        error_log('MKCG Shortcode: Loading topics template with simplified generator');
+        error_log('MKCG Shortcode: Loading topics template with pure Pods generator');
         
         // Include the template
         include MKCG_PLUGIN_PATH . 'templates/generators/topics/default.php';
@@ -186,12 +183,11 @@ class Media_Kit_Content_Generator {
     }
     
     /**
-     * Questions Generator Shortcode
+     * Questions Generator Shortcode - Pure Pods integration
      */
     public function questions_shortcode($atts) {
         $atts = shortcode_atts([
-            'entry_id' => 0,
-            'entry_key' => ''
+            'post_id' => 0
         ], $atts);
         
         // Force load scripts for shortcode
@@ -200,8 +196,7 @@ class Media_Kit_Content_Generator {
         ob_start();
         
         // CRITICAL FIX: Set ALL required global variables for template
-        global $formidable_service, $pods_service, $generator_instance, $generator_type;
-        $formidable_service = $this->formidable_service; // Keep for backwards compatibility
+        global $pods_service, $generator_instance, $generator_type;
         $pods_service = $this->pods_service; // Primary data source
         $generator_instance = isset($this->generators['questions']) ? $this->generators['questions'] : null;
         $generator_type = 'questions';
@@ -212,7 +207,7 @@ class Media_Kit_Content_Generator {
         
         // CRITICAL FIX: Get template data using Questions Generator if available
         if ($generator_instance && method_exists($generator_instance, 'get_template_data')) {
-            $template_data = $generator_instance->get_template_data($entry_key);
+            $template_data = $generator_instance->get_template_data();
             error_log('MKCG Shortcode: Got template data from Questions Generator: ' . json_encode(array_keys($template_data)));
         } else {
             error_log('MKCG Shortcode: Questions generator not available - using basic data');

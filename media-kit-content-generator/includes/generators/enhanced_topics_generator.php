@@ -1,8 +1,8 @@
 <?php
 /**
- * Enhanced Topics Generator - Pods Custom Post Type Integration
+ * Enhanced Topics Generator - Pure Pods Integration
  * Single responsibility: Generate interview topics using Pods "guests" custom post type
- * Uses: Pods service as single source of truth for all data
+ * Uses: Dynamic post_id from query string, no Formidable dependencies
  */
 
 class Enhanced_Topics_Generator {
@@ -12,9 +12,9 @@ class Enhanced_Topics_Generator {
     private $ajax_handlers;
     
     /**
-     * Constructor with Pods service integration
+     * Constructor - Pure Pods service integration
      */
-    public function __construct($api_service, $formidable_service = null) {
+    public function __construct($api_service) {
         $this->api_service = $api_service;
         
         // Initialize Pods service
@@ -28,7 +28,7 @@ class Enhanced_Topics_Generator {
      * Initialize - direct and simple
      */
     public function init() {
-        // Initialize AJAX handlers (pass null for formidable service since we don't use it)
+        // Initialize AJAX handlers (pure Pods, no Formidable)
         $this->ajax_handlers = new Enhanced_AJAX_Handlers(null, $this);
         
         // Add any WordPress hooks needed
@@ -67,13 +67,15 @@ class Enhanced_Topics_Generator {
     }
     
     /**
-     * Get template data using Pods service - Single source of truth
+     * Get template data using dynamic post_id - Pure Pods integration
      */
-    public function get_template_data($entry_key = '') {
-        error_log('MKCG Topics Generator: Starting get_template_data - Pods Integration');
+    public function get_template_data($post_id = null) {
+        error_log('MKCG Topics Generator: Starting get_template_data - Pure Pods Integration');
         
-        // Get post_id from request parameters
-        $post_id = $this->get_post_id_from_request();
+        // Get post_id from request parameters or use provided one
+        if (!$post_id) {
+            $post_id = $this->get_post_id_from_request();
+        }
         
         if (!$post_id) {
             error_log('MKCG Topics Generator: No valid post ID found');
@@ -91,12 +93,10 @@ class Enhanced_Topics_Generator {
         // Load ALL data from Pods service
         $guest_data = $this->pods_service->get_guest_data($post_id);
         
-        // Transform to expected template format
+        // Transform to template format (no Formidable references)
         $template_data = [
             'post_id' => $post_id,
-            'entry_id' => $this->pods_service->get_entry_id_from_post($post_id), // Legacy compatibility
-            'entry_key' => $entry_key, // Legacy compatibility
-            'has_entry' => $guest_data['has_data'],
+            'has_data' => $guest_data['has_data'],
             'authority_hook_components' => $guest_data['authority_hook_components'],
             'form_field_values' => $guest_data['topics'],
             'contact' => $guest_data['contact'],
@@ -108,42 +108,32 @@ class Enhanced_Topics_Generator {
     }
     
     /**
-     * Get post_id from request parameters - ENHANCED with multiple detection strategies
+     * Get post_id from request parameters - Dynamic post ID detection
      */
     private function get_post_id_from_request() {
-        error_log('MKCG Topics Generator: Starting enhanced post ID detection');
+        error_log('MKCG Topics Generator: Starting dynamic post ID detection');
         
-        // Strategy 1: Direct post_id parameter (new format)
+        // Strategy 1: Direct post_id parameter (primary method)
         if (isset($_GET['post_id']) && intval($_GET['post_id']) > 0) {
             $post_id = intval($_GET['post_id']);
             error_log('MKCG Topics Generator: Found post_id parameter: ' . $post_id);
-            return $post_id;
-        }
-        
-        // Strategy 2: Handle legacy entry parameter by converting to post_id
-        if (isset($_GET['entry']) && !empty($_GET['entry'])) {
-            $entry_param = $_GET['entry'];
-            $entry_id = is_numeric($entry_param) ? intval($entry_param) : 0;
             
-            if ($entry_id > 0) {
-                // Get the associated custom post ID for this entry
-                $post_id = $this->get_post_id_from_entry($entry_id);
-                error_log('MKCG Topics Generator: Converted entry ' . $entry_id . ' to post_id ' . $post_id);
-                
-                if ($post_id > 0) {
-                    return $post_id;
-                }
+            // Validate it's a guests post
+            if (get_post($post_id) && get_post($post_id)->post_type === 'guests') {
+                return $post_id;
+            } else {
+                error_log('MKCG Topics Generator: Post ID ' . $post_id . ' is not a valid guests post');
             }
         }
         
-        // Strategy 3: Check for global post context
+        // Strategy 2: Check for global post context
         global $post;
         if ($post && $post->ID && $post->post_type === 'guests') {
             error_log('MKCG Topics Generator: Using global post context: ' . $post->ID);
             return $post->ID;
         }
         
-        // Strategy 4: Check if we're on a guest post page
+        // Strategy 3: Check if we're on a guest post page
         if (is_single() || is_page()) {
             $current_id = get_the_ID();
             if ($current_id && get_post_type($current_id) === 'guests') {
@@ -152,7 +142,7 @@ class Enhanced_Topics_Generator {
             }
         }
         
-        // Strategy 5: Look for the most recent guest post for testing
+        // Strategy 4: Look for the most recent guest post for testing
         $recent_guest = get_posts([
             'post_type' => 'guests',
             'post_status' => 'publish',
@@ -172,32 +162,12 @@ class Enhanced_Topics_Generator {
     }
     
     /**
-     * Convert entry ID to post ID (for legacy URL support)
-     */
-    private function get_post_id_from_entry($entry_id) {
-        global $wpdb;
-        
-        // Query to find the post_id associated with this entry_id
-        $post_id = $wpdb->get_var($wpdb->prepare(
-            "SELECT post_id FROM {$wpdb->prefix}frm_items WHERE id = %d",
-            $entry_id
-        ));
-        
-        return $post_id ? intval($post_id) : 0;
-    }
-    
-    // Removed load_authority_hook_from_post() and load_topics_from_post() 
-    // These are now handled by the Pods service
-    
-    /**
-     * Get default template data structure
+     * Get default template data structure - Pure Pods
      */
     private function get_default_template_data() {
         return [
             'post_id' => 0,
-            'entry_id' => 0,
-            'entry_key' => '',
-            'has_entry' => false,
+            'has_data' => false,
             'authority_hook_components' => [
                 'who' => 'your audience',
                 'what' => 'achieve their goals',
@@ -327,51 +297,6 @@ class Enhanced_Topics_Generator {
         
         return $topics;
     }
-    
-    /**
-     * Resolve entry ID from entry key
-     */
-    private function resolve_entry_id($entry_key) {
-        if (is_numeric($entry_key)) {
-            return intval($entry_key);
-        }
-        
-        global $wpdb;
-        $entry_id = $wpdb->get_var($wpdb->prepare(
-            "SELECT id FROM {$wpdb->prefix}frm_items WHERE item_key = %s",
-            $entry_key
-        ));
-        
-        return $entry_id ? intval($entry_id) : 0;
-    }
-    
-    /**
-     * Get empty topics array
-     */
-    private function get_empty_topics_array() {
-        return [
-            'topic_1' => '',
-            'topic_2' => '',
-            'topic_3' => '',
-            'topic_4' => '',
-            'topic_5' => ''
-        ];
-    }
-    
-    /**
-     * Get empty authority hook structure
-     */
-    private function get_empty_authority_hook() {
-        return [
-            'who' => '',
-            'result' => '',
-            'when' => '',
-            'how' => '',
-            'complete' => ''
-        ];
-    }
-    
-
     
     /**
      * Validate input data

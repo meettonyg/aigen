@@ -48,6 +48,18 @@ class MKCG_Pods_Service {
         
         error_log("MKCG Pods Service: Loading topics for post {$post_id}");
         
+        // ENHANCED DEBUG: Check all meta fields to see what exists
+        $all_meta = get_post_meta($post_id);
+        error_log("MKCG Pods Service: DEBUG - Total meta fields for post {$post_id}: " . count($all_meta));
+        $sample_keys = array_slice(array_keys($all_meta), 0, 10);
+        error_log("MKCG Pods Service: DEBUG - Sample meta keys: " . implode(', ', $sample_keys));
+        
+        // Check if any topic-related fields exist
+        $topic_like_keys = array_filter(array_keys($all_meta), function($key) {
+            return strpos(strtolower($key), 'topic') !== false;
+        });
+        error_log("MKCG Pods Service: DEBUG - Topic-like meta keys: " . implode(', ', $topic_like_keys));
+        
         // CRITICAL DEBUG: Verify post exists and is correct type
         $post = get_post($post_id);
         if (!$post) {
@@ -185,6 +197,22 @@ class MKCG_Pods_Service {
     public function get_authority_hook_components($post_id) {
         error_log("MKCG Pods Service: Loading authority hook components for post {$post_id}");
         
+        // ENHANCED DEBUG: Check authority hook related fields
+        $all_meta = get_post_meta($post_id);
+        $auth_like_keys = array_filter(array_keys($all_meta), function($key) {
+            return strpos(strtolower($key), 'hook') !== false || 
+                   strpos(strtolower($key), 'guest') !== false ||
+                   strpos(strtolower($key), 'title') !== false;
+        });
+        error_log("MKCG Pods Service: DEBUG - Authority/hook-like meta keys: " . implode(', ', $auth_like_keys));
+        
+        // Check specific expected fields
+        $expected_auth_fields = ['guest_title', 'hook_when', 'hook_what', 'hook_how', 'hook_where', 'hook_why'];
+        foreach ($expected_auth_fields as $field) {
+            $value = get_post_meta($post_id, $field, true);
+            error_log("MKCG Pods Service: DEBUG - Direct check {$field}: '" . substr($value, 0, 50) . (strlen($value) > 50 ? '...' : '') . "'");
+        }
+        
         $components = [];
         
         // Method 1: Try Pods API first (most reliable)
@@ -198,7 +226,9 @@ class MKCG_Pods_Service {
                 $how = $pod->field('hook_how') ?: 'through your method';
                 $where = $pod->field('hook_where') ?: 'in their situation';
                 $why = $pod->field('hook_why') ?: 'because they deserve success';
-                $who = $pod->field('guest_title') ?: 'your audience';
+                
+                // FIXED: Get WHO from audience taxonomy instead of guest_title
+                $who = $this->get_audience_from_taxonomy($post_id) ?: 'your audience';
                 
                 // Log what we found
                 error_log("MKCG Pods Service: Pods API results - who: {$who}, what: {$what}, when: {$when}, how: {$how}");
@@ -237,7 +267,9 @@ class MKCG_Pods_Service {
             $how = get_post_meta($post_id, 'hook_how', true) ?: 'through your method';
             $where = get_post_meta($post_id, 'hook_where', true) ?: 'in their situation';
             $why = get_post_meta($post_id, 'hook_why', true) ?: 'because they deserve success';
-            $who = get_post_meta($post_id, 'guest_title', true) ?: 'your audience';
+            
+            // FIXED: Get WHO from audience taxonomy instead of guest_title meta
+            $who = $this->get_audience_from_taxonomy($post_id) ?: 'your audience';
             
             error_log("MKCG Pods Service: Post meta results - who: {$who}, what: {$what}, when: {$when}, how: {$how}");
             
@@ -478,6 +510,54 @@ class MKCG_Pods_Service {
     }
     
     /**
+     * Get audience from taxonomy - ADDED for WHO component
+     */
+    private function get_audience_from_taxonomy($post_id) {
+        if (!$post_id) {
+            return '';
+        }
+        
+        error_log("MKCG Pods Service: Getting audience from taxonomy for post {$post_id}");
+        
+        // Get audience taxonomy terms for this post
+        $audience_terms = wp_get_post_terms($post_id, 'audience', ['fields' => 'names']);
+        
+        if (is_wp_error($audience_terms)) {
+            error_log("MKCG Pods Service: Error getting audience terms: " . $audience_terms->get_error_message());
+            return '';
+        }
+        
+        if (!empty($audience_terms)) {
+            // Use the first audience term as the WHO
+            $audience = $audience_terms[0];
+            error_log("MKCG Pods Service: Found audience from taxonomy: {$audience}");
+            return $audience;
+        }
+        
+        // Fallback: Try Pods API for audience field
+        if (function_exists('pods')) {
+            $pod = pods('guests', $post_id);
+            if ($pod && $pod->exists()) {
+                $audience_field = $pod->field('audience');
+                if (!empty($audience_field)) {
+                    error_log("MKCG Pods Service: Found audience from Pods field: {$audience_field}");
+                    return $audience_field;
+                }
+            }
+        }
+        
+        // Final fallback: Check if there's an audience meta field
+        $audience_meta = get_post_meta($post_id, 'audience', true);
+        if (!empty($audience_meta)) {
+            error_log("MKCG Pods Service: Found audience from meta field: {$audience_meta}");
+            return $audience_meta;
+        }
+        
+        error_log("MKCG Pods Service: No audience found for post {$post_id}");
+        return '';
+    }
+    
+    /**
      * Extract audience from introduction text
      */
     private function extract_audience_from_intro($intro) {
@@ -580,5 +660,7 @@ class MKCG_Pods_Service {
             'topic_5' => ''
         ];
     }
+
+} // End MKCG_Pods_Service class
 
 } // End class_exists check

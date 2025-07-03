@@ -212,14 +212,13 @@ if (!defined('ABSPATH')) {
 
 <?php
 
-// ENHANCED DATA LOADING: Root-level fixes for Pods data loading
+// ENHANCED DATA LOADING: Root-level fixes for Pods data loading - Pure Pods
 $template_data = [];
 $debug_info = [];
 
 // Primary Method: Try to get data from generator instance
 if (isset($generator_instance) && method_exists($generator_instance, 'get_template_data')) {
-    $entry_key = isset($_GET['entry']) ? sanitize_text_field($_GET['entry']) : '';
-    $template_data = $generator_instance->get_template_data($entry_key);
+    $template_data = $generator_instance->get_template_data();
     $debug_info[] = '✅ Got data from generator instance';
     error_log('MKCG Topics Template: Got data from generator instance');
 } else {
@@ -234,16 +233,6 @@ if (isset($generator_instance) && method_exists($generator_instance, 'get_templa
         if (isset($_GET['post_id']) && intval($_GET['post_id']) > 0) {
             $post_id = intval($_GET['post_id']);
             $debug_info[] = "📍 Using post_id from URL: {$post_id}";
-        } elseif (isset($_GET['entry']) && intval($_GET['entry']) > 0) {
-            $entry_id = intval($_GET['entry']);
-            global $wpdb;
-            $post_id = $wpdb->get_var($wpdb->prepare(
-                "SELECT post_id FROM {$wpdb->prefix}frm_items WHERE id = %d",
-                $entry_id
-            ));
-            if ($post_id) {
-                $debug_info[] = "🔄 Converted entry {$entry_id} to post_id {$post_id}";
-            }
         } else {
             // Get the most recent guest post for testing
             $recent_guest = get_posts([
@@ -263,11 +252,9 @@ if (isset($generator_instance) && method_exists($generator_instance, 'get_templa
             $guest_data = $pods_service->get_guest_data($post_id);
             $template_data = [
                 'post_id' => $post_id,
-                'entry_id' => $pods_service->get_entry_id_from_post($post_id),
-                'entry_key' => isset($_GET['entry']) ? sanitize_text_field($_GET['entry']) : '',
                 'authority_hook_components' => $guest_data['authority_hook_components'],
                 'form_field_values' => $guest_data['topics'],
-                'has_entry' => $guest_data['has_data']
+                'has_data' => $guest_data['has_data']
             ];
             $debug_info[] = "✅ Loaded data via direct Pods service";
             $debug_info[] = "📊 Topics found: " . count(array_filter($guest_data['topics']));
@@ -281,11 +268,8 @@ if (isset($generator_instance) && method_exists($generator_instance, 'get_templa
     
     // Ultimate Fallback: Create default structure
     if (empty($template_data)) {
-        $entry_key = isset($_GET['entry']) ? sanitize_text_field($_GET['entry']) : '';
         $template_data = [
             'post_id' => 0,
-            'entry_id' => 0,
-            'entry_key' => $entry_key,
             'authority_hook_components' => [
                 'who' => 'your audience',
                 'what' => 'achieve their goals',
@@ -300,7 +284,7 @@ if (isset($generator_instance) && method_exists($generator_instance, 'get_templa
                 'topic_4' => '',
                 'topic_5' => ''
             ],
-            'has_entry' => false
+            'has_data' => false
         ];
         $debug_info[] = "⚠️ Using fallback default data";
     }
@@ -309,13 +293,12 @@ if (isset($generator_instance) && method_exists($generator_instance, 'get_templa
 }
 
 // Extract data for easier access in template
-$entry_id = $template_data['entry_id'];
-$entry_key = $template_data['entry_key'];
+$post_id = $template_data['post_id'];
 $authority_hook_components = $template_data['authority_hook_components'];
 $form_field_values = $template_data['form_field_values'];
-$has_entry = $template_data['has_entry'];
+$has_data = $template_data['has_data'];
 
-error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_entry=' . ($has_entry ? 'true' : 'false'));
+error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_data=' . ($has_data ? 'true' : 'false'));
 ?>
 
 <div class="topics-generator" data-generator="topics">
@@ -327,7 +310,7 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
         <?php foreach ($debug_info as $info): ?>
             • <?php echo esc_html($info); ?><br>
         <?php endforeach; ?>
-        <strong style="color: #d32f2f;">Data Summary:</strong> Post ID: <?php echo $template_data['post_id']; ?> | Has Data: <?php echo $template_data['has_entry'] ? 'YES' : 'NO'; ?> | Topics: <?php echo count(array_filter($template_data['form_field_values'])); ?>/5<br>
+        <strong style="color: #d32f2f;">Data Summary:</strong> Post ID: <?php echo $template_data['post_id']; ?> | Has Data: <?php echo $template_data['has_data'] ? 'YES' : 'NO'; ?> | Topics: <?php echo count(array_filter($template_data['form_field_values'])); ?>/5<br>
         <small style="color: #666;">💡 If you see "Using fallback default data", create a guest post with topic/authority hook data</small>
     </div>
     <?php endif; ?>
@@ -528,10 +511,8 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
                     </div>
                 </div>
                 
-                <!-- Hidden fields for AJAX -->
-                <input type="hidden" id="topics-generator-entry-id" value="<?php echo esc_attr($entry_id); ?>">
-                <input type="hidden" id="topics-generator-entry-key" value="<?php echo esc_attr($entry_key); ?>">
-                <input type="hidden" id="topics-generator-post-id" value="<?php echo esc_attr(isset($formidable_service) && $entry_id ? $formidable_service->get_post_id_from_entry($entry_id) : ''); ?>">
+                <!-- Hidden fields for AJAX - Pure Pods -->
+                <input type="hidden" id="topics-generator-post-id" value="<?php echo esc_attr($post_id); ?>">
                 <input type="hidden" id="topics-generator-nonce" value="<?php echo wp_create_nonce('mkcg_nonce'); ?>">
                 <input type="hidden" id="topics-generator-topics-nonce" value="<?php echo wp_create_nonce('mkcg_nonce'); ?>">
                 
@@ -630,15 +611,13 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
 <script type="text/javascript">
     // MKCG Debug Info
     console.log('🎯 MKCG Topics: Template data loaded', {
-        entryId: <?php echo intval($entry_id); ?>,
-        entryKey: '<?php echo esc_js($entry_key); ?>',
-        hasEntry: <?php echo $entry_id > 0 ? 'true' : 'false'; ?>
+        postId: <?php echo intval($post_id); ?>,
+        hasData: <?php echo $has_data ? 'true' : 'false'; ?>
     });
     
     window.MKCG_Topics_Data = {
-        entryId: <?php echo intval($entry_id); ?>,
-        entryKey: '<?php echo esc_js($entry_key); ?>',
-        hasEntry: <?php echo $has_entry ? 'true' : 'false'; ?>,
+        postId: <?php echo intval($post_id); ?>,
+        hasData: <?php echo $has_data ? 'true' : 'false'; ?>,
         authorityHook: {
             who: '<?php echo esc_js($authority_hook_components['who']); ?>',
             what: '<?php echo esc_js($authority_hook_components['what']); ?>',
@@ -653,7 +632,7 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
             topic_4: '<?php echo esc_js($form_field_values['topic_4'] ?? ''); ?>',
             topic_5: '<?php echo esc_js($form_field_values['topic_5'] ?? ''); ?>'
         },
-        dataSource: '<?php echo isset($generator_instance) ? 'generator_instance' : (isset($mkcg_topics_generator) ? 'global_generator' : 'fallback'); ?>'
+        dataSource: '<?php echo isset($generator_instance) ? 'generator_instance' : 'fallback'; ?>'
     };
     
     console.log('✅ MKCG Topics: Final data loaded', window.MKCG_Topics_Data);
@@ -664,8 +643,8 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
     }
     
     // CRITICAL DEBUG: Check for immediate population
-    if (window.MKCG_Topics_Data.hasEntry) {
-        console.log('📋 MKCG Topics: Entry found - should populate automatically');
+    if (window.MKCG_Topics_Data.hasData) {
+        console.log('📋 MKCG Topics: Data found - should populate automatically');
         
         // Check if authority hook text element exists and has content
         const hookText = document.getElementById('topics-generator-authority-hook-text');
@@ -686,7 +665,7 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
         }
         
     } else {
-        console.log('⚠️ MKCG Topics: No entry data - using defaults');
+        console.log('⚠️ MKCG Topics: No data found - using defaults');
     }
     
     // COMPREHENSIVE SAVE: Initialize when DOM is ready - delegated to main JavaScript file

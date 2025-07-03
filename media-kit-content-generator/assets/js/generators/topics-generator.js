@@ -47,7 +47,7 @@
      */
     loadExistingData: function() {
       // Check if PHP passed data
-      if (window.MKCG_Topics_Data && window.MKCG_Topics_Data.hasEntry) {
+      if (window.MKCG_Topics_Data && window.MKCG_Topics_Data.hasData) {
         console.log('📝 Loading data from PHP:', window.MKCG_Topics_Data);
         this.populateFromPHPData(window.MKCG_Topics_Data);
       } else {
@@ -349,8 +349,8 @@
      * SIMPLIFIED: Auto-save field
      */
     autoSaveField: function(inputElement) {
-      const entryId = document.querySelector('#topics-generator-entry-id')?.value;
-      if (!entryId || entryId === '0') return;
+      const postId = document.querySelector('#topics-generator-post-id')?.value;
+      if (!postId || postId === '0') return;
       
       const fieldName = inputElement.getAttribute('name');
       const fieldValue = inputElement.value;
@@ -358,7 +358,7 @@
       if (!fieldName || !fieldValue.trim()) return;
       
       makeAjaxRequest('mkcg_save_topic_field', {
-        entry_id: entryId,
+        post_id: postId,
         field_name: fieldName,
         field_value: fieldValue
       })
@@ -374,9 +374,9 @@
      * SIMPLIFIED: Save all data
      */
     saveAllData: function() {
-      const entryId = document.querySelector('#topics-generator-entry-id')?.value;
-      if (!entryId || entryId === '0') {
-        this.showNotification('No entry ID found. Please refresh the page.', 'error');
+      const postId = document.querySelector('#topics-generator-post-id')?.value;
+      if (!postId || postId === '0') {
+        this.showNotification('No post ID found. Please refresh the page.', 'error');
         return;
       }
       
@@ -400,7 +400,7 @@
       this.showLoading();
       
       makeAjaxRequest('mkcg_save_topics_data', {
-        entry_id: entryId,
+        post_id: postId,
         topics: topics,
         authority_hook: authorityHook
       })
