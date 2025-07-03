@@ -23,7 +23,8 @@ class Media_Kit_Content_Generator {
     
     private static $instance = null;
     private $api_service;
-    private $formidable_service;
+    private $pods_service;
+    private $formidable_service; // Keep for backwards compatibility
     private $generators = [];
     
     public static function get_instance() {
@@ -56,7 +57,8 @@ class Media_Kit_Content_Generator {
     private function load_dependencies() {
         require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-config.php';
         require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-api-service.php';
-        require_once MKCG_PLUGIN_PATH . 'includes/services/enhanced_formidable_service.php';
+        require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-pods-service.php';
+        require_once MKCG_PLUGIN_PATH . 'includes/services/enhanced_formidable_service.php'; // Keep for backwards compatibility
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_topics_generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_questions_generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_ajax_handlers.php';
@@ -64,15 +66,19 @@ class Media_Kit_Content_Generator {
     
     /**
      * SIMPLIFIED: Service initialization - WordPress will handle errors naturally
+     * UPDATED: Now uses Pods service as primary data source
      */
     private function init_services() {
         // Initialize API Service
         $this->api_service = new MKCG_API_Service();
         
-        // Initialize Formidable Service  
+        // Initialize Pods Service (primary data source)
+        $this->pods_service = new MKCG_Pods_Service();
+        
+        // Initialize Formidable Service (for backwards compatibility)
         $this->formidable_service = new Enhanced_Formidable_Service();
         
-        error_log('MKCG: Services initialized');
+        error_log('MKCG: Services initialized with Pods as primary data source');
     }
     
     // SIMPLIFIED: Basic validation no longer needed with simplified architecture
@@ -147,8 +153,9 @@ class Media_Kit_Content_Generator {
         ob_start();
         
         // SIMPLIFIED: Set required global variables for template
-        global $formidable_service, $generator_instance, $generator_type;
-        $formidable_service = $this->formidable_service;
+        global $formidable_service, $pods_service, $generator_instance, $generator_type;
+        $formidable_service = $this->formidable_service; // Keep for backwards compatibility
+        $pods_service = $this->pods_service; // Primary data source
         $generator_instance = isset($this->generators['topics']) ? $this->generators['topics'] : null;
         $generator_type = 'topics';
         
@@ -193,8 +200,9 @@ class Media_Kit_Content_Generator {
         ob_start();
         
         // CRITICAL FIX: Set ALL required global variables for template
-        global $formidable_service, $generator_instance, $generator_type;
-        $formidable_service = $this->formidable_service;
+        global $formidable_service, $pods_service, $generator_instance, $generator_type;
+        $formidable_service = $this->formidable_service; // Keep for backwards compatibility
+        $pods_service = $this->pods_service; // Primary data source
         $generator_instance = isset($this->generators['questions']) ? $this->generators['questions'] : null;
         $generator_type = 'questions';
         
@@ -286,38 +294,47 @@ class Media_Kit_Content_Generator {
             true
         );
         
-        // Pass data to JavaScript
+        // Pass data to JavaScript - UPDATED for Pods integration
         wp_localize_script('simple-ajax', 'mkcg_vars', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('mkcg_nonce'),
             'plugin_url' => MKCG_PLUGIN_URL,
+            'data_source' => 'pods', // Indicate we're using Pods
             'fields' => [
                 'topics' => [
-                    'topic_1' => '8498',
-                    'topic_2' => '8499', 
-                    'topic_3' => '8500',
-                    'topic_4' => '8501',
-                    'topic_5' => '8502'
+                    'topic_1' => 'topic_1',
+                    'topic_2' => 'topic_2', 
+                    'topic_3' => 'topic_3',
+                    'topic_4' => 'topic_4',
+                    'topic_5' => 'topic_5'
                 ],
                 'authority_hook' => [
-                    'who' => '10296',
-                    'result' => '10297',
-                    'when' => '10387',
-                    'how' => '10298',
-                    'complete' => '10358'
+                    'who' => 'guest_title',
+                    'when' => 'hook_when',
+                    'what' => 'hook_what',
+                    'how' => 'hook_how',
+                    'where' => 'hook_where',
+                    'why' => 'hook_why'
+                ],
+                'questions' => [
+                    'pattern' => 'question_{number}' // question_1, question_2, etc.
                 ]
             ],
             'ajax_actions' => [
                 'save_topics' => 'mkcg_save_topics_data',
                 'get_topics' => 'mkcg_get_topics_data',
                 'save_authority_hook' => 'mkcg_save_authority_hook',
-                'generate_topics' => 'mkcg_generate_topics'
+                'generate_topics' => 'mkcg_generate_topics',
+                'save_questions' => 'mkcg_save_questions_data',
+                'get_questions' => 'mkcg_get_questions_data'
             ]
         ]);
         
-        // Make Formidable service available globally for testing
+        // Make services available globally for testing
         wp_add_inline_script('simple-ajax', '
+            window.MKCG_Pods_Service = true;
             window.MKCG_Formidable_Service = true;
+            window.podsService = true;
             window.formidableService = true;
         ');
         
@@ -381,6 +398,10 @@ class Media_Kit_Content_Generator {
     // SIMPLIFIED: Basic getter methods
     public function get_api_service() {
         return $this->api_service;
+    }
+    
+    public function get_pods_service() {
+        return $this->pods_service;
     }
     
     public function get_formidable_service() {

@@ -2,159 +2,117 @@
 /**
  * MKCG Centralized Configuration
  * Single source of truth for all field mappings and data sources
+ * UPDATED: Now uses Pods "guests" custom post type as single source of truth
  */
 
 class MKCG_Config {
     
     /**
-     * Get field mappings for all generators - CENTRALIZED CONFIGURATION
+     * Get field mappings for all generators - PODS CENTRALIZED CONFIGURATION
      */
     public static function get_field_mappings() {
         return [
-            // Topics - stored in CUSTOM POST META
+            // Topics - stored in Pods "guests" custom post fields
             'topics' => [
-                'source' => 'post_meta',
+                'source' => 'pods',
                 'fields' => [
-                    'topic_1' => 'mkcg_topic_1',
-                    'topic_2' => 'mkcg_topic_2',
-                    'topic_3' => 'mkcg_topic_3', 
-                    'topic_4' => 'mkcg_topic_4',
-                    'topic_5' => 'mkcg_topic_5'
+                    'topic_1' => 'topic_1',
+                    'topic_2' => 'topic_2',
+                    'topic_3' => 'topic_3', 
+                    'topic_4' => 'topic_4',
+                    'topic_5' => 'topic_5'
                 ]
             ],
             
-            // Authority Hook Components - HYBRID STORAGE
+            // Authority Hook Components - ALL FROM PODS FIELDS
             'authority_hook' => [
-                // WHO field comes from CUSTOM POST META
                 'who' => [
-                    'source' => 'post_meta',
-                    'key' => 'mkcg_who'
-                ],
-                // RESULT, WHEN, HOW come from FORMIDABLE FIELDS
-                'result' => [
-                    'source' => 'formidable',
-                    'field_id' => '10297'
+                    'source' => 'pods',
+                    'field' => 'guest_title' // Professional title from contact group
                 ],
                 'when' => [
-                    'source' => 'formidable',
-                    'field_id' => '10387'
+                    'source' => 'pods',
+                    'field' => 'hook_when'
+                ],
+                'what' => [
+                    'source' => 'pods',
+                    'field' => 'hook_what'
                 ],
                 'how' => [
-                    'source' => 'formidable',
-                    'field_id' => '10298'
+                    'source' => 'pods',
+                    'field' => 'hook_how'
                 ],
-                'complete' => [
-                    'source' => 'formidable',
-                    'field_id' => '10358'
+                'where' => [
+                    'source' => 'pods',
+                    'field' => 'hook_where'
+                ],
+                'why' => [
+                    'source' => 'pods',
+                    'field' => 'hook_why'
                 ]
             ],
             
-            // Questions - stored in CUSTOM POST META
+            // Questions - stored in Pods "guests" custom post fields
             'questions' => [
-                'source' => 'post_meta',
-                'pattern' => 'mkcg_question_{topic}_{question}' // e.g., mkcg_question_1_1
+                'source' => 'pods',
+                'pattern' => 'question_{number}' // e.g., question_1, question_2, etc.
             ]
         ];
     }
     
     /**
      * Get data from centralized configuration using POST ID as primary key
-     * UPDATED: Now uses post_id directly instead of entry_id lookup
+     * UPDATED: Now uses Pods service as single source of truth
      */
-    public static function load_data_for_post($post_id, $formidable_service = null) {
+    public static function load_data_for_post($post_id, $pods_service = null) {
         if (!$post_id) {
             return self::get_default_data();
         }
         
-        // Validate post exists
-        if (!get_post($post_id)) {
-            error_log('MKCG Config: Post not found: ' . $post_id);
+        // Create Pods service if not provided
+        if (!$pods_service) {
+            require_once dirname(__FILE__) . '/class-mkcg-pods-service.php';
+            $pods_service = new MKCG_Pods_Service();
+        }
+        
+        // Validate this is a guests post
+        if (!$pods_service->is_guests_post($post_id)) {
+            error_log('MKCG Config: Post ' . $post_id . ' is not a guests post type');
             return self::get_default_data();
         }
         
-        $mappings = self::get_field_mappings();
-        $data = self::get_default_data();
+        // Load all data from Pods service
+        $guest_data = $pods_service->get_guest_data($post_id);
         
-        // Load topics from post meta
-        foreach ($mappings['topics']['fields'] as $topic_key => $meta_key) {
-            $value = get_post_meta($post_id, $meta_key, true);
-            if (!empty($value)) {
-                $data['form_field_values'][$topic_key] = $value;
-                error_log("MKCG Config: Loaded {$topic_key} from post meta: {$value}");
-            }
-        }
+        // Transform to expected format for backwards compatibility
+        $data = [
+            'post_id' => $post_id,
+            'entry_id' => $pods_service->get_entry_id_from_post($post_id), // For backwards compatibility
+            'entry_key' => '', // Legacy compatibility
+            'has_entry' => $guest_data['has_data'],
+            'form_field_values' => $guest_data['topics'],
+            'authority_hook_components' => $guest_data['authority_hook_components'],
+            'questions' => $guest_data['questions'],
+            'contact' => $guest_data['contact'],
+            'messaging' => $guest_data['messaging']
+        ];
         
-        // Load authority hook components (hybrid sources)
-        foreach ($mappings['authority_hook'] as $component => $config) {
-            if ($config['source'] === 'post_meta') {
-                // Load from custom post meta (WHO field)
-                $value = get_post_meta($post_id, $config['key'], true);
-                if (!empty($value)) {
-                    $data['authority_hook_components'][$component] = $value;
-                    error_log("MKCG Config: Loaded {$component} from post meta: {$value}");
-                }
-            } elseif ($config['source'] === 'formidable' && $formidable_service) {
-                // Load from Formidable field (RESULT, WHEN, HOW, COMPLETE) - requires entry_id lookup
-                $entry_id = $formidable_service->get_entry_id_from_post($post_id);
-                if ($entry_id) {
-                    $value = $formidable_service->get_field_value($entry_id, $config['field_id']);
-                    if (!empty($value)) {
-                        $data['authority_hook_components'][$component] = $value;
-                        error_log("MKCG Config: Loaded {$component} from Formidable field {$config['field_id']}: {$value}");
-                    }
-                } else {
-                    error_log("MKCG Config: Cannot load {$component} from Formidable - no entry_id found for post {$post_id}");
-                }
-            }
-        }
-        
-        // Load questions from post meta if needed
-        $data['questions'] = self::load_questions_from_post_meta($post_id);
-        
-        // Build complete authority hook if we have components
-        $components = $data['authority_hook_components'];
-        if (!empty($components['who']) && !empty($components['result']) && 
-            !empty($components['when']) && !empty($components['how'])) {
-            
-            $complete_hook = sprintf(
-                'I help %s %s when %s %s.',
-                $components['who'],
-                $components['result'], 
-                $components['when'],
-                $components['how']
-            );
-            $data['authority_hook_components']['complete'] = $complete_hook;
-            error_log('MKCG Config: Built complete authority hook: ' . $complete_hook);
-        }
-        
-        // Mark as having data if we loaded anything meaningful
-        $has_topics = !empty(array_filter($data['form_field_values']));
-        $has_auth = !empty($components['who']) || !empty($components['result']);
-        $data['has_entry'] = $has_topics || $has_auth;
-        $data['post_id'] = $post_id; // Add post_id to the data for reference
-        
-        error_log('MKCG Config: Data loading complete - Post ID: ' . $post_id . ', Topics: ' . ($has_topics ? 'YES' : 'NO') . ', Auth: ' . ($has_auth ? 'YES' : 'NO'));
+        error_log('MKCG Config: Data loaded from Pods service - Post ID: ' . $post_id . ', Has Data: ' . ($guest_data['has_data'] ? 'YES' : 'NO'));
         
         return $data;
     }
     
     /**
-     * Load questions from post meta for Questions Generator
+     * Load questions from Pods fields for Questions Generator
      */
-    private static function load_questions_from_post_meta($post_id) {
+    private static function load_questions_from_pods($post_id) {
         $questions = [];
         
-        for ($topic = 1; $topic <= 5; $topic++) {
-            $topic_questions = [];
-            for ($q = 1; $q <= 5; $q++) {
-                $meta_key = "mkcg_question_{$topic}_{$q}";
-                $value = get_post_meta($post_id, $meta_key, true);
-                if (!empty($value)) {
-                    $topic_questions[$q] = $value;
-                }
-            }
-            if (!empty($topic_questions)) {
-                $questions[$topic] = $topic_questions;
+        // Load all 25 questions from Pods fields
+        for ($i = 1; $i <= 25; $i++) {
+            $value = get_post_meta($post_id, "question_{$i}", true);
+            if (!empty($value)) {
+                $questions["question_{$i}"] = $value;
             }
         }
         
@@ -166,6 +124,7 @@ class MKCG_Config {
      */
     public static function get_default_data() {
         return [
+            'post_id' => 0,
             'entry_id' => 0,
             'entry_key' => '',
             'form_field_values' => [
@@ -177,81 +136,75 @@ class MKCG_Config {
             ],
             'authority_hook_components' => [
                 'who' => 'your audience',
-                'result' => 'achieve their goals',
+                'what' => 'achieve their goals',
                 'when' => 'they need help',
                 'how' => 'through your method',
-                'complete' => 'I help your audience achieve their goals when they need help through your method.'
+                'where' => 'in their situation',
+                'why' => 'because they deserve success',
+                'complete' => 'I help your audience achieve their goals when they need help by showing them through your method in their situation because they deserve success.'
             ],
             'questions' => [],
+            'contact' => [],
+            'messaging' => [],
             'has_entry' => false
         ];
     }
     
     /**
      * Save data using centralized configuration using POST ID as primary key
-     * UPDATED: Now uses post_id directly instead of entry_id lookup
+     * UPDATED: Now uses Pods service as single source of truth
      */
-    public static function save_data_for_post($post_id, $data, $formidable_service = null) {
+    public static function save_data_for_post($post_id, $data, $pods_service = null) {
         if (!$post_id) {
             return ['success' => false, 'message' => 'Invalid parameters'];
         }
         
-        // Validate post exists
-        if (!get_post($post_id)) {
-            return ['success' => false, 'message' => 'Post not found'];
+        // Create Pods service if not provided
+        if (!$pods_service) {
+            require_once dirname(__FILE__) . '/class-mkcg-pods-service.php';
+            $pods_service = new MKCG_Pods_Service();
         }
         
-        $mappings = self::get_field_mappings();
-        $saved_count = 0;
+        // Validate this is a guests post
+        if (!$pods_service->is_guests_post($post_id)) {
+            return ['success' => false, 'message' => 'Post is not a guests post type'];
+        }
         
-        // Save topics to post meta
+        $saved_count = 0;
+        $results = [];
+        
+        // Save topics using Pods service
         if (isset($data['topics'])) {
-            foreach ($data['topics'] as $topic_key => $topic_value) {
-                if (isset($mappings['topics']['fields'][$topic_key]) && !empty($topic_value)) {
-                    $meta_key = $mappings['topics']['fields'][$topic_key];
-                    $result = update_post_meta($post_id, $meta_key, $topic_value);
-                    if ($result !== false) {
-                        $saved_count++;
-                        error_log("MKCG Config: Saved {$topic_key} to post meta {$meta_key}");
-                    }
-                }
+            $result = $pods_service->save_topics($post_id, $data['topics']);
+            if ($result['success']) {
+                $saved_count += $result['saved_count'];
+                $results[] = 'Topics: ' . $result['message'];
             }
         }
         
-        // Save authority hook components (hybrid approach)
+        // Save authority hook components using Pods service
         if (isset($data['authority_hook'])) {
-            foreach ($data['authority_hook'] as $component => $value) {
-                if (isset($mappings['authority_hook'][$component]) && !empty($value)) {
-                    $config = $mappings['authority_hook'][$component];
-                    
-                    if ($config['source'] === 'post_meta') {
-                        // Save WHO to post meta
-                        $result = update_post_meta($post_id, $config['key'], $value);
-                        if ($result !== false) {
-                            $saved_count++;
-                            error_log("MKCG Config: Saved {$component} to post meta {$config['key']}");
-                        }
-                    } elseif ($config['source'] === 'formidable' && $formidable_service) {
-                        // Save RESULT, WHEN, HOW to Formidable (requires entry_id)
-                        $entry_id = $formidable_service->get_entry_id_from_post($post_id);
-                        if ($entry_id) {
-                            $result = $formidable_service->save_entry_data($entry_id, [$config['field_id'] => $value]);
-                            if ($result['success']) {
-                                $saved_count++;
-                                error_log("MKCG Config: Saved {$component} to Formidable field {$config['field_id']}");
-                            }
-                        } else {
-                            error_log("MKCG Config: Cannot save {$component} to Formidable - no entry_id found for post {$post_id}");
-                        }
-                    }
-                }
+            $result = $pods_service->save_authority_hook_components($post_id, $data['authority_hook']);
+            if ($result['success']) {
+                $saved_count += $result['saved_count'];
+                $results[] = 'Authority Hook: ' . $result['message'];
+            }
+        }
+        
+        // Save questions using Pods service
+        if (isset($data['questions'])) {
+            $result = $pods_service->save_questions($post_id, $data['questions']);
+            if ($result['success']) {
+                $saved_count += $result['saved_count'];
+                $results[] = 'Questions: ' . $result['message'];
             }
         }
         
         return [
             'success' => $saved_count > 0,
             'saved_count' => $saved_count,
-            'message' => $saved_count > 0 ? 'Data saved successfully' : 'No data saved'
+            'message' => $saved_count > 0 ? implode('; ', $results) : 'No data saved',
+            'details' => $results
         ];
     }
     

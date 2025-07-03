@@ -1,21 +1,26 @@
 <?php
 /**
- * Simplified Topics Generator - WordPress Post Meta Only
- * Single responsibility: Generate interview topics using WordPress custom posts
- * Eliminates: Formidable dependency, complex dual-source data loading
+ * Enhanced Topics Generator - Pods Custom Post Type Integration
+ * Single responsibility: Generate interview topics using Pods "guests" custom post type
+ * Uses: Pods service as single source of truth for all data
  */
 
 class Enhanced_Topics_Generator {
     
     private $api_service;
+    private $pods_service;
     private $ajax_handlers;
     
     /**
-     * Simple constructor - WordPress posts only
+     * Constructor with Pods service integration
      */
     public function __construct($api_service, $formidable_service = null) {
         $this->api_service = $api_service;
-        // Note: $formidable_service kept for backwards compatibility but not used
+        
+        // Initialize Pods service
+        require_once dirname(__FILE__) . '/../services/class-mkcg-pods-service.php';
+        $this->pods_service = new MKCG_Pods_Service();
+        
         $this->init();
     }
     
@@ -62,10 +67,10 @@ class Enhanced_Topics_Generator {
     }
     
     /**
-     * Get template data using POST ID ONLY - No Formidable dependency
+     * Get template data using Pods service - Single source of truth
      */
     public function get_template_data($entry_key = '') {
-        error_log('MKCG Topics Generator: Starting get_template_data - POST ID ONLY');
+        error_log('MKCG Topics Generator: Starting get_template_data - Pods Integration');
         
         // Get post_id from request parameters
         $post_id = $this->get_post_id_from_request();
@@ -75,19 +80,30 @@ class Enhanced_Topics_Generator {
             return $this->get_default_template_data();
         }
         
-        error_log('MKCG Topics Generator: Loading data for post ID: ' . $post_id);
+        // Validate this is a guests post
+        if (!$this->pods_service->is_guests_post($post_id)) {
+            error_log('MKCG Topics Generator: Post ' . $post_id . ' is not a guests post type');
+            return $this->get_default_template_data();
+        }
         
-        // Load ALL data directly from WordPress post meta
+        error_log('MKCG Topics Generator: Loading data for guests post ID: ' . $post_id);
+        
+        // Load ALL data from Pods service
+        $guest_data = $this->pods_service->get_guest_data($post_id);
+        
+        // Transform to expected template format
         $template_data = [
             'post_id' => $post_id,
-            'entry_id' => 0, // Legacy compatibility
-            'entry_key' => '', // Legacy compatibility
-            'has_entry' => true,
-            'authority_hook_components' => $this->load_authority_hook_from_post($post_id),
-            'form_field_values' => $this->load_topics_from_post($post_id)
+            'entry_id' => $this->pods_service->get_entry_id_from_post($post_id), // Legacy compatibility
+            'entry_key' => $entry_key, // Legacy compatibility
+            'has_entry' => $guest_data['has_data'],
+            'authority_hook_components' => $guest_data['authority_hook_components'],
+            'form_field_values' => $guest_data['topics'],
+            'contact' => $guest_data['contact'],
+            'messaging' => $guest_data['messaging']
         ];
         
-        error_log('MKCG Topics Generator: Data loaded successfully from post meta');
+        error_log('MKCG Topics Generator: Data loaded successfully from Pods service');
         return $template_data;
     }
     
@@ -140,44 +156,8 @@ class Enhanced_Topics_Generator {
         return $post_id ? intval($post_id) : 0;
     }
     
-    /**
-     * Load authority hook components from WordPress post meta
-     */
-    private function load_authority_hook_from_post($post_id) {
-        $who = get_post_meta($post_id, 'mkcg_who', true) ?: 'your audience';
-        $result = get_post_meta($post_id, 'mkcg_result', true) ?: 'achieve their goals';
-        $when = get_post_meta($post_id, 'mkcg_when', true) ?: 'they need help';
-        $how = get_post_meta($post_id, 'mkcg_how', true) ?: 'through your method';
-        
-        // Build complete authority hook
-        $complete = sprintf('I help %s %s when %s %s.', $who, $result, $when, $how);
-        
-        error_log('MKCG Topics Generator: Loaded authority hook from post meta');
-        
-        return [
-            'who' => $who,
-            'result' => $result,
-            'when' => $when,
-            'how' => $how,
-            'complete' => $complete
-        ];
-    }
-    
-    /**
-     * Load topics from WordPress post meta
-     */
-    private function load_topics_from_post($post_id) {
-        $topics = [];
-        
-        for ($i = 1; $i <= 5; $i++) {
-            $topic = get_post_meta($post_id, "mkcg_topic_{$i}", true);
-            $topics["topic_{$i}"] = $topic ?: '';
-        }
-        
-        error_log('MKCG Topics Generator: Loaded topics from post meta');
-        
-        return $topics;
-    }
+    // Removed load_authority_hook_from_post() and load_topics_from_post() 
+    // These are now handled by the Pods service
     
     /**
      * Get default template data structure
@@ -190,10 +170,12 @@ class Enhanced_Topics_Generator {
             'has_entry' => false,
             'authority_hook_components' => [
                 'who' => 'your audience',
-                'result' => 'achieve their goals',
+                'what' => 'achieve their goals',
                 'when' => 'they need help',
                 'how' => 'through your method',
-                'complete' => 'I help your audience achieve their goals when they need help through your method.'
+                'where' => 'in their situation',
+                'why' => 'because they deserve success',
+                'complete' => 'I help your audience achieve their goals when they need help by showing them through your method in their situation because they deserve success.'
             ],
             'form_field_values' => [
                 'topic_1' => '',
@@ -201,7 +183,9 @@ class Enhanced_Topics_Generator {
                 'topic_3' => '',
                 'topic_4' => '',
                 'topic_5' => ''
-            ]
+            ],
+            'contact' => [],
+            'messaging' => []
         ];
     }
     
@@ -234,7 +218,7 @@ class Enhanced_Topics_Generator {
     }
     
     /**
-     * Save topics directly to WordPress post meta
+     * Save topics using Pods service
      */
     public function save_topics($post_id, $topics_data) {
         if (!$post_id || empty($topics_data)) {
@@ -244,28 +228,12 @@ class Enhanced_Topics_Generator {
             ];
         }
         
-        $saved_count = 0;
-        
-        foreach ($topics_data as $topic_key => $topic_value) {
-            if (!empty($topic_value)) {
-                $meta_key = 'mkcg_' . $topic_key;
-                $result = update_post_meta($post_id, $meta_key, $topic_value);
-                if ($result !== false) {
-                    $saved_count++;
-                    error_log("MKCG Topics Generator: Saved {$topic_key} to post meta");
-                }
-            }
-        }
-        
-        return [
-            'success' => $saved_count > 0,
-            'saved_count' => $saved_count,
-            'message' => $saved_count > 0 ? 'Topics saved successfully' : 'No topics saved'
-        ];
+        // Use Pods service for saving
+        return $this->pods_service->save_topics($post_id, $topics_data);
     }
     
     /**
-     * Save authority hook directly to WordPress post meta
+     * Save authority hook using Pods service
      */
     public function save_authority_hook($post_id, $authority_hook_data) {
         if (!$post_id || empty($authority_hook_data)) {
@@ -275,24 +243,8 @@ class Enhanced_Topics_Generator {
             ];
         }
         
-        $saved_count = 0;
-        
-        foreach ($authority_hook_data as $component => $value) {
-            if (!empty($value)) {
-                $meta_key = 'mkcg_' . $component;
-                $result = update_post_meta($post_id, $meta_key, $value);
-                if ($result !== false) {
-                    $saved_count++;
-                    error_log("MKCG Topics Generator: Saved {$component} to post meta");
-                }
-            }
-        }
-        
-        return [
-            'success' => $saved_count > 0,
-            'saved_count' => $saved_count,
-            'message' => $saved_count > 0 ? 'Authority hook saved successfully' : 'No authority hook saved'
-        ];
+        // Use Pods service for saving
+        return $this->pods_service->save_authority_hook_components($post_id, $authority_hook_data);
     }
     
     /**
