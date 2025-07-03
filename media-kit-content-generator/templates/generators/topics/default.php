@@ -288,7 +288,7 @@ if (isset($generator_instance) && method_exists($generator_instance, 'get_templa
             'entry_key' => $entry_key,
             'authority_hook_components' => [
                 'who' => 'your audience',
-                'result' => 'achieve their goals',
+                'what' => 'achieve their goals',
                 'when' => 'they need help',
                 'how' => 'through your method',
                 'complete' => 'I help your audience achieve their goals when they need help through your method.'
@@ -376,7 +376,7 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
                     $generator_type = 'topics'; // Specify generator type
                     $current_values = [
                         'who' => $authority_hook_components['who'],
-                        'result' => $authority_hook_components['result'],
+                        'what' => $authority_hook_components['what'],
                         'when' => $authority_hook_components['when'],
                         'how' => $authority_hook_components['how'],
                         'authority_hook' => $authority_hook_components['complete']
@@ -641,7 +641,7 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
         hasEntry: <?php echo $has_entry ? 'true' : 'false'; ?>,
         authorityHook: {
             who: '<?php echo esc_js($authority_hook_components['who']); ?>',
-            result: '<?php echo esc_js($authority_hook_components['result']); ?>',
+            what: '<?php echo esc_js($authority_hook_components['what']); ?>',
             when: '<?php echo esc_js($authority_hook_components['when']); ?>',
             how: '<?php echo esc_js($authority_hook_components['how']); ?>',
             complete: '<?php echo esc_js($authority_hook_components['complete']); ?>'
@@ -716,7 +716,7 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
             // Populate individual component fields
             const fieldMappings = {
                 'mkcg-who': data.who || 'your audience',
-                'mkcg-result': data.result || 'achieve their goals', 
+                'mkcg-result': data.what || 'achieve their goals', 
                 'mkcg-when': data.when || 'they need help',
                 'mkcg-how': data.how || 'through your method'
             };
@@ -788,7 +788,7 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
         // Map field IDs to component names
         const componentMap = {
             'mkcg-who': 'who',
-            'mkcg-result': 'result',
+            'mkcg-result': 'what',
             'mkcg-when': 'when',
             'mkcg-how': 'how'
         };
@@ -809,7 +809,7 @@ error_log('MKCG Topics Template: Rendering with entry_id=' . $entry_id . ', has_
         
         // Get all current values
         formData.append('who', document.getElementById('mkcg-who')?.value || 'your audience');
-        formData.append('result', document.getElementById('mkcg-result')?.value || 'achieve their goals');
+        formData.append('what', document.getElementById('mkcg-result')?.value || 'achieve their goals');
         formData.append('when', document.getElementById('mkcg-when')?.value || 'they need help');
         formData.append('how', document.getElementById('mkcg-how')?.value || 'through your method');
         

@@ -19,7 +19,7 @@
     // Essential data
     fields: {
       who: '',
-      result: '',
+      what: '',
       when: '',
       how: ''
     },
@@ -62,7 +62,7 @@
     populateFromPHPData: function(phpData) {
       if (phpData.authorityHook) {
         this.fields.who = phpData.authorityHook.who || '';
-        this.fields.result = phpData.authorityHook.result || '';
+        this.fields.what = phpData.authorityHook.what || '';
         this.fields.when = phpData.authorityHook.when || '';
         this.fields.how = phpData.authorityHook.how || '';
         
@@ -77,6 +77,9 @@
             const field = document.querySelector(`#topics-generator-topic-field-${fieldNum}`);
             if (field) {
               field.value = phpData.topics[key];
+              console.log(`✅ Populated topic field ${fieldNum}:`, phpData.topics[key]);
+            } else {
+              console.warn(`❌ Topic field ${fieldNum} not found`);
             }
           }
         });
@@ -88,7 +91,7 @@
      */
     setDefaultData: function() {
       this.fields.who = 'your audience';
-      this.fields.result = 'achieve their goals';
+      this.fields.what = 'achieve their goals';
       this.fields.when = 'they need help';
       this.fields.how = 'through your method';
       
@@ -101,7 +104,7 @@
     updateInputFields: function() {
       const fieldMappings = [
         { field: 'who', selector: '#mkcg-who' },
-        { field: 'result', selector: '#mkcg-result' },
+        { field: 'what', selector: '#mkcg-result' },
         { field: 'when', selector: '#mkcg-when' },
         { field: 'how', selector: '#mkcg-how' }
       ];
@@ -139,7 +142,7 @@
       // Input change events for authority hook
       const inputEvents = [
         { selector: '#mkcg-who', field: 'who' },
-        { selector: '#mkcg-result', field: 'result' },
+        { selector: '#mkcg-result', field: 'what' },
         { selector: '#mkcg-when', field: 'when' },
         { selector: '#mkcg-how', field: 'how' }
       ];
@@ -211,7 +214,7 @@
      * SIMPLIFIED: Update Authority Hook display
      */
     updateAuthorityHook: function() {
-      const hookText = `I help ${this.fields.who || 'your audience'} ${this.fields.result || 'achieve their goals'} when ${this.fields.when || 'they need help'} ${this.fields.how || 'through your method'}.`;
+      const hookText = `I help ${this.fields.who || 'your audience'} ${this.fields.what || 'achieve their goals'} when ${this.fields.when || 'they need help'} ${this.fields.how || 'through your method'}.`;
       
       const displayElement = document.querySelector('#topics-generator-authority-hook-text');
       if (displayElement) {
@@ -389,7 +392,7 @@
       // Collect authority hook
       const authorityHook = {
         who: this.fields.who,
-        result: this.fields.result,
+        what: this.fields.what,
         when: this.fields.when,
         how: this.fields.how
       };

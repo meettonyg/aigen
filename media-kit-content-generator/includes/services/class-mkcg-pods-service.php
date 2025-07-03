@@ -41,52 +41,142 @@ class MKCG_Pods_Service {
     }
     
     /**
-     * Get topics from Pods fields - ENHANCED with multiple data sources
+     * Get topics from Pods fields - ENHANCED with multiple data sources and comprehensive debugging
      */
     public function get_topics($post_id) {
         $topics = [];
         
         error_log("MKCG Pods Service: Loading topics for post {$post_id}");
         
+        // CRITICAL DEBUG: Verify post exists and is correct type
+        $post = get_post($post_id);
+        if (!$post) {
+            error_log("MKCG Pods Service: ERROR - Post {$post_id} does not exist!");
+            return $this->get_empty_topics_array();
+        }
+        
+        if ($post->post_type !== 'guests') {
+            error_log("MKCG Pods Service: ERROR - Post {$post_id} is not 'guests' type, it's '{$post->post_type}'");
+            return $this->get_empty_topics_array();
+        }
+        
+        error_log("MKCG Pods Service: Confirmed post {$post_id} exists and is 'guests' type: '{$post->post_title}'");
+        
         // Method 1: Try Pods API first (most reliable)
         if (function_exists('pods')) {
+            error_log("MKCG Pods Service: Pods function available, attempting Pods API");
             $pod = pods('guests', $post_id);
+            
             if ($pod && $pod->exists()) {
+                error_log("MKCG Pods Service: Pods object created and exists for post {$post_id}");
+                
                 for ($i = 1; $i <= 5; $i++) {
                     $field_name = "topic_{$i}";
                     $topic = $pod->field($field_name);
                     $topics[$field_name] = !empty($topic) ? $topic : '';
                     
+                    // Enhanced debugging for each field
+                    error_log("MKCG Pods Service: Pods API field '{$field_name}' result: '" . ($topic ?: 'EMPTY') . "'");
+                    
                     if (!empty($topic)) {
-                        error_log("MKCG Pods Service: Found {$field_name} via Pods API: {$topic}");
+                        error_log("MKCG Pods Service: ✅ Found {$field_name} via Pods API: {$topic}");
+                    } else {
+                        error_log("MKCG Pods Service: ❌ Empty {$field_name} via Pods API");
                     }
                 }
                 
                 $filled_count = count(array_filter($topics));
-                error_log("MKCG Pods Service: Loaded {$filled_count}/5 topics via Pods API for post {$post_id}");
+                error_log("MKCG Pods Service: Pods API results - {$filled_count}/5 topics have content");
                 
-                if ($filled_count > 0) {
-                    return $topics;
+                // Continue to fallback even if Pods API returns empty (field names might be different)
+                
+            } else {
+                error_log("MKCG Pods Service: Pods object creation failed or doesn't exist for post {$post_id}");
+            }
+        } else {
+            error_log("MKCG Pods Service: Pods function not available!");
+        }
+        
+        // Method 2: Try post meta (comprehensive field name attempts)
+        error_log("MKCG Pods Service: Trying post meta fallback for topics");
+        
+        // Get ALL meta fields to see what's available
+        $all_meta = get_post_meta($post_id);
+        error_log("MKCG Pods Service: All meta fields for post {$post_id}: " . json_encode(array_keys($all_meta)));
+        
+        // Try various field name patterns
+        $field_patterns = [
+            'topic_%d',      // topic_1, topic_2, etc.
+            'field_%d',      // field_1, field_2, etc. 
+            'topic%d',       // topic1, topic2, etc.
+            'interview_topic_%d', // interview_topic_1, etc.
+            'podcast_topic_%d'    // podcast_topic_1, etc.
+        ];
+        
+        foreach ($field_patterns as $pattern) {
+            error_log("MKCG Pods Service: Trying field pattern: {$pattern}");
+            $pattern_found_data = false;
+            
+            for ($i = 1; $i <= 5; $i++) {
+                $field_name = sprintf($pattern, $i);
+                $topic = get_post_meta($post_id, $field_name, true);
+                
+                if (!empty($topic)) {
+                    $pattern_found_data = true;
+                    $topics["topic_{$i}"] = $topic; // Standardize to topic_X format
+                    error_log("MKCG Pods Service: ✅ Found topic via meta '{$field_name}': {$topic}");
+                } else {
+                    error_log("MKCG Pods Service: Empty meta field '{$field_name}'");
                 }
             }
-        }
-        
-        // Method 2: Fallback to post meta (backup method)
-        error_log("MKCG Pods Service: Trying post meta fallback for topics");
-        for ($i = 1; $i <= 5; $i++) {
-            $field_name = "topic_{$i}";
-            $topic = get_post_meta($post_id, $field_name, true);
-            $topics[$field_name] = !empty($topic) ? $topic : '';
             
-            if (!empty($topic)) {
-                error_log("MKCG Pods Service: Found {$field_name} via post meta: {$topic}");
+            if ($pattern_found_data) {
+                error_log("MKCG Pods Service: Found data with pattern '{$pattern}', using this pattern");
+                break;
             }
         }
         
-        $filled_count = count(array_filter($topics));
-        error_log("MKCG Pods Service: Final result - {$filled_count}/5 topics loaded for post {$post_id}");
+        // Method 3: Check for Formidable field IDs (if connected via entry)
+        error_log("MKCG Pods Service: Checking for Formidable field connections");
+        $entry_id = $this->get_entry_id_from_post($post_id);
         
-        return $topics;
+        if ($entry_id > 0) {
+            error_log("MKCG Pods Service: Found entry ID {$entry_id} for post {$post_id}");
+            
+            // Try common Formidable field IDs for topics
+            $formidable_field_ids = [8498, 8499, 8500, 8501, 8502]; // Based on template field IDs
+            
+            global $wpdb;
+            for ($i = 0; $i < 5; $i++) {
+                $field_id = $formidable_field_ids[$i];
+                $value = $wpdb->get_var($wpdb->prepare(
+                    "SELECT meta_value FROM {$wpdb->prefix}frm_item_metas WHERE item_id = %d AND field_id = %d",
+                    $entry_id, $field_id
+                ));
+                
+                if (!empty($value)) {
+                    $topics["topic_" . ($i + 1)] = $value;
+                    error_log("MKCG Pods Service: ✅ Found topic via Formidable field {$field_id}: {$value}");
+                } else {
+                    error_log("MKCG Pods Service: Empty Formidable field {$field_id}");
+                }
+            }
+        } else {
+            error_log("MKCG Pods Service: No entry ID found for post {$post_id}");
+        }
+        
+        // Final result
+        $filled_count = count(array_filter($topics));
+        error_log("MKCG Pods Service: FINAL RESULT - {$filled_count}/5 topics loaded for post {$post_id}");
+        error_log("MKCG Pods Service: Final topics array: " . json_encode($topics));
+        
+        // Ensure we always return the proper structure
+        $final_topics = [];
+        for ($i = 1; $i <= 5; $i++) {
+            $final_topics["topic_{$i}"] = isset($topics["topic_{$i}"]) ? $topics["topic_{$i}"] : '';
+        }
+        
+        return $final_topics;
     }
     
     /**
@@ -477,6 +567,18 @@ class MKCG_Pods_Service {
         
         return get_posts($args);
     }
-}
+    
+    /**
+     * Get empty topics array - private helper method
+     */
+    private function get_empty_topics_array() {
+        return [
+            'topic_1' => '',
+            'topic_2' => '',
+            'topic_3' => '',
+            'topic_4' => '',
+            'topic_5' => ''
+        ];
+    }
 
 } // End class_exists check
