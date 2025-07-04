@@ -215,46 +215,61 @@ class MKCG_Pods_Service {
     }
     
     /**
-     * ROOT FIX: Save questions organized by topic to sequential Pods fields
+     * ROOT FIX: Save questions in flat format from JavaScript - Handle mkcg_question_X_Y format
      */
     public function save_questions($post_id, $questions_data) {
         if (!$post_id || empty($questions_data)) {
             return ['success' => false, 'message' => 'Invalid parameters'];
         }
         
+        error_log('MKCG Pods: === QUESTIONS SAVE START ===');
+        error_log('MKCG Pods: Post ID: ' . $post_id);
+        error_log('MKCG Pods: Questions data: ' . print_r($questions_data, true));
+        
         $saved_count = 0;
         
-        // Handle both formats: topic-based and direct field mapping
-        if (isset($questions_data['questions']) && is_array($questions_data['questions'])) {
-            // Topic-based format: questions[topic][position] = value
-            foreach ($questions_data['questions'] as $topic => $topic_questions) {
-                if (is_array($topic_questions)) {
-                    foreach ($topic_questions as $position => $question_value) {
-                        if (!empty(trim($question_value))) {
-                            // Calculate sequential question number
-                            // Topic 1: questions 1-5, Topic 2: questions 6-10, etc.
-                            $question_num = (($topic - 1) * 5) + $position;
-                            $field_name = "question_{$question_num}";
-                            
-                            $result = update_post_meta($post_id, $field_name, trim($question_value));
-                            if ($result !== false) {
-                                $saved_count++;
-                            }
+        // ROOT FIX: Handle new flat format from JavaScript extraction
+        // Input format: mkcg_question_1_1, mkcg_question_1_2, etc.
+        // Output format: question_1, question_2, etc. (sequential)
+        
+        foreach ($questions_data as $question_key => $question_value) {
+            if (!empty(trim($question_value))) {
+                // Handle mkcg_question_X_Y format from extraction
+                if (strpos($question_key, 'mkcg_question_') === 0) {
+                    // Extract topic and position from mkcg_question_1_1
+                    $key_parts = str_replace('mkcg_question_', '', $question_key);
+                    $parts = explode('_', $key_parts);
+                    
+                    if (count($parts) == 2) {
+                        $topic = intval($parts[0]);
+                        $position = intval($parts[1]);
+                        
+                        // Convert to sequential numbering: topic 1 pos 1 = question 1, topic 1 pos 2 = question 2, etc.
+                        $question_num = (($topic - 1) * 5) + $position;
+                        $field_name = "question_{$question_num}";
+                        
+                        error_log("MKCG Pods: Converting {$question_key} to {$field_name}: {$question_value}");
+                        
+                        $result = update_post_meta($post_id, $field_name, trim($question_value));
+                        if ($result !== false) {
+                            $saved_count++;
                         }
                     }
                 }
-            }
-        } else {
-            // Direct field mapping format: question_1, question_2, etc.
-            foreach ($questions_data as $question_key => $question_value) {
-                if (!empty($question_value) && strpos($question_key, 'question_') === 0) {
-                    $result = update_post_meta($post_id, $question_key, $question_value);
+                // Handle legacy formats
+                elseif (strpos($question_key, 'question_') === 0) {
+                    // Direct question_X format
+                    error_log("MKCG Pods: Direct format {$question_key}: {$question_value}");
+                    $result = update_post_meta($post_id, $question_key, trim($question_value));
                     if ($result !== false) {
                         $saved_count++;
                     }
                 }
             }
         }
+        
+        error_log('MKCG Pods: Questions saved count: ' . $saved_count);
+        error_log('MKCG Pods: === QUESTIONS SAVE END ===');
         
         return [
             'success' => $saved_count > 0,

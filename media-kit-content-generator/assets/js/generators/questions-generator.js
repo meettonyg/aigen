@@ -403,23 +403,26 @@
             
             console.log('💾 Using post_id:', postId);
             
-            // Collect all question data
+            // ROOT FIX: Use EXACTLY same format as Topics Generator (flat object, not nested)
             const questionsData = {};
             let totalQuestions = 0;
             
             for (let topic = 1; topic <= 5; topic++) {
-                const topicQuestions = {};
                 for (let q = 1; q <= 5; q++) {
                     const field = document.getElementById(`mkcg-question-field-${topic}-${q}`);
                     if (field && field.value.trim()) {
-                        topicQuestions[q] = field.value.trim();
+                        // Use flat key format like Topics Generator: "question_1_1", "question_1_2"
+                        const key = `question_${topic}_${q}`;
+                        questionsData[key] = field.value.trim();
                         totalQuestions++;
+                        console.log(`🔍 Found question ${key}: ${field.value.trim().substring(0, 30)}...`);
                     }
                 }
-                if (Object.keys(topicQuestions).length > 0) {
-                    questionsData[topic] = topicQuestions;
-                }
             }
+            
+            console.log('🔍 QUESTIONS DEBUG: Final questionsData object (FLAT like Topics):', questionsData);
+            console.log('🔍 QUESTIONS DEBUG: Total questions collected:', totalQuestions);
+            console.log('🔍 QUESTIONS DEBUG: Sample keys:', Object.keys(questionsData).slice(0, 3));
             
             if (totalQuestions === 0) {
                 this.showNotification('No questions to save. Please add some questions first.', 'warning');

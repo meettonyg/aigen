@@ -304,26 +304,102 @@ class Enhanced_Questions_Generator {
     }
     
     /**
-     * Extract questions data from request
+     * ROOT FIX: Extract questions data using EXACTLY same pattern as Topics Generator
+     * JavaScript now sends flat format: {question_1_1: "text", question_1_2: "text"}
      */
     private function extract_questions_data() {
         $questions = [];
         
-        // Handle questions array
-        if (isset($_POST['questions']) && is_array($_POST['questions'])) {
-            foreach ($_POST['questions'] as $topic => $topic_questions) {
-                if (is_array($topic_questions)) {
-                    foreach ($topic_questions as $q => $question) {
-                        if (!empty(trim($question))) {
-                            $key = "mkcg_question_{$topic}_{$q}";
-                            $questions[$key] = sanitize_textarea_field($question);
+        error_log('MKCG Questions: === QUESTIONS EXTRACTION START (FLAT FORMAT) ===');
+        error_log('MKCG Questions: Raw _POST: ' . print_r($_POST, true));
+        
+        // Method 1: Check if questions came as array notation first (from updated AJAX)
+        $array_questions = [];
+        foreach ($_POST as $key => $value) {
+            if (strpos($key, 'questions[') === 0) {
+                // Extract the question key from questions[question_1_1] format
+                preg_match('/questions\[(.*?)\]/', $key, $matches);
+                if (isset($matches[1]) && !empty(trim($value))) {
+                    $array_questions[$matches[1]] = sanitize_textarea_field($value);
+                    error_log("MKCG Questions: Found array notation question {$matches[1]}: {$value}");
+                }
+            }
+        }
+        
+        if (!empty($array_questions)) {
+            $questions = $array_questions;
+            error_log('MKCG Questions: Using array notation questions, count: ' . count($questions));
+        }
+        
+        // Method 2: JSON-encoded questions object (primary method from JavaScript)
+        if (empty($questions) && isset($_POST['questions']) && !empty($_POST['questions'])) {
+            // FIX: Check if it's already an array before calling stripslashes
+            if (is_array($_POST['questions'])) {
+                $questions_raw = $_POST['questions'];
+            } else {
+                $questions_raw = stripslashes($_POST['questions']); // Remove slashes that might be added
+            }
+            error_log('MKCG Questions: Found questions in POST, type: ' . gettype($questions_raw));
+            error_log('MKCG Questions: Questions raw value: ' . print_r($questions_raw, true));
+            
+            if (is_string($questions_raw)) {
+                // Try to decode JSON
+                $decoded = json_decode($questions_raw, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    error_log('MKCG Questions: Successfully decoded JSON questions');
+                    foreach ($decoded as $key => $value) {
+                        if (!empty(trim($value))) {
+                            $questions[$key] = sanitize_textarea_field($value);
+                            error_log("MKCG Questions: Added JSON question {$key}: {$value}");
                         }
+                    }
+                } else {
+                    error_log('MKCG Questions: JSON decode failed: ' . json_last_error_msg());
+                    error_log('MKCG Questions: Raw JSON string: ' . $questions_raw);
+                }
+            } elseif (is_array($questions_raw)) {
+                error_log('MKCG Questions: Questions is already array');
+                foreach ($questions_raw as $key => $value) {
+                    if (!empty(trim($value))) {
+                        $questions[$key] = sanitize_textarea_field($value);
+                        error_log("MKCG Questions: Added array question {$key}: {$value}");
                     }
                 }
             }
         }
         
-        return $questions;
+        // Method 3: Individual question fields (final fallback)
+        if (empty($questions)) {
+            error_log('MKCG Questions: No questions from JSON, trying individual fields');
+            for ($topic = 1; $topic <= 5; $topic++) {
+                for ($q = 1; $q <= 5; $q++) {
+                    $field_name = "question_{$topic}_{$q}";
+                    if (isset($_POST[$field_name]) && !empty(trim($_POST[$field_name]))) {
+                        $questions[$field_name] = sanitize_textarea_field($_POST[$field_name]);
+                        error_log("MKCG Questions: Added individual question {$field_name}: {$_POST[$field_name]}");
+                    }
+                }
+            }
+        }
+        
+        // ROOT FIX: Convert to storage format (add mkcg_ prefix) like Topics Generator
+        $formatted_questions = [];
+        foreach ($questions as $key => $value) {
+            if (strpos($key, 'question_') === 0) {
+                // Convert "question_1_1" to "mkcg_question_1_1" for Pods storage
+                $storage_key = 'mkcg_' . $key;
+                $formatted_questions[$storage_key] = $value;
+                error_log("MKCG Questions: Formatted {$key} to {$storage_key}: {$value}");
+            } else {
+                $formatted_questions[$key] = $value;
+            }
+        }
+        
+        error_log('MKCG Questions: Final questions extracted: ' . count($formatted_questions) . ' items');
+        error_log('MKCG Questions: Final questions: ' . print_r($formatted_questions, true));
+        error_log('MKCG Questions: === QUESTIONS EXTRACTION END ===');
+        
+        return $formatted_questions;
     }
     
     /**
