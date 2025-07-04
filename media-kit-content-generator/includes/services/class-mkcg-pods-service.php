@@ -11,8 +11,9 @@ class MKCG_Pods_Service {
     
     private $post_type = 'guests';
     
+
     /**
-     * Get all data for a guest post
+     * SIMPLIFIED: Get all data for a guest post
      */
     public function get_guest_data($post_id) {
         if (!$post_id) {
@@ -22,11 +23,10 @@ class MKCG_Pods_Service {
         // Verify this is a guests post type
         $post = get_post($post_id);
         if (!$post || $post->post_type !== $this->post_type) {
-            error_log("MKCG Pods Service: Post {$post_id} is not a guests post type");
             return $this->get_default_data();
         }
         
-        $data = [
+        return [
             'post_id' => $post_id,
             'has_data' => true,
             'topics' => $this->get_topics($post_id),
@@ -35,152 +35,34 @@ class MKCG_Pods_Service {
             'contact' => $this->get_contact_info($post_id),
             'messaging' => $this->get_messaging_info($post_id)
         ];
-        
-        error_log("MKCG Pods Service: Loaded guest data for post {$post_id}");
-        return $data;
     }
     
     /**
-     * Get topics from Pods fields - ENHANCED with multiple data sources and comprehensive debugging
+     * SIMPLIFIED: Get topics from Pods fields - direct approach
      */
     public function get_topics($post_id) {
         $topics = [];
         
-        error_log("MKCG Pods Service: Loading topics for post {$post_id}");
-        
-        // ENHANCED DEBUG: Check all meta fields to see what exists
-        $all_meta = get_post_meta($post_id);
-        error_log("MKCG Pods Service: DEBUG - Total meta fields for post {$post_id}: " . count($all_meta));
-        $sample_keys = array_slice(array_keys($all_meta), 0, 10);
-        error_log("MKCG Pods Service: DEBUG - Sample meta keys: " . implode(', ', $sample_keys));
-        
-        // Check if any topic-related fields exist
-        $topic_like_keys = array_filter(array_keys($all_meta), function($key) {
-            return strpos(strtolower($key), 'topic') !== false;
-        });
-        error_log("MKCG Pods Service: DEBUG - Topic-like meta keys: " . implode(', ', $topic_like_keys));
-        
-        // CRITICAL DEBUG: Verify post exists and is correct type
-        $post = get_post($post_id);
-        if (!$post) {
-            error_log("MKCG Pods Service: ERROR - Post {$post_id} does not exist!");
-            return $this->get_empty_topics_array();
-        }
-        
-        if ($post->post_type !== 'guests') {
-            error_log("MKCG Pods Service: ERROR - Post {$post_id} is not 'guests' type, it's '{$post->post_type}'");
-            return $this->get_empty_topics_array();
-        }
-        
-        error_log("MKCG Pods Service: Confirmed post {$post_id} exists and is 'guests' type: '{$post->post_title}'");
-        
-        // Method 1: Try Pods API first (most reliable)
+        // Method 1: Try Pods API first
         if (function_exists('pods')) {
-            error_log("MKCG Pods Service: Pods function available, attempting Pods API");
             $pod = pods('guests', $post_id);
-            
             if ($pod && $pod->exists()) {
-                error_log("MKCG Pods Service: Pods object created and exists for post {$post_id}");
-                
                 for ($i = 1; $i <= 5; $i++) {
                     $field_name = "topic_{$i}";
                     $topic = $pod->field($field_name);
                     $topics[$field_name] = !empty($topic) ? $topic : '';
-                    
-                    // Enhanced debugging for each field
-                    error_log("MKCG Pods Service: Pods API field '{$field_name}' result: '" . ($topic ?: 'EMPTY') . "'");
-                    
-                    if (!empty($topic)) {
-                        error_log("MKCG Pods Service: ✅ Found {$field_name} via Pods API: {$topic}");
-                    } else {
-                        error_log("MKCG Pods Service: ❌ Empty {$field_name} via Pods API");
-                    }
                 }
-                
-                $filled_count = count(array_filter($topics));
-                error_log("MKCG Pods Service: Pods API results - {$filled_count}/5 topics have content");
-                
-                // Continue to fallback even if Pods API returns empty (field names might be different)
-                
-            } else {
-                error_log("MKCG Pods Service: Pods object creation failed or doesn't exist for post {$post_id}");
             }
-        } else {
-            error_log("MKCG Pods Service: Pods function not available!");
         }
         
-        // Method 2: Try post meta (comprehensive field name attempts)
-        error_log("MKCG Pods Service: Trying post meta fallback for topics");
-        
-        // Get ALL meta fields to see what's available
-        $all_meta = get_post_meta($post_id);
-        error_log("MKCG Pods Service: All meta fields for post {$post_id}: " . json_encode(array_keys($all_meta)));
-        
-        // Try various field name patterns
-        $field_patterns = [
-            'topic_%d',      // topic_1, topic_2, etc.
-            'field_%d',      // field_1, field_2, etc. 
-            'topic%d',       // topic1, topic2, etc.
-            'interview_topic_%d', // interview_topic_1, etc.
-            'podcast_topic_%d'    // podcast_topic_1, etc.
-        ];
-        
-        foreach ($field_patterns as $pattern) {
-            error_log("MKCG Pods Service: Trying field pattern: {$pattern}");
-            $pattern_found_data = false;
-            
+        // Method 2: Try post meta if Pods didn't return data
+        if (count(array_filter($topics)) === 0) {
             for ($i = 1; $i <= 5; $i++) {
-                $field_name = sprintf($pattern, $i);
+                $field_name = "topic_{$i}";
                 $topic = get_post_meta($post_id, $field_name, true);
-                
-                if (!empty($topic)) {
-                    $pattern_found_data = true;
-                    $topics["topic_{$i}"] = $topic; // Standardize to topic_X format
-                    error_log("MKCG Pods Service: ✅ Found topic via meta '{$field_name}': {$topic}");
-                } else {
-                    error_log("MKCG Pods Service: Empty meta field '{$field_name}'");
-                }
-            }
-            
-            if ($pattern_found_data) {
-                error_log("MKCG Pods Service: Found data with pattern '{$pattern}', using this pattern");
-                break;
+                $topics[$field_name] = !empty($topic) ? $topic : '';
             }
         }
-        
-        // Method 3: Check for Formidable field IDs (if connected via entry)
-        error_log("MKCG Pods Service: Checking for Formidable field connections");
-        $entry_id = $this->get_entry_id_from_post($post_id);
-        
-        if ($entry_id > 0) {
-            error_log("MKCG Pods Service: Found entry ID {$entry_id} for post {$post_id}");
-            
-            // Try common Formidable field IDs for topics
-            $formidable_field_ids = [8498, 8499, 8500, 8501, 8502]; // Based on template field IDs
-            
-            global $wpdb;
-            for ($i = 0; $i < 5; $i++) {
-                $field_id = $formidable_field_ids[$i];
-                $value = $wpdb->get_var($wpdb->prepare(
-                    "SELECT meta_value FROM {$wpdb->prefix}frm_item_metas WHERE item_id = %d AND field_id = %d",
-                    $entry_id, $field_id
-                ));
-                
-                if (!empty($value)) {
-                    $topics["topic_" . ($i + 1)] = $value;
-                    error_log("MKCG Pods Service: ✅ Found topic via Formidable field {$field_id}: {$value}");
-                } else {
-                    error_log("MKCG Pods Service: Empty Formidable field {$field_id}");
-                }
-            }
-        } else {
-            error_log("MKCG Pods Service: No entry ID found for post {$post_id}");
-        }
-        
-        // Final result
-        $filled_count = count(array_filter($topics));
-        error_log("MKCG Pods Service: FINAL RESULT - {$filled_count}/5 topics loaded for post {$post_id}");
-        error_log("MKCG Pods Service: Final topics array: " . json_encode($topics));
         
         // Ensure we always return the proper structure
         $final_topics = [];
@@ -192,72 +74,27 @@ class MKCG_Pods_Service {
     }
     
     /**
-     * Get authority hook components from Pods fields - ENHANCED with multi-source fallback and debugging
+     * SIMPLIFIED: Get authority hook components - direct field values
      */
     public function get_authority_hook_components($post_id) {
-        error_log("MKCG Pods Service: Loading authority hook components for post {$post_id}");
-        
         $components = [];
         $defaults = $this->get_default_authority_hook();
 
-        // --- WHO Component (Multi-level Fallback) ---
-        // 1. Try 'audience' taxonomy first
+        // WHO Component: Try audience taxonomy first, then guest_title
         $who_value = $this->get_audience_from_taxonomy($post_id);
-        
-        // 2. Fallback to 'guest_title' post meta if taxonomy is empty
         if (empty($who_value)) {
             $who_value = get_post_meta($post_id, 'guest_title', true);
-            if(!empty($who_value)) {
-               error_log("MKCG Pods Service: WHO found via 'guest_title' meta field: '{$who_value}'");
-            }
         }
-
-        // 3. Assign final value or default
         $components['who'] = !empty($who_value) ? trim($who_value) : $defaults['who'];
-        if(empty($who_value)) {
-            error_log("MKCG Pods Service: WHO not found in taxonomy or meta. Using default: '{$components['who']}'");
-        }
 
-        // --- Other Components (WHAT, WHEN, HOW, etc.) with ENHANCED DEBUGGING ---
-        $other_components = [
-            'what'  => 'hook_what',
-            'when'  => 'hook_when',
-            'how'   => 'hook_how',
-            'where' => 'hook_where',
-            'why'   => 'hook_why'
-        ];
+        // Other Components: Pull directly from hook_ fields
+        $components['what'] = get_post_meta($post_id, 'hook_what', true) ?: $defaults['what'];
+        $components['when'] = get_post_meta($post_id, 'hook_when', true) ?: $defaults['when'];
+        $components['how'] = get_post_meta($post_id, 'hook_how', true) ?: $defaults['how'];
+        $components['where'] = get_post_meta($post_id, 'hook_where', true) ?: $defaults['where'];
+        $components['why'] = get_post_meta($post_id, 'hook_why', true) ?: $defaults['why'];
 
-        // ENHANCED DEBUG: Check ALL meta fields to see what authority hook data exists
-        error_log("MKCG Pods Service: ENHANCED DEBUG - Checking authority hook meta fields for post {$post_id}");
-        $all_meta = get_post_meta($post_id);
-        $hook_like_keys = array_filter(array_keys($all_meta), function($key) {
-            return strpos(strtolower($key), 'hook') !== false;
-        });
-        error_log("MKCG Pods Service: DEBUG - Hook-like meta keys found: " . implode(', ', $hook_like_keys));
-        
-        foreach ($other_components as $key => $field_name) {
-            $value = get_post_meta($post_id, $field_name, true);
-            
-            // ENHANCED DEBUG: Log what we found for each field
-            error_log("MKCG Pods Service: ENHANCED DEBUG - Field '{$field_name}' for component '{$key}': '" . ($value ?: 'EMPTY') . "'");
-            
-            // Check if value is meaningful (not just the field name or empty)
-            if (!empty($value) && trim($value) !== ucfirst($key) && trim($value) !== $defaults[$key]) {
-                $components[$key] = trim($value);
-                error_log("MKCG Pods Service: ✅ Using meaningful value for '{$key}': '{$components[$key]}'");
-            } else {
-                $components[$key] = $defaults[$key];
-                error_log("MKCG Pods Service: ⚠️ Using default for '{$key}': '{$components[$key]}' (original value: '" . ($value ?: 'EMPTY') . "')");
-            }
-        }
-        
-        // ENHANCED DEBUG: Log final authority hook components
-        error_log("MKCG Pods Service: FINAL AUTHORITY HOOK COMPONENTS:");
-        foreach ($components as $comp_key => $comp_value) {
-            error_log("MKCG Pods Service: - {$comp_key}: '{$comp_value}'");
-        }
-
-        // Build the complete authority hook sentence
+        // Build complete authority hook
         $components['complete'] = $this->build_complete_authority_hook(
             $components['who'], 
             $components['what'], 
@@ -267,13 +104,11 @@ class MKCG_Pods_Service {
             $components['why']
         );
         
-        error_log("MKCG Pods Service: Complete authority hook: '{$components['complete']}'");
-        
         return $components;
     }
     
     /**
-     * Get questions from Pods fields
+     * SIMPLIFIED: Get questions from Pods fields
      */
     public function get_questions($post_id) {
         $questions = [];
@@ -286,7 +121,6 @@ class MKCG_Pods_Service {
             }
         }
         
-        error_log("MKCG Pods Service: Loaded " . count($questions) . " questions for post {$post_id}");
         return $questions;
     }
     
@@ -317,7 +151,7 @@ class MKCG_Pods_Service {
     }
     
     /**
-     * Save topics to Pods fields
+     * SIMPLIFIED: Save topics to Pods fields
      */
     public function save_topics($post_id, $topics_data) {
         if (!$post_id || empty($topics_data)) {
@@ -331,7 +165,6 @@ class MKCG_Pods_Service {
                 $result = update_post_meta($post_id, $topic_key, $topic_value);
                 if ($result !== false) {
                     $saved_count++;
-                    error_log("MKCG Pods Service: Saved {$topic_key} to post {$post_id}");
                 }
             }
         }
@@ -344,7 +177,7 @@ class MKCG_Pods_Service {
     }
     
     /**
-     * Save authority hook components to Pods fields
+     * SIMPLIFIED: Save authority hook components to Pods fields
      */
     public function save_authority_hook_components($post_id, $hook_data) {
         if (!$post_id || empty($hook_data)) {
@@ -366,7 +199,6 @@ class MKCG_Pods_Service {
                 $result = update_post_meta($post_id, $field_name, $value);
                 if ($result !== false) {
                     $saved_count++;
-                    error_log("MKCG Pods Service: Saved {$component} to field {$field_name} on post {$post_id}");
                 }
             }
         }
@@ -379,7 +211,7 @@ class MKCG_Pods_Service {
     }
     
     /**
-     * Save questions to Pods fields
+     * SIMPLIFIED: Save questions to Pods fields
      */
     public function save_questions($post_id, $questions_data) {
         if (!$post_id || empty($questions_data)) {
@@ -393,7 +225,6 @@ class MKCG_Pods_Service {
                 $result = update_post_meta($post_id, $question_key, $question_value);
                 if ($result !== false) {
                     $saved_count++;
-                    error_log("MKCG Pods Service: Saved {$question_key} to post {$post_id}");
                 }
             }
         }
@@ -467,36 +298,23 @@ class MKCG_Pods_Service {
     }
     
     /**
-     * Get audience from taxonomy - ENHANCED with cache clearing and better logging
+     * SIMPLIFIED: Get audience from taxonomy
      */
     private function get_audience_from_taxonomy($post_id) {
         if (!$post_id) {
-            error_log('MKCG Pods Service: get_audience_from_taxonomy called with no post_id.');
             return '';
         }
 
-        error_log("MKCG Pods Service: [Taxonomy Fix] Checking 'audience' taxonomy for post {$post_id}.");
-
-        // Clear the cache for this specific post's terms to ensure we get fresh data
+        // Clear cache and get audience terms
         wp_cache_delete($post_id, 'audience_relationships');
-
-        // 1. Get audience taxonomy terms for this post
         $audience_terms = wp_get_post_terms($post_id, 'audience', ['fields' => 'names']);
 
-        if (is_wp_error($audience_terms)) {
-            error_log("MKCG Pods Service: [Taxonomy Fix] WP_Error getting audience terms: " . $audience_terms->get_error_message());
-            return ''; // Return empty on error
+        if (is_wp_error($audience_terms) || empty($audience_terms)) {
+            return '';
         }
 
-        if (!empty($audience_terms)) {
-            // Join multiple terms with a comma if they exist
-            $audience_string = implode(', ', $audience_terms);
-            error_log("MKCG Pods Service: [Taxonomy Fix] ✅ SUCCESS - Found '{$audience_string}' from 'audience' taxonomy.");
-            return $audience_string;
-        }
-
-        error_log("MKCG Pods Service: [Taxonomy Fix] ⚠️ No terms found in 'audience' taxonomy for this post.");
-        return ''; // Return empty string if no terms are found
+        // Join multiple terms with a comma
+        return implode(', ', $audience_terms);
     }
     
     /**
