@@ -26,11 +26,27 @@ async function makeAjaxRequest(action, data = {}) {
     requestData.append('nonce', nonce);
     requestData.append('security', nonce); // WordPress backup nonce field
     
-    // Add data parameters
+    // Add data parameters - handle nested objects for WordPress AJAX
     Object.keys(data).forEach(key => {
         if (data[key] !== null && data[key] !== undefined) {
-            if (typeof data[key] === 'object') {
+            if (typeof data[key] === 'object' && !Array.isArray(data[key])) {
+                // For objects, we need to send them in a way PHP can parse
+                // Option 1: Send as JSON string (current approach)
                 requestData.append(key, JSON.stringify(data[key]));
+                
+                // Option 2: Also send individual fields for fallback
+                // This ensures PHP can read the data even if JSON parsing fails
+                Object.keys(data[key]).forEach(subKey => {
+                    if (data[key][subKey] !== null && data[key][subKey] !== undefined) {
+                        // Send as both nested array notation and flat
+                        requestData.append(`${key}[${subKey}]`, data[key][subKey]);
+                    }
+                });
+            } else if (Array.isArray(data[key])) {
+                // Handle arrays
+                data[key].forEach((value, index) => {
+                    requestData.append(`${key}[${index}]`, value);
+                });
             } else {
                 requestData.append(key, data[key]);
             }

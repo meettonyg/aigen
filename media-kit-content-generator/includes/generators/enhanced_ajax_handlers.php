@@ -327,9 +327,27 @@ class Enhanced_AJAX_Handlers {
         
         error_log('MKCG AJAX: === TOPICS EXTRACTION START ===');
         
-        // Method 1: JSON-encoded topics object (most common from JavaScript)
-        if (isset($_POST['topics']) && !empty($_POST['topics'])) {
-            $topics_raw = $_POST['topics'];
+        // Method 1: Check if topics came as array notation first (from updated AJAX)
+        $array_topics = [];
+        foreach ($_POST as $key => $value) {
+            if (strpos($key, 'topics[') === 0) {
+                // Extract the topic key from topics[topic_1] format
+                preg_match('/topics\[(.*?)\]/', $key, $matches);
+                if (isset($matches[1]) && !empty(trim($value))) {
+                    $array_topics[$matches[1]] = sanitize_textarea_field($value);
+                    error_log("MKCG AJAX: Found array notation topic {$matches[1]}: {$value}");
+                }
+            }
+        }
+        
+        if (!empty($array_topics)) {
+            $topics = $array_topics;
+            error_log('MKCG AJAX: Using array notation topics, count: ' . count($topics));
+        }
+        
+        // Method 2: JSON-encoded topics object (fallback)
+        if (empty($topics) && isset($_POST['topics']) && !empty($_POST['topics'])) {
+            $topics_raw = stripslashes($_POST['topics']); // Remove slashes that might be added
             error_log('MKCG AJAX: Found topics in POST, type: ' . gettype($topics_raw));
             error_log('MKCG AJAX: Topics raw value: ' . $topics_raw);
             
@@ -341,24 +359,25 @@ class Enhanced_AJAX_Handlers {
                     foreach ($decoded as $key => $value) {
                         if (!empty(trim($value))) {
                             $topics[$key] = sanitize_textarea_field($value);
-                            error_log("MKCG AJAX: Added topic {$key}: {$value}");
+                            error_log("MKCG AJAX: Added JSON topic {$key}: {$value}");
                         }
                     }
                 } else {
                     error_log('MKCG AJAX: JSON decode failed: ' . json_last_error_msg());
+                    error_log('MKCG AJAX: Raw JSON string: ' . $topics_raw);
                 }
             } elseif (is_array($topics_raw)) {
                 error_log('MKCG AJAX: Topics is already array');
                 foreach ($topics_raw as $key => $value) {
                     if (!empty(trim($value))) {
                         $topics[$key] = sanitize_textarea_field($value);
-                        error_log("MKCG AJAX: Added topic {$key}: {$value}");
+                        error_log("MKCG AJAX: Added array topic {$key}: {$value}");
                     }
                 }
             }
         }
         
-        // Method 2: Individual topic fields (fallback)
+        // Method 3: Individual topic fields (final fallback)
         if (empty($topics)) {
             error_log('MKCG AJAX: No topics from JSON, trying individual fields');
             for ($i = 1; $i <= 5; $i++) {
@@ -385,9 +404,32 @@ class Enhanced_AJAX_Handlers {
         
         error_log('MKCG AJAX: === AUTHORITY HOOK EXTRACTION START ===');
         
-        // Method 1: JSON-encoded authority_hook object (most common from JavaScript)
-        if (isset($_POST['authority_hook']) && !empty($_POST['authority_hook'])) {
-            $auth_raw = $_POST['authority_hook'];
+        // Method 1: Check if authority_hook came as array notation first (from updated AJAX)
+        $array_components = [];
+        foreach ($_POST as $key => $value) {
+            if (strpos($key, 'authority_hook[') === 0) {
+                // Extract the component key from authority_hook[who] format
+                preg_match('/authority_hook\[(.*?)\]/', $key, $matches);
+                if (isset($matches[1]) && !empty(trim($value))) {
+                    $field = $matches[1];
+                    // Map 'result' to 'what' if needed
+                    if ($field === 'result') {
+                        $field = 'what';
+                    }
+                    $array_components[$field] = sanitize_textarea_field($value);
+                    error_log("MKCG AJAX: Found array notation authority component {$field}: {$value}");
+                }
+            }
+        }
+        
+        if (!empty($array_components)) {
+            $components = $array_components;
+            error_log('MKCG AJAX: Using array notation authority hook, count: ' . count($components));
+        }
+        
+        // Method 2: JSON-encoded authority_hook object (fallback)
+        if (empty($components) && isset($_POST['authority_hook']) && !empty($_POST['authority_hook'])) {
+            $auth_raw = stripslashes($_POST['authority_hook']); // Remove slashes that might be added
             error_log('MKCG AJAX: Found authority_hook in POST, type: ' . gettype($auth_raw));
             error_log('MKCG AJAX: Authority hook raw value: ' . $auth_raw);
             
@@ -410,24 +452,25 @@ class Enhanced_AJAX_Handlers {
                         if (isset($field_map[$key]) && !empty(trim($value))) {
                             $mapped_key = $field_map[$key];
                             $components[$mapped_key] = sanitize_textarea_field($value);
-                            error_log("MKCG AJAX: Added authority component {$mapped_key}: {$value}");
+                            error_log("MKCG AJAX: Added JSON authority component {$mapped_key}: {$value}");
                         }
                     }
                 } else {
                     error_log('MKCG AJAX: Authority hook JSON decode failed: ' . json_last_error_msg());
+                    error_log('MKCG AJAX: Raw JSON string: ' . $auth_raw);
                 }
             } elseif (is_array($auth_raw)) {
                 error_log('MKCG AJAX: Authority hook is already array');
                 foreach ($auth_raw as $key => $value) {
                     if (!empty(trim($value))) {
                         $components[$key] = sanitize_textarea_field($value);
-                        error_log("MKCG AJAX: Added authority component {$key}: {$value}");
+                        error_log("MKCG AJAX: Added array authority component {$key}: {$value}");
                     }
                 }
             }
         }
         
-        // Method 2: Individual component fields (fallback)
+        // Method 3: Individual component fields (final fallback)
         if (empty($components)) {
             error_log('MKCG AJAX: No authority hook from JSON, trying individual fields');
             $fields = ['who', 'what', 'result', 'when', 'how'];
