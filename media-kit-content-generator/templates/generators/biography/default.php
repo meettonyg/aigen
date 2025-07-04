@@ -74,9 +74,35 @@ if (isset($_GET['entry'])) {
         </div>
         <div class="section__content">
             <?php
-            // Include the shared Authority Hook component
-            $current_values = [];
-            include MKCG_PLUGIN_PATH . 'templates/shared/authority-hook-component.php';
+            // Use centralized Authority Hook Service instead of shared template
+            global $authority_hook_service;
+            
+            if ($authority_hook_service) {
+                // Get current authority hook data for Biography Generator
+                $authority_hook_data = [];
+                if ($entry_id) {
+                    $hook_result = $authority_hook_service->get_authority_hook_data($entry_id);
+                    $authority_hook_data = $hook_result['components'];
+                }
+                
+                // Render options for Biography Generator
+                $render_options = [
+                    'show_preview' => true, // Biography shows preview/copy functionality
+                    'show_examples' => true,
+                    'show_audience_manager' => true,
+                    'css_classes' => 'authority-hook',
+                    'field_prefix' => 'mkcg-',
+                    'tabs_enabled' => true
+                ];
+                
+                // Use centralized service to render Authority Hook Builder
+                echo $authority_hook_service->render_authority_hook_builder('biography', $authority_hook_data, $render_options);
+                
+                error_log('MKCG Biography: Authority Hook Builder rendered via centralized service');
+            } else {
+                echo '<div style="background: #ffebee; border: 1px solid #f44336; padding: 15px; border-radius: 4px;">❌ Authority Hook Service not available</div>';
+                error_log('MKCG Biography: ERROR - Authority Hook Service not available');
+            }
             ?>
         </div>
     </div>
@@ -174,6 +200,9 @@ if (isset($_GET['entry'])) {
     <input type="hidden" id="biography-entry-id" value="<?php echo esc_attr($entry_id); ?>">
     <input type="hidden" id="biography-entry-key" value="<?php echo esc_attr($entry_key); ?>">
     <input type="hidden" id="biography-nonce" value="<?php echo wp_create_nonce('mkcg_nonce'); ?>">
+    
+    <!-- Authority Hook data populated by centralized service -->
+    <input type="hidden" id="mkcg-authority-hook" name="authority_hook" value="">
 </div>
 
 <script type="text/javascript">

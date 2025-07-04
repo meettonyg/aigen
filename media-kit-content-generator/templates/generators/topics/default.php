@@ -302,18 +302,7 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
 ?>
 
 <div class="topics-generator" data-generator="topics">
-    <!-- DEBUG INFO: Root Fixes Status -->
-    <?php if (current_user_can('administrator') && !empty($debug_info)): ?>
-    <div style="background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%); border: 1px solid #2196f3; padding: 15px; margin: 10px 0; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 12px;">
-        <strong style="color: #1976d2; font-size: 14px;">🔧 ROOT FIXES DEBUG INFO (Admin Only)</strong><br>
-        <strong>Data Loading Status:</strong><br>
-        <?php foreach ($debug_info as $info): ?>
-            • <?php echo esc_html($info); ?><br>
-        <?php endforeach; ?>
-        <strong style="color: #d32f2f;">Data Summary:</strong> Post ID: <?php echo $template_data['post_id']; ?> | Has Data: <?php echo $template_data['has_data'] ? 'YES' : 'NO'; ?> | Topics: <?php echo count(array_filter($template_data['form_field_values'])); ?>/5<br>
-        <small style="color: #666;">💡 If you see "Using fallback default data", create a guest post with topic/authority hook data</small>
-    </div>
-    <?php endif; ?>
+
     
     <div class="topics-generator__container">
         <div class="topics-generator__header">
@@ -352,80 +341,46 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
                     </div>
                 </div>
                 
-                <!-- Authority Hook Builder - ENHANCED SHARED COMPONENT -->
+                <!-- Authority Hook Builder - CENTRALIZED SERVICE -->                
                 <div class="topics-generator__builder topics-generator__builder--hidden mkcg-authority-hook authority-hook-builder" id="topics-generator-authority-hook-builder" data-component="authority-hook">
                     <?php 
-                    // CRITICAL FIX: Properly pass loaded data to shared Authority Hook component with fallbacks
-                    $generator_type = 'topics'; // Specify generator type
+                    // Use centralized Authority Hook Service instead of shared template
+                    global $authority_hook_service;
                     
-                    // ENHANCED: Ensure we have meaningful data, not just field names
-                    $current_values = [
-                        'who' => (!empty($authority_hook_components['who']) && $authority_hook_components['who'] !== 'your audience') 
-                               ? $authority_hook_components['who'] 
-                               : 'your audience',
-                        'what' => (!empty($authority_hook_components['what']) && !in_array($authority_hook_components['what'], ['What', 'achieve their goals'])) 
-                                ? $authority_hook_components['what'] 
-                                : 'achieve their goals',
-                        'result' => (!empty($authority_hook_components['what']) && !in_array($authority_hook_components['what'], ['What', 'achieve their goals'])) 
-                                  ? $authority_hook_components['what'] 
-                                  : 'achieve their goals', // Map 'what' to 'result' for component compatibility
-                        'when' => (!empty($authority_hook_components['when']) && !in_array($authority_hook_components['when'], ['When', 'they need help'])) 
-                                ? $authority_hook_components['when'] 
-                                : 'they need help',
-                        'how' => (!empty($authority_hook_components['how']) && !in_array($authority_hook_components['how'], ['How', 'through your method'])) 
-                               ? $authority_hook_components['how'] 
-                               : 'through your method',
-                        'authority_hook' => $authority_hook_components['complete']
-                    ];
-                    $entry_id = $post_id; // Use post_id instead of undefined entry_id
-                    $show_authority_hook_preview = true; // Enable authority hook preview
-                    
-                    // DEBUG: Show what data is being passed to the component
-                    if (current_user_can('administrator')) {
-                        echo '<div style="background: #e8f5e8; border: 1px solid #4caf50; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace; font-size: 12px;">';
-                        echo '<strong>🔧 CRITICAL FIX DEBUG:</strong><br>';
-                        echo 'WHO value being passed: "' . esc_html($current_values['who']) . '"<br>';
-                        echo 'WHAT/RESULT value: "' . esc_html($current_values['what']) . '"<br>';
-                        echo 'WHEN value: "' . esc_html($current_values['when']) . '"<br>';
-                        echo 'HOW value: "' . esc_html($current_values['how']) . '"<br>';
-                        echo 'Post ID: ' . $post_id . '<br>';
-                        echo '<strong>Raw Authority Hook Components:</strong><br>';
-                        echo 'Raw WHO: "' . esc_html($authority_hook_components['who']) . '"<br>';
-                        echo 'Raw WHAT: "' . esc_html($authority_hook_components['what']) . '"<br>';
-                        echo 'Raw WHEN: "' . esc_html($authority_hook_components['when']) . '"<br>';
-                        echo 'Raw HOW: "' . esc_html($authority_hook_components['how']) . '"<br>';
-                        echo '</div>';
-                    }
-                    
-                    // Include the enhanced shared component
-                    $shared_component_path = MKCG_PLUGIN_PATH . 'templates/shared/authority-hook-component.php';
-                    
-                    // DEBUG: Show what's happening
-                    echo '<div style="background: #e3f2fd; border: 1px solid #2196f3; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace; font-size: 12px;">';
-                    echo '<strong>🔍 DEBUG:</strong><br>';
-                    echo 'MKCG_PLUGIN_PATH: ' . (defined('MKCG_PLUGIN_PATH') ? MKCG_PLUGIN_PATH : 'NOT DEFINED') . '<br>';
-                    echo 'Full path: ' . $shared_component_path . '<br>';
-                    echo 'File exists: ' . (file_exists($shared_component_path) ? 'YES' : 'NO') . '<br>';
-                    echo '</div>';
-                    
-                    if (file_exists($shared_component_path)) {
-                        echo '<div style="background: #e8f5e8; border: 1px solid #4caf50; padding: 10px; margin: 10px 0; border-radius: 4px;">✅ Including enhanced Authority Hook component...</div>';
-                        include $shared_component_path;
-                        error_log('MKCG Topics: Enhanced Authority Hook component included successfully');
+                    if ($authority_hook_service) {
+                        // Prepare current values for the service
+                        $current_values = [
+                            'who' => (!empty($authority_hook_components['who']) && $authority_hook_components['who'] !== 'your audience') 
+                                   ? $authority_hook_components['who'] 
+                                   : 'your audience',
+                            'what' => (!empty($authority_hook_components['what']) && !in_array($authority_hook_components['what'], ['What', 'achieve their goals'])) 
+                                    ? $authority_hook_components['what'] 
+                                    : 'achieve their goals',
+                            'when' => (!empty($authority_hook_components['when']) && !in_array($authority_hook_components['when'], ['When', 'they need help'])) 
+                                    ? $authority_hook_components['when'] 
+                                    : 'they need help',
+                            'how' => (!empty($authority_hook_components['how']) && !in_array($authority_hook_components['how'], ['How', 'through your method'])) 
+                                   ? $authority_hook_components['how'] 
+                                   : 'through your method'
+                        ];
+                        
+                        // Render options for this generator
+                        $render_options = [
+                            'show_preview' => false, // No preview/copy functionality
+                            'show_examples' => true,
+                            'show_audience_manager' => true,
+                            'css_classes' => 'authority-hook',
+                            'field_prefix' => 'mkcg-',
+                            'tabs_enabled' => true
+                        ];
+                        
+                        // Use centralized service to render Authority Hook Builder
+                        echo $authority_hook_service->render_authority_hook_builder('topics', $current_values, $render_options);
+                        
+                        error_log('MKCG Topics: Authority Hook Builder rendered via centralized service');
                     } else {
-                        error_log('MKCG Topics: ERROR - Enhanced component not found at: ' . $shared_component_path);
-                        echo '<div style="background: #ffebee; border: 1px solid #f44336; padding: 15px; margin: 10px 0; border-radius: 4px;"><strong>❌ ERROR:</strong> Enhanced Authority Hook component not found at: ' . htmlspecialchars($shared_component_path) . '</div>';
-                        
-                        // Fallback: Try relative path
-                        $fallback_path = __DIR__ . '/../../shared/authority-hook-component.php';
-                        echo '<div style="background: #fff3e0; border: 1px solid #ff9800; padding: 10px; margin: 10px 0; border-radius: 4px;">🔄 Trying fallback path: ' . htmlspecialchars($fallback_path) . '</div>';
-                        
-                        if (file_exists($fallback_path)) {
-                            echo '<div style="background: #e8f5e8; border: 1px solid #4caf50; padding: 10px; margin: 10px 0; border-radius: 4px;">✅ Fallback path found! Including...</div>';
-                            include $fallback_path;
-                        } else {
-                            echo '<div style="background: #ffebee; border: 1px solid #f44336; padding: 10px; margin: 10px 0; border-radius: 4px;">❌ Fallback path also failed.</div>';
-                        }
+                        echo '<div style="background: #ffebee; border: 1px solid #f44336; padding: 15px; border-radius: 4px;">❌ Authority Hook Service not available</div>';
+                        error_log('MKCG Topics: ERROR - Authority Hook Service not available');
                     }
                     ?>
                 </div>
@@ -712,262 +667,19 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
     };
     
     // CRITICAL FIX: Authority Hook Pre-population Enhancement
-    // Implements automatic field population, AJAX fallback, and real-time updates
+    // Now handled by centralized Authority Hook Service Integration
+    // All functionality moved to authority-hook-service-integration.js
     
-    // ENHANCED: Function to populate authority hook fields from PHP data
-    function populateAuthorityHookFields() {
-        console.log('🔧 CRITICAL FIX: Starting Authority Hook field population');
-        
-        if (window.MKCG_Topics_Data && window.MKCG_Topics_Data.authorityHook) {
-            const data = window.MKCG_Topics_Data.authorityHook;
-            
-            // ENHANCED: Field mappings for shared component compatibility
-            const fieldMappings = {
-                'mkcg-who': data.who || 'your audience',
-                'mkcg-result': data.what || 'achieve their goals',  // Shared component uses 'result' field
-                'mkcg-when': data.when || 'they need help',
-                'mkcg-how': data.how || 'through your method'
-            };
-            
-            let fieldsPopulated = 0;
-            
-            Object.keys(fieldMappings).forEach(fieldId => {
-                const field = document.getElementById(fieldId);
-                const value = fieldMappings[fieldId];
-                
-                if (field && value && value.trim() !== '') {
-                    // ENHANCED: Only populate if field is currently empty or has default value
-                    const currentValue = field.value.trim();
-                    const defaultValues = ['your audience', 'achieve their goals', 'they need help', 'through your method', ''];
-                    
-                    if (defaultValues.includes(currentValue) || currentValue === '') {
-                        field.value = value;
-                        fieldsPopulated++;
-                        console.log(`✅ CRITICAL FIX: Populated ${fieldId} with: '${value}'`);
-                        
-                        // ENHANCED: Trigger change event to update any listeners
-                        field.dispatchEvent(new Event('change', { bubbles: true }));
-                        field.dispatchEvent(new Event('input', { bubbles: true }));
-                    } else {
-                        console.log(`ℹ️ CRITICAL FIX: Skipped ${fieldId} - user has custom value: '${currentValue}'`);
-                    }
-                    
-                    // Add change listener for auto-save if not already added
-                    if (!field.hasAttribute('data-listener-attached')) {
-                        field.addEventListener('change', function() {
-                            updateCompleteAuthorityHook();
-                            autoSaveAuthorityHookComponent(fieldId, this.value);
-                        });
-                        field.addEventListener('input', updateCompleteAuthorityHook);
-                        field.setAttribute('data-listener-attached', 'true');
-                    }
-                } else {
-                    console.warn(`⚠️ CRITICAL FIX: Could not populate ${fieldId} - field: ${!!field}, value: '${value}'`);
-                }
-            });
-            
-            // Update the complete authority hook display
-            updateCompleteAuthorityHook();
-            
-            console.log(`✅ CRITICAL FIX: Successfully populated ${fieldsPopulated}/4 authority hook component fields`);
-            
-            return fieldsPopulated > 0;
-        } else {
-            console.warn('⚠️ CRITICAL FIX: No authority hook data available in window.MKCG_Topics_Data');
-            return false;
-        }
-    }
-    
-    // Function to update the complete authority hook display in real-time
-    function updateCompleteAuthorityHook() {
-        const whoField = document.getElementById('mkcg-who');
-        const resultField = document.getElementById('mkcg-result');
-        const whenField = document.getElementById('mkcg-when');
-        const howField = document.getElementById('mkcg-how');
+    // ENHANCED: Real-time Authority Hook display updates handled by centralized service
+    // Update the main display element when Authority Hook changes
+    document.addEventListener('authority-hook-updated', function(e) {
         const displayElement = document.getElementById('topics-generator-authority-hook-text');
-        
-        if (whoField && resultField && whenField && howField && displayElement) {
-            const who = whoField.value || 'your audience';
-            const result = resultField.value || 'achieve their goals';
-            const when = whenField.value || 'they need help';
-            const how = howField.value || 'through your method';
-            
-            const completeHook = `I help ${who} ${result} when ${when} ${how}.`;
-            displayElement.textContent = completeHook;
-            
-            console.log('🔄 CRITICAL FIX: Updated complete authority hook display');
+        if (displayElement && e.detail.completeHook) {
+            displayElement.textContent = e.detail.completeHook;
         }
-    }
-    
-    // Function to auto-save individual authority hook components - Pure Pods
-    function autoSaveAuthorityHookComponent(fieldId, value) {
-        const postId = document.getElementById('topics-generator-post-id')?.value;
-        const nonce = document.getElementById('topics-generator-nonce')?.value;
-        
-        if (!postId || postId === '0') {
-            console.log('⚠️ CRITICAL FIX: No post ID for auto-save');
-            return;
-        }
-        
-        // Map field IDs to component names
-        const componentMap = {
-            'mkcg-who': 'who',
-            'mkcg-result': 'what',
-            'mkcg-when': 'when',
-            'mkcg-how': 'how'
-        };
-        
-        const componentName = componentMap[fieldId];
-        if (!componentName) {
-            console.warn(`⚠️ CRITICAL FIX: Unknown field ID for auto-save: ${fieldId}`);
-            return;
-        }
-        
-        console.log(`💾 CRITICAL FIX: Auto-saving ${componentName}: '${value}'`);
-        
-        // Prepare the data for all components (get current values)
-        const formData = new FormData();
-        formData.append('action', 'mkcg_save_authority_hook');
-        formData.append('post_id', postId);
-        formData.append('nonce', nonce);
-        
-        // Get all current values
-        formData.append('who', document.getElementById('mkcg-who')?.value || 'your audience');
-        formData.append('what', document.getElementById('mkcg-result')?.value || 'achieve their goals');
-        formData.append('when', document.getElementById('mkcg-when')?.value || 'they need help');
-        formData.append('how', document.getElementById('mkcg-how')?.value || 'through your method');
-        
-        // Make silent AJAX request
-        fetch(window.ajaxurl || '/wp-admin/admin-ajax.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                console.log(`✅ CRITICAL FIX: Auto-saved ${componentName}`);
-            } else {
-                console.warn(`⚠️ CRITICAL FIX: Auto-save failed for ${componentName}:`, data.data?.message);
-            }
-        })
-        .catch(error => {
-            console.warn(`⚠️ CRITICAL FIX: Auto-save network error for ${componentName}:`, error);
-        });
-    }
-    
-    // AJAX fallback function to reload authority hook data if PHP population failed - Pure Pods
-    function ajaxFallbackLoadAuthorityHook() {
-        const postId = document.getElementById('topics-generator-post-id')?.value;
-        const nonce = document.getElementById('topics-generator-nonce')?.value;
-        
-        if (!postId || postId === '0') {
-            console.log('⚠️ CRITICAL FIX: No post ID for AJAX fallback');
-            return;
-        }
-        
-        console.log('🔄 CRITICAL FIX: Attempting AJAX fallback for authority hook data');
-        
-        const formData = new FormData();
-        formData.append('action', 'mkcg_get_topics_data');
-        formData.append('post_id', postId);
-        formData.append('nonce', nonce);
-        
-        fetch(window.ajaxurl || '/wp-admin/admin-ajax.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.data.components) {
-                console.log('✅ CRITICAL FIX: AJAX fallback successful');
-                
-                // Update the window data
-                window.MKCG_Topics_Data.authorityHook = data.data.components;
-                
-                // Re-populate the fields
-                populateAuthorityHookFields();
-            } else {
-                console.warn('⚠️ CRITICAL FIX: AJAX fallback failed:', data.data?.message);
-            }
-        })
-        .catch(error => {
-            console.warn('⚠️ CRITICAL FIX: AJAX fallback network error:', error);
-        });
-    }
-    
-    // Diagnostic function for debugging
-    function diagnoseAuthorityHookFields() {
-        console.log('🔍 CRITICAL FIX: Authority Hook Field Diagnosis');
-        console.log('Post ID:', document.getElementById('topics-generator-post-id')?.value);
-        console.log('PHP Data:', window.MKCG_Topics_Data?.authorityHook);
-        
-        const fields = ['mkcg-who', 'mkcg-result', 'mkcg-when', 'mkcg-how'];
-        fields.forEach(fieldId => {
-            const field = document.getElementById(fieldId);
-            console.log(`${fieldId}:`, {
-                exists: !!field,
-                value: field?.value || 'N/A',
-                placeholder: field?.placeholder || 'N/A'
-            });
-        });
-        
-        const displayElement = document.getElementById('topics-generator-authority-hook-text');
-        console.log('Complete hook display:', {
-            exists: !!displayElement,
-            text: displayElement?.textContent || 'N/A'
-        });
-    }
-    
-    // Make diagnostic function globally available
-    window.diagnoseAuthorityHookFields = diagnoseAuthorityHookFields;
-    
-    // ENHANCED: Initialize when DOM is ready with retry mechanism
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('🚀 CRITICAL FIX: Initializing Authority Hook Pre-population');
-        
-        // ENHANCED: Wait for shared component to fully load, then populate
-        function initializeWithRetry(attempt = 1, maxAttempts = 5) {
-            const allFieldsExist = ['mkcg-who', 'mkcg-result', 'mkcg-when', 'mkcg-how'].every(id => {
-                return document.getElementById(id) !== null;
-            });
-            
-            if (allFieldsExist) {
-                console.log(`✅ CRITICAL FIX: All Authority Hook fields found on attempt ${attempt}`);
-                
-                // Try immediate population
-                const populated = populateAuthorityHookFields();
-                
-                // If immediate population failed and we have a post ID, try AJAX fallback
-                if (!populated && window.MKCG_Topics_Data?.postId && window.MKCG_Topics_Data.postId > 0) {
-                    console.log('🔄 CRITICAL FIX: Immediate population failed, trying AJAX fallback in 1 second');
-                    setTimeout(ajaxFallbackLoadAuthorityHook, 1000);
-                }
-                
-                // Set up real-time update listeners for all authority hook fields
-                const authFields = ['mkcg-who', 'mkcg-result', 'mkcg-when', 'mkcg-how'];
-                authFields.forEach(fieldId => {
-                    const field = document.getElementById(fieldId);
-                    if (field && !field.hasAttribute('data-listener-attached')) {
-                        field.addEventListener('input', updateCompleteAuthorityHook);
-                        field.addEventListener('change', updateCompleteAuthorityHook);
-                        field.setAttribute('data-listener-attached', 'true');
-                    }
-                });
-                
-                console.log('✅ CRITICAL FIX: Authority Hook Pre-population initialization complete');
-            } else if (attempt < maxAttempts) {
-                console.log(`⏳ CRITICAL FIX: Authority Hook fields not ready yet, retrying in 200ms (attempt ${attempt}/${maxAttempts})`);
-                setTimeout(() => initializeWithRetry(attempt + 1, maxAttempts), 200);
-            } else {
-                console.warn('❌ CRITICAL FIX: Authority Hook fields never became available after max attempts');
-                // Still try to populate in case some fields exist
-                populateAuthorityHookFields();
-            }
-        }
-        
-        // Start the initialization with retry mechanism
-        initializeWithRetry();
     });
+    
+    console.log('✅ MKCG Topics: Template loaded - Authority Hook functionality handled by centralized service');
 </script>
 
 <!-- Authority Hook Builder functionality is now handled by topics-generator.js - duplicate script removed -->

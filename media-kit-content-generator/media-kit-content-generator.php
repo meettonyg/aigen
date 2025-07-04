@@ -24,6 +24,7 @@ class Media_Kit_Content_Generator {
     private static $instance = null;
     private $api_service;
     private $pods_service;
+    private $authority_hook_service;
 
     private $generators = [];
     
@@ -50,6 +51,7 @@ class Media_Kit_Content_Generator {
         add_action('wp_enqueue_scripts', [$this, 'enqueue_scripts']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_scripts']); // Also load in admin
         add_action('wp_head', [$this, 'add_ajax_url_to_head']);
+        add_action('admin_menu', [$this, 'add_admin_menu']);
         register_activation_hook(__FILE__, [$this, 'activate']);
         register_deactivation_hook(__FILE__, [$this, 'deactivate']);
     }
@@ -58,6 +60,7 @@ class Media_Kit_Content_Generator {
         require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-config.php';
         require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-api-service.php';
         require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-pods-service.php';
+        require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-authority-hook-service.php';
 
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_topics_generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_questions_generator.php';
@@ -75,9 +78,11 @@ class Media_Kit_Content_Generator {
         // Initialize Pods Service (primary data source)
         $this->pods_service = new MKCG_Pods_Service();
         
+        // Initialize Authority Hook Service (centralized functionality)
+        $this->authority_hook_service = new MKCG_Authority_Hook_Service();
 
         
-        error_log('MKCG: Services initialized with Pods as primary data source');
+        error_log('MKCG: Services initialized with Pods as primary data source and centralized Authority Hook service');
     }
     
     // SIMPLIFIED: Basic validation no longer needed with simplified architecture
@@ -149,8 +154,9 @@ class Media_Kit_Content_Generator {
         ob_start();
         
         // SIMPLIFIED: Set required global variables for template
-        global $pods_service, $generator_instance, $generator_type;
+        global $pods_service, $generator_instance, $generator_type, $authority_hook_service;
         $pods_service = $this->pods_service; // Primary data source
+        $authority_hook_service = $this->authority_hook_service; // Centralized Authority Hook functionality
         $generator_instance = isset($this->generators['topics']) ? $this->generators['topics'] : null;
         $generator_type = 'topics';
         
@@ -158,7 +164,7 @@ class Media_Kit_Content_Generator {
         global $api_service;
         $api_service = $this->api_service;
         
-        error_log('MKCG Shortcode: Loading topics template with pure Pods generator');
+        error_log('MKCG Shortcode: Loading topics template with pure Pods generator and centralized Authority Hook service');
         
         // Include the template
         include MKCG_PLUGIN_PATH . 'templates/generators/topics/default.php';
@@ -194,8 +200,9 @@ class Media_Kit_Content_Generator {
         ob_start();
         
         // CRITICAL FIX: Set ALL required global variables for template
-        global $pods_service, $generator_instance, $generator_type;
+        global $pods_service, $generator_instance, $generator_type, $authority_hook_service;
         $pods_service = $this->pods_service; // Primary data source
+        $authority_hook_service = $this->authority_hook_service; // Centralized Authority Hook functionality
         $generator_instance = isset($this->generators['questions']) ? $this->generators['questions'] : null;
         $generator_type = 'questions';
         
@@ -243,6 +250,24 @@ class Media_Kit_Content_Generator {
         // Load jQuery
         wp_enqueue_script('jquery');
         
+        // Load Authority Hook Builder FIRST (needed by other scripts)
+        wp_enqueue_script(
+            'authority-hook-builder',
+            MKCG_PLUGIN_URL . 'assets/js/authority-hook-builder.js',
+            ['jquery'],
+            MKCG_VERSION,
+            true
+        );
+        
+        // Load Authority Hook Service Integration (centralized service)
+        wp_enqueue_script(
+            'authority-hook-service-integration',
+            MKCG_PLUGIN_URL . 'assets/js/authority-hook-service-integration.js',
+            ['jquery'],
+            MKCG_VERSION,
+            true
+        );
+        
         // Load Simple AJAX System (single AJAX solution)
         wp_enqueue_script(
             'simple-ajax',
@@ -274,7 +299,7 @@ class Media_Kit_Content_Generator {
         wp_enqueue_script(
             'topics-generator',
             MKCG_PLUGIN_URL . 'assets/js/generators/topics-generator.js',
-            ['simple-event-bus', 'simple-ajax'],
+            ['simple-event-bus', 'simple-ajax', 'authority-hook-builder', 'authority-hook-service-integration'],
             MKCG_VERSION,
             true
         );
@@ -282,7 +307,7 @@ class Media_Kit_Content_Generator {
         wp_enqueue_script(
             'questions-generator',
             MKCG_PLUGIN_URL . 'assets/js/generators/questions-generator.js',
-            ['simple-event-bus', 'simple-ajax'],
+            ['simple-event-bus', 'simple-ajax', 'authority-hook-service-integration'],
             MKCG_VERSION,
             true
         );
@@ -386,6 +411,91 @@ class Media_Kit_Content_Generator {
         flush_rewrite_rules();
     }
     
+    /**
+     * Add admin menu for testing and diagnostics
+     */
+    public function add_admin_menu() {
+        if (current_user_can('administrator')) {
+            add_menu_page(
+                'MKCG Tests', // Page title
+                'MKCG Tests', // Menu title
+                'manage_options', // Capability
+                'mkcg-tests', // Menu slug
+                [$this, 'admin_test_page'], // Callback
+                'dashicons-clipboard', // Icon
+                80 // Position
+            );
+            
+            add_submenu_page(
+                'mkcg-tests',
+                'Authority Hook Service Test',
+                'Authority Hook Test',
+                'manage_options',
+                'mkcg-authority-hook-test',
+                [$this, 'authority_hook_test_page']
+            );
+        }
+    }
+    
+    /**
+     * Main admin test page
+     */
+    public function admin_test_page() {
+        echo '<div class="wrap">';
+        echo '<h1>Media Kit Content Generator - Tests & Diagnostics</h1>';
+        echo '<div class="card" style="max-width: none;">';
+        echo '<h2>Available Tests</h2>';
+        echo '<p>Select a test to validate the plugin functionality:</p>';
+        echo '<ul>';
+        echo '<li><a href="' . admin_url('admin.php?page=mkcg-authority-hook-test') . '" class="button button-primary">🧪 Authority Hook Service Architecture Test</a> - Validate centralized service implementation</li>';
+        echo '<li><a href="' . plugins_url('test-authority-hook-service-architecture.php', __FILE__) . '" class="button button-secondary" target="_blank">🔗 Direct Test Link</a> - Run test in new window</li>';
+        echo '</ul>';
+        echo '</div>';
+        
+        echo '<div class="card" style="max-width: none; margin-top: 20px;">';
+        echo '<h2>Plugin Information</h2>';
+        echo '<p><strong>Version:</strong> ' . MKCG_VERSION . '</p>';
+        echo '<p><strong>Plugin Path:</strong> ' . MKCG_PLUGIN_PATH . '</p>';
+        echo '<p><strong>Plugin URL:</strong> ' . MKCG_PLUGIN_URL . '</p>';
+        echo '<p><strong>Authority Hook Service:</strong> ' . (class_exists('MKCG_Authority_Hook_Service') ? '✅ Available' : '❌ Not Available') . '</p>';
+        echo '<p><strong>API Service:</strong> ' . (isset($this->api_service) ? '✅ Initialized' : '❌ Not Initialized') . '</p>';
+        echo '<p><strong>Pods Service:</strong> ' . (isset($this->pods_service) ? '✅ Initialized' : '❌ Not Initialized') . '</p>';
+        echo '</div>';
+        echo '</div>';
+    }
+    
+    /**
+     * Authority Hook Service test page (embedded)
+     */
+    public function authority_hook_test_page() {
+        echo '<div class="wrap">';
+        echo '<h1>Authority Hook Service Architecture Test</h1>';
+        echo '<div style="background: white; padding: 20px; border: 1px solid #ccd0d4; box-shadow: 0 1px 1px rgba(0,0,0,.04);">';
+        
+        // Include and run the test
+        if (file_exists(MKCG_PLUGIN_PATH . 'test-authority-hook-service-architecture.php')) {
+            // Capture the test output
+            ob_start();
+            include_once MKCG_PLUGIN_PATH . 'test-authority-hook-service-architecture.php';
+            $test_output = ob_get_clean();
+            
+            // Extract just the body content (remove html/head tags)
+            if (preg_match('/<body[^>]*>(.*?)<\/body>/s', $test_output, $matches)) {
+                echo $matches[1];
+            } else {
+                echo $test_output;
+            }
+        } else {
+            echo '<div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 4px;">';
+            echo '<strong>❌ Test File Not Found</strong><br>';
+            echo 'The test file <code>test-authority-hook-service-architecture.php</code> was not found in the plugin directory.';
+            echo '</div>';
+        }
+        
+        echo '</div>';
+        echo '</div>';
+    }
+    
 
     
     // SIMPLIFIED: Basic getter methods
@@ -395,6 +505,10 @@ class Media_Kit_Content_Generator {
     
     public function get_pods_service() {
         return $this->pods_service;
+    }
+    
+    public function get_authority_hook_service() {
+        return $this->authority_hook_service;
     }
     
 
