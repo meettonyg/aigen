@@ -45,77 +45,66 @@ class Media_Kit_Content_Generator {
         // CRITICAL FIX: Ensure global services are available immediately
         $this->ensure_global_services();
         
-        // CRITICAL FIX: Initialize AJAX handlers immediately
-        $this->init_ajax_handlers();
+        // AJAX handlers are now initialized on-demand when needed
     }
     
-    /**
-     * CRITICAL FIX: Initialize AJAX handlers at the root level
-     */
-    private function init_ajax_handlers() {
-        // Initialize AJAX handlers if not already done
-        if (isset($this->generators['topics']) && !isset($this->ajax_handlers)) {
-            require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_ajax_handlers.php';
-            $this->ajax_handlers = new Enhanced_AJAX_Handlers($this->pods_service, $this->generators['topics']);
-            error_log('MKCG: AJAX handlers initialized at root level');
-        }
-    }
+    // REMOVED: Old init_ajax_handlers() method - replaced with on-demand initialization
     
     /**
      * SIMPLE AJAX HANDLERS - Direct implementation
      */
     public function ajax_save_topics() {
-        if (!$this->ajax_handlers) {
-            $this->init_ajax_handlers();
-        }
-        if ($this->ajax_handlers) {
-            $this->ajax_handlers->handle_save_topics();
-        } else {
-            wp_send_json_error(['message' => 'AJAX handlers not initialized']);
-        }
+        // Initialize on demand
+        $this->ensure_ajax_handlers();
+        $this->ajax_handlers->handle_save_topics();
     }
     
     public function ajax_get_topics() {
-        if (!$this->ajax_handlers) {
-            $this->init_ajax_handlers();
-        }
-        if ($this->ajax_handlers) {
-            $this->ajax_handlers->handle_get_topics();
-        } else {
-            wp_send_json_error(['message' => 'AJAX handlers not initialized']);
-        }
+        // Initialize on demand
+        $this->ensure_ajax_handlers();
+        $this->ajax_handlers->handle_get_topics();
     }
     
     public function ajax_save_authority_hook() {
-        if (!$this->ajax_handlers) {
-            $this->init_ajax_handlers();
-        }
-        if ($this->ajax_handlers) {
-            $this->ajax_handlers->handle_save_authority_hook();
-        } else {
-            wp_send_json_error(['message' => 'AJAX handlers not initialized']);
-        }
+        // Initialize on demand
+        $this->ensure_ajax_handlers();
+        $this->ajax_handlers->handle_save_authority_hook();
     }
     
     public function ajax_generate_topics() {
-        if (!$this->ajax_handlers) {
-            $this->init_ajax_handlers();
-        }
-        if ($this->ajax_handlers) {
-            $this->ajax_handlers->handle_generate_topics();
-        } else {
-            wp_send_json_error(['message' => 'AJAX handlers not initialized']);
-        }
+        // Initialize on demand
+        $this->ensure_ajax_handlers();
+        $this->ajax_handlers->handle_generate_topics();
     }
     
     public function ajax_save_topic_field() {
+        // Initialize on demand
+        $this->ensure_ajax_handlers();
+        $this->ajax_handlers->handle_save_topic_field();
+    }
+    
+    /**
+     * SIMPLEST SOLUTION: Ensure AJAX handlers exist
+     */
+    private function ensure_ajax_handlers() {
         if (!$this->ajax_handlers) {
-            $this->init_ajax_handlers();
-        }
-        if ($this->ajax_handlers) {
-            $this->ajax_handlers->handle_save_topic_field();
-        } else {
-            wp_send_json_error(['message' => 'AJAX handlers not initialized']);
+            // Ensure services exist
+            if (!$this->pods_service) {
+                require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-pods-service.php';
+                $this->pods_service = new MKCG_Pods_Service();
+            }
+            
+            // Ensure Authority Hook Service is available globally (used by AJAX handlers)
+            if (!isset($GLOBALS['authority_hook_service'])) {
+                require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-authority-hook-service.php';
+                $GLOBALS['authority_hook_service'] = new MKCG_Authority_Hook_Service();
+            }
+            
+            // Create AJAX handlers
+            require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_ajax_handlers.php';
+            $this->ajax_handlers = new Enhanced_AJAX_Handlers($this->pods_service, null);
+            
+            error_log('MKCG: AJAX handlers initialized on demand');
         }
     }
     
@@ -226,8 +215,7 @@ class Media_Kit_Content_Generator {
         // CRITICAL FIX: Ensure global services are available early
         $this->ensure_global_services();
         
-        // CRITICAL FIX: Initialize AJAX handlers HERE at the 'init' hook
-        $this->init_ajax_handlers();
+        // AJAX handlers are initialized on-demand when AJAX requests come in
         
         // Initialize generators if available
         if (!empty($this->generators)) {
