@@ -104,16 +104,21 @@
         console.log('✅ Added audience:', trimmed);
     }
     
-    // Create visual tag element
+    // Create visual tag element - CONSISTENT BLUE THEME
     function createVisualTag(tagData) {
         const container = document.getElementById('tags_container');
         if (!container) return;
         
         const tagEl = document.createElement('div');
         tagEl.className = 'audience-tag';
-        tagEl.style.cssText = 'display: inline-flex; align-items: center; background: #2196f3; color: white; padding: 8px 12px; border-radius: 20px; margin: 4px; font-size: 14px; gap: 8px;';
+        // Remove all inline styles - let CSS handle styling for consistency
         
-        tagEl.innerHTML = '<input type="checkbox" ' + (tagData.checked ? 'checked' : '') + ' style="margin: 0;"> <span>' + escapeHtml(tagData.text) + '</span> <span style="cursor: pointer; font-weight: bold; font-size: 16px;" onclick="removeAudienceTag(\'' + escapeHtml(tagData.text) + '\')">&times;</span>';
+        // Add checked class if needed
+        if (tagData.checked) {
+            tagEl.classList.add('active');
+        }
+        
+        tagEl.innerHTML = '<input type="checkbox" ' + (tagData.checked ? 'checked' : '') + ' class="credential-checkbox"> <span>' + escapeHtml(tagData.text) + '</span> <span class="credential-remove" onclick="removeAudienceTag(\'' + escapeHtml(tagData.text) + '\')">&times;</span>';
         
         // Add checkbox change listener
         const checkbox = tagEl.querySelector('input[type="checkbox"]');
@@ -121,6 +126,12 @@
             const tag = audienceTags.find(t => t.text === tagData.text);
             if (tag) {
                 tag.checked = checkbox.checked;
+                // Update visual state
+                if (checkbox.checked) {
+                    tagEl.classList.add('active');
+                } else {
+                    tagEl.classList.remove('active');
+                }
                 updateWhoField();
                 updateStatus();
             }
