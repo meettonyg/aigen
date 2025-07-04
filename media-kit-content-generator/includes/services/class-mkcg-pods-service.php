@@ -237,6 +237,35 @@ class MKCG_Pods_Service {
     }
     
     /**
+     * SIMPLIFIED: Save single field to Pods/post meta (for auto-save)
+     */
+    public function save_single_field($post_id, $field_name, $field_value) {
+        if (!$post_id || empty($field_name)) {
+            return ['success' => false, 'message' => 'Invalid parameters'];
+        }
+        
+        // Sanitize the field value
+        $sanitized_value = sanitize_textarea_field($field_value);
+        
+        // Save to post meta
+        $result = update_post_meta($post_id, $field_name, $sanitized_value);
+        
+        if ($result !== false) {
+            return [
+                'success' => true,
+                'message' => 'Field saved successfully',
+                'field_name' => $field_name,
+                'field_value' => $sanitized_value
+            ];
+        } else {
+            return [
+                'success' => false,
+                'message' => 'Failed to save field'
+            ];
+        }
+    }
+    
+    /**
      * Get post ID from entry ID (for backwards compatibility)
      */
     public function get_post_id_from_entry($entry_id) {

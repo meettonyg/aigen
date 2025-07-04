@@ -34,7 +34,8 @@ class Enhanced_AJAX_Handlers {
             'mkcg_save_topics_data' => 'handle_save_topics',
             'mkcg_get_topics_data' => 'handle_get_topics',
             'mkcg_save_authority_hook' => 'handle_save_authority_hook',
-            'mkcg_generate_topics' => 'handle_generate_topics'
+            'mkcg_generate_topics' => 'handle_generate_topics',
+            'mkcg_save_topic_field' => 'handle_save_topic_field'  // Add missing auto-save handler
         ];
         
         foreach ($actions as $action => $method) {
@@ -48,6 +49,7 @@ class Enhanced_AJAX_Handlers {
      */
     public function handle_save_topics() {
         error_log('MKCG AJAX: Starting save_topics_data handler - Pure Pods');
+        error_log('MKCG AJAX: Raw _POST: ' . print_r($_POST, true));
         
         if (!$this->verify_request()) {
             error_log('MKCG AJAX: Security verification failed');
@@ -64,15 +66,26 @@ class Enhanced_AJAX_Handlers {
         
         error_log('MKCG AJAX: Processing save for post ID: ' . $post_id);
         
-        // Extract both topics and authority hook data
+        // ENHANCED: Extract both topics and authority hook data with better debugging
         $topics_data = $this->extract_topics_data();
         $authority_hook_data = $this->extract_authority_hook_data();
         
         error_log('MKCG AJAX: Extracted topics count: ' . count($topics_data));
         error_log('MKCG AJAX: Extracted authority components count: ' . count($authority_hook_data));
+        error_log('MKCG AJAX: Topics data: ' . print_r($topics_data, true));
+        error_log('MKCG AJAX: Authority hook data: ' . print_r($authority_hook_data, true));
         
+        // IMPROVED: Check if ANY data was provided (be more lenient)
         if (empty($topics_data) && empty($authority_hook_data)) {
-            wp_send_json_error(['message' => 'No data provided to save']);
+            error_log('MKCG AJAX: No data extracted from request');
+            wp_send_json_error([
+                'message' => 'No data provided to save',
+                'debug' => [
+                    'topics_empty' => empty($topics_data),
+                    'authority_empty' => empty($authority_hook_data),
+                    'post_keys' => array_keys($_POST)
+                ]
+            ]);
             return;
         }
         
@@ -85,11 +98,23 @@ class Enhanced_AJAX_Handlers {
             error_log('MKCG AJAX: Topics save result: ' . json_encode($topics_result));
         }
         
-        // Save authority hook using Pods service
+        // Save authority hook using centralized Authority Hook Service (post meta)
         if (!empty($authority_hook_data)) {
-            $auth_result = $this->pods_service->save_authority_hook_components($post_id, $authority_hook_data);
+            global $authority_hook_service;
+            if (!$authority_hook_service) {
+                require_once dirname(__FILE__) . '/../services/class-mkcg-authority-hook-service.php';
+                $authority_hook_service = new MKCG_Authority_Hook_Service();
+            }
+            
+            // Convert 'result' to 'what' for service compatibility
+            if (isset($authority_hook_data['result'])) {
+                $authority_hook_data['what'] = $authority_hook_data['result'];
+                unset($authority_hook_data['result']);
+            }
+            
+            $auth_result = $authority_hook_service->save_authority_hook_data($post_id, $authority_hook_data);
             $results['authority_hook'] = $auth_result;
-            error_log('MKCG AJAX: Authority hook save result: ' . json_encode($auth_result));
+            error_log('MKCG AJAX: Authority hook save result (post meta): ' . json_encode($auth_result));
         }
         
         // Determine overall success
@@ -146,7 +171,7 @@ class Enhanced_AJAX_Handlers {
     }
     
     /**
-     * Handle save authority hook request - Pure Pods integration
+     * Handle save authority hook request - Use centralized Authority Hook Service
      */
     public function handle_save_authority_hook() {
         if (!$this->verify_request()) {
@@ -166,14 +191,26 @@ class Enhanced_AJAX_Handlers {
             return;
         }
         
-        // Save using Pods service
-        $result = $this->pods_service->save_authority_hook_components($post_id, $authority_hook_data);
+        // Use centralized Authority Hook Service for saving to post meta
+        global $authority_hook_service;
+        if (!$authority_hook_service) {
+            require_once dirname(__FILE__) . '/../services/class-mkcg-authority-hook-service.php';
+            $authority_hook_service = new MKCG_Authority_Hook_Service();
+        }
+        
+        // Convert 'result' to 'what' for service compatibility
+        if (isset($authority_hook_data['result'])) {
+            $authority_hook_data['what'] = $authority_hook_data['result'];
+            unset($authority_hook_data['result']);
+        }
+        
+        $result = $authority_hook_service->save_authority_hook_data($post_id, $authority_hook_data);
         
         if ($result['success']) {
             wp_send_json_success([
-                'message' => 'Authority hook saved successfully',
-                'saved_count' => $result['saved_count'],
-                'post_id' => $post_id
+                'message' => 'Authority hook saved to post meta successfully',
+                'post_id' => $post_id,
+                'components' => $result['components']
             ]);
         } else {
             wp_send_json_error(['message' => $result['message']]);
@@ -206,26 +243,73 @@ class Enhanced_AJAX_Handlers {
     }
     
     /**
+     * Handle save single topic field request (auto-save)
+     */
+    public function handle_save_topic_field() {
+        if (!$this->verify_request()) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
+        
+        $post_id = $this->get_post_id();
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID required']);
+            return;
+        }
+        
+        $field_name = sanitize_text_field($_POST['field_name'] ?? '');
+        $field_value = sanitize_textarea_field($_POST['field_value'] ?? '');
+        
+        if (empty($field_name) || empty($field_value)) {
+            wp_send_json_error(['message' => 'Field name and value required']);
+            return;
+        }
+        
+        // Save using Pods service
+        $result = $this->pods_service->save_single_field($post_id, $field_name, $field_value);
+        
+        if ($result['success']) {
+            wp_send_json_success([
+                'message' => 'Field saved successfully',
+                'field_name' => $field_name,
+                'post_id' => $post_id
+            ]);
+        } else {
+            wp_send_json_error(['message' => $result['message']]);
+        }
+    }
+    
+    /**
      * Simple request verification - single method, no fallbacks
      */
     private function verify_request() {
         // Check if user is logged in
         if (!is_user_logged_in()) {
+            error_log('MKCG AJAX: User not logged in');
             return false;
         }
         
         // Check user capabilities
         if (!current_user_can('edit_posts')) {
+            error_log('MKCG AJAX: User lacks edit_posts capability');
             return false;
         }
         
-        // Simple nonce check
-        $nonce = $_POST['nonce'] ?? $_POST['security'] ?? '';
+        // Simple nonce check - try multiple nonce fields
+        $nonce = $_POST['nonce'] ?? $_POST['security'] ?? $_GET['nonce'] ?? '';
         if (empty($nonce)) {
+            error_log('MKCG AJAX: No nonce provided in request');
             return false;
         }
         
-        return wp_verify_nonce($nonce, 'mkcg_nonce');
+        $nonce_valid = wp_verify_nonce($nonce, 'mkcg_nonce');
+        if (!$nonce_valid) {
+            error_log('MKCG AJAX: Nonce verification failed. Provided: ' . $nonce);
+            return false;
+        }
+        
+        error_log('MKCG AJAX: Request verification successful');
+        return true;
     }
     
     /**
@@ -236,103 +320,141 @@ class Enhanced_AJAX_Handlers {
     }
     
     /**
-     * CRITICAL FIX: Extract topics data from request with multiple format support
+     * BULLETPROOF: Extract topics data - simple and reliable
      */
     private function extract_topics_data() {
         $topics = [];
         
-        // Handle topics object/array from JavaScript
-        if (isset($_POST['topics'])) {
+        error_log('MKCG AJAX: === TOPICS EXTRACTION START ===');
+        
+        // Method 1: JSON-encoded topics object (most common from JavaScript)
+        if (isset($_POST['topics']) && !empty($_POST['topics'])) {
             $topics_raw = $_POST['topics'];
+            error_log('MKCG AJAX: Found topics in POST, type: ' . gettype($topics_raw));
+            error_log('MKCG AJAX: Topics raw value: ' . $topics_raw);
             
-            // If it's a JSON string, decode it
             if (is_string($topics_raw)) {
-                $topics_decoded = json_decode($topics_raw, true);
-                if (json_last_error() === JSON_ERROR_NONE) {
-                    $topics_raw = $topics_decoded;
+                // Try to decode JSON
+                $decoded = json_decode($topics_raw, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    error_log('MKCG AJAX: Successfully decoded JSON topics');
+                    foreach ($decoded as $key => $value) {
+                        if (!empty(trim($value))) {
+                            $topics[$key] = sanitize_textarea_field($value);
+                            error_log("MKCG AJAX: Added topic {$key}: {$value}");
+                        }
+                    }
+                } else {
+                    error_log('MKCG AJAX: JSON decode failed: ' . json_last_error_msg());
                 }
-            }
-            
-            if (is_array($topics_raw)) {
+            } elseif (is_array($topics_raw)) {
+                error_log('MKCG AJAX: Topics is already array');
                 foreach ($topics_raw as $key => $value) {
                     if (!empty(trim($value))) {
-                        // Normalize key format
-                        if (is_numeric($key)) {
-                            $topic_key = 'topic_' . intval($key);
-                        } elseif (strpos($key, 'topic_') === 0) {
-                            $topic_key = $key;
-                        } else {
-                            continue; // Skip invalid keys
-                        }
-                        
-                        $topics[$topic_key] = sanitize_textarea_field($value);
-                        error_log("MKCG AJAX: Extracted topic {$topic_key}: {$value}");
+                        $topics[$key] = sanitize_textarea_field($value);
+                        error_log("MKCG AJAX: Added topic {$key}: {$value}");
                     }
                 }
             }
         }
         
-        // Handle individual topic fields as fallback
-        for ($i = 1; $i <= 5; $i++) {
-            $field_name = 'topic_' . $i;
-            if (isset($_POST[$field_name]) && !empty(trim($_POST[$field_name]))) {
-                $topics[$field_name] = sanitize_textarea_field($_POST[$field_name]);
-                error_log("MKCG AJAX: Extracted individual topic {$field_name}: {$_POST[$field_name]}");
+        // Method 2: Individual topic fields (fallback)
+        if (empty($topics)) {
+            error_log('MKCG AJAX: No topics from JSON, trying individual fields');
+            for ($i = 1; $i <= 5; $i++) {
+                $field_name = 'topic_' . $i;
+                if (isset($_POST[$field_name]) && !empty(trim($_POST[$field_name]))) {
+                    $topics[$field_name] = sanitize_textarea_field($_POST[$field_name]);
+                    error_log("MKCG AJAX: Added individual topic {$field_name}: {$_POST[$field_name]}");
+                }
             }
         }
+        
+        error_log('MKCG AJAX: Final topics extracted: ' . count($topics) . ' items');
+        error_log('MKCG AJAX: Topics: ' . print_r($topics, true));
+        error_log('MKCG AJAX: === TOPICS EXTRACTION END ===');
         
         return $topics;
     }
     
     /**
-     * CRITICAL FIX: Extract authority hook data from request with flexible format support
+     * BULLETPROOF: Extract authority hook data - simple and reliable
      */
     private function extract_authority_hook_data() {
         $components = [];
         
-        // Handle authority_hook object/array from JavaScript
-        if (isset($_POST['authority_hook'])) {
+        error_log('MKCG AJAX: === AUTHORITY HOOK EXTRACTION START ===');
+        
+        // Method 1: JSON-encoded authority_hook object (most common from JavaScript)
+        if (isset($_POST['authority_hook']) && !empty($_POST['authority_hook'])) {
             $auth_raw = $_POST['authority_hook'];
+            error_log('MKCG AJAX: Found authority_hook in POST, type: ' . gettype($auth_raw));
+            error_log('MKCG AJAX: Authority hook raw value: ' . $auth_raw);
             
-            // If it's a JSON string, decode it
             if (is_string($auth_raw)) {
-                $auth_decoded = json_decode($auth_raw, true);
-                if (json_last_error() === JSON_ERROR_NONE) {
-                    $auth_raw = $auth_decoded;
+                // Try to decode JSON
+                $decoded = json_decode($auth_raw, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    error_log('MKCG AJAX: Successfully decoded JSON authority hook');
+                    
+                    // Map the fields properly
+                    $field_map = [
+                        'who' => 'who',
+                        'what' => 'what',
+                        'result' => 'what', // Map result to what
+                        'when' => 'when',
+                        'how' => 'how'
+                    ];
+                    
+                    foreach ($decoded as $key => $value) {
+                        if (isset($field_map[$key]) && !empty(trim($value))) {
+                            $mapped_key = $field_map[$key];
+                            $components[$mapped_key] = sanitize_textarea_field($value);
+                            error_log("MKCG AJAX: Added authority component {$mapped_key}: {$value}");
+                        }
+                    }
+                } else {
+                    error_log('MKCG AJAX: Authority hook JSON decode failed: ' . json_last_error_msg());
                 }
-            }
-            
-            if (is_array($auth_raw)) {
-                $fields = ['who', 'result', 'when', 'how', 'complete'];
-                foreach ($fields as $field) {
-                    if (isset($auth_raw[$field]) && !empty(trim($auth_raw[$field]))) {
-                        $components[$field] = sanitize_textarea_field($auth_raw[$field]);
-                        error_log("MKCG AJAX: Extracted authority {$field}: {$auth_raw[$field]}");
+            } elseif (is_array($auth_raw)) {
+                error_log('MKCG AJAX: Authority hook is already array');
+                foreach ($auth_raw as $key => $value) {
+                    if (!empty(trim($value))) {
+                        $components[$key] = sanitize_textarea_field($value);
+                        error_log("MKCG AJAX: Added authority component {$key}: {$value}");
                     }
                 }
             }
         }
         
-        // Handle individual component fields as fallback
-        $fields = ['who', 'result', 'when', 'how'];
-        foreach ($fields as $field) {
-            if (isset($_POST[$field]) && !empty(trim($_POST[$field]))) {
-                $components[$field] = sanitize_textarea_field($_POST[$field]);
-                error_log("MKCG AJAX: Extracted individual component {$field}: {$_POST[$field]}");
+        // Method 2: Individual component fields (fallback)
+        if (empty($components)) {
+            error_log('MKCG AJAX: No authority hook from JSON, trying individual fields');
+            $fields = ['who', 'what', 'result', 'when', 'how'];
+            foreach ($fields as $field) {
+                if (isset($_POST[$field]) && !empty(trim($_POST[$field]))) {
+                    $mapped_field = ($field === 'result') ? 'what' : $field;
+                    $components[$mapped_field] = sanitize_textarea_field($_POST[$field]);
+                    error_log("MKCG AJAX: Added individual component {$mapped_field}: {$_POST[$field]}");
+                }
             }
         }
         
-        // Build complete authority hook if components provided
+        // Build complete authority hook if we have components
         if (!empty($components) && count(array_filter($components)) >= 2) {
             $who = $components['who'] ?? 'your audience';
-            $result = $components['result'] ?? 'achieve their goals';
+            $what = $components['what'] ?? 'achieve their goals';
             $when = $components['when'] ?? 'they need help';
             $how = $components['how'] ?? 'through your method';
             
-            $complete_hook = "I help {$who} {$result} when {$when} {$how}.";
+            $complete_hook = "I help {$who} {$what} when {$when} {$how}.";
             $components['complete'] = $complete_hook;
             error_log("MKCG AJAX: Built complete authority hook: {$complete_hook}");
         }
+        
+        error_log('MKCG AJAX: Final authority hook extracted: ' . count($components) . ' components');
+        error_log('MKCG AJAX: Authority hook: ' . print_r($components, true));
+        error_log('MKCG AJAX: === AUTHORITY HOOK EXTRACTION END ===');
         
         return $components;
     }

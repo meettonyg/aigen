@@ -3,14 +3,14 @@
  * MKCG Authority Hook Service - Centralized Authority Hook Management
  * 
  * Handles all Authority Hook functionality across generators:
- * - Data loading and saving (WordPress + Formidable + Pods)
+ * - Data loading and saving (WordPress post meta only)
  * - HTML rendering for all generators
  * - AJAX endpoint handling
  * - Validation and sanitization
  * - Cross-generator consistency
  * 
  * @package Media_Kit_Content_Generator
- * @version 2.0
+ * @version 2.1
  */
 
 if (!defined('ABSPATH')) {
@@ -22,7 +22,7 @@ class MKCG_Authority_Hook_Service {
     /**
      * Service version for cache busting
      */
-    const VERSION = '2.0';
+    const VERSION = '2.1';
     
     /**
      * Default Authority Hook components
@@ -35,20 +35,14 @@ class MKCG_Authority_Hook_Service {
     ];
     
     /**
-     * Field mappings for different data sources
+     * Field mappings for WordPress post meta only
      */
     private $field_mappings = [
-        'formidable' => [
-            'who' => 10296,
-            'what' => 10297, 
-            'when' => 10387,
-            'how' => 10298
-        ],
-        'pods' => [
-            'who' => 'authority_hook_who',
-            'what' => 'authority_hook_what',
-            'when' => 'authority_hook_when', 
-            'how' => 'authority_hook_how'
+        'postmeta' => [
+            'who' => '_authority_hook_who',
+            'what' => '_authority_hook_what',
+            'when' => '_authority_hook_when', 
+            'how' => '_authority_hook_how'
         ]
     ];
     
@@ -62,45 +56,20 @@ class MKCG_Authority_Hook_Service {
     }
     
     /**
-     * Get Authority Hook data from multiple sources with fallbacks
+     * Get Authority Hook data from WordPress post meta
      * 
      * @param int $post_id WordPress post ID
-     * @param string $source Preferred data source: 'auto', 'pods', 'formidable', 'postmeta'
      * @return array Authority Hook components
      */
-    public function get_authority_hook_data($post_id, $source = 'auto') {
+    public function get_authority_hook_data($post_id) {
         $components = self::DEFAULT_COMPONENTS;
         
         if (!$post_id || $post_id <= 0) {
             return $this->build_complete_response($components, false, 'No valid post ID provided');
         }
         
-        // Try different data sources based on preference
-        switch ($source) {
-            case 'pods':
-                $components = $this->get_from_pods($post_id);
-                break;
-                
-            case 'formidable':
-                $components = $this->get_from_formidable($post_id);
-                break;
-                
-            case 'postmeta':
-                $components = $this->get_from_postmeta($post_id);
-                break;
-                
-            case 'auto':
-            default:
-                // Try sources in order of preference
-                $components = $this->get_from_pods($post_id);
-                if ($this->is_default_data($components)) {
-                    $components = $this->get_from_formidable($post_id);
-                }
-                if ($this->is_default_data($components)) {
-                    $components = $this->get_from_postmeta($post_id);
-                }
-                break;
-        }
+        // Load from WordPress post meta
+        $components = $this->get_from_postmeta($post_id);
         
         // Ensure all required components exist with fallbacks
         $components = $this->sanitize_components($components);
@@ -109,50 +78,25 @@ class MKCG_Authority_Hook_Service {
     }
     
     /**
-     * Save Authority Hook data to multiple destinations
+     * Save Authority Hook data to WordPress post meta
      * 
      * @param int $post_id WordPress post ID
      * @param array $components Authority Hook components
-     * @param array $destinations Where to save: ['pods', 'formidable', 'postmeta']
      * @return array Save result with status
      */
-    public function save_authority_hook_data($post_id, $components, $destinations = ['pods', 'postmeta']) {
+    public function save_authority_hook_data($post_id, $components) {
         if (!$post_id || $post_id <= 0) {
             return ['success' => false, 'message' => 'Invalid post ID'];
         }
         
         $components = $this->sanitize_components($components);
-        $results = [];
-        $overall_success = true;
         
-        foreach ($destinations as $destination) {
-            switch ($destination) {
-                case 'pods':
-                    $result = $this->save_to_pods($post_id, $components);
-                    break;
-                    
-                case 'formidable':
-                    $result = $this->save_to_formidable($post_id, $components);
-                    break;
-                    
-                case 'postmeta':
-                    $result = $this->save_to_postmeta($post_id, $components);
-                    break;
-                    
-                default:
-                    $result = ['success' => false, 'message' => 'Unknown destination: ' . $destination];
-            }
-            
-            $results[$destination] = $result;
-            if (!$result['success']) {
-                $overall_success = false;
-            }
-        }
+        // Save to WordPress post meta only
+        $result = $this->save_to_postmeta($post_id, $components);
         
         return [
-            'success' => $overall_success,
-            'message' => $overall_success ? 'Authority Hook saved to all destinations' : 'Some save operations failed',
-            'results' => $results,
+            'success' => $result['success'],
+            'message' => $result['message'],
             'components' => $components
         ];
     }
@@ -348,9 +292,7 @@ class MKCG_Authority_Hook_Service {
             'how' => sanitize_text_field($_POST['how'] ?? '')
         ];
         
-        $destinations = $_POST['destinations'] ?? ['pods', 'postmeta'];
-        
-        $result = $this->save_authority_hook_data($post_id, $components, $destinations);
+        $result = $this->save_authority_hook_data($post_id, $components);
         
         if ($result['success']) {
             wp_send_json_success($result);
@@ -369,9 +311,8 @@ class MKCG_Authority_Hook_Service {
         }
         
         $post_id = intval($_GET['post_id'] ?? 0);
-        $source = sanitize_text_field($_GET['source'] ?? 'auto');
         
-        $result = $this->get_authority_hook_data($post_id, $source);
+        $result = $this->get_authority_hook_data($post_id);
         
         wp_send_json_success($result);
     }
@@ -401,49 +342,6 @@ class MKCG_Authority_Hook_Service {
     // Private helper methods
     
     /**
-     * Get Authority Hook data from Pods
-     */
-    private function get_from_pods($post_id) {
-        if (!class_exists('MKCG_Pods_Service')) {
-            return self::DEFAULT_COMPONENTS;
-        }
-        
-        try {
-            $pods_service = new MKCG_Pods_Service();
-            $guest_data = $pods_service->get_guest_data($post_id);
-            
-            if ($guest_data && isset($guest_data['authority_hook_components'])) {
-                return $guest_data['authority_hook_components'];
-            }
-        } catch (Exception $e) {
-            error_log('MKCG Authority Hook Service: Pods error - ' . $e->getMessage());
-        }
-        
-        return self::DEFAULT_COMPONENTS;
-    }
-    
-    /**
-     * Get Authority Hook data from Formidable Forms
-     */
-    private function get_from_formidable($post_id) {
-        $components = self::DEFAULT_COMPONENTS;
-        
-        // Try to get entry ID associated with this post
-        $entry_id = get_post_meta($post_id, '_formidable_entry_id', true);
-        
-        if ($entry_id && function_exists('FrmEntry')) {
-            foreach ($this->field_mappings['formidable'] as $component => $field_id) {
-                $value = FrmProEntryMeta::get_meta_value(null, $entry_id, $field_id);
-                if (!empty($value) && is_string($value)) {
-                    $components[$component] = $value;
-                }
-            }
-        }
-        
-        return $components;
-    }
-    
-    /**
      * Get Authority Hook data from WordPress post meta
      */
     private function get_from_postmeta($post_id) {
@@ -457,57 +355,6 @@ class MKCG_Authority_Hook_Service {
         }
         
         return $components;
-    }
-    
-    /**
-     * Save Authority Hook data to Pods
-     */
-    private function save_to_pods($post_id, $components) {
-        if (!class_exists('MKCG_Pods_Service')) {
-            return ['success' => false, 'message' => 'Pods service not available'];
-        }
-        
-        try {
-            $pods_service = new MKCG_Pods_Service();
-            
-            // Save individual components
-            foreach ($components as $component => $value) {
-                $field_name = $this->field_mappings['pods'][$component];
-                $pods_service->save_field($post_id, $field_name, $value);
-            }
-            
-            // Save complete hook
-            $complete_hook = $this->build_complete_hook($components);
-            $pods_service->save_field($post_id, 'authority_hook_complete', $complete_hook);
-            
-            return ['success' => true, 'message' => 'Saved to Pods successfully'];
-        } catch (Exception $e) {
-            return ['success' => false, 'message' => 'Pods save error: ' . $e->getMessage()];
-        }
-    }
-    
-    /**
-     * Save Authority Hook data to Formidable Forms
-     */
-    private function save_to_formidable($post_id, $components) {
-        // Get entry ID associated with this post
-        $entry_id = get_post_meta($post_id, '_formidable_entry_id', true);
-        
-        if (!$entry_id || !function_exists('FrmEntry')) {
-            return ['success' => false, 'message' => 'No Formidable entry associated with post'];
-        }
-        
-        try {
-            foreach ($this->field_mappings['formidable'] as $component => $field_id) {
-                if (isset($components[$component])) {
-                    FrmProEntryMeta::update_entry_meta($entry_id, $field_id, null, $components[$component]);
-                }
-            }
-            
-            return ['success' => true, 'message' => 'Saved to Formidable successfully'];
-        } catch (Exception $e) {
-            return ['success' => false, 'message' => 'Formidable save error: ' . $e->getMessage()];
-        }
     }
     
     /**
