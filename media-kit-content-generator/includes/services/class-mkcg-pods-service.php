@@ -100,20 +100,32 @@ class MKCG_Pods_Service {
     }
     
     /**
-     * SIMPLIFIED: Get questions from Pods fields
+     * ROOT FIX: Get questions organized by topic (5 questions per topic)
      */
     public function get_questions($post_id) {
-        $questions = [];
+        $questions_by_topic = [];
         
-        // Get questions 1-25 from Pods fields
-        for ($i = 1; $i <= 25; $i++) {
-            $question = get_post_meta($post_id, "question_{$i}", true);
-            if (!empty($question)) {
-                $questions["question_{$i}"] = $question;
+        // Initialize empty structure for 5 topics
+        for ($topic = 1; $topic <= 5; $topic++) {
+            $questions_by_topic[$topic] = [];
+        }
+        
+        // Get questions 1-25 from Pods fields and organize by topic
+        // Topic 1: questions 1-5, Topic 2: questions 6-10, etc.
+        for ($question_num = 1; $question_num <= 25; $question_num++) {
+            $question_value = get_post_meta($post_id, "question_{$question_num}", true);
+            
+            if (!empty($question_value)) {
+                // Calculate which topic this question belongs to
+                $topic = ceil($question_num / 5);
+                // Calculate position within the topic (1-5)
+                $position = (($question_num - 1) % 5) + 1;
+                
+                $questions_by_topic[$topic][$position] = $question_value;
             }
         }
         
-        return $questions;
+        return $questions_by_topic;
     }
     
     /**
@@ -203,7 +215,7 @@ class MKCG_Pods_Service {
     }
     
     /**
-     * SIMPLIFIED: Save questions to Pods fields
+     * ROOT FIX: Save questions organized by topic to sequential Pods fields
      */
     public function save_questions($post_id, $questions_data) {
         if (!$post_id || empty($questions_data)) {
@@ -212,11 +224,34 @@ class MKCG_Pods_Service {
         
         $saved_count = 0;
         
-        foreach ($questions_data as $question_key => $question_value) {
-            if (!empty($question_value)) {
-                $result = update_post_meta($post_id, $question_key, $question_value);
-                if ($result !== false) {
-                    $saved_count++;
+        // Handle both formats: topic-based and direct field mapping
+        if (isset($questions_data['questions']) && is_array($questions_data['questions'])) {
+            // Topic-based format: questions[topic][position] = value
+            foreach ($questions_data['questions'] as $topic => $topic_questions) {
+                if (is_array($topic_questions)) {
+                    foreach ($topic_questions as $position => $question_value) {
+                        if (!empty(trim($question_value))) {
+                            // Calculate sequential question number
+                            // Topic 1: questions 1-5, Topic 2: questions 6-10, etc.
+                            $question_num = (($topic - 1) * 5) + $position;
+                            $field_name = "question_{$question_num}";
+                            
+                            $result = update_post_meta($post_id, $field_name, trim($question_value));
+                            if ($result !== false) {
+                                $saved_count++;
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            // Direct field mapping format: question_1, question_2, etc.
+            foreach ($questions_data as $question_key => $question_value) {
+                if (!empty($question_value) && strpos($question_key, 'question_') === 0) {
+                    $result = update_post_meta($post_id, $question_key, $question_value);
+                    if ($result !== false) {
+                        $saved_count++;
+                    }
                 }
             }
         }

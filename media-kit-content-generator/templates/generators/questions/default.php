@@ -18,105 +18,49 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Get entry information
-$entry_id = 0;
-$entry_key = '';
-$debug_info = [];
+// ROOT FIX: Use template data from generator class (passed from shortcode)
+global $mkcg_template_data, $generator_instance;
 
-// Try to get entry from URL parameters
-if (isset($_GET['entry'])) {
-    $entry_key = sanitize_text_field($_GET['entry']);
-    $debug_info[] = 'Entry key from URL: ' . $entry_key;
-    
-    // Use the Formidable service to resolve entry ID
-    if (isset($formidable_service)) {
-        $entry_data = $formidable_service->get_entry_by_key($entry_key);
-        if ($entry_data['success']) {
-            $entry_id = $entry_data['entry_id'];
-            $debug_info[] = 'Resolved entry ID: ' . $entry_id;
-        } else {
-            $debug_info[] = 'Failed to resolve entry: ' . $entry_data['message'];
-        }
-    } else {
-        $debug_info[] = 'Formidable service not available';
-    }
-} elseif (isset($_GET['entry_id'])) {
-    $entry_id = intval($_GET['entry_id']);
-    $debug_info[] = 'Entry ID from URL: ' . $entry_id;
+// Get template data from generator instance if available
+if (!isset($mkcg_template_data) && $generator_instance && method_exists($generator_instance, 'get_template_data')) {
+    $mkcg_template_data = $generator_instance->get_template_data();
+    error_log('MKCG Questions Template: Loaded template data from generator instance');
 }
 
-// Get available topics from custom post meta
-$available_topics = [];
-$existing_questions = [];
-$post_id = null;
-$topics_debug = [];
+// Set default if no template data available
+if (!isset($mkcg_template_data) || !is_array($mkcg_template_data)) {
+    $mkcg_template_data = [
+        'post_id' => 0,
+        'has_data' => false,
+        'form_field_values' => [],
+        'questions' => [],
+        'authority_hook_components' => []
+    ];
+    error_log('MKCG Questions Template: Using default template data structure');
+}
 
-if ($entry_id && isset($formidable_service)) {
-    $topics_debug[] = 'Getting topics from custom post meta';
-    $topics_debug[] = 'Entry ID: ' . $entry_id;
-    
-    // ENHANCED: Get and validate post association
-$post_id = $formidable_service->get_post_id_from_entry($entry_id);
+// Extract data for template use
+$post_id = isset($mkcg_template_data['post_id']) ? $mkcg_template_data['post_id'] : 0;
+$entry_id = $post_id; // Use post_id as entry_id for backward compatibility
+$entry_key = isset($_GET['entry']) ? sanitize_text_field($_GET['entry']) : '';
+$debug_info = ['Template data loaded from generator class'];
 
-if ($post_id) {
-    $topics_debug[] = 'Found associated post ID: ' . $post_id;
-    
-    // Validate post association integrity
-    $validation_result = $formidable_service->validate_post_association($entry_id, $post_id);
-    
-    if ($validation_result['valid']) {
-    $topics_debug[] = 'Post association validation: PASSED';
-        
-    // Get enhanced topics data with quality validation
-        $topics_result = $formidable_service->get_topics_from_post_enhanced($post_id);
-        $available_topics = $topics_result['topics'];
-        
-        if (!empty($available_topics)) {
-            $topics_debug[] = 'SUCCESS: Found ' . count(array_filter($available_topics)) . ' topics (quality: ' . $topics_result['data_quality'] . ')';
-            
-            if ($topics_result['auto_healed']) {
-                $topics_debug[] = 'Auto-healing applied to topics data';
-            }
-        } else {
-            $topics_debug[] = 'No topics found in post meta fields';
-        }
-        
-        // Get existing questions with integrity checking
-        $questions_result = $formidable_service->get_questions_with_integrity_check($post_id);
-        $existing_questions = [];
-        
-        // Organize questions by topic for template compatibility
-        for ($topic = 1; $topic <= 5; $topic++) {
-            $topic_questions_result = $formidable_service->get_questions_with_integrity_check($post_id, $topic);
-            $existing_questions[$topic] = $topic_questions_result['questions'];
-        }
-        
-        $topics_debug[] = 'Questions integrity: ' . $questions_result['integrity_status'];
-        
-        if ($questions_result['auto_healed']) {
-            $topics_debug[] = 'Auto-healing applied to questions data';
-        }
-        
-    } else {
-        $topics_debug[] = 'Post association validation: FAILED - ' . implode(', ', $validation_result['issues']);
-        
-        if (!empty($validation_result['auto_fixed'])) {
-            $topics_debug[] = 'Auto-fixes applied: ' . implode(', ', $validation_result['auto_fixed']);
-        }
-    }
-    
+// ROOT FIX: Use template data instead of complex Formidable logic
+$available_topics = isset($mkcg_template_data['form_field_values']) ? $mkcg_template_data['form_field_values'] : [];
+$existing_questions = isset($mkcg_template_data['questions']) ? $mkcg_template_data['questions'] : [];
+$topics_debug = ['Using template data from generator class'];
+
+if ($post_id && !empty($available_topics)) {
+    $topics_debug[] = 'SUCCESS: Found ' . count(array_filter($available_topics)) . ' topics from template data';
 } else {
-    $topics_debug[] = 'No associated post found for entry ' . $entry_id;
-}
+    $topics_debug[] = 'No topics found in template data';
 }
 
-// UNIFIED: Always ensure we have 5 topic slots with consistent data source
+// ROOT FIX: Use template data directly for topics
 $all_topics = [];
 for ($i = 1; $i <= 5; $i++) {
-    if (isset($mkcg_template_data['form_field_values']) && isset($mkcg_template_data['form_field_values']['topic_' . $i])) {
+    if (isset($mkcg_template_data['form_field_values']['topic_' . $i])) {
         $all_topics[$i] = $mkcg_template_data['form_field_values']['topic_' . $i];
-    } elseif (isset($available_topics[$i]) && !empty($available_topics[$i])) {
-        $all_topics[$i] = $available_topics[$i];
     } else {
         $all_topics[$i] = '';
     }
@@ -709,17 +653,16 @@ if (false) { // Never show this notice in current fix
         templateLoadTime: new Date().toISOString()
     });
     
-    // CRITICAL FIX: Standardize on the same global variable as the Topics Generator.
+    // ROOT FIX: Use consistent data structure matching Topics Generator
     window.MKCG_Topics_Data = {
         entryId: <?php echo intval($entry_id); ?>,
         entryKey: '<?php echo esc_js($entry_key); ?>',
+        postId: <?php echo intval($post_id); ?>,
         hasEntry: <?php echo $entry_id > 0 ? 'true' : 'false'; ?>,
-        authorityHook: {
-             // This can be populated if needed, otherwise left empty.
-        },
-        topics: <?php echo json_encode(array_filter($all_topics)); ?>, // Pass the topics data
-        // We can add questions data here if needed by other scripts
-        questions: <?php echo json_encode(array_filter($existing_questions)); ?>,
+        authorityHook: <?php echo json_encode($mkcg_template_data['authority_hook_components'] ?? []); ?>,
+        topics: <?php echo json_encode($all_topics); ?>, // All 5 topics (including empty ones)
+        questions: <?php echo json_encode($existing_questions); ?>,
+        hasData: <?php echo !empty($all_topics) && count(array_filter($all_topics)) > 0 ? 'true' : 'false'; ?>,
         dataSource: 'questions_generator_template' // Identifier for debugging
     };
     

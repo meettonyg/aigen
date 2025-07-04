@@ -322,10 +322,16 @@
             // Show loading
             this.showLoading();
             
+            // ROOT FIX: Get post_id from template data
+            let postId = 0;
+            if (window.MKCG_Topics_Data && window.MKCG_Topics_Data.postId) {
+                postId = window.MKCG_Topics_Data.postId;
+            }
+            
             // Make AJAX request
             this.makeAjaxRequest('mkcg_generate_questions', {
                 topic: this.selectedTopicText,
-                entry_id: document.getElementById('mkcg-entry-id')?.value || 0
+                post_id: postId  // ← Fixed: use post_id instead of entry_id
             })
             .then(data => {
                 console.log('✅ Questions generated:', data);
@@ -366,11 +372,36 @@
         saveAllQuestions: function() {
             console.log('💾 Questions Generator: Saving all questions');
             
-            const entryId = document.getElementById('mkcg-entry-id')?.value;
-            if (!entryId || entryId === '0') {
-                this.showNotification('No entry ID found. Please refresh the page.', 'error');
+            // ROOT FIX: Get post_id from template data or URL parameter
+            let postId = 0;
+            
+            // Try to get post_id from standardized data first
+            if (window.MKCG_Topics_Data && window.MKCG_Topics_Data.postId) {
+                postId = window.MKCG_Topics_Data.postId;
+            }
+            
+            // Fallback: try hidden field
+            if (!postId) {
+                const postIdField = document.getElementById('mkcg-post-id');
+                if (postIdField && postIdField.value) {
+                    postId = parseInt(postIdField.value);
+                }
+            }
+            
+            // Final fallback: try URL parameter
+            if (!postId) {
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('post_id')) {
+                    postId = parseInt(urlParams.get('post_id'));
+                }
+            }
+            
+            if (!postId || postId === 0) {
+                this.showNotification('No post ID found. Please ensure you access this page with ?post_id=XXXXX parameter.', 'error');
                 return;
             }
+            
+            console.log('💾 Using post_id:', postId);
             
             // Collect all question data
             const questionsData = {};
@@ -402,9 +433,9 @@
                 saveBtn.textContent = 'Saving...';
             }
             
-            // Make AJAX request
+            // ROOT FIX: Make AJAX request with post_id instead of entry_id
             this.makeAjaxRequest('mkcg_save_questions', {
-                entry_id: entryId,
+                post_id: postId,  // ← Fixed: send post_id instead of entry_id
                 questions: questionsData
             })
             .then(data => {
@@ -437,8 +468,14 @@
          * Auto-save individual question
          */
         autoSaveQuestion: function(field) {
-            const entryId = document.getElementById('mkcg-entry-id')?.value;
-            if (!entryId || entryId === '0' || !field.value.trim()) {
+            // ROOT FIX: Get post_id from template data
+            let postId = 0;
+            
+            if (window.MKCG_Topics_Data && window.MKCG_Topics_Data.postId) {
+                postId = window.MKCG_Topics_Data.postId;
+            }
+            
+            if (!postId || postId === 0 || !field.value.trim()) {
                 return;
             }
             
@@ -460,7 +497,7 @@
             
             this.autoSaveTimers[field.id] = setTimeout(() => {
                 this.makeAjaxRequest('mkcg_save_single_question', {
-                    entry_id: entryId,
+                    post_id: postId,  // ← Fixed: use post_id instead of entry_id
                     meta_key: metaKey,
                     question: field.value.trim()
                 })

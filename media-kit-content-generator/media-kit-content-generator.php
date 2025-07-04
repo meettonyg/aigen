@@ -327,26 +327,39 @@ class Media_Kit_Content_Generator {
         global $api_service;
         $api_service = $this->api_service;
         
-        // CRITICAL FIX: Get template data using Questions Generator if available
-        if ($generator_instance && method_exists($generator_instance, 'get_template_data')) {
-            $template_data = $generator_instance->get_template_data();
-            error_log('MKCG Shortcode: Got template data from Questions Generator: ' . json_encode(array_keys($template_data)));
-        } else {
-            error_log('MKCG Shortcode: Questions generator not available - using basic data');
-            $template_data = ['topics' => [], 'questions' => [], 'has_data' => false];
+        // ROOT FIX: Get template data using Questions Generator with post_id parameter
+        $post_id = isset($atts['post_id']) && intval($atts['post_id']) > 0 ? intval($atts['post_id']) : 0;
+        
+        // Try to get post_id from URL if not provided in shortcode
+        if (!$post_id && isset($_GET['post_id']) && intval($_GET['post_id']) > 0) {
+            $post_id = intval($_GET['post_id']);
         }
         
-        error_log('MKCG Shortcode: Loading questions template with generator_instance available: ' . (is_object($generator_instance) ? 'YES' : 'NO'));
+        if ($generator_instance && method_exists($generator_instance, 'get_template_data')) {
+            $template_data = $generator_instance->get_template_data($post_id);
+            error_log('MKCG Shortcode: Got template data from Questions Generator with post_id ' . $post_id . ': ' . json_encode(array_keys($template_data)));
+        } else {
+            error_log('MKCG Shortcode: Questions generator not available - using basic data');
+            $template_data = ['form_field_values' => [], 'questions' => [], 'has_data' => false];
+        }
+        
+        error_log('MKCG Shortcode: Loading questions template with post_id ' . $post_id . ', generator_instance available: ' . (is_object($generator_instance) ? 'YES' : 'NO'));
         
         if (!$generator_instance) {
             error_log('MKCG Shortcode: WARNING - Questions generator instance not found. Available generators: ' . implode(', ', array_keys($this->generators)));
         }
         
-        // Pass template data to Questions template
+        // ROOT FIX: Pass template data to Questions template with proper structure
         global $mkcg_template_data;
-        $mkcg_template_data = isset($template_data) ? $template_data : [];
+        $mkcg_template_data = isset($template_data) ? $template_data : [
+            'post_id' => $post_id,
+            'has_data' => false,
+            'form_field_values' => [],
+            'questions' => [],
+            'authority_hook_components' => []
+        ];
         
-        error_log('MKCG Shortcode: Passing template data: ' . json_encode(array_keys($mkcg_template_data)));
+        error_log('MKCG Shortcode: Passing template data with ' . count($mkcg_template_data['form_field_values']) . ' topics and ' . count($mkcg_template_data['questions']) . ' questions');
         
         // Include the template
         include MKCG_PLUGIN_PATH . 'templates/generators/questions/default.php';

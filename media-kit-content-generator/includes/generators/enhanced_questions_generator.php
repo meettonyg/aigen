@@ -30,12 +30,12 @@ class Enhanced_Questions_Generator {
     }
     
     /**
-     * Get template data using POST ID as primary key - Pure Pods integration
+     * ROOT FIX: Get template data using dynamic post_id - CONSISTENT with Topics Generator
      */
     public function get_template_data($post_id = null) {
-        error_log('MKCG Questions Generator: Starting get_template_data - Pure Pods Integration');
+        error_log('MKCG Questions Generator: Starting get_template_data - ROOT FIX for post_id consistency');
         
-        // Get post_id from parameter or request
+        // Get post_id from parameter or request (same logic as Topics Generator)
         if (!$post_id) {
             $post_id = $this->get_post_id_from_request();
         }
@@ -56,18 +56,19 @@ class Enhanced_Questions_Generator {
         // Load ALL data from Pods service
         $guest_data = $this->pods_service->get_guest_data($post_id);
         
-        // Transform to template format (no Formidable references)
+        // ROOT FIX: Transform to CONSISTENT template format matching Topics Generator
         $template_data = [
             'post_id' => $post_id,
             'has_data' => $guest_data['has_data'],
-            'topics' => $guest_data['topics'],
-            'questions' => $guest_data['questions'],
             'authority_hook_components' => $guest_data['authority_hook_components'],
+            // CRITICAL FIX: Use 'form_field_values' key like Topics Generator for consistency
+            'form_field_values' => $guest_data['topics'], // Topics data with consistent naming
+            'questions' => $guest_data['questions'], // Questions data (specific to Questions Generator)
             'contact' => $guest_data['contact'],
             'messaging' => $guest_data['messaging']
         ];
         
-        error_log('MKCG Questions Generator: Data loaded successfully from Pods service');
+        error_log('MKCG Questions Generator: Data loaded successfully with consistent structure');
         return $template_data;
     }
     
@@ -140,7 +141,8 @@ class Enhanced_Questions_Generator {
             return [
                 'post_id' => 0,
                 'has_data' => false,
-                'topics' => [
+                // CONSISTENT: Use same structure as Topics Generator
+                'form_field_values' => [
                     'topic_1' => '',
                     'topic_2' => '',
                     'topic_3' => '',
@@ -167,7 +169,8 @@ class Enhanced_Questions_Generator {
             return [
                 'post_id' => 0,
                 'has_data' => false,
-                'topics' => [
+                // CONSISTENT: Use same structure as Topics Generator
+                'form_field_values' => [
                     'topic_1' => '',
                     'topic_2' => '',
                     'topic_3' => '',
