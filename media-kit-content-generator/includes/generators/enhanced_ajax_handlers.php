@@ -377,9 +377,14 @@ class Enhanced_AJAX_Handlers {
         
         // Method 2: JSON-encoded topics object (fallback)
         if (empty($topics) && isset($_POST['topics']) && !empty($_POST['topics'])) {
-            $topics_raw = stripslashes($_POST['topics']); // Remove slashes that might be added
+            // FIX: Check if it's already an array before calling stripslashes
+            if (is_array($_POST['topics'])) {
+                $topics_raw = $_POST['topics'];
+            } else {
+                $topics_raw = stripslashes($_POST['topics']); // Remove slashes that might be added
+            }
             error_log('MKCG AJAX: Found topics in POST, type: ' . gettype($topics_raw));
-            error_log('MKCG AJAX: Topics raw value: ' . $topics_raw);
+            error_log('MKCG AJAX: Topics raw value: ' . print_r($topics_raw, true));
             
             if (is_string($topics_raw)) {
                 // Try to decode JSON
@@ -459,9 +464,14 @@ class Enhanced_AJAX_Handlers {
         
         // Method 2: JSON-encoded authority_hook object (fallback)
         if (empty($components) && isset($_POST['authority_hook']) && !empty($_POST['authority_hook'])) {
-            $auth_raw = stripslashes($_POST['authority_hook']); // Remove slashes that might be added
+            // FIX: Check if it's already an array before calling stripslashes
+            if (is_array($_POST['authority_hook'])) {
+                $auth_raw = $_POST['authority_hook'];
+            } else {
+                $auth_raw = stripslashes($_POST['authority_hook']); // Remove slashes that might be added
+            }
             error_log('MKCG AJAX: Found authority_hook in POST, type: ' . gettype($auth_raw));
-            error_log('MKCG AJAX: Authority hook raw value: ' . $auth_raw);
+            error_log('MKCG AJAX: Authority hook raw value: ' . print_r($auth_raw, true));
             
             if (is_string($auth_raw)) {
                 // Try to decode JSON

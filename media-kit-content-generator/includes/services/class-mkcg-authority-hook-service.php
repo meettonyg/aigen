@@ -35,14 +35,14 @@ class MKCG_Authority_Hook_Service {
     ];
     
     /**
-     * Field mappings for WordPress post meta only
+     * Field mappings for WordPress post meta - FIXED to match Pods Service expectations
      */
     private $field_mappings = [
         'postmeta' => [
-            'who' => '_authority_hook_who',
-            'what' => '_authority_hook_what',
-            'when' => '_authority_hook_when', 
-            'how' => '_authority_hook_how'
+            'who' => 'guest_title', // Use existing guest_title field for WHO component
+            'what' => 'hook_what',   // Match Pods Service field names
+            'when' => 'hook_when',   // Match Pods Service field names 
+            'how' => 'hook_how'      // Match Pods Service field names
         ]
     ];
     
@@ -342,13 +342,14 @@ class MKCG_Authority_Hook_Service {
     // Private helper methods
     
     /**
-     * Get Authority Hook data from WordPress post meta
+     * Get Authority Hook data from WordPress post meta - FIXED to use correct field names
      */
     private function get_from_postmeta($post_id) {
         $components = self::DEFAULT_COMPONENTS;
+        $field_mappings = $this->field_mappings['postmeta'];
         
-        foreach (array_keys(self::DEFAULT_COMPONENTS) as $component) {
-            $value = get_post_meta($post_id, "_authority_hook_{$component}", true);
+        foreach ($field_mappings as $component => $field_name) {
+            $value = get_post_meta($post_id, $field_name, true);
             if (!empty($value)) {
                 $components[$component] = $value;
             }
@@ -358,20 +359,37 @@ class MKCG_Authority_Hook_Service {
     }
     
     /**
-     * Save Authority Hook data to WordPress post meta
+     * Save Authority Hook data to WordPress post meta - FIXED to use correct field names
      */
     private function save_to_postmeta($post_id, $components) {
         try {
+            $field_mappings = $this->field_mappings['postmeta'];
+            $saved_count = 0;
+            
             foreach ($components as $component => $value) {
-                update_post_meta($post_id, "_authority_hook_{$component}", $value);
+                if (isset($field_mappings[$component])) {
+                    $field_name = $field_mappings[$component];
+                    $result = update_post_meta($post_id, $field_name, $value);
+                    if ($result !== false) {
+                        $saved_count++;
+                        error_log("MKCG Authority Hook: Saved {$component} to field {$field_name}: {$value}");
+                    }
+                }
             }
             
-            // Save complete hook
+            // Save complete hook to the legacy field for backward compatibility
             $complete_hook = $this->build_complete_hook($components);
             update_post_meta($post_id, '_authority_hook_complete', $complete_hook);
             
-            return ['success' => true, 'message' => 'Saved to post meta successfully'];
+            error_log("MKCG Authority Hook: Saved {$saved_count} components to post {$post_id}");
+            
+            return [
+                'success' => $saved_count > 0, 
+                'message' => $saved_count > 0 ? "Saved {$saved_count} components to correct fields" : 'No components saved',
+                'saved_count' => $saved_count
+            ];
         } catch (Exception $e) {
+            error_log("MKCG Authority Hook: Save error - " . $e->getMessage());
             return ['success' => false, 'message' => 'Post meta save error: ' . $e->getMessage()];
         }
     }
