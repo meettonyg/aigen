@@ -1,7 +1,12 @@
 <?php
 /**
  * MKCG Pods Service
- * Centralized service for reading data from Pods "guests" custom post type
+ * 
+ * Originally designed for Pods integration, but now uses WordPress post meta directly.
+ * This service handles all data operations for the "guests" custom post type.
+ * 
+ * Note: The Pods plugin is NOT required - we use standard WordPress functions.
+ * 
  * Single source of truth for all guest data
  */
 
@@ -10,6 +15,7 @@ if (!class_exists('MKCG_Pods_Service')) {
 class MKCG_Pods_Service {
     
     private $post_type = 'guests';
+    private $allow_any_post_type = true; // Allow saving to any post type
     
 
     /**
@@ -20,9 +26,9 @@ class MKCG_Pods_Service {
             return $this->get_default_data();
         }
         
-        // Verify this is a guests post type
+        // Verify this is a guests post type (or allow any if flag is set)
         $post = get_post($post_id);
-        if (!$post || $post->post_type !== $this->post_type) {
+        if (!$post || (!$this->allow_any_post_type && $post->post_type !== $this->post_type)) {
             return $this->get_default_data();
         }
         
@@ -43,25 +49,11 @@ class MKCG_Pods_Service {
     public function get_topics($post_id) {
         $topics = [];
         
-        // Method 1: Try Pods API first
-        if (function_exists('pods')) {
-            $pod = pods('guests', $post_id);
-            if ($pod && $pod->exists()) {
-                for ($i = 1; $i <= 5; $i++) {
-                    $field_name = "topic_{$i}";
-                    $topic = $pod->field($field_name);
-                    $topics[$field_name] = !empty($topic) ? $topic : '';
-                }
-            }
-        }
-        
-        // Method 2: Try post meta if Pods didn't return data
-        if (count(array_filter($topics)) === 0) {
-            for ($i = 1; $i <= 5; $i++) {
-                $field_name = "topic_{$i}";
-                $topic = get_post_meta($post_id, $field_name, true);
-                $topics[$field_name] = !empty($topic) ? $topic : '';
-            }
+        // REMOVED Pods API dependency - use post meta directly
+        for ($i = 1; $i <= 5; $i++) {
+            $field_name = "topic_{$i}";
+            $topic = get_post_meta($post_id, $field_name, true);
+            $topics[$field_name] = !empty($topic) ? $topic : '';
         }
         
         // Ensure we always return the proper structure
@@ -405,11 +397,15 @@ class MKCG_Pods_Service {
     }
     
     /**
-     * Validate that post is guests post type
+     * Validate that post is guests post type (or any type if allowed)
      */
     public function is_guests_post($post_id) {
         if (!$post_id) {
             return false;
+        }
+        
+        if ($this->allow_any_post_type) {
+            return true; // Allow any post type
         }
         
         $post = get_post($post_id);
