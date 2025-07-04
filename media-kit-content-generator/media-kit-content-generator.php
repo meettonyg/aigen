@@ -24,7 +24,7 @@ class Media_Kit_Content_Generator {
     private static $instance = null;
     private $api_service;
     private $pods_service;
-    private $formidable_service; // Keep for backwards compatibility
+
     private $generators = [];
     
     public static function get_instance() {
@@ -58,7 +58,7 @@ class Media_Kit_Content_Generator {
         require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-config.php';
         require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-api-service.php';
         require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-pods-service.php';
-        require_once MKCG_PLUGIN_PATH . 'includes/services/enhanced_formidable_service.php'; // Keep for backwards compatibility
+
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_topics_generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_questions_generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_ajax_handlers.php';
@@ -75,8 +75,7 @@ class Media_Kit_Content_Generator {
         // Initialize Pods Service (primary data source)
         $this->pods_service = new MKCG_Pods_Service();
         
-        // Initialize Formidable Service (for backwards compatibility)
-        $this->formidable_service = new Enhanced_Formidable_Service();
+
         
         error_log('MKCG: Services initialized with Pods as primary data source');
     }
@@ -92,10 +91,9 @@ class Media_Kit_Content_Generator {
             $this->api_service
         );
         
-        // Initialize Questions Generator (with backwards compatibility service)
+        // Initialize Questions Generator (pure Pods)
         $this->generators['questions'] = new Enhanced_Questions_Generator(
-            $this->api_service,
-            $this->formidable_service
+            $this->api_service
         );
         
         error_log('MKCG: Generators initialized: ' . implode(', ', array_keys($this->generators)));
@@ -399,9 +397,7 @@ class Media_Kit_Content_Generator {
         return $this->pods_service;
     }
     
-    public function get_formidable_service() {
-        return $this->formidable_service;
-    }
+
     
     public function get_generator($type) {
         return isset($this->generators[$type]) ? $this->generators[$type] : null;

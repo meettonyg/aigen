@@ -514,7 +514,6 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
                 <!-- Hidden fields for AJAX - Pure Pods -->
                 <input type="hidden" id="topics-generator-post-id" value="<?php echo esc_attr($post_id); ?>">
                 <input type="hidden" id="topics-generator-nonce" value="<?php echo wp_create_nonce('mkcg_nonce'); ?>">
-                <input type="hidden" id="topics-generator-topics-nonce" value="<?php echo wp_create_nonce('mkcg_nonce'); ?>">
                 
             </div>
             
@@ -754,13 +753,13 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
         }
     }
     
-    // Function to auto-save individual authority hook components
+    // Function to auto-save individual authority hook components - Pure Pods
     function autoSaveAuthorityHookComponent(fieldId, value) {
-        const entryId = document.getElementById('topics-generator-entry-id')?.value;
+        const postId = document.getElementById('topics-generator-post-id')?.value;
         const nonce = document.getElementById('topics-generator-nonce')?.value;
         
-        if (!entryId || entryId === '0') {
-            console.log('⚠️ CRITICAL FIX: No entry ID for auto-save');
+        if (!postId || postId === '0') {
+            console.log('⚠️ CRITICAL FIX: No post ID for auto-save');
             return;
         }
         
@@ -782,8 +781,8 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
         
         // Prepare the data for all components (get current values)
         const formData = new FormData();
-        formData.append('action', 'mkcg_save_authority_hook_components_safe');
-        formData.append('entry_id', entryId);
+        formData.append('action', 'mkcg_save_authority_hook');
+        formData.append('post_id', postId);
         formData.append('nonce', nonce);
         
         // Get all current values
@@ -810,21 +809,21 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
         });
     }
     
-    // AJAX fallback function to reload authority hook data if PHP population failed
+    // AJAX fallback function to reload authority hook data if PHP population failed - Pure Pods
     function ajaxFallbackLoadAuthorityHook() {
-        const entryId = document.getElementById('topics-generator-entry-id')?.value;
+        const postId = document.getElementById('topics-generator-post-id')?.value;
         const nonce = document.getElementById('topics-generator-nonce')?.value;
         
-        if (!entryId || entryId === '0') {
-            console.log('⚠️ CRITICAL FIX: No entry ID for AJAX fallback');
+        if (!postId || postId === '0') {
+            console.log('⚠️ CRITICAL FIX: No post ID for AJAX fallback');
             return;
         }
         
         console.log('🔄 CRITICAL FIX: Attempting AJAX fallback for authority hook data');
         
         const formData = new FormData();
-        formData.append('action', 'mkcg_get_authority_hook_data');
-        formData.append('entry_id', entryId);
+        formData.append('action', 'mkcg_get_topics_data');
+        formData.append('post_id', postId);
         formData.append('nonce', nonce);
         
         fetch(window.ajaxurl || '/wp-admin/admin-ajax.php', {
@@ -853,7 +852,7 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
     // Diagnostic function for debugging
     function diagnoseAuthorityHookFields() {
         console.log('🔍 CRITICAL FIX: Authority Hook Field Diagnosis');
-        console.log('Entry ID:', document.getElementById('topics-generator-entry-id')?.value);
+        console.log('Post ID:', document.getElementById('topics-generator-post-id')?.value);
         console.log('PHP Data:', window.MKCG_Topics_Data?.authorityHook);
         
         const fields = ['mkcg-who', 'mkcg-result', 'mkcg-when', 'mkcg-how'];
@@ -883,8 +882,8 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
         // Try immediate population
         const populated = populateAuthorityHookFields();
         
-        // If immediate population failed and we have an entry ID, try AJAX fallback
-        if (!populated && window.MKCG_Topics_Data?.entryId && window.MKCG_Topics_Data.entryId > 0) {
+        // If immediate population failed and we have a post ID, try AJAX fallback
+        if (!populated && window.MKCG_Topics_Data?.postId && window.MKCG_Topics_Data.postId > 0) {
             console.log('🔄 CRITICAL FIX: Immediate population failed, trying AJAX fallback in 1 second');
             setTimeout(ajaxFallbackLoadAuthorityHook, 1000);
         }

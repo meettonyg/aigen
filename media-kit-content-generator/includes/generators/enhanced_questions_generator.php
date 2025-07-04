@@ -7,11 +7,15 @@
 class Enhanced_Questions_Generator {
     
     private $api_service;
-    private $formidable_service;
+    private $pods_service;
     
-    public function __construct($api_service, $formidable_service) {
+    public function __construct($api_service) {
         $this->api_service = $api_service;
-        $this->formidable_service = $formidable_service;
+        
+        // Initialize Pods service
+        require_once dirname(__FILE__) . '/../services/class-mkcg-pods-service.php';
+        $this->pods_service = new MKCG_Pods_Service();
+        
         $this->init();
     }
     
@@ -26,89 +30,128 @@ class Enhanced_Questions_Generator {
     }
     
     /**
-     * Get template data using POST ID as primary key
+     * Get template data using POST ID as primary key - Pure Pods integration
      */
     public function get_template_data($post_id = null) {
+        error_log('MKCG Questions Generator: Starting get_template_data - Pure Pods Integration');
+        
         // Get post_id from parameter or request
         if (!$post_id) {
             $post_id = $this->get_post_id_from_request();
         }
         
-        $template_data = MKCG_Config::get_default_data();
-        $template_data['post_id'] = $post_id;
-        
-        // Load data using POST ID
-        if ($post_id > 0) {
-            $loaded_data = MKCG_Config::load_data_for_post($post_id, $this->formidable_service);
-            $template_data = array_merge($template_data, $loaded_data);
+        if (!$post_id) {
+            error_log('MKCG Questions Generator: No valid post ID found');
+            return $this->get_default_template_data();
         }
         
+        // Validate this is a guests post
+        if (!$this->pods_service->is_guests_post($post_id)) {
+            error_log('MKCG Questions Generator: Post ' . $post_id . ' is not a guests post type');
+            return $this->get_default_template_data();
+        }
+        
+        error_log('MKCG Questions Generator: Loading data for guests post ID: ' . $post_id);
+        
+        // Load ALL data from Pods service
+        $guest_data = $this->pods_service->get_guest_data($post_id);
+        
+        // Transform to template format (no Formidable references)
+        $template_data = [
+            'post_id' => $post_id,
+            'has_data' => $guest_data['has_data'],
+            'topics' => $guest_data['topics'],
+            'questions' => $guest_data['questions'],
+            'authority_hook_components' => $guest_data['authority_hook_components'],
+            'contact' => $guest_data['contact'],
+            'messaging' => $guest_data['messaging']
+        ];
+        
+        error_log('MKCG Questions Generator: Data loaded successfully from Pods service');
         return $template_data;
     }
     
     /**
-     * ADDED: Get post_id from request parameters
+     * Get post_id from request parameters - Dynamic post ID detection
      */
     private function get_post_id_from_request() {
-        // Check for direct post_id parameter
-        if (isset($_GET['post_id'])) {
-            return intval($_GET['post_id']);
+        error_log('MKCG Questions Generator: Starting dynamic post ID detection');
+        
+        // Strategy 1: Direct post_id parameter (primary method)
+        if (isset($_GET['post_id']) && intval($_GET['post_id']) > 0) {
+            $post_id = intval($_GET['post_id']);
+            error_log('MKCG Questions Generator: Found post_id parameter: ' . $post_id);
+            
+            // Validate it's a guests post
+            if (get_post($post_id) && get_post($post_id)->post_type === 'guests') {
+                return $post_id;
+            } else {
+                error_log('MKCG Questions Generator: Post ID ' . $post_id . ' is not a valid guests post');
+            }
         }
         
-        // Check for global post context
+        // Strategy 2: Check for global post context
         global $post;
-        if ($post && $post->ID) {
+        if ($post && $post->ID && $post->post_type === 'guests') {
+            error_log('MKCG Questions Generator: Using global post context: ' . $post->ID);
             return $post->ID;
         }
         
-        // Check if we're on a post page
+        // Strategy 3: Check if we're on a guest post page
         if (is_single() || is_page()) {
-            return get_the_ID();
+            $current_id = get_the_ID();
+            if ($current_id && get_post_type($current_id) === 'guests') {
+                error_log('MKCG Questions Generator: Found guest post page: ' . $current_id);
+                return $current_id;
+            }
         }
         
+        // Strategy 4: Look for the most recent guest post for testing
+        $recent_guest = get_posts([
+            'post_type' => 'guests',
+            'post_status' => 'publish',
+            'numberposts' => 1,
+            'orderby' => 'date',
+            'order' => 'DESC'
+        ]);
+        
+        if (!empty($recent_guest)) {
+            $post_id = $recent_guest[0]->ID;
+            error_log('MKCG Questions Generator: Using most recent guest post for testing: ' . $post_id);
+            return $post_id;
+        }
+        
+        error_log('MKCG Questions Generator: No valid post ID found with any strategy');
         return 0;
     }
     
     /**
-     * Load template data from database
+     * Get default template data structure - Pure Pods
      */
-    private function load_template_data($template_data) {
-        $entry_id = $template_data['entry_id'];
-        
-        // Get post ID from entry
-        $post_id = $this->formidable_service->get_post_id_from_entry($entry_id);
-        
-        if ($post_id) {
-            // Load topics from post meta
-            $topics = [];
-            for ($i = 1; $i <= 5; $i++) {
-                $topic = get_post_meta($post_id, "mkcg_topic_{$i}", true);
-                if (!empty($topic)) {
-                    $topics[$i] = $topic;
-                }
-            }
-            $template_data['topics'] = $topics;
-            
-            // Load questions from post meta
-            $questions = [];
-            for ($topic = 1; $topic <= 5; $topic++) {
-                $topic_questions = [];
-                for ($q = 1; $q <= 5; $q++) {
-                    $question = get_post_meta($post_id, "mkcg_question_{$topic}_{$q}", true);
-                    if (!empty($question)) {
-                        $topic_questions[$q] = $question;
-                    }
-                }
-                if (!empty($topic_questions)) {
-                    $questions[$topic] = $topic_questions;
-                }
-            }
-            $template_data['questions'] = $questions;
-            
-            $template_data['has_data'] = !empty($topics) || !empty($questions);
-        }
-        
-        return $template_data;
+    private function get_default_template_data() {
+        return [
+            'post_id' => 0,
+            'has_data' => false,
+            'topics' => [
+                'topic_1' => '',
+                'topic_2' => '',
+                'topic_3' => '',
+                'topic_4' => '',
+                'topic_5' => ''
+            ],
+            'questions' => [],
+            'authority_hook_components' => [
+                'who' => 'your audience',
+                'what' => 'achieve their goals',
+                'when' => 'they need help',
+                'how' => 'through your method',
+                'where' => 'in their situation',
+                'why' => 'because they deserve success',
+                'complete' => 'I help your audience achieve their goals when they need help by showing them through your method in their situation because they deserve success.'
+            ],
+            'contact' => [],
+            'messaging' => []
+        ];
     }
     
     /**
@@ -185,25 +228,14 @@ class Enhanced_Questions_Generator {
             return;
         }
         
-        // Get questions from post meta
-        $questions = [];
-        for ($topic = 1; $topic <= 5; $topic++) {
-            $topic_questions = [];
-            for ($q = 1; $q <= 5; $q++) {
-                $question = get_post_meta($post_id, "mkcg_question_{$topic}_{$q}", true);
-                if (!empty($question)) {
-                    $topic_questions[$q] = $question;
-                }
-            }
-            if (!empty($topic_questions)) {
-                $questions[$topic] = $topic_questions;
-            }
-        }
+        // Get questions using Pods service
+        $guest_data = $this->pods_service->get_guest_data($post_id);
         
         wp_send_json_success([
             'post_id' => $post_id,
-            'questions' => $questions,
-            'has_data' => !empty($questions)
+            'questions' => $guest_data['questions'],
+            'topics' => $guest_data['topics'],
+            'has_data' => !empty($guest_data['questions'])
         ]);
     }
     
@@ -222,29 +254,18 @@ class Enhanced_Questions_Generator {
     }
     
     /**
-     * Save questions using POST ID as primary key
+     * Save questions using Pods service
      */
     public function save_questions($post_id, $questions_data) {
-        if (!$post_id) {
-            return ['success' => false, 'message' => 'Post ID required'];
+        if (!$post_id || empty($questions_data)) {
+            return [
+                'success' => false,
+                'message' => 'Invalid parameters'
+            ];
         }
         
-        $saved_count = 0;
-        
-        foreach ($questions_data as $key => $value) {
-            if (!empty($value)) {
-                $result = update_post_meta($post_id, $key, $value);
-                if ($result !== false) {
-                    $saved_count++;
-                }
-            }
-        }
-        
-        return [
-            'success' => $saved_count > 0,
-            'saved_count' => $saved_count,
-            'message' => $saved_count > 0 ? 'Questions saved successfully' : 'No questions saved'
-        ];
+        // Use Pods service for saving
+        return $this->pods_service->save_questions($post_id, $questions_data);
     }
     
     /**

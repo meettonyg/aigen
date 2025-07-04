@@ -28,8 +28,8 @@ class Enhanced_Topics_Generator {
      * Initialize - direct and simple
      */
     public function init() {
-        // Initialize AJAX handlers (pure Pods, no Formidable)
-        $this->ajax_handlers = new Enhanced_AJAX_Handlers(null, $this);
+        // Initialize AJAX handlers (pure Pods)
+        $this->ajax_handlers = new Enhanced_AJAX_Handlers($this->pods_service, $this);
         
         // Add any WordPress hooks needed
         add_action('wp_enqueue_scripts', [$this, 'enqueue_scripts']);

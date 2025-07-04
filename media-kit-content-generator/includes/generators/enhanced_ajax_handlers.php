@@ -7,15 +7,22 @@
 
 class Enhanced_AJAX_Handlers {
     
-    private $formidable_service;
+    private $pods_service;
     private $topics_generator;
     
     /**
-     * Simple constructor
+     * Simple constructor - Pure Pods integration
      */
-    public function __construct($formidable_service, $topics_generator) {
-        $this->formidable_service = $formidable_service;
+    public function __construct($pods_service, $topics_generator) {
+        $this->pods_service = $pods_service;
         $this->topics_generator = $topics_generator;
+        
+        // Initialize Pods service if not provided
+        if (!$this->pods_service) {
+            require_once dirname(__FILE__) . '/../services/class-mkcg-pods-service.php';
+            $this->pods_service = new MKCG_Pods_Service();
+        }
+        
         $this->init();
     }
     
@@ -37,10 +44,10 @@ class Enhanced_AJAX_Handlers {
     }
     
     /**
-     * CRITICAL FIX: Handle save topics request with comprehensive dual-save support
+     * Handle save topics request - Pure Pods integration
      */
     public function handle_save_topics() {
-        error_log('MKCG AJAX: Starting save_topics_data handler');
+        error_log('MKCG AJAX: Starting save_topics_data handler - Pure Pods');
         
         if (!$this->verify_request()) {
             error_log('MKCG AJAX: Security verification failed');
@@ -48,14 +55,14 @@ class Enhanced_AJAX_Handlers {
             return;
         }
         
-        $entry_id = $this->get_entry_id();
-        if (!$entry_id) {
-            error_log('MKCG AJAX: No entry ID provided');
-            wp_send_json_error(['message' => 'Entry ID required']);
+        $post_id = $this->get_post_id();
+        if (!$post_id) {
+            error_log('MKCG AJAX: No post ID provided');
+            wp_send_json_error(['message' => 'Post ID required']);
             return;
         }
         
-        error_log('MKCG AJAX: Processing save for entry ID: ' . $entry_id);
+        error_log('MKCG AJAX: Processing save for post ID: ' . $post_id);
         
         // Extract both topics and authority hook data
         $topics_data = $this->extract_topics_data();
@@ -69,75 +76,31 @@ class Enhanced_AJAX_Handlers {
             return;
         }
         
-        $results = [
-            'formidable' => ['success' => false, 'message' => 'No data to save'],
-            'post_meta' => ['success' => false, 'message' => 'No data to save']
-        ];
+        $results = [];
         
-        // Save to Formidable if we have data
-        if (!empty($topics_data) || !empty($authority_hook_data)) {
-            $formidable_data = [];
-            
-            // Add topics to formidable data
-            if (!empty($topics_data)) {
-                $topics_field_mappings = $this->get_topics_field_mappings();
-                foreach ($topics_data as $topic_key => $topic_value) {
-                    if (isset($topics_field_mappings[$topic_key])) {
-                        $formidable_data[$topics_field_mappings[$topic_key]] = $topic_value;
-                        error_log("MKCG AJAX: Mapping {$topic_key} to field {$topics_field_mappings[$topic_key]}");
-                    }
-                }
-            }
-            
-            // Add authority hook to formidable data
-            if (!empty($authority_hook_data)) {
-                $auth_field_mappings = $this->get_authority_hook_field_mappings();
-                foreach ($authority_hook_data as $component => $value) {
-                    if (isset($auth_field_mappings[$component])) {
-                        $formidable_data[$auth_field_mappings[$component]] = $value;
-                        error_log("MKCG AJAX: Mapping {$component} to field {$auth_field_mappings[$component]}");
-                    }
-                }
-            }
-            
-            if (!empty($formidable_data)) {
-                $formidable_result = $this->formidable_service->save_entry_data($entry_id, $formidable_data);
-                $results['formidable'] = $formidable_result;
-                error_log('MKCG AJAX: Formidable save result: ' . json_encode($formidable_result));
-            }
+        // Save topics using Pods service
+        if (!empty($topics_data)) {
+            $topics_result = $this->pods_service->save_topics($post_id, $topics_data);
+            $results['topics'] = $topics_result;
+            error_log('MKCG AJAX: Topics save result: ' . json_encode($topics_result));
         }
         
-        // Also save to WordPress post meta for backup/compatibility
-        $post_id = $this->get_post_id_from_entry($entry_id);
-        if ($post_id) {
-            $post_meta_data = [];
-            
-            // Add topics to post meta
-            foreach ($topics_data as $topic_key => $topic_value) {
-                $post_meta_data["mkcg_{$topic_key}"] = $topic_value;
-            }
-            
-            // Add authority hook to post meta
-            foreach ($authority_hook_data as $component => $value) {
-                $post_meta_data["mkcg_authority_{$component}"] = $value;
-            }
-            
-            if (!empty($post_meta_data)) {
-                $post_meta_result = $this->formidable_service->save_post_meta($post_id, $post_meta_data);
-                $results['post_meta'] = $post_meta_result;
-                error_log('MKCG AJAX: Post meta save result: ' . json_encode($post_meta_result));
-            }
+        // Save authority hook using Pods service
+        if (!empty($authority_hook_data)) {
+            $auth_result = $this->pods_service->save_authority_hook_components($post_id, $authority_hook_data);
+            $results['authority_hook'] = $auth_result;
+            error_log('MKCG AJAX: Authority hook save result: ' . json_encode($auth_result));
         }
         
         // Determine overall success
-        $overall_success = $results['formidable']['success'] || $results['post_meta']['success'];
+        $overall_success = (!empty($results['topics']) && $results['topics']['success']) || 
+                          (!empty($results['authority_hook']) && $results['authority_hook']['success']);
         
         if ($overall_success) {
             $response_data = [
                 'message' => 'Data saved successfully',
-                'entry_id' => $entry_id,
-                'formidable' => $results['formidable'],
-                'post_meta' => $results['post_meta']
+                'post_id' => $post_id,
+                'results' => $results
             ];
             
             // Add complete authority hook if available
@@ -151,14 +114,13 @@ class Enhanced_AJAX_Handlers {
             error_log('MKCG AJAX: Overall save failed');
             wp_send_json_error([
                 'message' => 'Failed to save data',
-                'formidable_error' => $results['formidable']['message'],
-                'post_meta_error' => $results['post_meta']['message']
+                'results' => $results
             ]);
         }
     }
     
     /**
-     * Handle get topics request
+     * Handle get topics request - Pure Pods integration
      */
     public function handle_get_topics() {
         if (!$this->verify_request()) {
@@ -166,29 +128,25 @@ class Enhanced_AJAX_Handlers {
             return;
         }
         
-        $entry_id = $this->get_entry_id();
-        if (!$entry_id) {
-            wp_send_json_error(['message' => 'Entry ID required']);
+        $post_id = $this->get_post_id();
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID required']);
             return;
         }
         
-        $field_mappings = $this->get_topics_field_mappings();
-        $topics = [];
-        
-        foreach ($field_mappings as $topic_key => $field_id) {
-            $value = $this->formidable_service->get_field_value($entry_id, $field_id);
-            $topics[$topic_key] = $value ?: '';
-        }
+        // Get topics using Pods service
+        $guest_data = $this->pods_service->get_guest_data($post_id);
         
         wp_send_json_success([
-            'entry_id' => $entry_id,
-            'topics' => $topics,
-            'has_data' => !empty(array_filter($topics))
+            'post_id' => $post_id,
+            'topics' => $guest_data['topics'],
+            'authority_hook_components' => $guest_data['authority_hook_components'],
+            'has_data' => $guest_data['has_data']
         ]);
     }
     
     /**
-     * Handle save authority hook request
+     * Handle save authority hook request - Pure Pods integration
      */
     public function handle_save_authority_hook() {
         if (!$this->verify_request()) {
@@ -196,9 +154,9 @@ class Enhanced_AJAX_Handlers {
             return;
         }
         
-        $entry_id = $this->get_entry_id();
-        if (!$entry_id) {
-            wp_send_json_error(['message' => 'Entry ID required']);
+        $post_id = $this->get_post_id();
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID required']);
             return;
         }
         
@@ -208,24 +166,14 @@ class Enhanced_AJAX_Handlers {
             return;
         }
         
-        // Get field mappings from config
-        $field_mappings = $this->get_authority_hook_field_mappings();
-        
-        // Prepare data for Formidable
-        $formidable_data = [];
-        foreach ($authority_hook_data as $component => $value) {
-            if (isset($field_mappings[$component])) {
-                $formidable_data[$field_mappings[$component]] = $value;
-            }
-        }
-        
-        $result = $this->formidable_service->save_entry_data($entry_id, $formidable_data);
+        // Save using Pods service
+        $result = $this->pods_service->save_authority_hook_components($post_id, $authority_hook_data);
         
         if ($result['success']) {
             wp_send_json_success([
                 'message' => 'Authority hook saved successfully',
                 'saved_count' => $result['saved_count'],
-                'entry_id' => $entry_id
+                'post_id' => $post_id
             ]);
         } else {
             wp_send_json_error(['message' => $result['message']]);
@@ -281,10 +229,10 @@ class Enhanced_AJAX_Handlers {
     }
     
     /**
-     * Get entry ID from request
+     * Get post ID from request
      */
-    private function get_entry_id() {
-        return isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0;
+    private function get_post_id() {
+        return isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
     }
     
     /**
@@ -413,48 +361,5 @@ class Enhanced_AJAX_Handlers {
         ];
     }
     
-    /**
-     * Get topics field mappings from config
-     */
-    private function get_topics_field_mappings() {
-        // Should come from centralized config, but simplified here
-        return [
-            'topic_1' => '8498',
-            'topic_2' => '8499',
-            'topic_3' => '8500',
-            'topic_4' => '8501',
-            'topic_5' => '8502'
-        ];
-    }
-    
-    /**
-     * Get authority hook field mappings from config
-     */
-    private function get_authority_hook_field_mappings() {
-        // Should come from centralized config, but simplified here
-        return [
-            'who' => '10296',
-            'result' => '10297',
-            'when' => '10387',
-            'how' => '10298',
-            'complete' => '10358'
-        ];
-    }
-    
-    /**
-     * Get post ID from entry ID
-     */
-    private function get_post_id_from_entry($entry_id) {
-        if (!$entry_id) {
-            return null;
-        }
-        
-        global $wpdb;
-        $post_id = $wpdb->get_var($wpdb->prepare(
-            "SELECT post_id FROM {$wpdb->prefix}frm_items WHERE id = %d",
-            $entry_id
-        ));
-        
-        return $post_id ? intval($post_id) : null;
-    }
+
 }
