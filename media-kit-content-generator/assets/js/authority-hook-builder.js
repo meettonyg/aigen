@@ -281,19 +281,25 @@
     }
     
     // Update Authority Hook display
-    function updateAuthorityHook() {
-        const who = document.getElementById('mkcg-who')?.value || 'your audience';
-        const result = document.getElementById('mkcg-result')?.value || 'achieve their goals';
-        const when = document.getElementById('mkcg-when')?.value || 'they need help';
-        const how = document.getElementById('mkcg-how')?.value || 'through your method';
-        
-        const authorityHook = 'I help ' + who + ' ' + result + ' when ' + when + ' ' + how + '.';
-        
-        // Update display element
-        const display = document.getElementById('topics-generator-authority-hook-text');
-        if (display) {
+function updateAuthorityHook() {
+    const who = document.getElementById('mkcg-who')?.value || '';
+    const result = document.getElementById('mkcg-result')?.value || '';
+    const when = document.getElementById('mkcg-when')?.value || '';
+    const how = document.getElementById('mkcg-how')?.value || '';
+    
+    // Check if all components are empty
+    const isEmpty = !who && !result && !when && !how;
+    const authorityHook = isEmpty ? '' : 'I help ' + who + ' ' + result + ' when ' + when + ' ' + how + '.';
+    
+    // Update display element
+    const display = document.getElementById('topics-generator-authority-hook-text');
+    if (display) {
+        if (isEmpty) {
+            display.innerHTML = '';
+        } else {
             display.innerHTML = 'I help <span class="authority-hook__highlight">' + escapeHtml(who) + '</span> <span class="authority-hook__highlight">' + escapeHtml(result) + '</span> when <span class="authority-hook__highlight">' + escapeHtml(when) + '</span> <span class="authority-hook__highlight">' + escapeHtml(how) + '</span>.';
         }
+    }
         
         // Update hidden field
         const hiddenField = document.getElementById('mkcg-authority-hook');

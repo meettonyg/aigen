@@ -134,17 +134,36 @@ foreach ($displayable_topics as $topic) {
     }
 }
 
-// ROOT-LEVEL FIX: Ensure we have test data if nothing exists
-if (empty($all_topics) || count(array_filter($all_topics)) === 0) {
-    $all_topics = [
-        1 => 'Content Strategy',
-        2 => 'SaaS Growth', 
-        3 => 'Team Building',
-        4 => 'Marketing Automation',
-        5 => 'Customer Success'
-    ];
-    $debug_info[] = 'ROOT-LEVEL FIX: Added test topics data for functionality';
-    $has_meaningful_content = true;
+// CHECK FOR ENTRY PARAMETER: Don't show defaults if no entry param provided
+$has_entry_param = isset($_GET['entry']) || isset($_GET['post_id']) || 
+                   (isset($_GET['frm_action']) && $_GET['frm_action'] === 'edit');
+
+if (!$has_entry_param) {
+    // NO ENTRY PARAM: Don't add test data, keep empty structure
+    if (empty($all_topics) || count(array_filter($all_topics)) === 0) {
+        $all_topics = [
+            1 => '',
+            2 => '',
+            3 => '',
+            4 => '',
+            5 => ''
+        ];
+        $debug_info[] = 'NO ENTRY PARAM: Using empty topics structure (no defaults)';
+        $has_meaningful_content = false;
+    }
+} else {
+    // HAS ENTRY PARAM: Only add test data if nothing exists and entry param is present
+    if (empty($all_topics) || count(array_filter($all_topics)) === 0) {
+        $all_topics = [
+            1 => '',
+            2 => '',
+            3 => '',
+            4 => '',
+            5 => ''
+        ];
+        $debug_info[] = 'ENTRY PARAM EXISTS: Using empty structure (no test data needed)';
+        $has_meaningful_content = false;
+    }
 }
 
 // Debug output for development

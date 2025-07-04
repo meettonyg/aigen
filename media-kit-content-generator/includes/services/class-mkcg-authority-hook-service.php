@@ -26,8 +26,19 @@ class MKCG_Authority_Hook_Service {
     
     /**
      * Default Authority Hook components
+     * Updated to be empty when no entry parameter provided
      */
     const DEFAULT_COMPONENTS = [
+        'who' => '',
+        'what' => '', 
+        'when' => '',
+        'how' => ''
+    ];
+    
+    /**
+     * Legacy default values for when entry parameters exist
+     */
+    const LEGACY_DEFAULT_COMPONENTS = [
         'who' => 'your audience',
         'what' => 'achieve their goals', 
         'when' => 'they need help',
@@ -57,24 +68,30 @@ class MKCG_Authority_Hook_Service {
     
     /**
      * Get Authority Hook data from WordPress post meta
+     * Updated to check for entry parameters and not provide defaults when no entry param
      * 
      * @param int $post_id WordPress post ID
      * @return array Authority Hook components
      */
     public function get_authority_hook_data($post_id) {
-        $components = self::DEFAULT_COMPONENTS;
+        // Check for entry parameter - use different defaults based on presence
+        $has_entry_param = isset($_GET['entry']) || isset($_GET['post_id']) || 
+                           (isset($_GET['frm_action']) && $_GET['frm_action'] === 'edit');
+        
+        $components = $has_entry_param ? self::LEGACY_DEFAULT_COMPONENTS : self::DEFAULT_COMPONENTS;
         
         if (!$post_id || $post_id <= 0) {
+            error_log('MKCG Authority Hook Service: No valid post ID - using ' . ($has_entry_param ? 'legacy defaults' : 'empty values'));
             return $this->build_complete_response($components, false, 'No valid post ID provided');
         }
         
         // Load from WordPress post meta
-        $components = $this->get_from_postmeta($post_id);
+        $components = $this->get_from_postmeta($post_id, $has_entry_param);
         
         // Ensure all required components exist with fallbacks
-        $components = $this->sanitize_components($components);
+        $components = $this->sanitize_components($components, $has_entry_param);
         
-        return $this->build_complete_response($components, !$this->is_default_data($components), 'Authority Hook data loaded successfully');
+        return $this->build_complete_response($components, !$this->is_default_data($components, $has_entry_param), 'Authority Hook data loaded successfully');
     }
     
     /**
@@ -343,9 +360,10 @@ class MKCG_Authority_Hook_Service {
     
     /**
      * Get Authority Hook data from WordPress post meta - FIXED to use correct field names
+     * Updated to handle entry parameter presence
      */
-    private function get_from_postmeta($post_id) {
-        $components = self::DEFAULT_COMPONENTS;
+    private function get_from_postmeta($post_id, $has_entry_param = false) {
+        $components = $has_entry_param ? self::LEGACY_DEFAULT_COMPONENTS : self::DEFAULT_COMPONENTS;
         $field_mappings = $this->field_mappings['postmeta'];
         
         foreach ($field_mappings as $component => $field_name) {
@@ -559,16 +577,24 @@ class MKCG_Authority_Hook_Service {
     
     /**
      * Sanitize and validate components
+     * Updated to handle entry parameter presence
      */
-    private function sanitize_components($components) {
+    private function sanitize_components($components, $has_entry_param = null) {
+        // Auto-detect entry param if not provided
+        if ($has_entry_param === null) {
+            $has_entry_param = isset($_GET['entry']) || isset($_GET['post_id']) || 
+                               (isset($_GET['frm_action']) && $_GET['frm_action'] === 'edit');
+        }
+        
+        $defaults = $has_entry_param ? self::LEGACY_DEFAULT_COMPONENTS : self::DEFAULT_COMPONENTS;
         $sanitized = [];
         
-        foreach (self::DEFAULT_COMPONENTS as $key => $default) {
+        foreach ($defaults as $key => $default) {
             $value = $components[$key] ?? $default;
             $sanitized[$key] = sanitize_text_field($value);
             
-            // Ensure not empty
-            if (empty($sanitized[$key])) {
+            // Only use default if entry param exists and field is empty
+            if (empty($sanitized[$key]) && $has_entry_param) {
                 $sanitized[$key] = $default;
             }
         }
@@ -578,9 +604,18 @@ class MKCG_Authority_Hook_Service {
     
     /**
      * Check if components contain only default data
+     * Updated to handle entry parameter presence
      */
-    private function is_default_data($components) {
-        foreach (self::DEFAULT_COMPONENTS as $key => $default) {
+    private function is_default_data($components, $has_entry_param = null) {
+        // Auto-detect entry param if not provided
+        if ($has_entry_param === null) {
+            $has_entry_param = isset($_GET['entry']) || isset($_GET['post_id']) || 
+                               (isset($_GET['frm_action']) && $_GET['frm_action'] === 'edit');
+        }
+        
+        $defaults = $has_entry_param ? self::LEGACY_DEFAULT_COMPONENTS : self::DEFAULT_COMPONENTS;
+        
+        foreach ($defaults as $key => $default) {
             if (($components[$key] ?? $default) !== $default) {
                 return false;
             }
@@ -603,13 +638,20 @@ class MKCG_Authority_Hook_Service {
     
     /**
      * Calculate Authority Hook quality score
+     * Updated to handle both default sets
      */
     private function calculate_hook_score($components) {
         $score = 0;
         
+        // Check for entry parameter
+        $has_entry_param = isset($_GET['entry']) || isset($_GET['post_id']) || 
+                           (isset($_GET['frm_action']) && $_GET['frm_action'] === 'edit');
+        
+        $defaults = $has_entry_param ? self::LEGACY_DEFAULT_COMPONENTS : self::DEFAULT_COMPONENTS;
+        
         // Check for customization (not default values)
-        foreach (self::DEFAULT_COMPONENTS as $key => $default) {
-            if ($components[$key] !== $default) {
+        foreach ($defaults as $key => $default) {
+            if ($components[$key] !== $default && !empty($components[$key])) {
                 $score += 25; // 25 points per customized component
             }
         }

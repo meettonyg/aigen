@@ -162,30 +162,65 @@ class Enhanced_Topics_Generator {
     
     /**
      * Get default template data structure - Pure Pods
+     * Updated to check for entry parameters and not provide defaults when no entry param
      */
     private function get_default_template_data() {
-        return [
-            'post_id' => 0,
-            'has_data' => false,
-            'authority_hook_components' => [
-                'who' => 'your audience',
-                'what' => 'achieve their goals',
-                'when' => 'they need help',
-                'how' => 'through your method',
-                'where' => 'in their situation',
-                'why' => 'because they deserve success',
-                'complete' => 'I help your audience achieve their goals when they need help by showing them through your method in their situation because they deserve success.'
-            ],
-            'form_field_values' => [
-                'topic_1' => '',
-                'topic_2' => '',
-                'topic_3' => '',
-                'topic_4' => '',
-                'topic_5' => ''
-            ],
-            'contact' => [],
-            'messaging' => []
-        ];
+        // Check for entry parameter - don't show defaults if no entry param provided
+        $has_entry_param = isset($_GET['entry']) || isset($_GET['post_id']) || 
+                           (isset($_GET['frm_action']) && $_GET['frm_action'] === 'edit');
+        
+        if (!$has_entry_param) {
+            // NO ENTRY PARAM: Return empty structure with no defaults
+            error_log('MKCG Topics Generator: No entry parameter found - returning empty structure');
+            return [
+                'post_id' => 0,
+                'has_data' => false,
+                'authority_hook_components' => [
+                    'who' => '',
+                    'what' => '',
+                    'when' => '',
+                    'how' => '',
+                    'where' => '',
+                    'why' => '',
+                    'complete' => ''
+                ],
+                'form_field_values' => [
+                    'topic_1' => '',
+                    'topic_2' => '',
+                    'topic_3' => '',
+                    'topic_4' => '',
+                    'topic_5' => ''
+                ],
+                'contact' => [],
+                'messaging' => [],
+                'no_entry_param' => true
+            ];
+        } else {
+            // HAS ENTRY PARAM: Return empty structure (entry param exists but no data found)
+            error_log('MKCG Topics Generator: Entry parameter exists but no data found - returning empty structure');
+            return [
+                'post_id' => 0,
+                'has_data' => false,
+                'authority_hook_components' => [
+                    'who' => '',
+                    'what' => '',
+                    'when' => '',
+                    'how' => '',
+                    'where' => '',
+                    'why' => '',
+                    'complete' => ''
+                ],
+                'form_field_values' => [
+                    'topic_1' => '',
+                    'topic_2' => '',
+                    'topic_3' => '',
+                    'topic_4' => '',
+                    'topic_5' => ''
+                ],
+                'contact' => [],
+                'messaging' => []
+            ];
+        }
     }
     
     /**

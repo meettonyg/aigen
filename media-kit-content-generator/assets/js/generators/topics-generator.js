@@ -47,11 +47,20 @@
      */
     loadExistingData: function() {
       // Check if PHP passed data
-      if (window.MKCG_Topics_Data && window.MKCG_Topics_Data.hasData) {
-        console.log('📝 Loading data from PHP:', window.MKCG_Topics_Data);
-        this.populateFromPHPData(window.MKCG_Topics_Data);
+      if (window.MKCG_Topics_Data) {
+        // Check if we're in non-entry mode (user not logged in or no entry parameter)
+        if (window.MKCG_Topics_Data.noEntryParam) {
+          console.log('📝 No entry parameter - using empty data');
+          this.setDefaultData(); // This now sets empty values
+        } else if (window.MKCG_Topics_Data.hasData) {
+          console.log('📝 Loading data from PHP:', window.MKCG_Topics_Data);
+          this.populateFromPHPData(window.MKCG_Topics_Data);
+        } else {
+          console.log('📝 No data found but entry param exists - using empty data');
+          this.setDefaultData();
+        }
       } else {
-        console.log('📝 Using default data');
+        console.log('📝 MKCG_Topics_Data not available - using empty data');
         this.setDefaultData();
       }
     },
@@ -87,13 +96,13 @@
     },
     
     /**
-     * SIMPLIFIED: Set default data
+     * SIMPLIFIED: Set default data - empty values for non-logged in users
      */
     setDefaultData: function() {
-      this.fields.who = 'your audience';
-      this.fields.what = 'achieve their goals';
-      this.fields.when = 'they need help';
-      this.fields.how = 'through your method';
+      this.fields.who = '';
+      this.fields.what = '';
+      this.fields.when = '';
+      this.fields.how = '';
       
       this.updateInputFields();
     },
@@ -237,7 +246,7 @@
     generateTopics: function() {
       const authorityHook = document.querySelector('#topics-generator-authority-hook-text')?.textContent;
       
-      if (!authorityHook || authorityHook.includes('your audience')) {
+      if (!authorityHook || authorityHook.trim() === '') {
         this.showNotification('Please build your authority hook first', 'warning');
         return;
       }
@@ -270,9 +279,15 @@
     },
     
     /**
-     * SIMPLIFIED: Generate demo topics
+     * SIMPLIFIED: Generate demo topics - checks for noEntryParam
      */
     generateDemoTopics: function(authorityHook) {
+      // If no entry param, don't show demo topics
+      if (window.MKCG_Topics_Data && window.MKCG_Topics_Data.noEntryParam) {
+        this.showNotification('Please log in to generate topics', 'warning');
+        return;
+      }
+      
       const topics = [
         "The Authority Positioning Framework: How to Become the Go-To Expert in Your Niche",
         "Creating Content That Converts: A Strategic Approach to Audience Building",
