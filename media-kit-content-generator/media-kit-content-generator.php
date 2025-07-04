@@ -84,6 +84,91 @@ class Media_Kit_Content_Generator {
     }
     
     /**
+     * ROOT FIX: Questions Generator AJAX handlers
+     */
+    public function ajax_save_questions() {
+        // Delegate to Questions Generator
+        if (isset($this->generators['questions'])) {
+            $this->generators['questions']->handle_save_questions();
+        } else {
+            wp_send_json_error(['message' => 'Questions generator not available']);
+        }
+    }
+    
+    public function ajax_generate_questions() {
+        // Delegate to Questions Generator
+        if (isset($this->generators['questions'])) {
+            $this->generators['questions']->handle_generate_questions();
+        } else {
+            wp_send_json_error(['message' => 'Questions generator not available']);
+        }
+    }
+    
+    public function ajax_save_single_question() {
+        // Handle single question save (auto-save functionality)
+        if (!$this->verify_ajax_request()) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
+        
+        $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID required']);
+            return;
+        }
+        
+        $meta_key = sanitize_text_field($_POST['meta_key'] ?? '');
+        $question = sanitize_textarea_field($_POST['question'] ?? '');
+        
+        if (empty($meta_key) || empty($question)) {
+            wp_send_json_error(['message' => 'Meta key and question required']);
+            return;
+        }
+        
+        // Save using WordPress post meta
+        $result = update_post_meta($post_id, $meta_key, $question);
+        
+        if ($result !== false) {
+            wp_send_json_success([
+                'message' => 'Question saved successfully',
+                'meta_key' => $meta_key,
+                'post_id' => $post_id
+            ]);
+        } else {
+            wp_send_json_error(['message' => 'Failed to save question']);
+        }
+    }
+    
+    public function ajax_get_questions() {
+        // Delegate to Questions Generator
+        if (isset($this->generators['questions'])) {
+            $this->generators['questions']->handle_get_questions();
+        } else {
+            wp_send_json_error(['message' => 'Questions generator not available']);
+        }
+    }
+    
+    /**
+     * Simple AJAX request verification
+     */
+    private function verify_ajax_request() {
+        if (!is_user_logged_in()) {
+            return false;
+        }
+        
+        if (!current_user_can('edit_posts')) {
+            return false;
+        }
+        
+        $nonce = $_POST['nonce'] ?? $_POST['security'] ?? '';
+        if (empty($nonce)) {
+            return false;
+        }
+        
+        return wp_verify_nonce($nonce, 'mkcg_nonce');
+    }
+    
+    /**
      * SIMPLEST SOLUTION: Ensure AJAX handlers exist
      */
     private function ensure_ajax_handlers() {
@@ -123,6 +208,12 @@ class Media_Kit_Content_Generator {
         add_action('wp_ajax_mkcg_save_authority_hook', [$this, 'ajax_save_authority_hook']);
         add_action('wp_ajax_mkcg_generate_topics', [$this, 'ajax_generate_topics']);
         add_action('wp_ajax_mkcg_save_topic_field', [$this, 'ajax_save_topic_field']);
+        
+        // ROOT FIX: Add missing Questions Generator AJAX handlers
+        add_action('wp_ajax_mkcg_save_questions', [$this, 'ajax_save_questions']);
+        add_action('wp_ajax_mkcg_generate_questions', [$this, 'ajax_generate_questions']);
+        add_action('wp_ajax_mkcg_save_single_question', [$this, 'ajax_save_single_question']);
+        add_action('wp_ajax_mkcg_get_questions_data', [$this, 'ajax_get_questions']);
     }
     
     private function load_dependencies() {
@@ -473,8 +564,10 @@ class Media_Kit_Content_Generator {
                 'get_topics' => 'mkcg_get_topics_data',
                 'save_authority_hook' => 'mkcg_save_authority_hook',
                 'generate_topics' => 'mkcg_generate_topics',
-                'save_questions' => 'mkcg_save_questions_data',
-                'get_questions' => 'mkcg_get_questions_data'
+                'save_questions' => 'mkcg_save_questions',
+                'get_questions' => 'mkcg_get_questions_data',
+                'generate_questions' => 'mkcg_generate_questions',
+                'save_single_question' => 'mkcg_save_single_question'
             ]
         ]);
         

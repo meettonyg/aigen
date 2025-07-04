@@ -20,13 +20,9 @@ class Enhanced_Questions_Generator {
     }
     
     public function init() {
-        // Register AJAX actions for questions
-        add_action('wp_ajax_mkcg_generate_questions', [$this, 'handle_generate_questions']);
-        add_action('wp_ajax_nopriv_mkcg_generate_questions', [$this, 'handle_generate_questions']);
-        add_action('wp_ajax_mkcg_save_questions', [$this, 'handle_save_questions']);
-        add_action('wp_ajax_nopriv_mkcg_save_questions', [$this, 'handle_save_questions']);
-        add_action('wp_ajax_mkcg_get_questions_data', [$this, 'handle_get_questions']);
-        add_action('wp_ajax_nopriv_mkcg_get_questions_data', [$this, 'handle_get_questions']);
+        // ROOT FIX: AJAX actions are now registered in main plugin file to prevent conflicts
+        // This ensures single source of truth for AJAX handler registration
+        error_log('MKCG Questions Generator: Initialized (AJAX handlers managed by main plugin)');
     }
     
     /**
