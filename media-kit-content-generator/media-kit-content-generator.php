@@ -662,8 +662,8 @@ function mkcg_init() {
     return Media_Kit_Content_Generator::get_instance();
 }
 
-// Start the plugin
-mkcg_init();
+// Hook into plugins_loaded to ensure WordPress is ready
+add_action('plugins_loaded', 'mkcg_init');
 
 // Debug function to test CSS loading
 function mkcg_debug_css() {
