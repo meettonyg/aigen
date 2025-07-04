@@ -25,6 +25,7 @@ class Media_Kit_Content_Generator {
     private $api_service;
     private $pods_service;
     private $authority_hook_service;
+    private $ajax_handlers = null;
 
     private $generators = [];
     
@@ -44,10 +45,79 @@ class Media_Kit_Content_Generator {
         // CRITICAL FIX: Ensure global services are available immediately
         $this->ensure_global_services();
         
-        // SIMPLIFIED: No separate AJAX initialization needed - handled in generator
+        // CRITICAL FIX: Initialize AJAX handlers immediately
+        $this->init_ajax_handlers();
     }
     
-    // SIMPLIFIED: AJAX handlers are now initialized directly in the Enhanced_Topics_Generator
+    /**
+     * CRITICAL FIX: Initialize AJAX handlers at the root level
+     */
+    private function init_ajax_handlers() {
+        // Initialize AJAX handlers if not already done
+        if (isset($this->generators['topics']) && !isset($this->ajax_handlers)) {
+            require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_ajax_handlers.php';
+            $this->ajax_handlers = new Enhanced_AJAX_Handlers($this->pods_service, $this->generators['topics']);
+            error_log('MKCG: AJAX handlers initialized at root level');
+        }
+    }
+    
+    /**
+     * SIMPLE AJAX HANDLERS - Direct implementation
+     */
+    public function ajax_save_topics() {
+        if (!$this->ajax_handlers) {
+            $this->init_ajax_handlers();
+        }
+        if ($this->ajax_handlers) {
+            $this->ajax_handlers->handle_save_topics();
+        } else {
+            wp_send_json_error(['message' => 'AJAX handlers not initialized']);
+        }
+    }
+    
+    public function ajax_get_topics() {
+        if (!$this->ajax_handlers) {
+            $this->init_ajax_handlers();
+        }
+        if ($this->ajax_handlers) {
+            $this->ajax_handlers->handle_get_topics();
+        } else {
+            wp_send_json_error(['message' => 'AJAX handlers not initialized']);
+        }
+    }
+    
+    public function ajax_save_authority_hook() {
+        if (!$this->ajax_handlers) {
+            $this->init_ajax_handlers();
+        }
+        if ($this->ajax_handlers) {
+            $this->ajax_handlers->handle_save_authority_hook();
+        } else {
+            wp_send_json_error(['message' => 'AJAX handlers not initialized']);
+        }
+    }
+    
+    public function ajax_generate_topics() {
+        if (!$this->ajax_handlers) {
+            $this->init_ajax_handlers();
+        }
+        if ($this->ajax_handlers) {
+            $this->ajax_handlers->handle_generate_topics();
+        } else {
+            wp_send_json_error(['message' => 'AJAX handlers not initialized']);
+        }
+    }
+    
+    public function ajax_save_topic_field() {
+        if (!$this->ajax_handlers) {
+            $this->init_ajax_handlers();
+        }
+        if ($this->ajax_handlers) {
+            $this->ajax_handlers->handle_save_topic_field();
+        } else {
+            wp_send_json_error(['message' => 'AJAX handlers not initialized']);
+        }
+    }
     
     private function init_hooks() {
         add_action('init', [$this, 'init']);
@@ -57,6 +127,13 @@ class Media_Kit_Content_Generator {
         add_action('admin_menu', [$this, 'add_admin_menu']);
         register_activation_hook(__FILE__, [$this, 'activate']);
         register_deactivation_hook(__FILE__, [$this, 'deactivate']);
+        
+        // CRITICAL FIX: Register AJAX actions directly here - simplest solution
+        add_action('wp_ajax_mkcg_save_topics_data', [$this, 'ajax_save_topics']);
+        add_action('wp_ajax_mkcg_get_topics_data', [$this, 'ajax_get_topics']);
+        add_action('wp_ajax_mkcg_save_authority_hook', [$this, 'ajax_save_authority_hook']);
+        add_action('wp_ajax_mkcg_generate_topics', [$this, 'ajax_generate_topics']);
+        add_action('wp_ajax_mkcg_save_topic_field', [$this, 'ajax_save_topic_field']);
     }
     
     private function load_dependencies() {
@@ -148,6 +225,9 @@ class Media_Kit_Content_Generator {
         
         // CRITICAL FIX: Ensure global services are available early
         $this->ensure_global_services();
+        
+        // CRITICAL FIX: Initialize AJAX handlers HERE at the 'init' hook
+        $this->init_ajax_handlers();
         
         // Initialize generators if available
         if (!empty($this->generators)) {
@@ -445,7 +525,16 @@ class Media_Kit_Content_Generator {
         ?>
         <script type="text/javascript">
             var ajaxurl = "<?php echo admin_url('admin-ajax.php'); ?>";
+            // CRITICAL FIX: Ensure nonce is available globally
+            var mkcg_nonce = "<?php echo wp_create_nonce('mkcg_nonce'); ?>";
+            
+            // Make sure mkcg_vars exists with nonce
+            window.mkcg_vars = window.mkcg_vars || {};
+            window.mkcg_vars.nonce = window.mkcg_vars.nonce || mkcg_nonce;
+            window.mkcg_vars.ajax_url = window.mkcg_vars.ajax_url || ajaxurl;
+            
             console.log('MKCG: AJAX URL set to:', ajaxurl);
+            console.log('MKCG: Nonce set:', mkcg_nonce.substring(0, 10) + '...');
         </script>
         <?php
     }

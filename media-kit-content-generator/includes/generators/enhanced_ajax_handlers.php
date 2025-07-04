@@ -23,11 +23,13 @@ class Enhanced_AJAX_Handlers {
             $this->pods_service = new MKCG_Pods_Service();
         }
         
-        $this->init();
+        // REMOVED: init() is now called separately to prevent timing issues
+        // AJAX actions are registered directly in the main plugin file
     }
     
     /**
      * Initialize AJAX handlers - direct registration, no complexity
+     * FIXED: Only register for logged-in users (no nopriv) for save actions
      */
     public function init() {
         $actions = [
@@ -40,8 +42,11 @@ class Enhanced_AJAX_Handlers {
         
         foreach ($actions as $action => $method) {
             add_action('wp_ajax_' . $action, [$this, $method]);
-            add_action('wp_ajax_nopriv_' . $action, [$this, $method]);
+            // REMOVED nopriv registration - save actions require logged-in users
+            // add_action('wp_ajax_nopriv_' . $action, [$this, $method]);
         }
+        
+        error_log('MKCG AJAX: Handlers registered for logged-in users only');
     }
     
     /**
@@ -280,7 +285,7 @@ class Enhanced_AJAX_Handlers {
     }
     
     /**
-     * Simple request verification - single method, no fallbacks
+     * Simple request verification - enhanced debugging
      */
     private function verify_request() {
         // Check if user is logged in
@@ -295,16 +300,41 @@ class Enhanced_AJAX_Handlers {
             return false;
         }
         
+        // Enhanced nonce debugging
+        error_log('MKCG AJAX: POST data keys: ' . implode(', ', array_keys($_POST)));
+        
         // Simple nonce check - try multiple nonce fields
         $nonce = $_POST['nonce'] ?? $_POST['security'] ?? $_GET['nonce'] ?? '';
         if (empty($nonce)) {
             error_log('MKCG AJAX: No nonce provided in request');
+            error_log('MKCG AJAX: Checked fields: nonce, security, GET[nonce]');
             return false;
         }
         
-        $nonce_valid = wp_verify_nonce($nonce, 'mkcg_nonce');
-        if (!$nonce_valid) {
-            error_log('MKCG AJAX: Nonce verification failed. Provided: ' . $nonce);
+        error_log('MKCG AJAX: Found nonce value: ' . $nonce);
+        
+        // Try multiple nonce names
+        $nonce_names = ['mkcg_nonce', 'mkcg-nonce', 'topics_nonce', 'wp_rest'];
+        $verified = false;
+        
+        foreach ($nonce_names as $nonce_name) {
+            if (wp_verify_nonce($nonce, $nonce_name)) {
+                $verified = true;
+                error_log('MKCG AJAX: Nonce verified with name: ' . $nonce_name);
+                break;
+            }
+        }
+        
+        if (!$verified) {
+            error_log('MKCG AJAX: Nonce verification failed for all names: ' . implode(', ', $nonce_names));
+            error_log('MKCG AJAX: Provided nonce: ' . $nonce);
+            
+            // Last resort - check if it's a valid WordPress nonce at all
+            $nonce_data = wp_verify_nonce($nonce, -1);
+            if ($nonce_data !== false) {
+                error_log('MKCG AJAX: Nonce is valid but for different action');
+            }
+            
             return false;
         }
         

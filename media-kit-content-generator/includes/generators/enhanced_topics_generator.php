@@ -9,7 +9,6 @@ class Enhanced_Topics_Generator {
     
     private $api_service;
     private $pods_service;
-    private $ajax_handlers;
     
     /**
      * Constructor - Pure Pods service integration
@@ -28,8 +27,8 @@ class Enhanced_Topics_Generator {
      * Initialize - direct and simple
      */
     public function init() {
-        // Initialize AJAX handlers (pure Pods)
-        $this->ajax_handlers = new Enhanced_AJAX_Handlers($this->pods_service, $this);
+        // REMOVED: AJAX handlers now initialized at root level in main plugin file
+        // This prevents timing issues and ensures handlers are registered properly
         
         // Add any WordPress hooks needed
         add_action('wp_enqueue_scripts', [$this, 'enqueue_scripts']);
