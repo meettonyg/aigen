@@ -192,7 +192,7 @@ class MKCG_Pods_Service {
     }
     
     /**
-     * Get authority hook components from Pods fields - ENHANCED with multi-source fallback
+     * Get authority hook components from Pods fields - ENHANCED with multi-source fallback and debugging
      */
     public function get_authority_hook_components($post_id) {
         error_log("MKCG Pods Service: Loading authority hook components for post {$post_id}");
@@ -218,7 +218,7 @@ class MKCG_Pods_Service {
             error_log("MKCG Pods Service: WHO not found in taxonomy or meta. Using default: '{$components['who']}'");
         }
 
-        // --- Other Components (WHAT, WHEN, HOW, etc.) ---
+        // --- Other Components (WHAT, WHEN, HOW, etc.) with ENHANCED DEBUGGING ---
         $other_components = [
             'what'  => 'hook_what',
             'when'  => 'hook_when',
@@ -227,9 +227,34 @@ class MKCG_Pods_Service {
             'why'   => 'hook_why'
         ];
 
+        // ENHANCED DEBUG: Check ALL meta fields to see what authority hook data exists
+        error_log("MKCG Pods Service: ENHANCED DEBUG - Checking authority hook meta fields for post {$post_id}");
+        $all_meta = get_post_meta($post_id);
+        $hook_like_keys = array_filter(array_keys($all_meta), function($key) {
+            return strpos(strtolower($key), 'hook') !== false;
+        });
+        error_log("MKCG Pods Service: DEBUG - Hook-like meta keys found: " . implode(', ', $hook_like_keys));
+        
         foreach ($other_components as $key => $field_name) {
             $value = get_post_meta($post_id, $field_name, true);
-            $components[$key] = !empty($value) ? trim($value) : $defaults[$key];
+            
+            // ENHANCED DEBUG: Log what we found for each field
+            error_log("MKCG Pods Service: ENHANCED DEBUG - Field '{$field_name}' for component '{$key}': '" . ($value ?: 'EMPTY') . "'");
+            
+            // Check if value is meaningful (not just the field name or empty)
+            if (!empty($value) && trim($value) !== ucfirst($key) && trim($value) !== $defaults[$key]) {
+                $components[$key] = trim($value);
+                error_log("MKCG Pods Service: ✅ Using meaningful value for '{$key}': '{$components[$key]}'");
+            } else {
+                $components[$key] = $defaults[$key];
+                error_log("MKCG Pods Service: ⚠️ Using default for '{$key}': '{$components[$key]}' (original value: '" . ($value ?: 'EMPTY') . "')");
+            }
+        }
+        
+        // ENHANCED DEBUG: Log final authority hook components
+        error_log("MKCG Pods Service: FINAL AUTHORITY HOOK COMPONENTS:");
+        foreach ($components as $comp_key => $comp_value) {
+            error_log("MKCG Pods Service: - {$comp_key}: '{$comp_value}'");
         }
 
         // Build the complete authority hook sentence
@@ -241,6 +266,8 @@ class MKCG_Pods_Service {
             $components['where'],
             $components['why']
         );
+        
+        error_log("MKCG Pods Service: Complete authority hook: '{$components['complete']}'");
         
         return $components;
     }
