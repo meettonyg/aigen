@@ -298,6 +298,8 @@ $authority_hook_components = $template_data['authority_hook_components'];
 $form_field_values = $template_data['form_field_values'];
 $has_data = $template_data['has_data'];
 
+// CRITICAL DEBUG: Log the actual authority hook data
+error_log('MKCG Topics Template: Authority Hook Components: ' . json_encode($authority_hook_components));
 error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_data=' . ($has_data ? 'true' : 'false'));
 ?>
 
@@ -344,44 +346,34 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
                 <!-- Authority Hook Builder - CENTRALIZED SERVICE -->                
                 <div class="topics-generator__builder topics-generator__builder--hidden mkcg-authority-hook authority-hook-builder" id="topics-generator-authority-hook-builder" data-component="authority-hook">
                     <?php 
-                    // Use centralized Authority Hook Service instead of shared template
-                    global $authority_hook_service;
+                    // USE CENTRALIZED AUTHORITY HOOK SERVICE - PROPER ARCHITECTURE
                     
-                    if ($authority_hook_service) {
-                        // Prepare current values for the service
-                        $current_values = [
-                            'who' => (!empty($authority_hook_components['who']) && $authority_hook_components['who'] !== 'your audience') 
-                                   ? $authority_hook_components['who'] 
-                                   : 'your audience',
-                            'what' => (!empty($authority_hook_components['what']) && !in_array($authority_hook_components['what'], ['What', 'achieve their goals'])) 
-                                    ? $authority_hook_components['what'] 
-                                    : 'achieve their goals',
-                            'when' => (!empty($authority_hook_components['when']) && !in_array($authority_hook_components['when'], ['When', 'they need help'])) 
-                                    ? $authority_hook_components['when'] 
-                                    : 'they need help',
-                            'how' => (!empty($authority_hook_components['how']) && !in_array($authority_hook_components['how'], ['How', 'through your method'])) 
-                                   ? $authority_hook_components['how'] 
-                                   : 'through your method'
-                        ];
-                        
-                        // Render options for this generator
-                        $render_options = [
-                            'show_preview' => false, // No preview/copy functionality
-                            'show_examples' => true,
-                            'show_audience_manager' => true,
-                            'css_classes' => 'authority-hook',
-                            'field_prefix' => 'mkcg-',
-                            'tabs_enabled' => true
-                        ];
-                        
-                        // Use centralized service to render Authority Hook Builder
-                        echo $authority_hook_service->render_authority_hook_builder('topics', $current_values, $render_options);
-                        
-                        error_log('MKCG Topics: Authority Hook Builder rendered via centralized service');
-                    } else {
-                        echo '<div style="background: #ffebee; border: 1px solid #f44336; padding: 15px; border-radius: 4px;">❌ Authority Hook Service not available</div>';
-                        error_log('MKCG Topics: ERROR - Authority Hook Service not available');
+                    // Initialize the service if not already available
+                    if (!isset($GLOBALS['authority_hook_service'])) {
+                        $GLOBALS['authority_hook_service'] = new MKCG_Authority_Hook_Service();
                     }
+                    $authority_hook_service = $GLOBALS['authority_hook_service'];
+                    
+                    // Prepare current values for the service
+                    $current_values = [
+                        'who' => $authority_hook_components['who'] ?? 'your audience',
+                        'what' => $authority_hook_components['what'] ?? 'achieve their goals', 
+                        'when' => $authority_hook_components['when'] ?? 'they need help',
+                        'how' => $authority_hook_components['how'] ?? 'through your method'
+                    ];
+                    
+                    // Render options for Topics Generator
+                    $render_options = [
+                        'show_preview' => false, // No preview in topics generator
+                        'show_examples' => true,
+                        'show_audience_manager' => true,
+                        'css_classes' => 'authority-hook',
+                        'field_prefix' => 'mkcg-',
+                        'tabs_enabled' => true
+                    ];
+                    
+                    // Render the Authority Hook Builder using centralized service
+                    echo $authority_hook_service->render_authority_hook_builder('topics', $current_values, $render_options);
                     ?>
                 </div>
                 

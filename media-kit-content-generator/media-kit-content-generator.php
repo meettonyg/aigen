@@ -41,6 +41,9 @@ class Media_Kit_Content_Generator {
         $this->init_services();
         $this->init_generators();
         
+        // CRITICAL FIX: Ensure global services are available immediately
+        $this->ensure_global_services();
+        
         // SIMPLIFIED: No separate AJAX initialization needed - handled in generator
     }
     
@@ -80,9 +83,40 @@ class Media_Kit_Content_Generator {
         
         // Initialize Authority Hook Service (centralized functionality)
         $this->authority_hook_service = new MKCG_Authority_Hook_Service();
-
+        
+        // CRITICAL FIX: Make Authority Hook Service available globally for templates
+        global $authority_hook_service;
+        $authority_hook_service = $this->authority_hook_service;
         
         error_log('MKCG: Services initialized with Pods as primary data source and centralized Authority Hook service');
+        error_log('MKCG: Authority Hook Service made available globally for templates');
+    }
+    
+    /**
+     * CRITICAL FIX: Ensure global services are available
+     */
+    private function ensure_global_services() {
+        global $authority_hook_service, $pods_service, $api_service;
+        
+        if (!$authority_hook_service && isset($this->authority_hook_service)) {
+            $authority_hook_service = $this->authority_hook_service;
+            error_log('MKCG: Global authority_hook_service variable set');
+        }
+        
+        if (!$pods_service && isset($this->pods_service)) {
+            $pods_service = $this->pods_service;
+            error_log('MKCG: Global pods_service variable set');
+        }
+        
+        if (!$api_service && isset($this->api_service)) {
+            $api_service = $this->api_service;
+            error_log('MKCG: Global api_service variable set');
+        }
+        
+        // Debug confirmation
+        error_log('MKCG: Global services status - Authority Hook: ' . (isset($authority_hook_service) ? 'SET' : 'NOT SET') . 
+                  ', Pods: ' . (isset($pods_service) ? 'SET' : 'NOT SET') . 
+                  ', API: ' . (isset($api_service) ? 'SET' : 'NOT SET'));
     }
     
     // SIMPLIFIED: Basic validation no longer needed with simplified architecture
@@ -111,6 +145,9 @@ class Media_Kit_Content_Generator {
      */
     public function init() {
         error_log('MKCG: Starting simplified plugin initialization');
+        
+        // CRITICAL FIX: Ensure global services are available early
+        $this->ensure_global_services();
         
         // Initialize generators if available
         if (!empty($this->generators)) {
@@ -153,6 +190,9 @@ class Media_Kit_Content_Generator {
         
         ob_start();
         
+        // CRITICAL FIX: Ensure global variables are set for template
+        $this->ensure_global_services();
+        
         // SIMPLIFIED: Set required global variables for template
         global $pods_service, $generator_instance, $generator_type, $authority_hook_service;
         $pods_service = $this->pods_service; // Primary data source
@@ -176,6 +216,9 @@ class Media_Kit_Content_Generator {
      * Biography Generator Shortcode (placeholder)
      */
     public function biography_shortcode($atts) {
+        // CRITICAL FIX: Ensure global variables are set
+        $this->ensure_global_services();
+        
         return '<div class="mkcg-placeholder">Biography Generator - Coming Soon</div>';
     }
     
@@ -183,6 +226,9 @@ class Media_Kit_Content_Generator {
      * Offers Generator Shortcode (placeholder)
      */
     public function offers_shortcode($atts) {
+        // CRITICAL FIX: Ensure global variables are set
+        $this->ensure_global_services();
+        
         return '<div class="mkcg-placeholder">Offers Generator - Coming Soon</div>';
     }
     
@@ -198,6 +244,9 @@ class Media_Kit_Content_Generator {
         $this->enqueue_scripts();
         
         ob_start();
+        
+        // CRITICAL FIX: Ensure global variables are set for template
+        $this->ensure_global_services();
         
         // CRITICAL FIX: Set ALL required global variables for template
         global $pods_service, $generator_instance, $generator_type, $authority_hook_service;
@@ -495,8 +544,6 @@ class Media_Kit_Content_Generator {
         echo '</div>';
         echo '</div>';
     }
-    
-
     
     // SIMPLIFIED: Basic getter methods
     public function get_api_service() {

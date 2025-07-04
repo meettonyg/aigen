@@ -179,8 +179,9 @@ class MKCG_Authority_Hook_Service {
         // Sanitize current values
         $current_values = $this->sanitize_components($current_values);
         
-        // Generate unique IDs for this instance
-        $instance_id = uniqid('auth_hook_');
+        // Use consistent IDs for JavaScript compatibility
+        // Don't use unique IDs as it breaks JavaScript expectations
+        $instance_id = $generator_type; // Use generator type as instance ID
         
         ob_start();
         ?>
@@ -201,29 +202,29 @@ class MKCG_Authority_Hook_Service {
                 <!-- Tab Navigation -->
                 <div class="tabs">
                     <!-- WHO Tab -->
-                    <input type="radio" id="tabwho_<?php echo $instance_id; ?>" name="authority-tabs-<?php echo $instance_id; ?>" class="tabs__input" checked>
-                    <label for="tabwho_<?php echo $instance_id; ?>" class="tabs__label">WHO</label>
+                    <input type="radio" id="tabwho" name="authority-tabs" class="tabs__input" checked>
+                    <label for="tabwho" class="tabs__label">WHO</label>
                     <div class="tabs__panel">
                         <?php echo $this->render_who_field($current_values['who'], $options, $instance_id); ?>
                     </div>
                     
                     <!-- RESULT Tab -->
-                    <input type="radio" id="tabresult_<?php echo $instance_id; ?>" name="authority-tabs-<?php echo $instance_id; ?>" class="tabs__input">
-                    <label for="tabresult_<?php echo $instance_id; ?>" class="tabs__label">RESULT</label>
+                    <input type="radio" id="tabresult" name="authority-tabs" class="tabs__input">
+                    <label for="tabresult" class="tabs__label">RESULT</label>
                     <div class="tabs__panel">
                         <?php echo $this->render_result_field($current_values['what'], $options, $instance_id); ?>
                     </div>
                     
                     <!-- WHEN Tab -->
-                    <input type="radio" id="tabwhen_<?php echo $instance_id; ?>" name="authority-tabs-<?php echo $instance_id; ?>" class="tabs__input">
-                    <label for="tabwhen_<?php echo $instance_id; ?>" class="tabs__label">WHEN</label>
+                    <input type="radio" id="tabwhen" name="authority-tabs" class="tabs__input">
+                    <label for="tabwhen" class="tabs__label">WHEN</label>
                     <div class="tabs__panel">
                         <?php echo $this->render_when_field($current_values['when'], $options, $instance_id); ?>
                     </div>
                     
                     <!-- HOW Tab -->
-                    <input type="radio" id="tabhow_<?php echo $instance_id; ?>" name="authority-tabs-<?php echo $instance_id; ?>" class="tabs__input">
-                    <label for="tabhow_<?php echo $instance_id; ?>" class="tabs__label">HOW</label>
+                    <input type="radio" id="tabhow" name="authority-tabs" class="tabs__input">
+                    <label for="tabhow" class="tabs__label">HOW</label>
                     <div class="tabs__panel">
                         <?php echo $this->render_how_field($current_values['how'], $options, $instance_id); ?>
                     </div>
@@ -250,7 +251,7 @@ class MKCG_Authority_Hook_Service {
                     <span class="authority-hook__ai-label badge badge--ai">AI GENERATED</span>
                 </div>
                 
-                <div id="authority-hook-content-<?php echo $instance_id; ?>" class="authority-hook__content">
+                <div id="authority-hook-content" class="authority-hook__content">
                     I help <span class="authority-hook__highlight"><?php echo esc_html($current_values['who']); ?></span> 
                     <span class="authority-hook__highlight"><?php echo esc_html($current_values['what']); ?></span> 
                     when <span class="authority-hook__highlight"><?php echo esc_html($current_values['when']); ?></span> 
@@ -258,7 +259,7 @@ class MKCG_Authority_Hook_Service {
                 </div>
                 
                 <div class="button-group">
-                    <button type="button" id="copy-authority-hook-btn-<?php echo $instance_id; ?>" class="button button--copy">
+                    <button type="button" id="copy-authority-hook-btn" class="button button--copy">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
                         </svg>
@@ -269,7 +270,7 @@ class MKCG_Authority_Hook_Service {
             <?php endif; ?>
             
             <!-- Hidden field to store the complete hook -->
-            <input type="hidden" id="<?php echo $options['field_prefix']; ?>authority-hook" name="authority_hook" value="<?php echo esc_attr($this->build_complete_hook($current_values)); ?>">
+            <input type="hidden" id="mkcg-authority-hook" name="authority_hook" value="<?php echo esc_attr($this->build_complete_hook($current_values)); ?>">
         </div>
         
         <?php
@@ -558,13 +559,13 @@ class MKCG_Authority_Hook_Service {
                 <label>🎯 <strong>Audience Manager</strong> - Add and Select Your Target Audiences:</label>
                 <p class="helper-text">This is where you manage your audiences. Add new ones and check the boxes to include them in your Authority Hook.</p>
                 <div class="input-container">
-                    <input type="text" id="tag_input_<?php echo $instance_id; ?>" placeholder="Type an audience (e.g., SaaS founders) and press Enter">
-                    <button type="button" id="add_tag_<?php echo $instance_id; ?>" class="button">Add Audience</button>
-                </div>
-                <div id="tags_container_<?php echo $instance_id; ?>" class="tags-container--enhanced"></div>
-                
-                <div class="audience-manager-status">
-                    <small class="status-text">📊 <span id="audience-count-<?php echo $instance_id; ?>">0</span> audiences added | <span id="selected-count-<?php echo $instance_id; ?>">0</span> selected for Authority Hook</small>
+                    <input type="text" id="tag_input" placeholder="Type an audience (e.g., SaaS founders) and press Enter">
+                    <button type="button" id="add_tag" class="button">Add Audience</button>
+                    </div>
+                    <div id="tags_container" class="tags-container--enhanced"></div>
+                    
+                    <div class="audience-manager-status">
+                    <small class="status-text">📊 <span id="audience-count">0</span> audiences added | <span id="selected-count">0</span> selected for Authority Hook</small>
                 </div>
             </div>
             <?php endif; ?>
