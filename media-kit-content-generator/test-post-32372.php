@@ -107,7 +107,61 @@ if (class_exists('MKCG_Pods_Service')) {
     $is_guests = $pods_service->is_guests_post($post_id);
     echo '<div class="debug ' . ($is_guests ? 'found' : 'missing') . '">is_guests_post(' . $post_id . '): ' . ($is_guests ? 'TRUE' : 'FALSE') . '</div>';
     
+    // CRITICAL: Test audience taxonomy specifically
+    echo '<h3>🎯 Audience Taxonomy Debug:</h3>';
+    
+    // Check if audience taxonomy exists
+    $audience_taxonomy = get_taxonomy('audience');
+    if ($audience_taxonomy) {
+        echo '<div class="debug found">✅ Audience taxonomy exists: ' . $audience_taxonomy->label . '</div>';
+        echo '<div class="debug">📊 Taxonomy object types: ' . implode(', ', $audience_taxonomy->object_type) . '</div>';
+    } else {
+        echo '<div class="debug missing">❌ Audience taxonomy not found!</div>';
+    }
+    
+    // Get audience terms for this post
+    $audience_terms = wp_get_post_terms($post_id, 'audience', ['fields' => 'all']);
+    if (is_wp_error($audience_terms)) {
+        echo '<div class="debug missing">❌ Error getting audience terms: ' . $audience_terms->get_error_message() . '</div>';
+    } elseif (empty($audience_terms)) {
+        echo '<div class="debug missing">❌ No audience terms assigned to post ' . $post_id . '</div>';
+        
+        // Show all available audience terms
+        $all_audience_terms = get_terms(['taxonomy' => 'audience', 'hide_empty' => false]);
+        if (!empty($all_audience_terms) && !is_wp_error($all_audience_terms)) {
+            echo '<div class="debug">💡 Available audience terms: ';
+            foreach ($all_audience_terms as $term) {
+                echo $term->name . ' (ID: ' . $term->term_id . '), ';
+            }
+            echo '</div>';
+        } else {
+            echo '<div class="debug missing">❌ No audience terms exist in the system</div>';
+        }
+    } else {
+        echo '<div class="debug found">✅ Found ' . count($audience_terms) . ' audience terms for post ' . $post_id . ':</div>';
+        foreach ($audience_terms as $term) {
+            echo '<div class="debug found">- ' . $term->name . ' (ID: ' . $term->term_id . ', Slug: ' . $term->slug . ')</div>';
+        }
+    }
+    
+    // Test the new audience method directly
+    echo '<h3>🔧 Direct Method Test:</h3>';
+    
+    // Use reflection to call the private method
+    $reflection = new ReflectionClass($pods_service);
+    $get_audience_method = $reflection->getMethod('get_audience_from_taxonomy');
+    $get_audience_method->setAccessible(true);
+    
+    $audience_result = $get_audience_method->invoke($pods_service, $post_id);
+    
+    if (!empty($audience_result)) {
+        echo '<div class="debug found">✅ get_audience_from_taxonomy() returned: "' . esc_html($audience_result) . '"</div>';
+    } else {
+        echo '<div class="debug missing">❌ get_audience_from_taxonomy() returned empty</div>';
+    }
+    
     // Test get_guest_data
+    echo '<h3>📊 Full Pods Service Results:</h3>';
     $guest_data = $pods_service->get_guest_data($post_id);
     echo '<div class="debug">📊 Pods service get_guest_data results:</div>';
     echo '<div class="debug">- has_data: ' . ($guest_data['has_data'] ? 'TRUE' : 'FALSE') . '</div>';
