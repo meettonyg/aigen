@@ -2,14 +2,50 @@
 /**
  * Root Level Simplification Test
  * Validates that all major components work with pure Pods integration
- * Run this from wp-admin or include it to test the changes
+ * Can be run directly from the plugin folder
  */
 
-// Prevent direct access unless in WordPress context
+// Load WordPress if not already loaded
 if (!defined('ABSPATH')) {
-    // For testing outside WordPress, you can comment this out
-    echo "This file must be run within WordPress context.\n";
-    exit;
+    // Try to find WordPress root
+    $wp_load_paths = [
+        __DIR__ . '/../../../../wp-load.php',  // Standard plugin location
+        __DIR__ . '/../../../wp-load.php',     // Alternative location
+        __DIR__ . '/../../wp-load.php',        // Another alternative
+        __DIR__ . '/../wp-load.php',           // Direct in wp-content
+    ];
+    
+    $wp_loaded = false;
+    foreach ($wp_load_paths as $wp_load_path) {
+        if (file_exists($wp_load_path)) {
+            require_once $wp_load_path;
+            $wp_loaded = true;
+            break;
+        }
+    }
+    
+    if (!$wp_loaded) {
+        echo "<h1>❌ WordPress Not Found</h1>\n";
+        echo "<p>Could not locate WordPress installation. Please run this file from:</p>\n";
+        echo "<ul>\n";
+        echo "<li>WordPress admin area (Tools > MKCG Root Test)</li>\n";
+        echo "<li>Or place this plugin in the correct wp-content/plugins/ directory</li>\n";
+        echo "</ul>\n";
+        echo "<p>Tried paths:</p><ul>\n";
+        foreach ($wp_load_paths as $path) {
+            echo "<li>" . htmlspecialchars($path) . " - " . (file_exists($path) ? "Found" : "Not found") . "</li>\n";
+        }
+        echo "</ul>\n";
+        exit;
+    }
+}
+
+// Ensure plugin constants are defined
+if (!defined('MKCG_PLUGIN_PATH')) {
+    define('MKCG_PLUGIN_PATH', plugin_dir_path(__FILE__));
+}
+if (!defined('MKCG_PLUGIN_URL')) {
+    define('MKCG_PLUGIN_URL', plugin_dir_url(__FILE__));
 }
 
 echo "<h1>🔧 Media Kit Content Generator - Root Level Simplification Test</h1>\n";
