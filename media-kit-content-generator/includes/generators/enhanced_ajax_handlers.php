@@ -543,6 +543,181 @@ class Enhanced_AJAX_Handlers {
     }
     
     /**
+     * ROOT FIX: Handle generate offers request
+     */
+    public function handle_generate_offers() {
+        if (!$this->verify_request()) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
+        
+        $authority_hook = sanitize_textarea_field($_POST['authority_hook'] ?? '');
+        $business_type = sanitize_text_field($_POST['business_type'] ?? '');
+        $target_audience = sanitize_textarea_field($_POST['target_audience'] ?? '');
+        $price_range = sanitize_text_field($_POST['price_range'] ?? 'mid');
+        $delivery_method = sanitize_text_field($_POST['delivery_method'] ?? 'online');
+        $offer_count = intval($_POST['offer_count'] ?? 5);
+        
+        if (empty($authority_hook)) {
+            wp_send_json_error(['message' => 'Authority hook is required']);
+            return;
+        }
+        
+        if (empty($business_type)) {
+            wp_send_json_error(['message' => 'Business type is required']);
+            return;
+        }
+        
+        if (empty($target_audience)) {
+            wp_send_json_error(['message' => 'Target audience is required']);
+            return;
+        }
+        
+        // Generate demo offers (replace with actual API call)
+        $offers = $this->generate_demo_offers($authority_hook, $business_type, $target_audience, $price_range, $delivery_method, $offer_count);
+        
+        wp_send_json_success([
+            'offers' => $offers,
+            'count' => count($offers),
+            'authority_hook' => $authority_hook,
+            'business_type' => $business_type,
+            'target_audience' => $target_audience
+        ]);
+    }
+    
+    /**
+     * ROOT FIX: Handle save offers request
+     */
+    public function handle_save_offers() {
+        if (!$this->verify_request()) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
+        
+        $post_id = $this->get_post_id();
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID required']);
+            return;
+        }
+        
+        $offers = $_POST['offers'] ?? [];
+        $business_info = [
+            'business_type' => sanitize_text_field($_POST['business_type'] ?? ''),
+            'target_audience' => sanitize_textarea_field($_POST['target_audience'] ?? ''),
+            'price_range' => sanitize_text_field($_POST['price_range'] ?? ''),
+            'delivery_method' => sanitize_text_field($_POST['delivery_method'] ?? '')
+        ];
+        
+        if (empty($offers)) {
+            wp_send_json_error(['message' => 'No offers provided to save']);
+            return;
+        }
+        
+        // Save offers using post meta
+        $results = [];
+        foreach ($offers as $index => $offer) {
+            $meta_key = 'offer_' . ($index + 1);
+            $result = update_post_meta($post_id, $meta_key, sanitize_textarea_field($offer));
+            $results[$meta_key] = $result;
+        }
+        
+        // Save business info
+        foreach ($business_info as $key => $value) {
+            if (!empty($value)) {
+                update_post_meta($post_id, 'offers_' . $key, $value);
+            }
+        }
+        
+        wp_send_json_success([
+            'message' => 'Offers saved successfully',
+            'post_id' => $post_id,
+            'saved_offers' => count($offers),
+            'results' => $results
+        ]);
+    }
+    
+    /**
+     * Generate demo offers based on business context
+     */
+    private function generate_demo_offers($authority_hook, $business_type, $target_audience, $price_range, $delivery_method, $count = 5) {
+        // Create contextual offers based on the provided information
+        $offers = [];
+        
+        // Free offer
+        $offers[] = $this->create_free_offer($authority_hook, $business_type, $target_audience);
+        
+        // Low-ticket offers
+        $offers[] = $this->create_low_ticket_offer($authority_hook, $business_type, $target_audience, $price_range, $delivery_method);
+        
+        // Premium offers
+        $offers[] = $this->create_premium_offer($authority_hook, $business_type, $target_audience, $price_range, $delivery_method);
+        
+        // Additional offers based on business type
+        if ($count > 3) {
+            $offers[] = $this->create_group_offer($authority_hook, $business_type, $target_audience, $delivery_method);
+        }
+        
+        if ($count > 4) {
+            $offers[] = $this->create_vip_offer($authority_hook, $business_type, $target_audience, $price_range);
+        }
+        
+        return array_slice($offers, 0, $count);
+    }
+    
+    private function create_free_offer($authority_hook, $business_type, $target_audience) {
+        $what = $this->extract_what_from_hook($authority_hook);
+        return "Free: \"The {$what} Audit Checklist\" – A practical guide to identify opportunities in your {$business_type} process, complete with implementation templates and ROI calculators.";
+    }
+    
+    private function create_low_ticket_offer($authority_hook, $business_type, $target_audience, $price_range, $delivery_method) {
+        $what = $this->extract_what_from_hook($authority_hook);
+        $price = $this->get_price_for_range($price_range, 'low');
+        $format = $delivery_method === 'online' ? 'virtual workshop' : 'intensive session';
+        return "Low-Ticket: \"{$what} Accelerator Workshop ({$price})\" – A 3-hour {$format} where {$target_audience} learn how to implement proven strategies with practical, same-day implementation.";
+    }
+    
+    private function create_premium_offer($authority_hook, $business_type, $target_audience, $price_range, $delivery_method) {
+        $what = $this->extract_what_from_hook($authority_hook);
+        $price = $this->get_price_for_range($price_range, 'premium');
+        $duration = $delivery_method === 'online' ? '3-month' : '90-day';
+        return "Premium: \"Elite {$what} Growth Accelerator ({$price})\" – A {$duration} done-with-you program where we implement complete systems customized for your {$business_type} business, including strategy, setup, and optimization.";
+    }
+    
+    private function create_group_offer($authority_hook, $business_type, $target_audience, $delivery_method) {
+        $what = $this->extract_what_from_hook($authority_hook);
+        $format = $delivery_method === 'online' ? 'virtual mastermind' : 'group program';
+        return "Group: \"{$what} Mastermind ({$this->get_price_for_range('mid', 'group')})\" – A 6-month {$format} where {$target_audience} work together to implement proven strategies with weekly group coaching and peer accountability.";
+    }
+    
+    private function create_vip_offer($authority_hook, $business_type, $target_audience, $price_range) {
+        $what = $this->extract_what_from_hook($authority_hook);
+        $price = $this->get_price_for_range($price_range, 'vip');
+        return "VIP: \"Done-For-You {$what} Implementation ({$price})\" – Complete {$business_type} transformation where we handle everything from strategy to execution, delivering a fully optimized system in 90 days.";
+    }
+    
+    private function extract_what_from_hook($authority_hook) {
+        // Simple extraction of the main value proposition
+        if (stripos($authority_hook, 'marketing') !== false) return 'Marketing';
+        if (stripos($authority_hook, 'sales') !== false) return 'Sales';
+        if (stripos($authority_hook, 'business') !== false) return 'Business Growth';
+        if (stripos($authority_hook, 'revenue') !== false) return 'Revenue';
+        if (stripos($authority_hook, 'clients') !== false) return 'Client Acquisition';
+        if (stripos($authority_hook, 'scale') !== false) return 'Scaling';
+        return 'Success';
+    }
+    
+    private function get_price_for_range($price_range, $offer_type) {
+        $price_ranges = [
+            'budget' => ['low' => '$197', 'group' => '$497', 'premium' => '$997', 'vip' => '$2,497'],
+            'mid' => ['low' => '$497', 'group' => '$997', 'premium' => '$2,997', 'vip' => '$7,497'],
+            'premium' => ['low' => '$997', 'group' => '$1,997', 'premium' => '$4,997', 'vip' => '$12,497'],
+            'luxury' => ['low' => '$1,997', 'group' => '$4,997', 'premium' => '$9,997', 'vip' => '$24,997']
+        ];
+        
+        return $price_ranges[$price_range][$offer_type] ?? '$997';
+    }
+    
+    /**
      * Generate demo topics - simple placeholder
      */
     private function generate_demo_topics($authority_hook) {

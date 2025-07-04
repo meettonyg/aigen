@@ -149,6 +149,21 @@ class Media_Kit_Content_Generator {
     }
     
     /**
+     * ROOT FIX: Offers Generator AJAX handlers
+     */
+    public function ajax_generate_offers() {
+        // Initialize on demand
+        $this->ensure_ajax_handlers();
+        $this->ajax_handlers->handle_generate_offers();
+    }
+    
+    public function ajax_save_offers() {
+        // Initialize on demand
+        $this->ensure_ajax_handlers();
+        $this->ajax_handlers->handle_save_offers();
+    }
+    
+    /**
      * Simple AJAX request verification
      */
     private function verify_ajax_request() {
@@ -214,6 +229,10 @@ class Media_Kit_Content_Generator {
         add_action('wp_ajax_mkcg_generate_questions', [$this, 'ajax_generate_questions']);
         add_action('wp_ajax_mkcg_save_single_question', [$this, 'ajax_save_single_question']);
         add_action('wp_ajax_mkcg_get_questions_data', [$this, 'ajax_get_questions']);
+        
+        // ROOT FIX: Add missing Offers Generator AJAX handlers
+        add_action('wp_ajax_mkcg_generate_offers', [$this, 'ajax_generate_offers']);
+        add_action('wp_ajax_mkcg_save_offers', [$this, 'ajax_save_offers']);
     }
     
     private function load_dependencies() {
@@ -382,13 +401,38 @@ class Media_Kit_Content_Generator {
     }
     
     /**
-     * Offers Generator Shortcode (placeholder)
+     * Offers Generator Shortcode - Active implementation
      */
     public function offers_shortcode($atts) {
-        // CRITICAL FIX: Ensure global variables are set
+        $atts = shortcode_atts([
+            'post_id' => 0
+        ], $atts);
+        
+        // Force load scripts for shortcode
+        $this->enqueue_scripts();
+        
+        ob_start();
+        
+        // CRITICAL FIX: Ensure global variables are set for template
         $this->ensure_global_services();
         
-        return '<div class="mkcg-placeholder">Offers Generator - Coming Soon</div>';
+        // SIMPLIFIED: Set required global variables for template
+        global $pods_service, $generator_instance, $generator_type, $authority_hook_service;
+        $pods_service = $this->pods_service; // Primary data source
+        $authority_hook_service = $this->authority_hook_service; // Centralized Authority Hook functionality
+        $generator_instance = null; // Offers generator doesn't need a specific instance yet
+        $generator_type = 'offers';
+        
+        // Also make services available
+        global $api_service;
+        $api_service = $this->api_service;
+        
+        error_log('MKCG Shortcode: Loading offers template with centralized Authority Hook service');
+        
+        // Include the template
+        include MKCG_PLUGIN_PATH . 'templates/generators/offers/default.php';
+        
+        return ob_get_clean();
     }
     
     /**
@@ -533,6 +577,14 @@ class Media_Kit_Content_Generator {
             true
         );
         
+        wp_enqueue_script(
+            'offers-generator',
+            MKCG_PLUGIN_URL . 'assets/js/generators/offers-generator.js',
+            ['simple-event-bus', 'simple-ajax', 'authority-hook-service-integration'],
+            MKCG_VERSION,
+            true
+        );
+        
         // Pass data to JavaScript - UPDATED for Pods integration
         wp_localize_script('simple-ajax', 'mkcg_vars', [
             'ajax_url' => admin_url('admin-ajax.php'),
@@ -567,7 +619,9 @@ class Media_Kit_Content_Generator {
                 'save_questions' => 'mkcg_save_questions',
                 'get_questions' => 'mkcg_get_questions_data',
                 'generate_questions' => 'mkcg_generate_questions',
-                'save_single_question' => 'mkcg_save_single_question'
+                'save_single_question' => 'mkcg_save_single_question',
+                'generate_offers' => 'mkcg_generate_offers',
+                'save_offers' => 'mkcg_save_offers'
             ]
         ]);
         
