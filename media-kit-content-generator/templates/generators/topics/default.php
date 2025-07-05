@@ -14,118 +14,87 @@ if (!defined('ABSPATH')) {
 
 <?php
 
-// ENHANCED DATA LOADING: Root-level fixes for Pods data loading - Pure Pods
+// CLEAN CODE: Simple data loading - no parameter checking needed
 $template_data = [];
 $debug_info = [];
 
-// CHECK FOR ENTRY PARAMETER: Don't show defaults if no entry param provided
-$has_entry_param = isset($_GET['entry']) || isset($_GET['post_id']) || 
-                   (isset($_GET['frm_action']) && $_GET['frm_action'] === 'edit');
-
-if (!$has_entry_param) {
-    // NO ENTRY PARAM: Create empty structure with no defaults
-    $template_data = [
-        'post_id' => 0,
-        'authority_hook_components' => [
-            'who' => '',
-            'what' => '',
-            'when' => '',
-            'how' => '',
-            'complete' => ''
-        ],
-        'form_field_values' => [
-            'topic_1' => '',
-            'topic_2' => '',
-            'topic_3' => '',
-            'topic_4' => '',
-            'topic_5' => ''
-        ],
-        'has_data' => false,
-        'no_entry_param' => true
-    ];
-    $debug_info[] = "🚫 No entry parameter found - using empty structure (no defaults)";
-    error_log('MKCG Topics Template: No entry param found - no default values shown');
+// Primary Method: Try to get data from generator instance
+if (isset($generator_instance) && method_exists($generator_instance, 'get_template_data')) {
+    $template_data = $generator_instance->get_template_data();
+    $debug_info[] = '✅ Got data from generator instance';
+    error_log('MKCG Topics Template: Got data from generator instance');
 } else {
-    // HAS ENTRY PARAM: Proceed with normal data loading
+    $debug_info[] = '⚠️ Generator instance not available';
     
-    // Primary Method: Try to get data from generator instance
-    if (isset($generator_instance) && method_exists($generator_instance, 'get_template_data')) {
-        $template_data = $generator_instance->get_template_data();
-        $debug_info[] = '✅ Got data from generator instance';
-        error_log('MKCG Topics Template: Got data from generator instance');
-    } else {
-        $debug_info[] = '⚠️ Generator instance not available';
+    // Fallback Method: Try direct Pods service
+    if (class_exists('MKCG_Pods_Service')) {
+        $pods_service = new MKCG_Pods_Service();
         
-        // Fallback Method: Try direct Pods service
-        if (class_exists('MKCG_Pods_Service')) {
-            $pods_service = new MKCG_Pods_Service();
-            
-            // Try to get post ID from various sources
-            $post_id = 0;
-            if (isset($_GET['post_id']) && intval($_GET['post_id']) > 0) {
-                $post_id = intval($_GET['post_id']);
-                $debug_info[] = "📍 Using post_id from URL: {$post_id}";
-            } else if (isset($_GET['entry']) && intval($_GET['entry']) > 0) {
-                $post_id = intval($_GET['entry']);
-                $debug_info[] = "📍 Using entry from URL: {$post_id}";
-            } else {
-                // Get the most recent guest post for testing
-                $recent_guest = get_posts([
-                    'post_type' => 'guests',
-                    'post_status' => 'publish',
-                    'numberposts' => 1,
-                    'orderby' => 'date',
-                    'order' => 'DESC'
-                ]);
-                if (!empty($recent_guest)) {
-                    $post_id = $recent_guest[0]->ID;
-                    $debug_info[] = "🎯 Using most recent guest post: {$post_id}";
-                }
-            }
-            
-            if ($post_id > 0) {
-                $guest_data = $pods_service->get_guest_data($post_id);
-                $template_data = [
-                    'post_id' => $post_id,
-                    'authority_hook_components' => $guest_data['authority_hook_components'],
-                    'form_field_values' => $guest_data['topics'],
-                    'has_data' => $guest_data['has_data']
-                ];
-                $debug_info[] = "✅ Loaded data via direct Pods service";
-                $debug_info[] = "📊 Topics found: " . count(array_filter($guest_data['topics']));
-                $debug_info[] = "🔑 Authority hook WHO: " . $guest_data['authority_hook_components']['who'];
-            } else {
-                $debug_info[] = "❌ No valid post ID found";
-            }
+        // Try to get post ID from various sources
+        $post_id = 0;
+        if (isset($_GET['post_id']) && intval($_GET['post_id']) > 0) {
+            $post_id = intval($_GET['post_id']);
+            $debug_info[] = "📍 Using post_id from URL: {$post_id}";
+        } else if (isset($_GET['entry']) && intval($_GET['entry']) > 0) {
+            $post_id = intval($_GET['entry']);
+            $debug_info[] = "📍 Using entry from URL: {$post_id}";
         } else {
-            $debug_info[] = "❌ MKCG_Pods_Service not available";
+            // Get the most recent guest post for testing
+            $recent_guest = get_posts([
+                'post_type' => 'guests',
+                'post_status' => 'publish',
+                'numberposts' => 1,
+                'orderby' => 'date',
+                'order' => 'DESC'
+            ]);
+            if (!empty($recent_guest)) {
+                $post_id = $recent_guest[0]->ID;
+                $debug_info[] = "🎯 Using most recent guest post: {$post_id}";
+            }
         }
         
-        // Fallback: Create empty structure when entry param exists but no data found
-        if (empty($template_data)) {
+        if ($post_id > 0) {
+            $guest_data = $pods_service->get_guest_data($post_id);
             $template_data = [
-                'post_id' => 0,
-                'authority_hook_components' => [
-                    'who' => '',
-                    'what' => '',
-                    'when' => '',
-                    'how' => '',
-                    'complete' => ''
-                ],
-                'form_field_values' => [
-                    'topic_1' => '',
-                    'topic_2' => '',
-                    'topic_3' => '',
-                    'topic_4' => '',
-                    'topic_5' => ''
-                ],
-                'has_data' => false
+                'post_id' => $post_id,
+                'authority_hook_components' => $guest_data['authority_hook_components'],
+                'form_field_values' => $guest_data['topics'],
+                'has_data' => $guest_data['has_data']
             ];
-            $debug_info[] = "⚠️ Using empty structure (entry param exists but no data found)";
+            $debug_info[] = "✅ Loaded data via direct Pods service";
+            $debug_info[] = "📊 Topics found: " . count(array_filter($guest_data['topics']));
+            $debug_info[] = "🔑 Authority hook WHO: " . $guest_data['authority_hook_components']['who'];
+        } else {
+            $debug_info[] = "❌ No valid post ID found";
         }
-        
-        error_log('MKCG Topics Template: ' . implode(' | ', $debug_info));
+    } else {
+        $debug_info[] = "❌ MKCG_Pods_Service not available";
     }
+    
+    // Fallback: Create empty structure when no data found
+    if (empty($template_data)) {
+        $template_data = [
+            'post_id' => 0,
+            'authority_hook_components' => [
+                'who' => '',
+                'what' => '',
+                'when' => '',
+                'how' => '',
+                'complete' => ''
+            ],
+            'form_field_values' => [
+                'topic_1' => '',
+                'topic_2' => '',
+                'topic_3' => '',
+                'topic_4' => '',
+                'topic_5' => ''
+            ],
+            'has_data' => false
+        ];
+        $debug_info[] = "⚠️ Using empty structure (no data found)";
+    }
+    
+    error_log('MKCG Topics Template: ' . implode(' | ', $debug_info));
 }
 
 // Extract data for easier access in template
@@ -163,16 +132,16 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
                 
                 <div class="generator__authority-hook-content">
                     <p id="topics-generator-authority-hook-text"><?php 
-                        // CLEAN SLATE: Only show complete text if all components exist
-                        $all_components_exist = !empty($authority_hook_components['who']) && 
-                                              !empty($authority_hook_components['what']) && 
-                                              !empty($authority_hook_components['when']) && 
-                                              !empty($authority_hook_components['how']);
-                        
-                        if ($all_components_exist) {
-                            echo esc_html($authority_hook_components['complete']);
-                        }
-                        // NO ELSE - shows empty when incomplete (no defaults)
+                        // CLEAN CODE: Show text only when all components have real data
+$all_components_exist = !empty($authority_hook_components['who']) && 
+                        !empty($authority_hook_components['what']) && 
+                        !empty($authority_hook_components['when']) && 
+                        !empty($authority_hook_components['how']);
+
+if ($all_components_exist) {
+                        echo esc_html($authority_hook_components['complete']);
+}
+// Empty when incomplete - no defaults
                     ?></p>
                 </div>
                 
@@ -218,7 +187,7 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
                 error_log('MKCG Topics Template: Created new authority_hook_service instance');
             }
             
-            // ROOT FIX: Pass clean slate values - explicitly preserve empty values from template
+            // CLEAN CODE: Pass values as-is to Authority Hook Service
             $current_values = [
                 'who' => $authority_hook_components['who'] ?? '',
                 'what' => $authority_hook_components['what'] ?? '', 
@@ -226,26 +195,22 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
                 'how' => $authority_hook_components['how'] ?? ''
             ];
             
-            // ROOT FIX: Log what we're passing to service and ensure it respects clean slate intention
-            error_log('MKCG Topics Template: ROOT FIX - Authority Hook Components: ' . json_encode($authority_hook_components));
-            error_log('MKCG Topics Template: ROOT FIX - Current Values (clean slate): ' . json_encode($current_values));
-            error_log('MKCG Topics Template: ROOT FIX - No Entry Param: ' . ($template_data['no_entry_param'] ?? 'false'));
+            error_log('MKCG Topics Template: Authority Hook Components: ' . json_encode($authority_hook_components));
+            error_log('MKCG Topics Template: Current Values: ' . json_encode($current_values));
                 
-                    // ROOT FIX: Render options for Topics Generator with clean slate configuration
+                    // CLEAN CODE: Render options for Topics Generator
                     $render_options = [
                         'show_preview' => false, // No preview in topics generator
                         'show_examples' => true,
                         'show_audience_manager' => true,
                         'css_classes' => 'authority-hook',
                         'field_prefix' => 'mkcg-',
-                        'tabs_enabled' => true,
-                        'clean_slate_mode' => !$has_entry_param // ROOT FIX: Explicitly pass clean slate mode
+                        'tabs_enabled' => true
                     ];
                     
-                    // ROOT FIX: Render the Authority Hook Builder with clean slate values
-                    error_log('MKCG Topics Template: ROOT FIX - About to render authority hook builder with clean slate mode');
-                    error_log('MKCG Topics Template: ROOT FIX - Service class: ' . get_class($authority_hook_service));
-                    error_log('MKCG Topics Template: ROOT FIX - Clean slate mode: ' . ($render_options['clean_slate_mode'] ? 'true' : 'false'));
+                    // CLEAN CODE: Render the Authority Hook Builder
+                    error_log('MKCG Topics Template: About to render authority hook builder');
+                    error_log('MKCG Topics Template: Service class: ' . get_class($authority_hook_service));
                     try {
                         $rendered_output = $authority_hook_service->render_authority_hook_builder('topics', $current_values, $render_options);
                         if (empty($rendered_output)) {
@@ -488,8 +453,7 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
     // MKCG Debug Info
     console.log('🎯 MKCG Topics: Template data loaded', {
         postId: <?php echo intval($post_id); ?>,
-        hasData: <?php echo $has_data ? 'true' : 'false'; ?>,
-        hasEntryParam: <?php echo $has_entry_param ? 'true' : 'false'; ?>
+        hasData: <?php echo $has_data ? 'true' : 'false'; ?>
     });
     
     // ENHANCED DEBUG: Show what authority hook data we're passing to JavaScript
@@ -500,7 +464,7 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
         frm_action: '<?php echo esc_js($_GET['frm_action'] ?? ''); ?>'
     });
     
-    // CLEAN SLATE: Template data - always empty when no real data exists
+    // CLEAN CODE: Template data - always empty defaults, loads real data if exists
     window.MKCG_Topics_Data = {
         postId: <?php echo intval($post_id); ?>,
         hasData: <?php echo $has_data ? 'true' : 'false'; ?>,
