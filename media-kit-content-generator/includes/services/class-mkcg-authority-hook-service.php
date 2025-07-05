@@ -170,7 +170,6 @@ class MKCG_Authority_Hook_Service {
             <!-- Authority Hook Builder -->
             <div class="authority-hook__builder">
                 <h3 class="authority-hook__builder-title">
-                    <span class="authority-hook__field-number">1</span>
                     Authority Hook Builder
                 </h3>
                 <p class="field__description">

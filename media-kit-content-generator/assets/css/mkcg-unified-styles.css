@@ -371,7 +371,7 @@
   font-weight: var(--mkcg-font-weight-bold);
 }
 
-/* Authority Hook Builder Toggle */
+/* Authority Hook Builder Toggle - FIXED: Removed duplicate styling */
 .generator__builder {
   border: 1px solid var(--mkcg-border-light);
   border-radius: var(--mkcg-radius);
@@ -379,16 +379,12 @@
   margin-bottom: var(--mkcg-space-lg);
   background-color: var(--mkcg-bg-primary);
   box-shadow: var(--mkcg-shadow-sm);
+  display: block;
+  transition: all 0.3s ease;
 }
 
 .generator__builder--hidden {
   display: none !important;
-}
-
-.generator__builder {
-  display: block;
-  margin-bottom: var(--mkcg-space-lg);
-  transition: all 0.3s ease;
 }
 
 .generator__builder:not(.generator__builder--hidden) {
@@ -2616,14 +2612,13 @@
     color: var(--mkcg-primary-dark);
 }
 
-/* ROOT FIX: Authority Hook Builder container */
+/* FIXED: Authority Hook Builder container - prevent border conflicts */
 .authority-hook {
     background-color: var(--mkcg-bg-primary);
-    border: 1px solid var(--mkcg-border-light);
     border-radius: var(--mkcg-radius);
     overflow: hidden;
     margin-bottom: var(--mkcg-space-lg);
-    box-shadow: var(--mkcg-shadow-sm);
+    /* Removed duplicate border - handled by parent .generator__builder */
 }
 
 .authority-hook__builder {
