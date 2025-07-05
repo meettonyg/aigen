@@ -26,7 +26,10 @@ Features:
 * AI-powered content generation
 * Formidable Forms integration
 * Responsive, professional design
-* BEM CSS methodology
+* Unified BEM CSS methodology with design tokens
+* Scalable component architecture
+* Cross-generator consistency
+* Mobile-first responsive design
 
 == Installation ==
 
@@ -53,11 +56,27 @@ Yes, there's built-in integration for saving generated content to Formidable ent
 * `[mkcg_topics]` - Topics generator
 * `[mkcg_questions]` - Questions generator
 
+== Architecture ==
+
+The plugin uses a unified CSS architecture based on BEM methodology combined with design tokens:
+
+* **Base Generator Classes**: `.generator__*` classes provide foundation styling
+* **Generator-Specific Classes**: `.topics-generator__*`, `.offers-generator__*`, etc. for unique features
+* **Design Tokens**: CSS custom properties for colors, spacing, typography
+* **Inheritance System**: Minimal duplication through proper cascade inheritance
+* **Mobile-First**: Responsive design optimized for all device sizes
+
+For detailed documentation, see:
+* `CSS-ARCHITECTURE.md` - Complete architecture guide
+* `GENERATOR-DEVELOPMENT-GUIDE.md` - Developer guidelines
+
 == Changelog ==
 
 = 1.0.0 =
 * Initial release
-* Unified architecture for all generators
-* Authority Hook component
-* BEM CSS methodology
+* Unified BEM + design tokens architecture
+* Authority Hook centralized service
+* Cross-generator visual consistency
+* Comprehensive documentation
+* Mobile-first responsive design
 * Formidable Forms integration
