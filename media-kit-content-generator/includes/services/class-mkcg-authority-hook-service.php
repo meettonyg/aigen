@@ -67,28 +67,33 @@ class MKCG_Authority_Hook_Service {
     }
     
     /**
-     * Get Authority Hook data from WordPress post meta - ENHANCED DEBUG VERSION
-     * Updated to check for entry parameters and not provide defaults when no entry param
+     * Get Authority Hook data from WordPress post meta - CLEAN SLATE VERSION
+     * ROOT FIX: Always respects clean slate intention from template - NO DEFAULTS EVER
      * 
      * @param int $post_id WordPress post ID
+     * @param bool $clean_slate_mode Explicitly request clean slate (empty) behavior
      * @return array Authority Hook components
      */
-    public function get_authority_hook_data($post_id) {
+    public function get_authority_hook_data($post_id, $clean_slate_mode = null) {
         // ENHANCED DEBUG: Log the incoming request
         error_log('MKCG Authority Hook Service: get_authority_hook_data() called with post_id=' . $post_id);
         error_log('MKCG Authority Hook Service: GET params: ' . json_encode($_GET));
         
-        // Check for entry parameter - use different defaults based on presence
-        $has_entry_param = isset($_GET['entry']) || isset($_GET['post_id']) || 
-                           (isset($_GET['frm_action']) && $_GET['frm_action'] === 'edit');
+        // ROOT FIX: Check for explicit clean slate request from template
+        if ($clean_slate_mode === null) {
+            // Auto-detect clean slate mode - prioritize template intention
+            $clean_slate_mode = !isset($_GET['entry']) && !isset($_GET['post_id']) && 
+                                !(isset($_GET['frm_action']) && $_GET['frm_action'] === 'edit');
+        }
         
-        error_log('MKCG Authority Hook Service: has_entry_param=' . ($has_entry_param ? 'true' : 'false'));
+        error_log('MKCG Authority Hook Service: clean_slate_mode=' . ($clean_slate_mode ? 'true' : 'false'));
         
-        $components = $has_entry_param ? self::LEGACY_DEFAULT_COMPONENTS : self::DEFAULT_COMPONENTS;
-        error_log('MKCG Authority Hook Service: Using defaults: ' . json_encode($components));
+        // ROOT FIX: Always use empty defaults in clean slate mode - NO LEGACY DEFAULTS EVER
+        $components = $clean_slate_mode ? self::DEFAULT_COMPONENTS : self::DEFAULT_COMPONENTS;
+        error_log('MKCG Authority Hook Service: ROOT FIX - Always using empty defaults: ' . json_encode($components));
         
         if (!$post_id || $post_id <= 0) {
-            error_log('MKCG Authority Hook Service: No valid post ID - using ' . ($has_entry_param ? 'legacy defaults' : 'empty values'));
+            error_log('MKCG Authority Hook Service: No valid post ID - using empty values (clean slate)');
             return $this->build_complete_response($components, false, 'No valid post ID provided');
         }
         
@@ -101,19 +106,19 @@ class MKCG_Authority_Hook_Service {
         
         error_log('MKCG Authority Hook Service: Post found: ' . $post->post_title . ' (type: ' . $post->post_type . ')');
         
-        // Load from WordPress post meta
-        $components = $this->get_from_postmeta($post_id, $has_entry_param);
+        // Load from WordPress post meta - always clean slate mode
+        $components = $this->get_from_postmeta($post_id, true); // Always pass true for clean slate
         
         // ENHANCED DEBUG: Log loaded components
         error_log('MKCG Authority Hook Service: Loaded components: ' . json_encode($components));
         
-        // Ensure all required components exist with fallbacks
-        $components = $this->sanitize_components($components, $has_entry_param);
+        // ROOT FIX: Always use clean slate sanitization - NO DEFAULTS
+        $components = $this->sanitize_components($components, true); // Always clean slate
         
         // ENHANCED DEBUG: Log final components
-        error_log('MKCG Authority Hook Service: Final components: ' . json_encode($components));
+        error_log('MKCG Authority Hook Service: Final components (clean slate): ' . json_encode($components));
         
-        return $this->build_complete_response($components, !$this->is_default_data($components, $has_entry_param), 'Authority Hook data loaded successfully');
+        return $this->build_complete_response($components, !$this->is_default_data($components, true), 'Authority Hook data loaded successfully (clean slate)');
     }
     
     /**
@@ -142,6 +147,7 @@ class MKCG_Authority_Hook_Service {
     
     /**
      * Render Authority Hook Builder HTML for any generator
+     * ROOT FIX: Respects clean slate values passed from template - NO DEFAULTS FORCED
      * 
      * @param string $generator_type Generator type (topics, questions, biography, offers)
      * @param array $current_values Current component values
@@ -159,8 +165,15 @@ class MKCG_Authority_Hook_Service {
             'tabs_enabled' => true
         ]);
         
-        // Sanitize current values
-        $current_values = $this->sanitize_components($current_values);
+        // ROOT FIX: Don't sanitize with defaults - preserve empty values from template
+        // Only sanitize for security, don't add defaults
+        $sanitized_values = [];
+        foreach (['who', 'what', 'when', 'how'] as $key) {
+            $sanitized_values[$key] = isset($current_values[$key]) ? sanitize_text_field($current_values[$key]) : '';
+        }
+        $current_values = $sanitized_values;
+        
+        error_log('MKCG Authority Hook Service: render_authority_hook_builder() using values: ' . json_encode($current_values));
         
         // Use consistent IDs for JavaScript compatibility
         // Don't use unique IDs as it breaks JavaScript expectations
@@ -381,14 +394,17 @@ class MKCG_Authority_Hook_Service {
     // Private helper methods
     
     /**
-     * Get Authority Hook data from WordPress post meta - ENHANCED DEBUG VERSION
-     * Updated to handle entry parameter presence
+     * Get Authority Hook data from WordPress post meta - CLEAN SLATE VERSION
+     * ROOT FIX: Always uses empty defaults regardless of entry parameter
      */
-    private function get_from_postmeta($post_id, $has_entry_param = false) {
+    private function get_from_postmeta($post_id, $clean_slate_mode = true) {
         error_log('MKCG Authority Hook Service: get_from_postmeta() called with post_id=' . $post_id);
         
-        $components = $has_entry_param ? self::LEGACY_DEFAULT_COMPONENTS : self::DEFAULT_COMPONENTS;
+        // ROOT FIX: Always start with empty components - NO LEGACY DEFAULTS EVER
+        $components = self::DEFAULT_COMPONENTS;
         $field_mappings = $this->field_mappings['postmeta'];
+        
+        error_log('MKCG Authority Hook Service: ROOT FIX - Always using empty defaults: ' . json_encode($components));
         
         error_log('MKCG Authority Hook Service: Field mappings: ' . json_encode($field_mappings));
         
@@ -475,12 +491,12 @@ class MKCG_Authority_Hook_Service {
             
             <div class="field field--with-clear">
                 <input type="text" 
-                       id="mkcg-who" 
-                       name="who" 
-                       class="field__input field__input--readonly" 
-                       value="<?php echo esc_attr($value); ?>" 
-                       placeholder="Selected audiences will appear here automatically"
-                       readonly>
+                id="mkcg-who" 
+                name="who" 
+                class="field__input field__input--readonly" 
+                value="<?php echo esc_attr($value); ?>" 
+                placeholder="<?php echo empty($value) ? 'Selected audiences will appear here automatically' : ''; ?>"
+                readonly>
                 <button type="button" class="field__clear" data-field-id="mkcg-who" title="Clear all audiences">×</button>
             </div>
             
@@ -530,11 +546,11 @@ class MKCG_Authority_Hook_Service {
             
             <div class="field field--with-clear">
                 <input type="text" 
-                       id="mkcg-result" 
-                       name="result" 
-                       class="field__input" 
-                       value="<?php echo esc_attr($value); ?>" 
-                       placeholder="e.g., increase revenue, save time, reduce stress">
+                id="mkcg-result" 
+                name="result" 
+                class="field__input" 
+                value="<?php echo esc_attr($value); ?>" 
+                placeholder="<?php echo empty($value) ? 'e.g., increase revenue, save time, reduce stress' : ''; ?>">
                 <button type="button" class="field__clear" data-field-id="mkcg-result" title="Clear field">×</button>
             </div>
             
@@ -566,11 +582,11 @@ class MKCG_Authority_Hook_Service {
             
             <div class="field field--with-clear">
                 <input type="text" 
-                       id="mkcg-when" 
-                       name="when" 
-                       class="field__input" 
-                       value="<?php echo esc_attr($value); ?>" 
-                       placeholder="e.g., during rapid growth, when scaling their team">
+                id="mkcg-when" 
+                name="when" 
+                class="field__input" 
+                value="<?php echo esc_attr($value); ?>" 
+                placeholder="<?php echo empty($value) ? 'e.g., during rapid growth, when scaling their team' : ''; ?>">
                 <button type="button" class="field__clear" data-field-id="mkcg-when" title="Clear field">×</button>
             </div>
             
@@ -602,11 +618,11 @@ class MKCG_Authority_Hook_Service {
             
             <div class="field field--with-clear">
                 <input type="text" 
-                       id="mkcg-how" 
-                       name="how" 
-                       class="field__input" 
-                       value="<?php echo esc_attr($value); ?>" 
-                       placeholder="e.g., through my proven system, with strategic consulting">
+                id="mkcg-how" 
+                name="how" 
+                class="field__input" 
+                value="<?php echo esc_attr($value); ?>" 
+                placeholder="<?php echo empty($value) ? 'e.g., through my proven system, with strategic consulting' : ''; ?>">
                 <button type="button" class="field__clear" data-field-id="mkcg-how" title="Clear field">×</button>
             </div>
             
@@ -625,44 +641,34 @@ class MKCG_Authority_Hook_Service {
     }
     
     /**
-     * Sanitize and validate components
-     * Updated to handle entry parameter presence
+     * Sanitize and validate components - CLEAN SLATE VERSION
+     * ROOT FIX: Never adds defaults - only sanitizes for security
      */
-    private function sanitize_components($components, $has_entry_param = null) {
-        // Auto-detect entry param if not provided
-        if ($has_entry_param === null) {
-            $has_entry_param = isset($_GET['entry']) || isset($_GET['post_id']) || 
-                               (isset($_GET['frm_action']) && $_GET['frm_action'] === 'edit');
-        }
-        
-        $defaults = $has_entry_param ? self::LEGACY_DEFAULT_COMPONENTS : self::DEFAULT_COMPONENTS;
+    private function sanitize_components($components, $clean_slate_mode = true) {
+        // ROOT FIX: Always use empty defaults - NO LEGACY DEFAULTS EVER
+        $defaults = self::DEFAULT_COMPONENTS;
         $sanitized = [];
         
         foreach ($defaults as $key => $default) {
-            $value = $components[$key] ?? $default;
+            $value = $components[$key] ?? '';
             $sanitized[$key] = sanitize_text_field($value);
             
-            // Only use default if entry param exists and field is empty
-            if (empty($sanitized[$key]) && $has_entry_param) {
-                $sanitized[$key] = $default;
-            }
+            // ROOT FIX: Never use defaults - keep empty when no data
+            // Empty fields stay empty - this ensures clean slate behavior
         }
+        
+        error_log('MKCG Authority Hook Service: sanitize_components() - clean slate result: ' . json_encode($sanitized));
         
         return $sanitized;
     }
     
     /**
-     * Check if components contain only default data
-     * Updated to handle entry parameter presence
+     * Check if components contain only default data - CLEAN SLATE VERSION
+     * ROOT FIX: Always compares against empty defaults
      */
-    private function is_default_data($components, $has_entry_param = null) {
-        // Auto-detect entry param if not provided
-        if ($has_entry_param === null) {
-            $has_entry_param = isset($_GET['entry']) || isset($_GET['post_id']) || 
-                               (isset($_GET['frm_action']) && $_GET['frm_action'] === 'edit');
-        }
-        
-        $defaults = $has_entry_param ? self::LEGACY_DEFAULT_COMPONENTS : self::DEFAULT_COMPONENTS;
+    private function is_default_data($components, $clean_slate_mode = true) {
+        // ROOT FIX: Always use empty defaults for comparison
+        $defaults = self::DEFAULT_COMPONENTS;
         
         foreach ($defaults as $key => $default) {
             if (($components[$key] ?? $default) !== $default) {
@@ -686,17 +692,14 @@ class MKCG_Authority_Hook_Service {
     }
     
     /**
-     * Calculate Authority Hook quality score
-     * Updated to handle both default sets
+     * Calculate Authority Hook quality score - CLEAN SLATE VERSION
+     * ROOT FIX: Always compares against empty defaults
      */
     private function calculate_hook_score($components) {
         $score = 0;
         
-        // Check for entry parameter
-        $has_entry_param = isset($_GET['entry']) || isset($_GET['post_id']) || 
-                           (isset($_GET['frm_action']) && $_GET['frm_action'] === 'edit');
-        
-        $defaults = $has_entry_param ? self::LEGACY_DEFAULT_COMPONENTS : self::DEFAULT_COMPONENTS;
+        // ROOT FIX: Always use empty defaults for scoring
+        $defaults = self::DEFAULT_COMPONENTS;
         
         // Check for customization (not default values)
         foreach ($defaults as $key => $default) {

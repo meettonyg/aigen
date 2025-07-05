@@ -190,7 +190,7 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
             <!-- Authority Hook Builder - CENTRALIZED SERVICE -->                
             <div class="generator__builder generator__builder--hidden mkcg-authority-hook authority-hook-builder" id="topics-generator-authority-hook-builder" data-component="authority-hook">
             <?php 
-            // CRITICAL FIX: Ensure Authority Hook Service is properly loaded
+            // ROOT FIX: Ensure Authority Hook Service is properly loaded and configured for clean slate
             
             // First, try to get from globals
             $authority_hook_service = null;
@@ -218,7 +218,7 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
                 error_log('MKCG Topics Template: Created new authority_hook_service instance');
             }
             
-            // CLEAN SLATE: Always use empty values - NO DEFAULTS EVER
+            // ROOT FIX: Pass clean slate values - explicitly preserve empty values from template
             $current_values = [
                 'who' => $authority_hook_components['who'] ?? '',
                 'what' => $authority_hook_components['what'] ?? '', 
@@ -226,22 +226,26 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
                 'how' => $authority_hook_components['how'] ?? ''
             ];
             
-            // CLEAN SLATE: Log the values being passed to the service
-            error_log('MKCG Topics Template: Authority Hook Components: ' . json_encode($authority_hook_components));
-            error_log('MKCG Topics Template: Current Values (always empty when no data): ' . json_encode($current_values));
+            // ROOT FIX: Log what we're passing to service and ensure it respects clean slate intention
+            error_log('MKCG Topics Template: ROOT FIX - Authority Hook Components: ' . json_encode($authority_hook_components));
+            error_log('MKCG Topics Template: ROOT FIX - Current Values (clean slate): ' . json_encode($current_values));
+            error_log('MKCG Topics Template: ROOT FIX - No Entry Param: ' . ($template_data['no_entry_param'] ?? 'false'));
                 
-                    // Render options for Topics Generator
+                    // ROOT FIX: Render options for Topics Generator with clean slate configuration
                     $render_options = [
                         'show_preview' => false, // No preview in topics generator
                         'show_examples' => true,
                         'show_audience_manager' => true,
                         'css_classes' => 'authority-hook',
                         'field_prefix' => 'mkcg-',
-                        'tabs_enabled' => true
+                        'tabs_enabled' => true,
+                        'clean_slate_mode' => !$has_entry_param // ROOT FIX: Explicitly pass clean slate mode
                     ];
                     
-                    // CRITICAL FIX: Render the Authority Hook Builder and log output
-                    error_log('MKCG Topics Template: About to render authority hook builder with service: ' . get_class($authority_hook_service));
+                    // ROOT FIX: Render the Authority Hook Builder with clean slate values
+                    error_log('MKCG Topics Template: ROOT FIX - About to render authority hook builder with clean slate mode');
+                    error_log('MKCG Topics Template: ROOT FIX - Service class: ' . get_class($authority_hook_service));
+                    error_log('MKCG Topics Template: ROOT FIX - Clean slate mode: ' . ($render_options['clean_slate_mode'] ? 'true' : 'false'));
                     try {
                         $rendered_output = $authority_hook_service->render_authority_hook_builder('topics', $current_values, $render_options);
                         if (empty($rendered_output)) {
