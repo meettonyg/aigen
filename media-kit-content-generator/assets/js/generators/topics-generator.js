@@ -170,19 +170,68 @@
     },
     
     /**
-     * SIMPLIFIED: Bind essential events
+     * ROOT FIX: Improved button event binding to prevent conflicts
      */
     bindEvents: function() {
-      // Authority Hook Builder toggle
+      // ROOT FIX: More specific button targeting to prevent conflicts
       const toggleBtn = document.querySelector('#topics-generator-toggle-builder');
+      const generateBtn = document.querySelector('#topics-generator-generate-topics');
+      const saveBtn = document.querySelector('#topics-generator-save-topics');
       
+      // Authority Hook Builder toggle
       if (toggleBtn) {
-        toggleBtn.addEventListener('click', (e) => {
+        // Remove any existing listeners to prevent duplicates
+        toggleBtn.removeEventListener('click', this.toggleBuilderHandler);
+        this.toggleBuilderHandler = (e) => {
           e.preventDefault();
+          e.stopPropagation();
           this.toggleBuilder();
-        });
+        };
+        toggleBtn.addEventListener('click', this.toggleBuilderHandler);
+        console.log('✅ Authority Hook Builder toggle bound correctly');
       } else {
         console.warn('⚠️ Toggle builder button not found: #topics-generator-toggle-builder');
+      }
+      
+      // ROOT FIX: Generate topics button with conflict prevention
+      if (generateBtn) {
+        generateBtn.removeEventListener('click', this.generateTopicsHandler);
+        this.generateTopicsHandler = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('🔘 Generate button clicked - calling generateTopics()');
+          this.generateTopics();
+        };
+        generateBtn.addEventListener('click', this.generateTopicsHandler);
+        console.log('✅ Generate button event bound correctly');
+      } else {
+        console.warn('⚠️ Generate button not found: #topics-generator-generate-topics');
+      }
+      
+      // ROOT FIX: Save All Topics button with absolute conflict prevention
+      if (saveBtn) {
+        // CRITICAL: Remove any existing listeners to prevent duplicates
+        saveBtn.removeEventListener('click', this.saveAllDataHandler);
+        
+        // Create bound handler with specific identification
+        this.saveAllDataHandler = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('🔘 ROOT FIX: Save button clicked - calling saveAllData()');
+          
+          // ROOT FIX: Additional check to ensure this is the save button
+          if (e.target.id === 'topics-generator-save-topics' || 
+              e.target.closest('#topics-generator-save-topics')) {
+            this.saveAllData();
+          } else {
+            console.warn('⚠️ Save triggered from unexpected element:', e.target);
+          }
+        };
+        
+        saveBtn.addEventListener('click', this.saveAllDataHandler);
+        console.log('✅ ROOT FIX: Save button event bound with conflict prevention');
+      } else {
+        console.warn('⚠️ Save button not found: #topics-generator-save-topics');
       }
       
       // Input change events for authority hook
@@ -202,44 +251,6 @@
           });
         }
       });
-      
-      // NOTE: Generate topics button is now handled in the fixed section below
-      
-      // Save All Topics button - FIXED: Prevent conflicts with generate button
-      const saveBtn = document.querySelector('#topics-generator-save-topics');
-      if (saveBtn) {
-        // CRITICAL FIX: Remove any existing listeners to prevent duplicates
-        saveBtn.removeEventListener('click', this.saveAllDataHandler);
-        
-        // Create bound handler
-        this.saveAllDataHandler = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          console.log('🔘 Save button clicked - calling saveAllData()');
-          this.saveAllData();
-        };
-        
-        saveBtn.addEventListener('click', this.saveAllDataHandler);
-        console.log('✅ Save button event bound correctly');
-      } else {
-        console.warn('⚠️ Save button not found: #topics-generator-save-topics');
-      }
-      
-      // Generate topics button - FIXED: Ensure no conflicts
-      const generateBtn = document.querySelector('#topics-generator-generate-topics');
-      if (generateBtn) {
-        generateBtn.removeEventListener('click', this.generateTopicsHandler);
-        
-        this.generateTopicsHandler = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          console.log('🔘 Generate button clicked - calling generateTopics()');
-          this.generateTopics();
-        };
-        
-        generateBtn.addEventListener('click', this.generateTopicsHandler);
-        console.log('✅ Generate button event bound correctly');
-      }
       
       // Auto-save on blur for topic fields
       for (let i = 1; i <= 5; i++) {
@@ -514,10 +525,10 @@
     },
     
     /**
-     * FIXED: Save all data with proper error handling and data format
+     * ROOT FIX: Complete save method rewrite addressing all identified issues
      */
     saveAllData: function() {
-      console.log('🔄 Starting comprehensive save operation...');
+      console.log('🔄 ROOT FIX: Starting comprehensive save operation...');
       
       const postId = document.querySelector('#topics-generator-post-id')?.value;
       if (!postId || postId === '0') {
@@ -525,32 +536,27 @@
         return;
       }
       
-      console.log('📊 Save operation for post ID:', postId);
-      
-      // Collect topics
+      // ROOT FIX: Collect topics with better validation
       const topics = {};
+      let topicsCount = 0;
       for (let i = 1; i <= 5; i++) {
         const field = document.querySelector(`#topics-generator-topic-field-${i}`);
-        if (field && field.value.trim()) {
+        if (field && field.value && field.value.trim()) {
           topics[`topic_${i}`] = field.value.trim();
+          topicsCount++;
         }
       }
       
-      // Collect authority hook
+      // ROOT FIX: Collect authority hook with proper field mapping
       const authorityHook = {
-        who: this.fields.who,
-        what: this.fields.what,
-        when: this.fields.when,
-        how: this.fields.how
+        who: this.fields.who || '',
+        what: this.fields.what || '',  // ROOT FIX: was 'result' in old version
+        when: this.fields.when || '',
+        how: this.fields.how || ''
       };
       
-      console.log('📊 Collected data:');
-      console.log('  Topics count:', Object.keys(topics).length);
-      console.log('  Topics:', topics);
-      console.log('  Authority Hook:', authorityHook);
-      
-      // Verify we have data to save
-      const hasTopics = Object.keys(topics).length > 0;
+      // Validate we have something to save
+      const hasTopics = topicsCount > 0;
       const hasAuthorityData = Object.values(authorityHook).some(val => val && val.trim());
       
       if (!hasTopics && !hasAuthorityData) {
@@ -558,50 +564,60 @@
         return;
       }
       
-      console.log('📊 Data validation:', { hasTopics, hasAuthorityData });
-      
-      // Check nonce availability
-      const nonce = window.mkcg_vars?.nonce || 
-                    document.querySelector('#topics-generator-nonce')?.value || 
-                    '';
-      
-      if (!nonce) {
-        console.error('❌ No nonce found for AJAX request');
-        this.showNotification('Security error: Please refresh the page and try again.', 'error');
-        return;
-      }
-      
-      console.log('🔐 Nonce verified:', nonce.substring(0, 10) + '...');
+      console.log(`📊 Saving ${topicsCount} topics and authority hook data...`);
+      console.log('🔍 Authority Hook Data:', authorityHook);
+      console.log('🔍 Topics Data:', topics);
       
       this.showLoading();
       
-      // COMPREHENSIVE: Check if global makeAjaxRequest is available
-      if (!window.makeAjaxRequest || typeof window.makeAjaxRequest !== 'function') {
-        console.error('❌ Global makeAjaxRequest not available, using fallback method');
-        this.saveWithFallbackFetch(postId, topics, authorityHook);
+      // ROOT FIX: Use window.makeAjaxRequest with proper error handling
+      if (!window.makeAjaxRequest) {
+        console.error('❌ Global makeAjaxRequest not available, falling back to fetch');
+        this.saveWithFetch(postId, topics, authorityHook);
         return;
       }
       
-      // FIXED: Use global makeAjaxRequest with comprehensive data and logging
-      console.log('📡 Sending AJAX request to mkcg_save_topics_data...');
+      // Build complete authority hook text
+      if (hasAuthorityData) {
+        const who = authorityHook.who || 'your audience';
+        const what = authorityHook.what || 'achieve their goals';
+        const when = authorityHook.when || 'they need help';
+        const how = authorityHook.how || 'through your method';
+        authorityHook.complete = `I help ${who} ${what} when ${when} ${how}.`;
+      }
       
       window.makeAjaxRequest('mkcg_save_topics_data', {
         post_id: postId,
         topics: topics,
-        authority_hook: authorityHook,
-        nonce: nonce  // Explicitly pass nonce
+        authority_hook: authorityHook
       })
       .then(data => {
         this.hideLoading();
-        this.showNotification('All data saved successfully!', 'success');
+        this.showNotification(`✅ Successfully saved ${topicsCount} topics and authority hook!`, 'success');
         console.log('✅ Save successful:', data);
+        
+        // Update the authority hook display if we have complete text
+        if (authorityHook.complete) {
+          const displayElement = document.querySelector('#topics-generator-authority-hook-text');
+          if (displayElement) {
+            displayElement.textContent = authorityHook.complete;
+          }
+        }
+        
+        // Trigger cross-generator communication
+        if (window.AppEvents) {
+          window.AppEvents.trigger('topics:saved', {
+            topics: topics,
+            authorityHook: authorityHook,
+            timestamp: Date.now()
+          });
+        }
       })
       .catch(error => {
         this.hideLoading();
+        console.error('❌ Save failed:', error);
         
-        console.error('❌ Save operation failed:', error);
-        
-        // COMPREHENSIVE: Enhanced error message handling
+        // ROOT FIX: Comprehensive error message handling
         let errorMessage = 'Save operation failed';
         
         if (typeof error === 'string') {
@@ -611,13 +627,7 @@
         } else if (error && typeof error === 'object') {
           // Prevent "[object Object]" by properly stringifying
           try {
-            if (error.name && error.stack) {
-              // This is an Error object
-              errorMessage = error.name + ': ' + (error.message || 'Unknown error');
-            } else {
-              // This is a data object, try to extract meaningful info
-              errorMessage = JSON.stringify(error, null, 2);
-            }
+            errorMessage = JSON.stringify(error);
           } catch (e) {
             errorMessage = 'Unknown error occurred during save';
           }
@@ -625,22 +635,66 @@
         
         this.showNotification('❌ ' + errorMessage, 'error');
         
-        // Enhanced debugging info
+        // Show helpful debugging info
         console.group('🔍 Save Debug Information');
         console.log('Post ID:', postId);
-        console.log('Topics Count:', Object.keys(topics).length);
+        console.log('Topics Count:', topicsCount);
         console.log('Authority Hook Valid:', hasAuthorityData);
-        console.log('Nonce Available:', !!nonce);
         console.log('Error Details:', error);
-        console.log('Error Type:', typeof error);
-        if (error && error.stack) {
-          console.log('Stack Trace:', error.stack);
-        }
         console.groupEnd();
+      });
+    },
+    
+    /**
+     * ROOT FIX: Add fallback fetch method for emergency cases
+     */
+    saveWithFetch: function(postId, topics, authorityHook) {
+      console.log('🔄 Using fallback fetch method...');
+      
+      const formData = new URLSearchParams();
+      formData.append('action', 'mkcg_save_topics_data');
+      formData.append('nonce', document.querySelector('#topics-generator-nonce')?.value || '');
+      formData.append('post_id', postId);
+      
+      // Add topics as array notation for PHP compatibility
+      Object.keys(topics).forEach(key => {
+        formData.append(`topics[${key}]`, topics[key]);
+      });
+      
+      // Add authority hook as array notation
+      Object.keys(authorityHook).forEach(key => {
+        if (authorityHook[key]) {
+          formData.append(`authority_hook[${key}]`, authorityHook[key]);
+        }
+      });
+      
+      fetch(window.ajaxurl || '/wp-admin/admin-ajax.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: formData.toString()
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Network error: ${response.status} ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(result => {
+        this.hideLoading();
         
-        // EMERGENCY FALLBACK: Try fallback fetch method if makeAjaxRequest fails
-        console.log('🆘 Primary save failed, attempting fallback method...');
-        this.saveWithFallbackFetch(postId, topics, authorityHook);
+        if (result.success) {
+          this.showNotification('✅ Data saved successfully!', 'success');
+          console.log('✅ Fallback save successful:', result);
+        } else {
+          throw new Error(result.data?.message || result.data || 'Server returned error');
+        }
+      })
+      .catch(error => {
+        this.hideLoading();
+        this.showNotification('❌ Fallback save failed: ' + error.message, 'error');
+        console.error('❌ Fallback save failed:', error);
       });
     },
     
