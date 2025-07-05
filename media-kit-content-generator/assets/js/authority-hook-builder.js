@@ -237,20 +237,30 @@
         
         console.log('🔍 Extracting audiences from WHO field:', whoValue);
         
-        // Split on various separators
+        // CRITICAL FIX: Corrected regex pattern to properly split comma-separated values
+        // Split on: ", and ", " and ", or just ","
         const audiences = whoValue
-            .split(/,\\s*and\\s*|\\s*and\\s*|,\\s*/)
+            .split(/,\s*and\s*|\s*and\s*|,\s*/)
             .map(s => s.trim())
             .filter(Boolean);
+        
+        console.log('🔍 AUDIENCE PARSING DEBUG:');
+        console.log('🔍 Input WHO value: "' + whoValue + '"');
+        console.log('🔍 Split pattern used: /,\\s*and\\s*|\\s*and\\s*|,\\s*/');
+        console.log('🔍 Raw split result:', audiences);
+        console.log('🔍 Number of audiences found:', audiences.length);
         
         // Add each audience as a tag
         audiences.forEach(audience => {
             if (audience && !audienceTags.find(tag => tag.text === audience)) {
+                console.log('✅ Adding extracted audience:', audience);
                 addAudienceTag(audience, true);
+            } else if (audience) {
+                console.log('⚠️ Duplicate audience skipped:', audience);
             }
         });
         
-        console.log('✅ Extracted audiences:', audiences);
+        console.log('✅ Successfully extracted', audiences.length, 'audiences:', audiences);
     }
     
     // UI FUNCTIONALITY: Clear buttons

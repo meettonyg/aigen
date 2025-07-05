@@ -369,7 +369,7 @@ class MKCG_Pods_Service {
     }
     
     /**
-     * SIMPLIFIED: Get audience from taxonomy
+     * ROOT FIX: Get audience from taxonomy - Return properly formatted string for JavaScript parsing
      */
     private function get_audience_from_taxonomy($post_id) {
         if (!$post_id) {
@@ -381,11 +381,26 @@ class MKCG_Pods_Service {
         $audience_terms = wp_get_post_terms($post_id, 'audience', ['fields' => 'names']);
 
         if (is_wp_error($audience_terms) || empty($audience_terms)) {
+            error_log('MKCG Pods: No audience terms found for post ' . $post_id);
             return '';
         }
 
-        // Join multiple terms with a comma
-        return implode(', ', $audience_terms);
+        error_log('MKCG Pods: Raw audience terms for post ' . $post_id . ': ' . print_r($audience_terms, true));
+
+        // ROOT FIX: Return properly formatted string for JavaScript parsing
+        // Format for natural language: "A and B" or "A, B, and C"
+        $formatted_audience = '';
+        if (count($audience_terms) === 1) {
+            $formatted_audience = $audience_terms[0];
+        } elseif (count($audience_terms) === 2) {
+            $formatted_audience = $audience_terms[0] . ' and ' . $audience_terms[1];
+        } else {
+            $last = array_pop($audience_terms);
+            $formatted_audience = implode(', ', $audience_terms) . ', and ' . $last;
+        }
+
+        error_log('MKCG Pods: Formatted audience string: "' . $formatted_audience . '"');
+        return $formatted_audience;
     }
     
     /**

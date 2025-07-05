@@ -634,6 +634,13 @@
     
     // Initialize when DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
+        // CRITICAL FIX: Only initialize if this generator's DOM elements exist
+        const questionsContainer = document.querySelector('.questions-generator');
+        if (!questionsContainer) {
+            console.log('🎯 Questions Generator: DOM elements not found - skipping initialization');
+            return;
+        }
+        
         console.log('🎯 Questions Generator: DOM Ready - BEM Architecture');
         QuestionsGenerator.init();
     });

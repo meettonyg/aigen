@@ -617,6 +617,13 @@
 
   // SIMPLIFIED: Initialize when DOM is ready
   document.addEventListener('DOMContentLoaded', function() {
+    // CRITICAL FIX: Only initialize if this generator's DOM elements exist
+    const topicsContainer = document.querySelector('.topics-generator');
+    if (!topicsContainer) {
+      console.log('🎯 Topics Generator: DOM elements not found - skipping initialization');
+      return;
+    }
+    
     console.log('🎯 Topics Generator: DOM Ready - Starting simple initialization');
     TopicsGenerator.init();
   });

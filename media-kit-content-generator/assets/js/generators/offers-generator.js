@@ -8,6 +8,51 @@
   'use strict';
   
   /**
+   * Simple AJAX helper function
+   */
+  function makeAjaxRequest(action, data) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const formData = new FormData();
+      
+      formData.append('action', action);
+      formData.append('nonce', document.querySelector('#offers-generator-nonce')?.value || '');
+      
+      // Add data parameters
+      if (data && typeof data === 'object') {
+        Object.keys(data).forEach(key => {
+          formData.append(key, data[key]);
+        });
+      }
+      
+      xhr.open('POST', window.ajaxurl || '/wp-admin/admin-ajax.php');
+      
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          try {
+            const response = JSON.parse(xhr.responseText);
+            if (response.success) {
+              resolve(response.data);
+            } else {
+              reject(new Error(response.data || 'Ajax request failed'));
+            }
+          } catch (e) {
+            reject(new Error('Invalid JSON response'));
+          }
+        } else {
+          reject(new Error('Network error: ' + xhr.status));
+        }
+      };
+      
+      xhr.onerror = function() {
+        reject(new Error('Network error'));
+      };
+      
+      xhr.send(formData);
+    });
+  }
+  
+  /**
    * SIMPLIFIED Offers Generator
    * 3-step initialization: load data, bind events, update display
    */
@@ -506,6 +551,13 @@
 
   // SIMPLIFIED: Initialize when DOM is ready
   document.addEventListener('DOMContentLoaded', function() {
+    // CRITICAL FIX: Only initialize if this generator's DOM elements exist
+    const offersContainer = document.querySelector('.offers-generator');
+    if (!offersContainer) {
+      console.log('🎯 Offers Generator: DOM elements not found - skipping initialization');
+      return;
+    }
+    
     console.log('🎯 Offers Generator: DOM Ready - Starting simple initialization');
     OffersGenerator.init();
   });
