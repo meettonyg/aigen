@@ -148,7 +148,7 @@
   font-size: var(--mkcg-font-size-xxl);
   font-weight: var(--mkcg-font-weight-bold);
   color: var(--mkcg-text-primary);
-  margin: 0 0 var(--mkcg-space-sm) 0;
+  margin: 0;
   line-height: var(--mkcg-line-height-tight);
 }
 
@@ -1674,6 +1674,403 @@
   
   .topics-generator__topic-input {
     font-size: var(--mkcg-font-size-sm);
+  }
+}
+
+/* ============================================================================
+   OFFERS GENERATOR SPECIFIC STYLES
+   ============================================================================ */
+
+/* Offers Generator Container */
+.offers-generator {
+  font-family: var(--mkcg-font-family);
+  color: var(--mkcg-text-primary);
+  line-height: var(--mkcg-line-height-normal);
+}
+
+/* Offers Generator Introduction */
+.offers-generator__intro {
+  margin-bottom: var(--mkcg-space-md);
+  color: var(--mkcg-text-secondary);
+  font-size: var(--mkcg-font-size-md);
+  line-height: var(--mkcg-line-height-relaxed);
+}
+
+/* Business Information Container - Unique to Offers Generator */
+.offers-generator__business-container {
+  background: var(--mkcg-bg-secondary);
+  border: 1px solid var(--mkcg-border-light);
+  border-radius: var(--mkcg-radius-lg);
+  padding: var(--mkcg-space-lg);
+  margin: var(--mkcg-space-lg) 0;
+  box-shadow: var(--mkcg-shadow-sm);
+}
+
+.offers-generator__business-header {
+  margin-bottom: var(--mkcg-space-md);
+  border-bottom: 1px solid var(--mkcg-border-light);
+  padding-bottom: var(--mkcg-space-sm);
+}
+
+.offers-generator__business-header h3 {
+  color: var(--mkcg-text-primary);
+  font-size: var(--mkcg-font-size-lg);
+  font-weight: var(--mkcg-font-weight-semibold);
+  margin: 0 0 5px 0;
+}
+
+.offers-generator__business-subheading {
+  font-size: var(--mkcg-font-size-sm);
+  color: var(--mkcg-text-secondary);
+  margin: 0;
+  font-style: italic;
+}
+
+/* Offers Results Display */
+.offers-generator__results-header {
+  margin-bottom: var(--mkcg-space-md);
+  border-bottom: 1px solid var(--mkcg-border-light);
+  padding-bottom: var(--mkcg-space-sm);
+}
+
+.offers-generator__results-header h3 {
+  color: var(--mkcg-text-primary);
+  font-size: var(--mkcg-font-size-lg);
+  font-weight: var(--mkcg-font-weight-semibold);
+  margin: 0;
+}
+
+.offers-generator__results-display {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mkcg-space-md);
+}
+
+/* Individual Offer Items */
+.offers-generator__offer-item {
+  background: var(--mkcg-bg-primary);
+  border: 1px solid var(--mkcg-border-light);
+  border-radius: var(--mkcg-radius);
+  padding: var(--mkcg-space-md);
+  box-shadow: var(--mkcg-shadow-xs);
+  transition: var(--mkcg-transition-fast);
+  position: relative;
+}
+
+.offers-generator__offer-item:hover {
+  box-shadow: var(--mkcg-shadow-md);
+  transform: translateY(-2px);
+}
+
+.offers-generator__offer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--mkcg-space-sm);
+}
+
+.offers-generator__offer-title {
+  font-size: var(--mkcg-font-size-md);
+  font-weight: var(--mkcg-font-weight-semibold);
+  color: var(--mkcg-text-primary);
+  margin: 0;
+  flex: 1;
+}
+
+.offers-generator__offer-type {
+  background: var(--mkcg-secondary);
+  color: var(--mkcg-text-white);
+  padding: 2px var(--mkcg-space-xs);
+  border-radius: var(--mkcg-radius-sm);
+  font-size: var(--mkcg-font-size-xs);
+  font-weight: var(--mkcg-font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.offers-generator__offer-description {
+  color: var(--mkcg-text-secondary);
+  font-size: var(--mkcg-font-size-sm);
+  line-height: var(--mkcg-line-height-relaxed);
+  margin: var(--mkcg-space-xs) 0;
+}
+
+.offers-generator__offer-price {
+  display: flex;
+  align-items: center;
+  margin-top: var(--mkcg-space-sm);
+  padding-top: var(--mkcg-space-sm);
+  border-top: 1px solid var(--mkcg-border-light);
+}
+
+.offers-generator__offer-price-label {
+  font-size: var(--mkcg-font-size-sm);
+  color: var(--mkcg-text-secondary);
+  margin-right: var(--mkcg-space-xs);
+}
+
+.offers-generator__offer-price-value {
+  font-size: var(--mkcg-font-size-lg);
+  font-weight: var(--mkcg-font-weight-bold);
+  color: var(--mkcg-primary);
+}
+
+/* Offer Actions */
+.offers-generator__offer-actions {
+  display: flex;
+  gap: var(--mkcg-space-xs);
+  margin-top: var(--mkcg-space-sm);
+}
+
+.offers-generator__offer-copy {
+  background: none;
+  border: 1px solid var(--mkcg-border-medium);
+  color: var(--mkcg-text-secondary);
+  padding: var(--mkcg-space-xs) var(--mkcg-space-sm);
+  border-radius: var(--mkcg-radius-sm);
+  font-size: var(--mkcg-font-size-xs);
+  cursor: pointer;
+  transition: var(--mkcg-transition-fast);
+}
+
+.offers-generator__offer-copy:hover {
+  background: var(--mkcg-bg-secondary);
+  border-color: var(--mkcg-primary);
+  color: var(--mkcg-primary);
+}
+
+/* Button Group for Offers Results */
+.offers-generator__button-group {
+  display: flex;
+  gap: var(--mkcg-space-sm);
+  margin-top: var(--mkcg-space-lg);
+  padding-top: var(--mkcg-space-md);
+  border-top: 1px solid var(--mkcg-border-light);
+  justify-content: center;
+}
+
+/* Generate Button Specific Styling */
+.offers-generator__button--generate {
+  background: linear-gradient(135deg, var(--mkcg-secondary) 0%, var(--mkcg-secondary-dark) 100%);
+  box-shadow: var(--mkcg-shadow-sm);
+}
+
+.offers-generator__button--generate:hover {
+  background: linear-gradient(135deg, var(--mkcg-secondary-dark) 0%, #a04000 100%);
+  transform: translateY(-1px);
+  box-shadow: var(--mkcg-shadow-md);
+}
+
+/* Loading Overlay for Offers Generator */
+.offers-generator__loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--mkcg-bg-overlay);
+  z-index: var(--mkcg-z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.offers-generator__loading-content {
+  background-color: var(--mkcg-bg-primary);
+  border-radius: var(--mkcg-radius-lg);
+  padding: var(--mkcg-space-xl);
+  text-align: center;
+  box-shadow: var(--mkcg-shadow-xl);
+  min-width: 200px;
+}
+
+.offers-generator__loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--mkcg-bg-quaternary);
+  border-top: 4px solid var(--mkcg-secondary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto var(--mkcg-space-md);
+}
+
+.offers-generator__loading-message {
+  color: var(--mkcg-text-primary);
+  font-size: var(--mkcg-font-size-md);
+  font-weight: var(--mkcg-font-weight-medium);
+}
+
+/* Price Tier Indicators */
+.offers-generator__price-tier {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mkcg-space-xs);
+}
+
+.offers-generator__price-tier--free {
+  color: var(--mkcg-success);
+}
+
+.offers-generator__price-tier--low {
+  color: var(--mkcg-warning);
+}
+
+.offers-generator__price-tier--premium {
+  color: var(--mkcg-error);
+}
+
+.offers-generator__price-tier--luxury {
+  color: var(--mkcg-primary);
+}
+
+/* Delivery Method Indicators */
+.offers-generator__delivery-method {
+  font-size: var(--mkcg-font-size-xs);
+  color: var(--mkcg-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-left: var(--mkcg-space-xs);
+}
+
+/* Offers Generator Right Panel Content */
+.offers-generator__guidance {
+  /* Inherits base panel styling from .generator__panel--right */
+}
+
+.offers-generator__guidance-header {
+  font-size: var(--mkcg-font-size-xl);
+  color: var(--mkcg-text-primary);
+  margin: 0 0 var(--mkcg-space-sm) 0;
+  font-weight: var(--mkcg-font-weight-semibold);
+  line-height: var(--mkcg-line-height-tight);
+}
+
+.offers-generator__guidance-subtitle {
+  color: var(--mkcg-text-secondary);
+  margin-bottom: var(--mkcg-space-lg);
+  font-size: var(--mkcg-font-size-md);
+  line-height: var(--mkcg-line-height-relaxed);
+}
+
+.offers-generator__formula-box {
+  background-color: var(--mkcg-bg-primary);
+  border: 1px solid var(--mkcg-border-light);
+  border-radius: var(--mkcg-radius);
+  padding: var(--mkcg-space-md);
+  margin-bottom: var(--mkcg-space-lg);
+  font-size: var(--mkcg-font-size-md);
+  line-height: var(--mkcg-line-height-relaxed);
+  color: var(--mkcg-text-primary);
+}
+
+.offers-generator__formula-label {
+  display: inline-block;
+  background-color: var(--mkcg-bg-tertiary);
+  color: var(--mkcg-text-secondary);
+  padding: 3px var(--mkcg-space-xs);
+  border-radius: var(--mkcg-radius-sm);
+  font-size: var(--mkcg-font-size-xs);
+  font-weight: var(--mkcg-font-weight-bold);
+  margin-bottom: var(--mkcg-space-xs);
+}
+
+.offers-generator__highlight {
+  color: var(--mkcg-primary);
+  font-weight: var(--mkcg-font-weight-semibold);
+}
+
+.offers-generator__process-step {
+  display: flex;
+  margin-bottom: var(--mkcg-space-lg);
+}
+
+.offers-generator__process-icon {
+  flex: 0 0 40px;
+  color: var(--mkcg-primary);
+  margin-right: var(--mkcg-space-sm);
+  margin-top: 5px;
+}
+
+.offers-generator__process-content {
+  flex: 1;
+}
+
+.offers-generator__process-title {
+  font-size: var(--mkcg-font-size-md);
+  margin: 0 0 var(--mkcg-space-xs) 0;
+  color: var(--mkcg-text-primary);
+  font-weight: var(--mkcg-font-weight-semibold);
+}
+
+.offers-generator__process-description {
+  color: var(--mkcg-text-secondary);
+  font-size: var(--mkcg-font-size-sm);
+  line-height: var(--mkcg-line-height-relaxed);
+  margin: 0;
+}
+
+.offers-generator__examples-header {
+  margin: var(--mkcg-space-lg) 0 var(--mkcg-space-sm);
+  font-size: var(--mkcg-font-size-md);
+  color: var(--mkcg-text-primary);
+  font-weight: var(--mkcg-font-weight-semibold);
+}
+
+.offers-generator__example-card {
+  background-color: var(--mkcg-bg-primary);
+  border: 1px solid var(--mkcg-border-light);
+  border-radius: var(--mkcg-radius);
+  padding: var(--mkcg-space-sm);
+  margin-bottom: var(--mkcg-space-sm);
+}
+
+.offers-generator__example-card strong {
+  display: block;
+  margin-bottom: var(--mkcg-space-xs);
+  color: var(--mkcg-text-primary);
+  font-weight: var(--mkcg-font-weight-semibold);
+}
+
+.offers-generator__example-card p {
+  margin: var(--mkcg-space-xs) 0;
+  color: var(--mkcg-text-secondary);
+  font-size: var(--mkcg-font-size-sm);
+  line-height: var(--mkcg-line-height-normal);
+}
+
+/* Responsive Design for Offers Generator */
+@media screen and (max-width: 768px) {
+  .offers-generator__business-container {
+    padding: var(--mkcg-space-md);
+    margin: var(--mkcg-space-md) 0;
+  }
+  
+  .offers-generator__offer-item {
+    padding: var(--mkcg-space-sm);
+  }
+  
+  .offers-generator__offer-header {
+    flex-direction: column;
+    gap: var(--mkcg-space-xs);
+  }
+  
+  .offers-generator__button-group {
+    flex-direction: column;
+  }
+  
+  .offers-generator__button-group .generator__button {
+    width: 100%;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .offers-generator__business-container {
+    padding: var(--mkcg-space-sm);
+  }
+  
+  .offers-generator__loading-content {
+    padding: var(--mkcg-space-lg);
+    margin: var(--mkcg-space-md);
   }
 }
 
