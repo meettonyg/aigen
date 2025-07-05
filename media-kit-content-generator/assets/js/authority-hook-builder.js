@@ -1,28 +1,185 @@
 /**
- * Authority Hook Builder - FIXED JavaScript
+ * Authority Hook Builder - Complete Integrated Solution
+ * 
+ * Handles all Authority Hook Builder functionality:
+ * 1. Field pre-population from template data
+ * 2. Audience management (add/remove/check/clear)
+ * 3. Live Authority Hook updates
+ * 4. Example chip functionality
+ * 5. Clear button handling
+ * 
+ * @package Media_Kit_Content_Generator
+ * @version 2.1
  */
 
 (function() {
     'use strict';
     
     let audienceTags = [];
+    let initialized = false;
+    let templateData = null;
     
-    console.log('🚀 Authority Hook Builder loading...');
+    console.log('🚀 Authority Hook Builder loading (INTEGRATED VERSION)...');
     
-    // Wait for DOM and initialize
+    // INTEGRATED: Initialize with data loading and UI setup
     function init() {
-        console.log('🔧 Initializing Authority Hook Builder...');
+        console.log('🔧 Initializing Authority Hook Builder (INTEGRATED)...');
         
+        if (initialized) {
+            console.log('⚠️ Already initialized, skipping...');
+            return;
+        }
+        
+        // STEP 1: Load template data from available sources
+        loadTemplateData();
+        
+        // STEP 2: Pre-populate fields from template data
+        prePopulateFields();
+        
+        // STEP 3: Setup UI functionality
         setupClearButtons();
         setupAudienceManager();
         setupExampleChips();
         setupLiveUpdates();
+        
+        // STEP 4: Load existing audiences from WHO field
         loadExistingAudiences();
         
-        console.log('✅ Authority Hook Builder ready!');
+        initialized = true;
+        console.log('✅ Authority Hook Builder ready (INTEGRATED)!');
     }
     
-    // Fix clear buttons (X buttons)
+    // INTEGRATED: Load template data from multiple sources
+    function loadTemplateData() {
+        console.log('📥 Loading template data from available sources...');
+        
+        let dataSource = 'none';
+        
+        // Method 1: Check window.MKCG_Topics_Data
+        if (window.MKCG_Topics_Data && window.MKCG_Topics_Data.authorityHook) {
+            templateData = window.MKCG_Topics_Data.authorityHook;
+            dataSource = 'MKCG_Topics_Data';
+        }
+        // Method 2: Check window.MKCG_Questions_Data  
+        else if (window.MKCG_Questions_Data && window.MKCG_Questions_Data.authorityHook) {
+            templateData = window.MKCG_Questions_Data.authorityHook;
+            dataSource = 'MKCG_Questions_Data';
+        }
+        // Method 3: Check window.MKCG_Offers_Data
+        else if (window.MKCG_Offers_Data && window.MKCG_Offers_Data.authorityHook) {
+            templateData = window.MKCG_Offers_Data.authorityHook;
+            dataSource = 'MKCG_Offers_Data';
+        }
+        // Method 4: Extract from hidden field as fallback
+        else {
+            templateData = extractFromHiddenField();
+            dataSource = 'hidden_field';
+        }
+        
+        if (templateData) {
+            console.log('✅ Template data loaded from:', dataSource, templateData);
+        } else {
+            console.log('⚠️ No template data found');
+        }
+    }
+    
+    // INTEGRATED: Extract data from hidden field as fallback
+    function extractFromHiddenField() {
+        const hiddenField = document.getElementById('mkcg-authority-hook');
+        if (hiddenField && hiddenField.value) {
+            const completeHook = hiddenField.value;
+            if (completeHook.includes('I help')) {
+                console.log('📄 Extracting from complete hook:', completeHook);
+                return parseCompleteHook(completeHook);
+            }
+        }
+        return null;
+    }
+    
+    // INTEGRATED: Parse complete hook to extract components
+    function parseCompleteHook(hook) {
+        const match = hook.match(/I help (.+?) (.+?) when (.+?) (.+?)\./);
+        if (match) {
+            return {
+                who: match[1].trim(),
+                what: match[2].trim(),
+                when: match[3].trim(),
+                how: match[4].trim(),
+                complete: hook
+            };
+        }
+        return null;
+    }
+    
+    // INTEGRATED: Pre-populate fields from template data
+    function prePopulateFields() {
+        if (!templateData) {
+            console.log('⚠️ No template data available for field population');
+            return;
+        }
+        
+        console.log('📋 Pre-populating Authority Hook fields from template data...');
+        
+        const fieldMappings = {
+            'who': 'mkcg-who',
+            'what': 'mkcg-result', // Note: 'what' maps to 'result' field
+            'when': 'mkcg-when', 
+            'how': 'mkcg-how'
+        };
+        
+        let populatedCount = 0;
+        
+        Object.keys(fieldMappings).forEach(key => {
+            const fieldId = fieldMappings[key];
+            const value = templateData[key] || '';
+            
+            if (value && value.trim()) {
+                const field = document.getElementById(fieldId);
+                if (field && !field.value) { // Only populate if field is empty
+                    field.value = value;
+                    populatedCount++;
+                    console.log(`✅ Pre-populated ${fieldId} with: "${value}"`);
+                    
+                    // Special handling for WHO field - extract audiences
+                    if (key === 'who' && value.includes(' and ') || value.includes(', ')) {
+                        extractAudiencesFromWhoField(value);
+                    }
+                } else if (!field) {
+                    console.warn(`❌ Field not found: ${fieldId}`);
+                }
+            }
+        });
+        
+        if (populatedCount > 0) {
+            console.log(`✅ Successfully pre-populated ${populatedCount} fields`);
+            // Update Authority Hook display after population
+            setTimeout(updateAuthorityHook, 100);
+        }
+    }
+    
+    // INTEGRATED: Extract audiences from WHO field for audience builder
+    function extractAudiencesFromWhoField(whoValue) {
+        if (!whoValue || !whoValue.trim()) return;
+        
+        console.log('🔍 Extracting audiences from WHO field:', whoValue);
+        
+        // Split on various separators
+        const audiences = whoValue
+            .split(/,\\s*and\\s*|\\s*and\\s*|,\\s*/)
+            .map(s => s.trim())
+            .filter(Boolean);
+        
+        // Add each audience as a tag
+        audiences.forEach(audience => {
+            if (audience && !audienceTags.find(tag => tag.text === audience)) {
+                addAudienceTag(audience, true);
+            }
+        });
+        
+        console.log('✅ Extracted audiences:', audiences);
+    }
+    
+    // UI FUNCTIONALITY: Clear buttons
     function setupClearButtons() {
         document.addEventListener('click', function(e) {
             if (e.target.classList.contains('field__clear')) {
@@ -45,7 +202,7 @@
         });
     }
     
-    // Setup audience tag manager
+    // UI FUNCTIONALITY: Audience manager
     function setupAudienceManager() {
         const tagInput = document.getElementById('tag_input');
         const addButton = document.getElementById('add_tag');
@@ -54,6 +211,8 @@
             console.log('⚠️ Audience manager elements not found');
             return;
         }
+        
+        console.log('✅ Audience manager elements found');
         
         // Add button click
         addButton.addEventListener('click', function() {
@@ -79,7 +238,7 @@
         console.log('✅ Audience manager setup complete');
     }
     
-    // Add audience tag function
+    // UI FUNCTIONALITY: Add audience tag
     function addAudienceTag(text, checked = true) {
         const trimmed = text.trim();
         if (!trimmed) return;
@@ -97,28 +256,34 @@
         // Create visual tag
         createVisualTag(tagData);
         
-        // Update WHO field
+        // Update WHO field and status
         updateWhoField();
         updateStatus();
         
         console.log('✅ Added audience:', trimmed);
     }
     
-    // Create visual tag element - CONSISTENT BLUE THEME
+    // UI FUNCTIONALITY: Create visual tag
     function createVisualTag(tagData) {
         const container = document.getElementById('tags_container');
-        if (!container) return;
+        if (!container) {
+            console.warn('❌ Tags container not found');
+            return;
+        }
         
         const tagEl = document.createElement('div');
         tagEl.className = 'audience-tag';
-        // Remove all inline styles - let CSS handle styling for consistency
         
         // Add checked class if needed
         if (tagData.checked) {
             tagEl.classList.add('active');
         }
         
-        tagEl.innerHTML = '<input type="checkbox" ' + (tagData.checked ? 'checked' : '') + ' class="credential-checkbox"> <span>' + escapeHtml(tagData.text) + '</span> <span class="credential-remove" onclick="removeAudienceTag(\'' + escapeHtml(tagData.text) + '\')">&times;</span>';
+        tagEl.innerHTML = `
+            <input type="checkbox" ${tagData.checked ? 'checked' : ''} class="credential-checkbox"> 
+            <span>${escapeHtml(tagData.text)}</span> 
+            <span class="credential-remove" onclick="removeAudienceTag('${escapeHtml(tagData.text)}')">&times;</span>
+        `;
         
         // Add checkbox change listener
         const checkbox = tagEl.querySelector('input[type="checkbox"]');
@@ -140,7 +305,7 @@
         container.appendChild(tagEl);
     }
     
-    // Remove audience tag
+    // UI FUNCTIONALITY: Remove audience tag
     window.removeAudienceTag = function(text) {
         // Remove from array
         audienceTags = audienceTags.filter(tag => tag.text !== text);
@@ -150,7 +315,7 @@
         if (container) {
             const tags = container.querySelectorAll('.audience-tag');
             tags.forEach(tagEl => {
-                const span = tagEl.querySelector('span');
+                const span = tagEl.querySelector('span:not(.credential-remove)');
                 if (span && span.textContent === text) {
                     tagEl.remove();
                 }
@@ -162,7 +327,7 @@
         console.log('🗑️ Removed audience:', text);
     };
     
-    // Clear all audiences
+    // UI FUNCTIONALITY: Clear all audiences
     function clearAllAudiences() {
         audienceTags = [];
         
@@ -177,10 +342,11 @@
         }
         
         updateStatus();
+        updateAuthorityHook();
         console.log('🗑️ Cleared all audiences');
     }
     
-    // Update WHO field with proper formatting
+    // UI FUNCTIONALITY: Update WHO field with proper formatting
     function updateWhoField() {
         const checkedAudiences = audienceTags
             .filter(tag => tag.checked)
@@ -206,7 +372,7 @@
         updateAuthorityHook();
     }
     
-    // Update status counters
+    // UI FUNCTIONALITY: Update status counters
     function updateStatus() {
         const total = audienceTags.length;
         const checked = audienceTags.filter(tag => tag.checked).length;
@@ -218,7 +384,7 @@
         if (selectedCount) selectedCount.textContent = checked;
     }
     
-    // Setup example chip adding
+    // UI FUNCTIONALITY: Setup example chip functionality
     function setupExampleChips() {
         document.addEventListener('click', function(e) {
             if (e.target.classList.contains('add-to-list') || 
@@ -249,6 +415,8 @@
                     if (field) {
                         field.value = value;
                         field.dispatchEvent(new Event('input', { bubbles: true }));
+                    } else {
+                        console.warn('❌ Target field not found:', target);
                     }
                 }
                 
@@ -267,7 +435,7 @@
         });
     }
     
-    // Setup live updates for Authority Hook
+    // UI FUNCTIONALITY: Setup live updates
     function setupLiveUpdates() {
         const fields = ['mkcg-who', 'mkcg-result', 'mkcg-when', 'mkcg-how'];
         
@@ -276,30 +444,42 @@
             if (field) {
                 field.addEventListener('input', updateAuthorityHook);
                 field.addEventListener('change', updateAuthorityHook);
+                console.log('✅ Live updates setup for:', fieldId);
+            } else {
+                console.warn('❌ Field not found for live updates:', fieldId);
             }
         });
     }
     
-    // Update Authority Hook display
-function updateAuthorityHook() {
-    const who = document.getElementById('mkcg-who')?.value || '';
-    const result = document.getElementById('mkcg-result')?.value || '';
-    const when = document.getElementById('mkcg-when')?.value || '';
-    const how = document.getElementById('mkcg-how')?.value || '';
-    
-    // Check if all components are empty
-    const isEmpty = !who && !result && !when && !how;
-    const authorityHook = isEmpty ? '' : 'I help ' + who + ' ' + result + ' when ' + when + ' ' + how + '.';
-    
-    // Update display element
-    const display = document.getElementById('topics-generator-authority-hook-text');
-    if (display) {
-        if (isEmpty) {
-            display.innerHTML = '';
-        } else {
-            display.innerHTML = 'I help <span class="authority-hook__highlight">' + escapeHtml(who) + '</span> <span class="authority-hook__highlight">' + escapeHtml(result) + '</span> when <span class="authority-hook__highlight">' + escapeHtml(when) + '</span> <span class="authority-hook__highlight">' + escapeHtml(how) + '</span>.';
-        }
-    }
+    // CORE FUNCTIONALITY: Update Authority Hook display
+    function updateAuthorityHook() {
+        const who = document.getElementById('mkcg-who')?.value || '';
+        const result = document.getElementById('mkcg-result')?.value || '';
+        const when = document.getElementById('mkcg-when')?.value || '';
+        const how = document.getElementById('mkcg-how')?.value || '';
+        
+        // Check if all components are empty
+        const isEmpty = !who && !result && !when && !how;
+        const authorityHook = isEmpty ? '' : `I help ${who} ${result} when ${when} ${how}.`;
+        
+        // Update multiple display elements across generators
+        const displaySelectors = [
+            'topics-generator-authority-hook-text',
+            'questions-generator-authority-hook-text',
+            'offers-generator-authority-hook-text',
+            'authority-hook-content'
+        ];
+        
+        displaySelectors.forEach(selector => {
+            const display = document.getElementById(selector);
+            if (display) {
+                if (isEmpty) {
+                    display.innerHTML = '';
+                } else {
+                    display.innerHTML = `I help <span class="authority-hook__highlight">${escapeHtml(who)}</span> <span class="authority-hook__highlight">${escapeHtml(result)}</span> when <span class="authority-hook__highlight">${escapeHtml(when)}</span> <span class="authority-hook__highlight">${escapeHtml(how)}</span>.`;
+                }
+            }
+        });
         
         // Update hidden field
         const hiddenField = document.getElementById('mkcg-authority-hook');
@@ -308,25 +488,38 @@ function updateAuthorityHook() {
         }
         
         console.log('📝 Authority Hook updated:', authorityHook);
+        
+        // Dispatch custom event for other components
+        document.dispatchEvent(new CustomEvent('authority-hook-updated', {
+            detail: {
+                who: who,
+                what: result,
+                when: when,
+                how: how,
+                completeHook: authorityHook
+            }
+        }));
     }
     
-    // Load existing audiences from WHO field
+    // UI FUNCTIONALITY: Load existing audiences from WHO field
     function loadExistingAudiences() {
         const whoField = document.getElementById('mkcg-who');
-        if (!whoField || !whoField.value.trim()) return;
+        if (!whoField || !whoField.value.trim()) {
+            console.log('⚠️ No existing WHO field value to load audiences from');
+            return;
+        }
         
         const existingValue = whoField.value.trim();
-        // Split on various separators
-        const audiences = existingValue
-            .split(/,\s*and\s*|\s*and\s*|,\s*/)
-            .map(s => s.trim())
-            .filter(Boolean);
+        console.log('📥 Loading existing audiences from WHO field:', existingValue);
         
-        audiences.forEach(audience => {
-            addAudienceTag(audience, true);
-        });
+        // Don't reload if audiences are already loaded
+        if (audienceTags.length > 0) {
+            console.log('⚠️ Audiences already loaded, skipping...');
+            return;
+        }
         
-        console.log('📥 Loaded existing audiences:', audiences);
+        extractAudiencesFromWhoField(existingValue);
+        updateStatus();
     }
     
     // Utility function
@@ -336,14 +529,36 @@ function updateAuthorityHook() {
         return div.innerHTML;
     }
     
-    // Initialize when ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
+    // Enhanced initialization with multiple triggers
+    function initializeWhenReady() {
+        // Try immediate initialization
         init();
+        
+        // Also try after DOM content loaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        }
+        
+        // Try after a small delay for dynamic content
+        setTimeout(init, 500);
+        
+        // Try after longer delay as final fallback
+        setTimeout(init, 2000);
     }
     
-    // Also try after a delay for dynamic content
-    setTimeout(init, 500);
+    // Initialize
+    initializeWhenReady();
+    
+    // Expose for debugging and external access
+    window.AuthorityHookBuilder = {
+        init,
+        updateAuthorityHook,
+        addAudienceTag,
+        clearAllAudiences,
+        audienceTags: () => audienceTags,
+        templateData: () => templateData
+    };
+    
+    console.log('✅ Authority Hook Builder script loaded (INTEGRATED VERSION)');
     
 })();

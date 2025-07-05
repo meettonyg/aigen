@@ -148,20 +148,14 @@
     bindEvents: function() {
       // Authority Hook Builder toggle
       const toggleBtn = document.querySelector('#offers-generator-toggle-builder');
-      const editBtn = document.querySelector('#edit-authority-components');
       
       if (toggleBtn) {
         toggleBtn.addEventListener('click', (e) => {
           e.preventDefault();
           this.toggleBuilder();
         });
-      }
-      
-      if (editBtn) {
-        editBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          this.toggleBuilder();
-        });
+      } else {
+        console.warn('⚠️ Toggle builder button not found: #offers-generator-toggle-builder');
       }
       
       // Input change events for authority hook
@@ -237,15 +231,18 @@
      */
     toggleBuilder: function() {
       const builder = document.querySelector('#offers-generator-authority-hook-builder');
-      if (!builder) return;
+      if (!builder) {
+        console.warn('⚠️ Authority Hook Builder not found: #offers-generator-authority-hook-builder');
+        return;
+      }
       
-      const isHidden = builder.classList.contains('topics-generator__builder--hidden');
+      const isHidden = builder.classList.contains('generator__builder--hidden');
       
       if (isHidden) {
-        builder.classList.remove('topics-generator__builder--hidden');
+        builder.classList.remove('generator__builder--hidden');
         console.log('✅ Authority Hook Builder shown');
       } else {
-        builder.classList.add('topics-generator__builder--hidden');
+        builder.classList.add('generator__builder--hidden');
         console.log('✅ Authority Hook Builder hidden');
       }
     },
@@ -362,16 +359,21 @@
         const offerNumber = index + 1;
         
         const offerItem = document.createElement('div');
-        offerItem.className = 'offer';
+        offerItem.className = 'offers-generator__offer-item';
         offerItem.innerHTML = `
-          <div class="offer__title">Offer ${offerNumber}:</div>
-          <div class="offer__description">${this.escapeHtml(offer)}</div>
-          <button class="button button--use" data-offer="${offerNumber}" data-text="${this.escapeHtml(offer)}">Use Offer</button>
+          <div class="offers-generator__offer-header">
+            <h4 class="offers-generator__offer-title">Offer ${offerNumber}</h4>
+            <span class="offers-generator__offer-type">GENERATED</span>
+          </div>
+          <div class="offers-generator__offer-description">${this.escapeHtml(offer)}</div>
+          <div class="offers-generator__offer-actions">
+            <button class="generator__button generator__button--outline offers-generator__offer-copy" data-offer="${offerNumber}" data-text="${this.escapeHtml(offer)}">Copy Offer</button>
+          </div>
         `;
         
-        // Bind Use button
-        const useBtn = offerItem.querySelector('.button--use');
-        useBtn.addEventListener('click', () => {
+        // Bind Copy button
+        const copyBtn = offerItem.querySelector('.offers-generator__offer-copy');
+        copyBtn.addEventListener('click', () => {
           this.useOffer(offer);
         });
         
@@ -381,7 +383,7 @@
       // Show results section
       const results = document.querySelector('#offers-results');
       if (results) {
-        results.style.display = 'block';
+        results.classList.remove('generator__results--hidden');
         results.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     },
@@ -406,7 +408,7 @@
      * Copy all offers to clipboard
      */
     copyAllOffers: function() {
-      const offerElements = document.querySelectorAll('.offer__description');
+      const offerElements = document.querySelectorAll('.offers-generator__offer-description');
       if (offerElements.length === 0) {
         this.showNotification('No offers to copy', 'warning');
         return;
@@ -473,9 +475,15 @@
      * SIMPLIFIED: Show loading
      */
     showLoading: function() {
-      const loading = document.querySelector('#offers-loading-overlay');
+      const loading = document.querySelector('#offers-generator-loading');
       if (loading) {
-        loading.style.display = 'flex';
+        loading.classList.remove('generator__loading--hidden');
+      }
+      
+      // Also show the overlay if it exists
+      const overlay = document.querySelector('#offers-loading-overlay');
+      if (overlay) {
+        overlay.style.display = 'flex';
       }
     },
     
@@ -483,9 +491,15 @@
      * SIMPLIFIED: Hide loading
      */
     hideLoading: function() {
-      const loading = document.querySelector('#offers-loading-overlay');
+      const loading = document.querySelector('#offers-generator-loading');
       if (loading) {
-        loading.style.display = 'none';
+        loading.classList.add('generator__loading--hidden');
+      }
+      
+      // Also hide the overlay if it exists
+      const overlay = document.querySelector('#offers-loading-overlay');
+      if (overlay) {
+        overlay.style.display = 'none';
       }
     }
   };

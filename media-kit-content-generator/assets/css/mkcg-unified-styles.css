@@ -775,18 +775,18 @@
 /* Continue with existing specific styles while leveraging base classes... */
 /* This provides backward compatibility while establishing the new architecture */
 
-/* Enhanced read-only field styling */
+/* ROOT FIX: Enhanced read-only field styling with CSS variables */
 .field__input--readonly {
-    background-color: #f8f9fa !important;
-    border: 1px solid #e9ecef !important;
-    color: #6c757d !important;
+    background-color: var(--mkcg-bg-tertiary) !important;
+    border: 1px solid var(--mkcg-border-light) !important;
+    color: var(--mkcg-text-tertiary) !important;
     cursor: default !important;
     font-style: italic;
 }
 
 .field__input--readonly:focus {
     box-shadow: none !important;
-    border-color: #e9ecef !important;
+    border-color: var(--mkcg-border-light) !important;
 }
 
 /* Helper text styling */
@@ -2526,6 +2526,198 @@
     align-items: flex-start;
     gap: var(--mkcg-space-xs);
   }
+}
+
+/* ============================================================================
+   AUTHORITY HOOK BUILDER FIXES - Critical CSS fixes for broken functionality
+   ============================================================================ */
+
+/* ROOT FIX: Field styling that was broken by CSS architecture changes */
+.field {
+    margin-bottom: var(--mkcg-space-md);
+}
+
+.field__input {
+    width: 100%;
+    padding: var(--mkcg-space-sm) var(--mkcg-space-md);
+    border: 1px solid var(--mkcg-border-medium);
+    border-radius: var(--mkcg-radius-sm);
+    font-size: var(--mkcg-font-size-md);
+    font-family: inherit;
+    transition: var(--mkcg-transition-fast);
+    background-color: var(--mkcg-bg-primary);
+    color: var(--mkcg-text-primary);
+    line-height: var(--mkcg-line-height-normal);
+}
+
+.field__input:focus {
+    border-color: var(--mkcg-border-focus);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(26, 155, 220, 0.2);
+}
+
+.field__input::placeholder {
+    color: var(--mkcg-text-light);
+}
+
+/* ROOT FIX: Field group headers */
+.field__group-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: var(--mkcg-space-sm);
+}
+
+.field__group-header h4 {
+    margin: 0;
+    margin-left: var(--mkcg-space-xs);
+    color: var(--mkcg-text-primary);
+    font-size: var(--mkcg-font-size-md);
+    font-weight: var(--mkcg-font-weight-semibold);
+}
+
+/* ROOT FIX: Examples section styling */
+.examples {
+    margin-top: var(--mkcg-space-sm);
+}
+
+.examples__title {
+    font-weight: var(--mkcg-font-weight-bold);
+    margin-bottom: var(--mkcg-space-xs);
+    color: var(--mkcg-text-primary);
+    font-size: var(--mkcg-font-size-sm);
+}
+
+/* ROOT FIX: Tag styling for examples */
+.tag {
+    display: inline-flex;
+    align-items: center;
+    background-color: var(--mkcg-bg-tertiary);
+    border-radius: var(--mkcg-radius-sm);
+    padding: var(--mkcg-space-xs) var(--mkcg-space-sm);
+    margin: 0 var(--mkcg-space-xs) var(--mkcg-space-xs) 0;
+    transition: var(--mkcg-transition-fast);
+    cursor: pointer;
+    font-size: var(--mkcg-font-size-sm);
+    color: var(--mkcg-text-primary);
+}
+
+.tag:hover {
+    background-color: var(--mkcg-bg-quaternary);
+}
+
+.tag__add-link {
+    margin-left: var(--mkcg-space-xs);
+    color: var(--mkcg-primary);
+    font-weight: var(--mkcg-font-weight-bold);
+    font-size: var(--mkcg-font-size-xs);
+}
+
+.tag__add-link:hover {
+    color: var(--mkcg-primary-dark);
+}
+
+/* ROOT FIX: Authority Hook Builder container */
+.authority-hook {
+    background-color: var(--mkcg-bg-primary);
+    border: 1px solid var(--mkcg-border-light);
+    border-radius: var(--mkcg-radius);
+    overflow: hidden;
+    margin-bottom: var(--mkcg-space-lg);
+    box-shadow: var(--mkcg-shadow-sm);
+}
+
+.authority-hook__builder {
+    padding: var(--mkcg-space-lg);
+}
+
+.authority-hook__builder-title {
+    display: flex;
+    align-items: center;
+    margin-bottom: var(--mkcg-space-sm);
+    font-size: var(--mkcg-font-size-lg);
+    font-weight: var(--mkcg-font-weight-semibold);
+    color: var(--mkcg-text-primary);
+}
+
+/* ROOT FIX: Field descriptions */
+.field__description {
+    font-size: var(--mkcg-font-size-sm);
+    color: var(--mkcg-text-secondary);
+    margin-bottom: var(--mkcg-space-md);
+    line-height: var(--mkcg-line-height-relaxed);
+}
+
+/* ROOT FIX: Authority Hook highlight spans */
+.authority-hook__highlight {
+    color: var(--mkcg-primary);
+    font-weight: var(--mkcg-font-weight-semibold);
+}
+
+/* ROOT FIX: Authority Hook content areas */
+.authority-hook__content {
+    padding: var(--mkcg-space-md);
+    background-color: var(--mkcg-bg-secondary);
+    border-radius: var(--mkcg-radius-sm);
+    margin: var(--mkcg-space-md) 0;
+    border-left: 4px solid var(--mkcg-primary);
+    font-size: var(--mkcg-font-size-md);
+    line-height: var(--mkcg-line-height-relaxed);
+    color: var(--mkcg-text-primary);
+}
+
+/* ROOT FIX: Authority Hook preview */
+.authority-hook__preview {
+    background-color: var(--mkcg-bg-secondary);
+    border: 1px solid var(--mkcg-border-light);
+    border-radius: var(--mkcg-radius);
+    padding: var(--mkcg-space-md);
+    margin-top: var(--mkcg-space-md);
+}
+
+.authority-hook__preview-title {
+    display: flex;
+    align-items: center;
+    font-weight: var(--mkcg-font-weight-semibold);
+    color: var(--mkcg-text-primary);
+    margin-bottom: var(--mkcg-space-sm);
+}
+
+.authority-hook__ai-label {
+    margin-left: auto;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2px var(--mkcg-space-xs);
+    border-radius: var(--mkcg-radius-sm);
+    font-size: var(--mkcg-font-size-xs);
+    font-weight: var(--mkcg-font-weight-bold);
+}
+
+/* ROOT FIX: Button group styling */
+.button-group {
+    display: flex;
+    gap: var(--mkcg-space-xs);
+    margin-top: var(--mkcg-space-md);
+    flex-wrap: wrap;
+}
+
+.button--copy {
+    background: none;
+    border: 1px solid var(--mkcg-border-medium);
+    color: var(--mkcg-text-secondary);
+    padding: var(--mkcg-space-xs) var(--mkcg-space-sm);
+    border-radius: var(--mkcg-radius-sm);
+    font-size: var(--mkcg-font-size-sm);
+    cursor: pointer;
+    transition: var(--mkcg-transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--mkcg-space-xs);
+}
+
+.button--copy:hover {
+    background: var(--mkcg-bg-secondary);
+    border-color: var(--mkcg-primary);
+    color: var(--mkcg-primary);
 }
 
 /* Continue with all existing specific styles... */

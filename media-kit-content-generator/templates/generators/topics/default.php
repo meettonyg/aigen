@@ -187,13 +187,30 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
                     }
                     $authority_hook_service = $GLOBALS['authority_hook_service'];
                     
-                    // Prepare current values for the service
-                    $current_values = [
-                        'who' => $authority_hook_components['who'] ?? 'your audience',
-                        'what' => $authority_hook_components['what'] ?? 'achieve their goals', 
-                        'when' => $authority_hook_components['when'] ?? 'they need help',
-                        'how' => $authority_hook_components['how'] ?? 'through your method'
-                    ];
+                    // ROOT FIX: Prepare current values - don't use defaults if no entry param
+                    $has_entry_param = isset($_GET['entry']) || isset($_GET['post_id']) || 
+                                       (isset($_GET['frm_action']) && $_GET['frm_action'] === 'edit');
+                    
+                    if ($has_entry_param) {
+                        // Use legacy defaults for backward compatibility
+                        $current_values = [
+                            'who' => $authority_hook_components['who'] ?? 'your audience',
+                            'what' => $authority_hook_components['what'] ?? 'achieve their goals', 
+                            'when' => $authority_hook_components['when'] ?? 'they need help',
+                            'how' => $authority_hook_components['how'] ?? 'through your method'
+                        ];
+                    } else {
+                        // No entry param - use empty values
+                        $current_values = [
+                            'who' => $authority_hook_components['who'] ?? '',
+                            'what' => $authority_hook_components['what'] ?? '', 
+                            'when' => $authority_hook_components['when'] ?? '',
+                            'how' => $authority_hook_components['how'] ?? ''
+                        ];
+                    }
+                    
+                    // ROOT FIX: Log the values being passed to the service
+                    error_log('MKCG Topics Template: Passing to Authority Hook Service: ' . json_encode($current_values));
                     
                     // Render options for Topics Generator
                     $render_options = [
@@ -423,15 +440,17 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
         hasData: <?php echo $has_data ? 'true' : 'false'; ?>
     });
     
+    // ROOT FIX: Enhanced template data with proper null handling
     window.MKCG_Topics_Data = {
         postId: <?php echo intval($post_id); ?>,
         hasData: <?php echo $has_data ? 'true' : 'false'; ?>,
+        hasEntryParam: <?php echo $has_entry_param ? 'true' : 'false'; ?>,
         authorityHook: {
-            who: '<?php echo esc_js($authority_hook_components['who']); ?>',
-            what: '<?php echo esc_js($authority_hook_components['what']); ?>',
-            when: '<?php echo esc_js($authority_hook_components['when']); ?>',
-            how: '<?php echo esc_js($authority_hook_components['how']); ?>',
-            complete: '<?php echo esc_js($authority_hook_components['complete']); ?>'
+            who: '<?php echo esc_js($authority_hook_components['who'] ?? ''); ?>',
+            what: '<?php echo esc_js($authority_hook_components['what'] ?? ''); ?>',
+            when: '<?php echo esc_js($authority_hook_components['when'] ?? ''); ?>',
+            how: '<?php echo esc_js($authority_hook_components['how'] ?? ''); ?>',
+            complete: '<?php echo esc_js($authority_hook_components['complete'] ?? ''); ?>'
         },
         topics: {
             topic_1: '<?php echo esc_js($form_field_values['topic_1'] ?? ''); ?>',
@@ -455,10 +474,16 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
     if (window.MKCG_Topics_Data.hasData) {
         console.log('📋 MKCG Topics: Data found - should populate automatically');
         
-        // Check if authority hook text element exists and has content
+        // ROOT FIX: Check if authority hook text element exists and populate if needed
         const hookText = document.getElementById('topics-generator-authority-hook-text');
         if (hookText) {
             console.log('✅ Authority hook element found with text:', hookText.textContent);
+            
+            // ROOT FIX: If element is empty but we have authority hook data, populate it
+            if (!hookText.textContent.trim() && window.MKCG_Topics_Data.authorityHook.complete) {
+                hookText.textContent = window.MKCG_Topics_Data.authorityHook.complete;
+                console.log('✅ Populated empty authority hook element with template data');
+            }
         } else {
             console.error('❌ Authority hook element not found - check selector mismatch');
         }

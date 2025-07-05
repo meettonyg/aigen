@@ -521,19 +521,10 @@ class Media_Kit_Content_Generator {
         // Load jQuery
         wp_enqueue_script('jquery');
         
-        // Load Authority Hook Builder FIRST (needed by other scripts)
+        // Load Authority Hook Builder (includes all functionality)
         wp_enqueue_script(
             'authority-hook-builder',
             MKCG_PLUGIN_URL . 'assets/js/authority-hook-builder.js',
-            ['jquery'],
-            MKCG_VERSION,
-            true
-        );
-        
-        // Load Authority Hook Service Integration (centralized service)
-        wp_enqueue_script(
-            'authority-hook-service-integration',
-            MKCG_PLUGIN_URL . 'assets/js/authority-hook-service-integration.js',
             ['jquery'],
             MKCG_VERSION,
             true
@@ -570,7 +561,7 @@ class Media_Kit_Content_Generator {
         wp_enqueue_script(
             'topics-generator',
             MKCG_PLUGIN_URL . 'assets/js/generators/topics-generator.js',
-            ['simple-event-bus', 'simple-ajax', 'authority-hook-builder', 'authority-hook-service-integration'],
+            ['simple-event-bus', 'simple-ajax', 'authority-hook-builder'],
             MKCG_VERSION,
             true
         );
@@ -578,7 +569,7 @@ class Media_Kit_Content_Generator {
         wp_enqueue_script(
             'questions-generator',
             MKCG_PLUGIN_URL . 'assets/js/generators/questions-generator.js',
-            ['simple-event-bus', 'simple-ajax', 'authority-hook-service-integration'],
+            ['simple-event-bus', 'simple-ajax', 'authority-hook-builder'],
             MKCG_VERSION,
             true
         );
@@ -586,7 +577,7 @@ class Media_Kit_Content_Generator {
         wp_enqueue_script(
             'offers-generator',
             MKCG_PLUGIN_URL . 'assets/js/generators/offers-generator.js',
-            ['simple-event-bus', 'simple-ajax', 'authority-hook-service-integration'],
+            ['simple-event-bus', 'simple-ajax', 'authority-hook-builder'],
             MKCG_VERSION,
             true
         );

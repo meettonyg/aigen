@@ -426,13 +426,13 @@ class MKCG_Authority_Hook_Service {
             
             <div class="field field--with-clear">
                 <input type="text" 
-                       id="<?php echo $options['field_prefix']; ?>who" 
+                       id="mkcg-who" 
                        name="who" 
                        class="field__input field__input--readonly" 
                        value="<?php echo esc_attr($value); ?>" 
                        placeholder="Selected audiences will appear here automatically"
                        readonly>
-                <button type="button" class="field__clear" data-field-id="<?php echo $options['field_prefix']; ?>who" title="Clear all audiences">×</button>
+                <button type="button" class="field__clear" data-field-id="mkcg-who" title="Clear all audiences">×</button>
             </div>
             
             <?php if ($options['show_audience_manager']): ?>
@@ -456,10 +456,10 @@ class MKCG_Authority_Hook_Service {
             <?php if ($options['show_examples']): ?>
             <div class="examples">
                 <p class="examples__title"><strong>Examples:</strong></p>
-                <span class="example-chip field-chip" data-target="<?php echo $options['field_prefix']; ?>who" data-value="SaaS founders">SaaS founders<span class="add-to-list" data-value="SaaS founders">+ Add to List</span></span>
-                <span class="example-chip field-chip" data-target="<?php echo $options['field_prefix']; ?>who" data-value="Business coaches">Business coaches<span class="add-to-list" data-value="Business coaches">+ Add to List</span></span>
-                <span class="example-chip field-chip" data-target="<?php echo $options['field_prefix']; ?>who" data-value="Authors launching a book">Authors launching a book<span class="add-to-list" data-value="Authors launching a book">+ Add to List</span></span>
-                <span class="example-chip field-chip" data-target="<?php echo $options['field_prefix']; ?>who" data-value="Real estate investors">Real estate investors<span class="add-to-list" data-value="Real estate investors">+ Add to List</span></span>
+                <span class="example-chip field-chip" data-target="mkcg-who" data-value="SaaS founders">SaaS founders<span class="add-to-list" data-value="SaaS founders">+ Add to List</span></span>
+                <span class="example-chip field-chip" data-target="mkcg-who" data-value="Business coaches">Business coaches<span class="add-to-list" data-value="Business coaches">+ Add to List</span></span>
+                <span class="example-chip field-chip" data-target="mkcg-who" data-value="Authors launching a book">Authors launching a book<span class="add-to-list" data-value="Authors launching a book">+ Add to List</span></span>
+                <span class="example-chip field-chip" data-target="mkcg-who" data-value="Real estate investors">Real estate investors<span class="add-to-list" data-value="Real estate investors">+ Add to List</span></span>
             </div>
             <?php endif; ?>
         </div>
@@ -481,21 +481,21 @@ class MKCG_Authority_Hook_Service {
             
             <div class="field field--with-clear">
                 <input type="text" 
-                       id="<?php echo $options['field_prefix']; ?>result" 
+                       id="mkcg-result" 
                        name="result" 
                        class="field__input" 
                        value="<?php echo esc_attr($value); ?>" 
                        placeholder="e.g., increase revenue, save time, reduce stress">
-                <button type="button" class="field__clear" data-field-id="<?php echo $options['field_prefix']; ?>result" title="Clear field">×</button>
+                <button type="button" class="field__clear" data-field-id="mkcg-result" title="Clear field">×</button>
             </div>
             
             <?php if ($options['show_examples']): ?>
             <div class="examples">
                 <p class="examples__title"><strong>Examples:</strong></p>
-                <span class="tag tag--example" data-target="<?php echo $options['field_prefix']; ?>result" data-value="increase revenue by 40%">increase revenue by 40% <span class="tag__add-link">+ Add</span></span>
-                <span class="tag tag--example" data-target="<?php echo $options['field_prefix']; ?>result" data-value="save 10+ hours per week">save 10+ hours per week <span class="tag__add-link">+ Add</span></span>
-                <span class="tag tag--example" data-target="<?php echo $options['field_prefix']; ?>result" data-value="reduce operational costs">reduce operational costs <span class="tag__add-link">+ Add</span></span>
-                <span class="tag tag--example" data-target="<?php echo $options['field_prefix']; ?>result" data-value="scale their business">scale their business <span class="tag__add-link">+ Add</span></span>
+                <span class="tag tag--example" data-target="mkcg-result" data-value="increase revenue by 40%">increase revenue by 40% <span class="tag__add-link">+ Add</span></span>
+                <span class="tag tag--example" data-target="mkcg-result" data-value="save 10+ hours per week">save 10+ hours per week <span class="tag__add-link">+ Add</span></span>
+                <span class="tag tag--example" data-target="mkcg-result" data-value="reduce operational costs">reduce operational costs <span class="tag__add-link">+ Add</span></span>
+                <span class="tag tag--example" data-target="mkcg-result" data-value="scale their business">scale their business <span class="tag__add-link">+ Add</span></span>
             </div>
             <?php endif; ?>
         </div>
@@ -517,21 +517,21 @@ class MKCG_Authority_Hook_Service {
             
             <div class="field field--with-clear">
                 <input type="text" 
-                       id="<?php echo $options['field_prefix']; ?>when" 
+                       id="mkcg-when" 
                        name="when" 
                        class="field__input" 
                        value="<?php echo esc_attr($value); ?>" 
                        placeholder="e.g., during rapid growth, when scaling their team">
-                <button type="button" class="field__clear" data-field-id="<?php echo $options['field_prefix']; ?>when" title="Clear field">×</button>
+                <button type="button" class="field__clear" data-field-id="mkcg-when" title="Clear field">×</button>
             </div>
             
             <?php if ($options['show_examples']): ?>
             <div class="examples">
                 <p class="examples__title"><strong>Examples:</strong></p>
-                <span class="tag tag--example" data-target="<?php echo $options['field_prefix']; ?>when" data-value="they're scaling rapidly">they're scaling rapidly <span class="tag__add-link">+ Add</span></span>
-                <span class="tag tag--example" data-target="<?php echo $options['field_prefix']; ?>when" data-value="facing cash flow challenges">facing cash flow challenges <span class="tag__add-link">+ Add</span></span>
-                <span class="tag tag--example" data-target="<?php echo $options['field_prefix']; ?>when" data-value="ready to expand their team">ready to expand their team <span class="tag__add-link">+ Add</span></span>
-                <span class="tag tag--example" data-target="<?php echo $options['field_prefix']; ?>when" data-value="launching a new product">launching a new product <span class="tag__add-link">+ Add</span></span>
+                <span class="tag tag--example" data-target="mkcg-when" data-value="they're scaling rapidly">they're scaling rapidly <span class="tag__add-link">+ Add</span></span>
+                <span class="tag tag--example" data-target="mkcg-when" data-value="facing cash flow challenges">facing cash flow challenges <span class="tag__add-link">+ Add</span></span>
+                <span class="tag tag--example" data-target="mkcg-when" data-value="ready to expand their team">ready to expand their team <span class="tag__add-link">+ Add</span></span>
+                <span class="tag tag--example" data-target="mkcg-when" data-value="launching a new product">launching a new product <span class="tag__add-link">+ Add</span></span>
             </div>
             <?php endif; ?>
         </div>
@@ -553,21 +553,21 @@ class MKCG_Authority_Hook_Service {
             
             <div class="field field--with-clear">
                 <input type="text" 
-                       id="<?php echo $options['field_prefix']; ?>how" 
+                       id="mkcg-how" 
                        name="how" 
                        class="field__input" 
                        value="<?php echo esc_attr($value); ?>" 
                        placeholder="e.g., through my proven system, with strategic consulting">
-                <button type="button" class="field__clear" data-field-id="<?php echo $options['field_prefix']; ?>how" title="Clear field">×</button>
+                <button type="button" class="field__clear" data-field-id="mkcg-how" title="Clear field">×</button>
             </div>
             
             <?php if ($options['show_examples']): ?>
             <div class="examples">
                 <p class="examples__title"><strong>Examples:</strong></p>
-                <span class="tag tag--example" data-target="<?php echo $options['field_prefix']; ?>how" data-value="through my proven 90-day system">through my proven 90-day system <span class="tag__add-link">+ Add</span></span>
-                <span class="tag tag--example" data-target="<?php echo $options['field_prefix']; ?>how" data-value="with personalized coaching">with personalized coaching <span class="tag__add-link">+ Add</span></span>
-                <span class="tag tag--example" data-target="<?php echo $options['field_prefix']; ?>how" data-value="using data-driven strategies">using data-driven strategies <span class="tag__add-link">+ Add</span></span>
-                <span class="tag tag--example" data-target="<?php echo $options['field_prefix']; ?>how" data-value="via strategic consulting">via strategic consulting <span class="tag__add-link">+ Add</span></span>
+                <span class="tag tag--example" data-target="mkcg-how" data-value="through my proven 90-day system">through my proven 90-day system <span class="tag__add-link">+ Add</span></span>
+                <span class="tag tag--example" data-target="mkcg-how" data-value="with personalized coaching">with personalized coaching <span class="tag__add-link">+ Add</span></span>
+                <span class="tag tag--example" data-target="mkcg-how" data-value="using data-driven strategies">using data-driven strategies <span class="tag__add-link">+ Add</span></span>
+                <span class="tag tag--example" data-target="mkcg-how" data-value="via strategic consulting">via strategic consulting <span class="tag__add-link">+ Add</span></span>
             </div>
             <?php endif; ?>
         </div>

@@ -132,20 +132,14 @@
     bindEvents: function() {
       // Authority Hook Builder toggle
       const toggleBtn = document.querySelector('#topics-generator-toggle-builder');
-      const editBtn = document.querySelector('#edit-authority-components');
       
       if (toggleBtn) {
         toggleBtn.addEventListener('click', (e) => {
           e.preventDefault();
           this.toggleBuilder();
         });
-      }
-      
-      if (editBtn) {
-        editBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          this.toggleBuilder();
-        });
+      } else {
+        console.warn('⚠️ Toggle builder button not found: #topics-generator-toggle-builder');
       }
       
       // Input change events for authority hook
@@ -175,12 +169,14 @@
       }
       
       // Save All Topics button
-      const saveBtn = document.querySelector('#save-all-topics') || document.querySelector('#topics-generator-save-topics');
+      const saveBtn = document.querySelector('#topics-generator-save-topics');
       if (saveBtn) {
         saveBtn.addEventListener('click', (e) => {
           e.preventDefault();
           this.saveAllData();
         });
+      } else {
+        console.warn('⚠️ Save button not found: #topics-generator-save-topics');
       }
       
       // Auto-save on blur for topic fields
@@ -206,15 +202,18 @@
      */
     toggleBuilder: function() {
       const builder = document.querySelector('#topics-generator-authority-hook-builder');
-      if (!builder) return;
+      if (!builder) {
+        console.warn('⚠️ Authority Hook Builder not found: #topics-generator-authority-hook-builder');
+        return;
+      }
       
-      const isHidden = builder.classList.contains('topics-generator__builder--hidden');
+      const isHidden = builder.classList.contains('generator__builder--hidden');
       
       if (isHidden) {
-        builder.classList.remove('topics-generator__builder--hidden');
+        builder.classList.remove('generator__builder--hidden');
         console.log('✅ Authority Hook Builder shown');
       } else {
-        builder.classList.add('topics-generator__builder--hidden');
+        builder.classList.add('generator__builder--hidden');
         console.log('✅ Authority Hook Builder hidden');
       }
     },
@@ -316,7 +315,7 @@
         topicItem.innerHTML = `
           <div class="topics-generator__topic-number">Topic ${topicNumber}:</div>
           <div class="topics-generator__topic-text">${topic}</div>
-          <button class="topics-generator__button topics-generator__button--use" data-topic="${topicNumber}" data-text="${topic}">Use</button>
+          <button class="generator__button generator__button--outline topics-generator__button--use" data-topic="${topicNumber}" data-text="${topic}">Use</button>
         `;
         
         // Bind Use button
@@ -331,7 +330,7 @@
       // Show results section
       const results = document.querySelector('#topics-generator-topics-result');
       if (results) {
-        results.classList.remove('topics-generator__results--hidden');
+        results.classList.remove('generator__results--hidden');
       }
     },
     
@@ -448,7 +447,7 @@
     showLoading: function() {
       const loading = document.querySelector('#topics-generator-loading');
       if (loading) {
-        loading.classList.remove('topics-generator__loading--hidden');
+        loading.classList.remove('generator__loading--hidden');
       }
     },
     
@@ -458,7 +457,7 @@
     hideLoading: function() {
       const loading = document.querySelector('#topics-generator-loading');
       if (loading) {
-        loading.classList.add('topics-generator__loading--hidden');
+        loading.classList.add('generator__loading--hidden');
       }
     }
   };
