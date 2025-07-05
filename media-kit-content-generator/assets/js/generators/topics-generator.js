@@ -525,7 +525,7 @@
     },
     
     /**
-     * ROOT FIX: Complete save method rewrite addressing all identified issues
+     * ROOT FIX: Complete save method rewrite - collect from ALL data sources
      */
     saveAllData: function() {
       console.log('🔄 ROOT FIX: Starting comprehensive save operation...');
@@ -547,10 +547,10 @@
         }
       }
       
-      // ROOT FIX: Collect authority hook with proper field mapping
+      // ROOT FIX: Collect authority hook from MULTIPLE sources
       const authorityHook = {
-        who: this.fields.who || '',
-        what: this.fields.what || '',  // ROOT FIX: was 'result' in old version
+        who: this.collectAudienceData(),  // ROOT FIX: New method to collect from all sources
+        what: this.fields.what || '',
         when: this.fields.when || '',
         how: this.fields.how || ''
       };
@@ -646,6 +646,106 @@
     },
     
     /**
+     * ROOT FIX: BULLETPROOF audience data collection - ZERO duplication guaranteed
+     */
+    collectAudienceData: function() {
+      console.log('🔄 ROOT FIX: BULLETPROOF audience collection (zero duplication)');
+      
+      // STRATEGY: Check sources in strict priority order - return immediately when found
+      
+      // PRIORITY 1: Authority Hook Builder form field (most reliable and clean)
+      const whoField = document.querySelector('#mkcg-who');
+      if (whoField && whoField.value && whoField.value.trim()) {
+        const formFieldData = whoField.value.trim();
+        
+        // Only use if it's real data, not default text
+        if (formFieldData !== 'your audience' && formFieldData.length > 3) {
+          console.log('✅ Using Authority Hook Builder field (cleanest source):', formFieldData);
+          console.log('🎯 FINAL AUDIENCE DATA (source: form-field):', formFieldData);
+          return formFieldData;
+        }
+      }
+      
+      // PRIORITY 2: Internal storage from PHP data
+      if (this.fields.who && this.fields.who.trim()) {
+        const internalData = this.fields.who.trim();
+        
+        // Only use if it's real data, not default text  
+        if (internalData !== 'your audience' && internalData.length > 3) {
+          console.log('✅ Using internal storage data:', internalData);
+          console.log('🎯 FINAL AUDIENCE DATA (source: internal-storage):', internalData);
+          return internalData;
+        }
+      }
+      
+      // PRIORITY 3: Clean audience chips (if form field is empty)
+      const audienceChips = [];
+      const chipSelectors = [
+        '.audience-chip',
+        '.audience-tag', 
+        '.selected-audience',
+        '[data-audience]',
+        '.audience-manager .chip',
+        '.audience-manager .tag'
+      ];
+      
+      chipSelectors.forEach(selector => {
+        const chips = document.querySelectorAll(selector);
+        chips.forEach(chip => {
+          let chipText = chip.textContent || chip.dataset.audience || chip.value || '';
+          
+          // ROOT FIX: Aggressive cleaning to remove all formatting artifacts
+          chipText = chipText
+            .replace(/\s*×\s*/g, '') // Remove × close buttons
+            .replace(/\n+/g, ' ') // Replace newlines with spaces
+            .replace(/\s+/g, ' ') // Collapse multiple spaces
+            .trim();
+          
+          // Only add valid, meaningful text
+          if (chipText && chipText.length > 2 && chipText !== 'your audience') {
+            audienceChips.push(chipText);
+          }
+        });
+      });
+      
+      // If we found clean chips, format and use them
+      if (audienceChips.length > 0) {
+        // Remove duplicates and format properly
+        const uniqueChips = [...new Set(audienceChips)];
+        const chipsData = this.formatAudienceList(uniqueChips);
+        console.log('✅ Using cleaned audience chips:', uniqueChips);
+        console.log('🎯 FINAL AUDIENCE DATA (source: chips):', chipsData);
+        return chipsData;
+      }
+      
+      // PRIORITY 4: Fallback default
+      console.log('⚠️ No valid audience data found anywhere - using default');
+      console.log('🎯 FINAL AUDIENCE DATA (source: default): your audience');
+      return 'your audience';
+    },
+    
+    /**
+     * ROOT FIX: Format audience list with proper grammar
+     */
+    formatAudienceList: function(audiences) {
+      if (!audiences || audiences.length === 0) {
+        return '';
+      }
+      
+      if (audiences.length === 1) {
+        return audiences[0];
+      }
+      
+      if (audiences.length === 2) {
+        return audiences.join(' and ');
+      }
+      
+      // For 3+ audiences: "A, B, and C"
+      const lastAudience = audiences.pop();
+      return audiences.join(', ') + ', and ' + lastAudience;
+    },
+    
+    /**
      * ROOT FIX: Add fallback fetch method for emergency cases
      */
     saveWithFetch: function(postId, topics, authorityHook) {
@@ -661,12 +761,22 @@
         formData.append(`topics[${key}]`, topics[key]);
       });
       
+      // ROOT FIX: Use the same data collection method here too
+      const correctedAuthorityHook = {
+        who: this.collectAudienceData(),
+        what: authorityHook.what || '',
+        when: authorityHook.when || '',
+        how: authorityHook.how || ''
+      };
+      
       // Add authority hook as array notation
-      Object.keys(authorityHook).forEach(key => {
-        if (authorityHook[key]) {
-          formData.append(`authority_hook[${key}]`, authorityHook[key]);
+      Object.keys(correctedAuthorityHook).forEach(key => {
+        if (correctedAuthorityHook[key]) {
+          formData.append(`authority_hook[${key}]`, correctedAuthorityHook[key]);
         }
       });
+      
+      console.log('🔍 Fallback method using corrected audience data:', correctedAuthorityHook.who);
       
       fetch(window.ajaxurl || '/wp-admin/admin-ajax.php', {
         method: 'POST',
@@ -697,67 +807,7 @@
         console.error('❌ Fallback save failed:', error);
       });
     },
-    
-    /**
-     * FALLBACK: Emergency save method using standard fetch if global makeAjaxRequest fails
-     */
-    saveWithFallbackFetch: function(postId, topics, authorityHook) {
-      console.log('🔄 Using fallback fetch method for emergency save...');
-      
-      const formData = new URLSearchParams();
-      formData.append('action', 'mkcg_save_topics_data');
-      formData.append('post_id', postId);
-      
-      // Add nonce
-      const nonce = window.mkcg_vars?.nonce || 
-                    document.querySelector('#topics-generator-nonce')?.value || '';
-      formData.append('nonce', nonce);
-      formData.append('security', nonce);
-      
-      // Add topics as array notation for PHP compatibility
-      Object.keys(topics).forEach(key => {
-        formData.append(`topics[${key}]`, topics[key]);
-      });
-      
-      // Add authority hook as array notation
-      Object.keys(authorityHook).forEach(key => {
-        if (authorityHook[key]) {
-          formData.append(`authority_hook[${key}]`, authorityHook[key]);
-        }
-      });
-      
-      const ajaxUrl = window.ajaxurl || window.mkcg_vars?.ajax_url || '/wp-admin/admin-ajax.php';
-      
-      return fetch(ajaxUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: formData.toString()
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`Network error: ${response.status} ${response.statusText}`);
-        }
-        return response.json();
-      })
-      .then(result => {
-        this.hideLoading();
-        
-        if (result.success) {
-          this.showNotification('✅ Data saved successfully (fallback method)!', 'success');
-          console.log('✅ Fallback save successful:', result);
-        } else {
-          const errorMsg = result.data?.message || result.data || 'Server returned error';
-          throw new Error(errorMsg);
-        }
-      })
-      .catch(error => {
-        this.hideLoading();
-        this.showNotification('❌ Fallback save failed: ' + error.message, 'error');
-        console.error('❌ Fallback save failed:', error);
-      });
-    },
+
     
     /**
      * SIMPLIFIED: Show notification
@@ -869,6 +919,105 @@
           console.log(`❌ ${selector}: NOT FOUND`);
         }
       });
+    },
+    
+    // ROOT FIX: TEST the new bulletproof audience collection
+    testAudienceCollection: function() {
+      console.log('🔍 TESTING: BULLETPROOF audience data collection...');
+      
+      if (TopicsGenerator && TopicsGenerator.collectAudienceData) {
+        const collectedData = TopicsGenerator.collectAudienceData();
+        
+        console.log('🎯 COLLECTED AUDIENCE DATA:', collectedData);
+        
+        // Parse it like the backend would
+        const audiences = collectedData.split(/,\s*and\s+|,\s*|\s+and\s+/);
+        console.log('📊 PARSED INTO AUDIENCES:', audiences);
+        
+        // Check for duplication
+        const hasDuplication = audiences.length !== new Set(audiences).size;
+        console.log(hasDuplication ? '❌ DUPLICATION DETECTED!' : '✅ NO DUPLICATION - SUCCESS!');
+        
+        return {
+          raw: collectedData,
+          parsed: audiences,
+          count: audiences.length,
+          hasDuplication: hasDuplication,
+          success: !hasDuplication
+        };
+      } else {
+        console.error('❌ TopicsGenerator.collectAudienceData method not available');
+        return null;
+      }
+    },
+    
+    // ROOT FIX: NEW - Quick verification test
+    quickDuplicationTest: function() {
+      console.log('🚀 QUICK TEST: Check for audience duplication...');
+      
+      const result = this.testAudienceCollection();
+      
+      if (result) {
+        if (result.success) {
+          console.log('✅✅✅ ROOT FIX SUCCESS: No duplication detected!');
+          console.log('📊 Clean audience count:', result.count);
+          console.log('🎯 Final data:', result.raw);
+        } else {
+          console.log('❌❌❌ ROOT FIX FAILED: Duplication still occurring!');
+          console.log('📊 Duplicated audiences:', result.parsed);
+        }
+        
+        return result;
+      } else {
+        console.log('❌ Test failed - method not available');
+        return false;
+      }
+    },
+    
+    // ROOT FIX: NEW TEST - Test the full save process without actually saving
+    testSaveData: function() {
+      console.log('🧪 TESTING: Full save data collection (dry run)...');
+      
+      // Collect topics
+      const topics = {};
+      let topicsCount = 0;
+      for (let i = 1; i <= 5; i++) {
+        const field = document.querySelector(`#topics-generator-topic-field-${i}`);
+        if (field && field.value && field.value.trim()) {
+          topics[`topic_${i}`] = field.value.trim();
+          topicsCount++;
+        }
+      }
+      
+      // Collect authority hook using new method
+      const audienceData = TopicsGenerator.collectAudienceData ? TopicsGenerator.collectAudienceData() : 'not available';
+      const authorityHook = {
+        who: audienceData,
+        what: TopicsGenerator.fields.what || '',
+        when: TopicsGenerator.fields.when || '',
+        how: TopicsGenerator.fields.how || ''
+      };
+      
+      console.log('📊 FULL SAVE DATA PREVIEW:');
+      console.log('  Topics Count:', topicsCount);
+      console.log('  Topics:', topics);
+      console.log('  Authority Hook:', authorityHook);
+      console.log('  Audience Data Source:', audienceData);
+      
+      // Test parsing
+      if (audienceData && audienceData !== 'not available') {
+        const parsedAudiences = audienceData.split(/,\s*and\s+|,\s*|\s+and\s+/);
+        console.log('  Parsed Audiences:', parsedAudiences);
+        console.log('  Expected Terms to Create:', parsedAudiences.length);
+      }
+      
+      return {
+        topics,
+        authorityHook,
+        topicsCount,
+        audienceData,
+        wouldSave: topicsCount > 0 || Object.values(authorityHook).some(val => val && val.trim())
+      };
     }
   };
   

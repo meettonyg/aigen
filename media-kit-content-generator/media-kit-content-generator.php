@@ -387,12 +387,13 @@ class Media_Kit_Content_Generator {
         foreach ($audiences as $audience) {
             $audience = trim($audience);
             
-            // ENHANCEMENT: Filter out test data and invalid terms
+            // CORRECTED: Only filter obviously invalid terms, not potentially valid business terms
             $is_valid_audience = !empty($audience) && 
                                 $audience !== 'your audience' &&
-                                !preg_match('/^\d+(st|nd|rd|th)\s+value$/i', $audience) && // Filter "2nd value", "3rd value", etc.
-                                !preg_match('/^\d+\s+value$/i', $audience) && // Filter "3 value", etc.
-                                strlen($audience) > 2; // Minimum length check
+                                strlen($audience) > 1; // Minimum length check only
+            
+            // REMOVED: Overly aggressive filtering that blocks valid terms
+            // Only filter truly invalid patterns, not test data that might be legitimate
             
             if ($is_valid_audience) {
                 $clean_audiences[] = $audience;
