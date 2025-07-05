@@ -523,10 +523,10 @@ class MKCG_Authority_Hook_Service {
             <?php if ($options['show_examples']): ?>
             <div class="examples">
                 <p class="examples__title"><strong>Examples:</strong></p>
-                <span class="example-chip field-chip" data-target="mkcg-who" data-value="SaaS founders">SaaS founders<span class="add-to-list" data-value="SaaS founders">+ Add to List</span></span>
-                <span class="example-chip field-chip" data-target="mkcg-who" data-value="Business coaches">Business coaches<span class="add-to-list" data-value="Business coaches">+ Add to List</span></span>
-                <span class="example-chip field-chip" data-target="mkcg-who" data-value="Authors launching a book">Authors launching a book<span class="add-to-list" data-value="Authors launching a book">+ Add to List</span></span>
-                <span class="example-chip field-chip" data-target="mkcg-who" data-value="Real estate investors">Real estate investors<span class="add-to-list" data-value="Real estate investors">+ Add to List</span></span>
+                <span class="tag tag--example" data-target="mkcg-who" data-value="SaaS founders">SaaS founders<span class="tag__add-link">+ Add</span></span>
+                <span class="tag tag--example" data-target="mkcg-who" data-value="Business coaches">Business coaches<span class="tag__add-link">+ Add</span></span>
+                <span class="tag tag--example" data-target="mkcg-who" data-value="Authors launching a book">Authors launching a book<span class="tag__add-link">+ Add</span></span>
+                <span class="tag tag--example" data-target="mkcg-who" data-value="Real estate investors">Real estate investors<span class="tag__add-link">+ Add</span></span>
             </div>
             <?php endif; ?>
         </div>

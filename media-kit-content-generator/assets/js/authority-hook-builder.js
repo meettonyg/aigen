@@ -28,6 +28,19 @@
         loadExistingAudiences();
         initialized = true;
         console.log('✅ Authority Hook Builder ready (Clean Slate)!');
+        
+        // Check for example chips after initialization
+        setTimeout(() => {
+            const chips = document.querySelectorAll('.tag');
+            const addLinks = document.querySelectorAll('.tag__add-link');
+            console.log(`🔍 Found ${chips.length} example chips, ${addLinks.length} add links`);
+            
+            if (chips.length === 0) {
+                console.warn('⚠️ No example chips found - they may not be rendered yet');
+            } else {
+                console.log('✅ Example chips detected and ready for interaction');
+            }
+        }, 1000);
     }
     
     function loadTemplateData() {
@@ -165,7 +178,101 @@
         if (selectedCount) selectedCount.textContent = checked;
     }
 
-    function setupExampleChips() { /* This can remain as is, it provides helpful UI hints not values */ }
+    function setupExampleChips() {
+        console.log('🔧 Setting up example chips click handlers...');
+        
+        // Handle clicks on example chips - delegate to document for dynamic content
+        document.addEventListener('click', function(e) {
+            // Check if clicked element or its parent is a tag with add link
+            const addLink = e.target.closest('.tag__add-link, .add-to-list');
+            const tag = e.target.closest('.tag');
+            
+            if (addLink && tag) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Get the target field and value from the tag
+                const targetFieldId = tag.getAttribute('data-target');
+                const value = tag.getAttribute('data-value');
+                
+                console.log(`🎯 Example chip clicked: target=${targetFieldId}, value=${value}`);
+                
+                if (targetFieldId && value) {
+                    // SPECIAL HANDLING FOR WHO FIELD - Add to Audience Manager instead of direct field
+                    if (targetFieldId === 'mkcg-who') {
+                        // Add to audience management system
+                        addAudienceTag(value, true);
+                        console.log(`✅ Added "${value}" to Audience Manager`);
+                        
+                        // Visual feedback
+                        addLink.textContent = '✓ Added to List';
+                        addLink.style.backgroundColor = '#d4edda';
+                        addLink.style.color = '#155724';
+                        
+                        // Reset after 2 seconds
+                        setTimeout(() => {
+                            addLink.textContent = addLink.classList.contains('add-to-list') ? '+ Add to List' : '+ Add';
+                            addLink.style.backgroundColor = '';
+                            addLink.style.color = '';
+                        }, 2000);
+                    } else {
+                        // NORMAL HANDLING FOR OTHER FIELDS - Direct field population
+                        const targetField = document.getElementById(targetFieldId);
+                        if (targetField) {
+                            // Add the value to the field
+                            targetField.value = value;
+                            
+                            // Trigger input event to update other systems
+                            targetField.dispatchEvent(new Event('input', { bubbles: true }));
+                            targetField.dispatchEvent(new Event('change', { bubbles: true }));
+                            
+                            // Update authority hook display
+                            updateAuthorityHook();
+                            
+                            console.log(`✅ Added example "${value}" to field ${targetFieldId}`);
+                            
+                            // Visual feedback
+                            addLink.textContent = '✓ Added';
+                            addLink.style.backgroundColor = '#d4edda';
+                            addLink.style.color = '#155724';
+                            
+                            // Reset after 2 seconds
+                            setTimeout(() => {
+                                addLink.textContent = addLink.classList.contains('add-to-list') ? '+ Add to List' : '+ Add';
+                                addLink.style.backgroundColor = '';
+                                addLink.style.color = '';
+                            }, 2000);
+                        } else {
+                            console.warn(`⚠️ Target field not found: ${targetFieldId}`);
+                        }
+                    }
+                } else {
+                    console.warn('⚠️ Tag missing data-target or data-value attributes');
+                }
+            }
+        });
+        
+        // Also handle clicks on the entire tag (not just the add link)
+        document.addEventListener('click', function(e) {
+            const tag = e.target.closest('.tag:not(:has(.tag__add-link))');
+            if (tag && !e.target.closest('.tag__add-link')) {
+                const targetFieldId = tag.getAttribute('data-target');
+                const value = tag.getAttribute('data-value');
+                
+                if (targetFieldId && value) {
+                    const targetField = document.getElementById(targetFieldId);
+                    if (targetField) {
+                        targetField.value = value;
+                        targetField.dispatchEvent(new Event('input', { bubbles: true }));
+                        updateAuthorityHook();
+                        console.log(`✅ Added example "${value}" to field ${targetFieldId} (via tag click)`);
+                    }
+                }
+            }
+        });
+        
+        console.log('✅ Example chips click handlers set up');
+    }
 
     function setupLiveUpdates() {
         ['mkcg-who', 'mkcg-result', 'mkcg-when', 'mkcg-how'].forEach(id => {
@@ -205,11 +312,86 @@
         return div.innerHTML;
     }
     
-    // Simplified initialization
+    // Enhanced initialization with example chips debugging
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
         init();
     }
+    
+    // Enhanced debug function to check example chips
+    window.MKCG_DebugExampleChips = function() {
+        console.log('🔍 Debugging example chips...');
+        
+        // Check for all possible chip selectors
+        const tags = document.querySelectorAll('.tag');
+        const addLinks = document.querySelectorAll('.tag__add-link, .add-to-list');
+        const examples = document.querySelectorAll('.examples');
+        
+        console.log(`Found ${tags.length} .tag elements`);
+        console.log(`Found ${addLinks.length} add link elements`);
+        console.log(`Found ${examples.length} .examples sections`);
+        
+        // Check if Authority Hook Builder is visible
+        const builder = document.getElementById('topics-generator-authority-hook-builder');
+        const isBuilderVisible = builder && !builder.classList.contains('generator__builder--hidden');
+        console.log(`Authority Hook Builder visible: ${isBuilderVisible}`);
+        
+        if (!isBuilderVisible) {
+            console.log('⚠️ Authority Hook Builder is hidden - chips may not be rendered yet');
+            console.log('💡 Click "Edit Components" to show the builder and render the chips');
+            return;
+        }
+        
+        // Check tabs
+        const tabs = document.querySelectorAll('.tabs__panel');
+        console.log(`Found ${tabs.length} tab panels`);
+        
+        tabs.forEach((panel, index) => {
+            const panelTags = panel.querySelectorAll('.tag');
+            const panelAddLinks = panel.querySelectorAll('.tag__add-link, .add-to-list');
+            const panelExamples = panel.querySelectorAll('.examples');
+            
+            console.log(`Tab panel ${index + 1}:`, {
+                tags: panelTags.length,
+                addLinks: panelAddLinks.length,
+                examples: panelExamples.length
+            });
+            
+            if (panelTags.length > 0) {
+                console.log(`  First tag in panel ${index + 1}:`, {
+                    target: panelTags[0].getAttribute('data-target'),
+                    value: panelTags[0].getAttribute('data-value'),
+                    text: panelTags[0].textContent.trim().substring(0, 50)
+                });
+            }
+        });
+        
+        // Test click simulation
+        if (addLinks.length > 0) {
+            console.log('🧪 Testing first add link click...');
+            const firstAddLink = addLinks[0];
+            firstAddLink.click();
+            console.log('✅ Simulated click on first add link');
+        } else {
+            console.log('❌ No add links found to test');
+        }
+        
+        // Check for show_examples option
+        const builderContent = builder ? builder.innerHTML : '';
+        const hasExamplesHTML = builderContent.includes('Examples:');
+        console.log(`Examples HTML present: ${hasExamplesHTML}`);
+        
+        return {
+            tags: tags.length,
+            addLinks: addLinks.length,
+            examples: examples.length,
+            builderVisible: isBuilderVisible,
+            hasExamplesHTML
+        };
+    };
+    
+    console.log('🔧 Authority Hook Builder loaded with example chips support');
+    console.log('   Run window.MKCG_DebugExampleChips() to test example chips');
 
 })();
