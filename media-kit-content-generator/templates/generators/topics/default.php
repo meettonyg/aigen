@@ -162,7 +162,18 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
                 </div>
                 
                 <div class="generator__authority-hook-content">
-                    <p id="topics-generator-authority-hook-text"><?php echo isset($template_data['no_entry_param']) && $template_data['no_entry_param'] ? '' : esc_html($authority_hook_components['complete']); ?></p>
+                    <p id="topics-generator-authority-hook-text"><?php 
+                        // CLEAN SLATE: Only show complete text if all components exist
+                        $all_components_exist = !empty($authority_hook_components['who']) && 
+                                              !empty($authority_hook_components['what']) && 
+                                              !empty($authority_hook_components['when']) && 
+                                              !empty($authority_hook_components['how']);
+                        
+                        if ($all_components_exist) {
+                            echo esc_html($authority_hook_components['complete']);
+                        }
+                        // NO ELSE - shows empty when incomplete (no defaults)
+                    ?></p>
                 </div>
                 
                 <div class="generator__authority-hook-actions">
@@ -207,32 +218,17 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
                 error_log('MKCG Topics Template: Created new authority_hook_service instance');
             }
             
-            // ROOT FIX: Prepare current values - don't use defaults if no entry param
-            $has_entry_param = isset($_GET['entry']) || isset($_GET['post_id']) || 
-                           (isset($_GET['frm_action']) && $_GET['frm_action'] === 'edit');
-            
-            if ($has_entry_param) {
-            // Use legacy defaults for backward compatibility
+            // CLEAN SLATE: Always use empty values - NO DEFAULTS EVER
             $current_values = [
-                'who' => $authority_hook_components['who'] ?? 'your audience',
-                    'what' => $authority_hook_components['what'] ?? 'achieve their goals', 
-                    'when' => $authority_hook_components['when'] ?? 'they need help',
-                    'how' => $authority_hook_components['how'] ?? 'through your method'
-                ];
-            } else {
-                // No entry param - use empty values
-                $current_values = [
                 'who' => $authority_hook_components['who'] ?? '',
                 'what' => $authority_hook_components['what'] ?? '', 
                 'when' => $authority_hook_components['when'] ?? '',
                 'how' => $authority_hook_components['how'] ?? ''
             ];
-            }
             
-            // ROOT FIX: Log the values being passed to the service
+            // CLEAN SLATE: Log the values being passed to the service
             error_log('MKCG Topics Template: Authority Hook Components: ' . json_encode($authority_hook_components));
-            error_log('MKCG Topics Template: Current Values: ' . json_encode($current_values));
-            error_log('MKCG Topics Template: Has Entry Param: ' . ($has_entry_param ? 'true' : 'false'));
+            error_log('MKCG Topics Template: Current Values (always empty when no data): ' . json_encode($current_values));
                 
                     // Render options for Topics Generator
                     $render_options = [
@@ -500,11 +496,10 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
         frm_action: '<?php echo esc_js($_GET['frm_action'] ?? ''); ?>'
     });
     
-    // ROOT FIX: Enhanced template data with proper null handling
+    // CLEAN SLATE: Template data - always empty when no real data exists
     window.MKCG_Topics_Data = {
         postId: <?php echo intval($post_id); ?>,
         hasData: <?php echo $has_data ? 'true' : 'false'; ?>,
-        hasEntryParam: <?php echo $has_entry_param ? 'true' : 'false'; ?>,
         authorityHook: {
             who: '<?php echo esc_js($authority_hook_components['who'] ?? ''); ?>',
             what: '<?php echo esc_js($authority_hook_components['what'] ?? ''); ?>',
@@ -519,8 +514,7 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
             topic_4: '<?php echo esc_js($form_field_values['topic_4'] ?? ''); ?>',
             topic_5: '<?php echo esc_js($form_field_values['topic_5'] ?? ''); ?>'
         },
-        dataSource: '<?php echo isset($generator_instance) ? 'generator_instance' : 'fallback'; ?>',
-        noEntryParam: <?php echo isset($template_data['no_entry_param']) && $template_data['no_entry_param'] ? 'true' : 'false'; ?>
+        dataSource: '<?php echo isset($generator_instance) ? 'generator_instance' : 'fallback'; ?>'
     };
     
     console.log('✅ MKCG Topics: Final data loaded', window.MKCG_Topics_Data);

@@ -1,0 +1,24 @@
+🔧 ROOT FIX: Remove default placeholder data, implement truly empty fields
+
+ISSUE: Default placeholder data was showing instead of empty fields when no entry parameter exists
+
+FIXED:
+- JavaScript updateAuthorityHook() now respects noEntryParam flag
+- collectAudienceData() returns empty string when no entry param
+- saveAllData() handles empty fields correctly without placeholders
+- PHP template distinguishes between entry param vs no entry param scenarios
+- setDefaultData() properly updates display to show empty state
+
+CHANGES:
+- assets/js/generators/topics-generator.js - Empty field logic throughout
+- templates/generators/topics/default.php - Conditional placeholder logic
+- test-empty-field-fix.php - Comprehensive test interface (NEW)
+- ROOT-FIX-EMPTY-FIELDS-SUMMARY.md - Complete documentation (NEW)
+
+TESTING:
+- Access without URL params: Shows empty fields (no placeholders)
+- Access with entry params: Shows legacy defaults (backward compatible)
+- Save operations: Handle empty data correctly
+- JavaScript tests: window.MKCG_Topics_PopulationTest.testEmptyFieldBehavior()
+
+RESULT: Users see truly empty fields when no data exists, not confusing placeholder text

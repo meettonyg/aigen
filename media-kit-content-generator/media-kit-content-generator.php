@@ -99,15 +99,16 @@ class Media_Kit_Content_Generator {
             $results['authority_hook'] = $auth_result;
             error_log('MKCG: Authority hook save result: ' . json_encode($auth_result));
             
-            // DISABLED: Automatic taxonomy creation to prevent data persistence issues
-            // Users can manually add audience terms via WordPress admin if needed
-            /*
-            if (!empty($authority_hook_data['who']) && $authority_hook_data['who'] !== 'your audience') {
-                $audience_result = $this->save_audience_taxonomy($post_id, $authority_hook_data['who']);
-                $results['audience_taxonomy'] = $audience_result;
-                error_log('MKCG: Audience taxonomy save result: ' . json_encode($audience_result));
-            }
-            */
+            // REMOVED: All automatic taxonomy creation to ensure single-source data storage
+            // Taxonomies should only be managed manually via WordPress admin to prevent:
+            // 1. Multi-layer data persistence issues
+            // 2. Data reappearing after manual deletion
+            // 3. Conflicts between automatic and manual taxonomy management
+            // 
+            // If taxonomy integration is needed in the future, implement as:
+            // - Manual-only via WordPress admin interface
+            // - Single-source with proper deletion cascading
+            // - Optional feature with user control
         }
         
         // Determine overall success

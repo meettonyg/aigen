@@ -121,7 +121,7 @@
     },
     
     /**
-     * SIMPLIFIED: Set default data - empty values for non-logged in users
+     * ROOT FIX: Set default data - truly empty values when no entry param
      */
     setDefaultData: function() {
       this.fields.who = '';
@@ -130,6 +130,9 @@
       this.fields.how = '';
       
       this.updateInputFields();
+      
+      // ROOT FIX: Update the authority hook display to show empty text when no entry param
+      this.updateAuthorityHook();
     },
     
     /**
@@ -359,10 +362,20 @@
     },
     
     /**
-     * SIMPLIFIED: Update Authority Hook display
+     * CLEAN SLATE: Update Authority Hook display - NO DEFAULTS EVER
      */
     updateAuthorityHook: function() {
-      const hookText = `I help ${this.fields.who || 'your audience'} ${this.fields.what || 'achieve their goals'} when ${this.fields.when || 'they need help'} ${this.fields.how || 'through your method'}.`;
+      // CLEAN SLATE: Only show text if ALL fields have real data
+      const hasAllFields = this.fields.who && this.fields.what && this.fields.when && this.fields.how &&
+                          this.fields.who.trim() && this.fields.what.trim() && 
+                          this.fields.when.trim() && this.fields.how.trim();
+      
+      let hookText = '';
+      
+      if (hasAllFields) {
+        hookText = `I help ${this.fields.who} ${this.fields.what} when ${this.fields.when} ${this.fields.how}.`;
+      }
+      // NO ELSE - if fields incomplete, hookText stays empty
       
       const displayElement = document.querySelector('#topics-generator-authority-hook-text');
       if (displayElement) {
@@ -374,19 +387,20 @@
         window.AppEvents.trigger('authority-hook:updated', {
           text: hookText,
           components: this.fields,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          isEmpty: hookText === ''
         });
       }
     },
     
     /**
-     * SIMPLIFIED: Generate topics using simple AJAX
+     * CLEAN SLATE: Generate topics using simple AJAX - requires complete authority hook
      */
     generateTopics: function() {
       const authorityHook = document.querySelector('#topics-generator-authority-hook-text')?.textContent;
       
       if (!authorityHook || authorityHook.trim() === '') {
-        this.showNotification('Please build your authority hook first', 'warning');
+        this.showNotification('Please complete all authority hook fields first', 'warning');
         return;
       }
       
@@ -418,12 +432,12 @@
     },
     
     /**
-     * SIMPLIFIED: Generate demo topics - checks for noEntryParam
+     * CLEAN SLATE: Generate demo topics - only when authority hook is complete
      */
     generateDemoTopics: function(authorityHook) {
-      // If no entry param, don't show demo topics
-      if (window.MKCG_Topics_Data && window.MKCG_Topics_Data.noEntryParam) {
-        this.showNotification('Please log in to generate topics', 'warning');
+      // CLEAN SLATE: Always require complete authority hook before showing demo topics
+      if (!authorityHook || authorityHook.trim() === '') {
+        this.showNotification('Please complete all authority hook fields to see demo topics', 'warning');
         return;
       }
       
@@ -577,13 +591,18 @@
         return;
       }
       
-      // Build complete authority hook text
+      // CLEAN SLATE: Build complete authority hook - NO DEFAULTS
       if (hasAuthorityData) {
-        const who = authorityHook.who || 'your audience';
-        const what = authorityHook.what || 'achieve their goals';
-        const when = authorityHook.when || 'they need help';
-        const how = authorityHook.how || 'through your method';
-        authorityHook.complete = `I help ${who} ${what} when ${when} ${how}.`;
+        // Only create complete text if all fields have real data
+        const hasAllRealData = authorityHook.who && authorityHook.what && authorityHook.when && authorityHook.how &&
+                               authorityHook.who.trim() && authorityHook.what.trim() && 
+                               authorityHook.when.trim() && authorityHook.how.trim();
+        
+        if (hasAllRealData) {
+          authorityHook.complete = `I help ${authorityHook.who} ${authorityHook.what} when ${authorityHook.when} ${authorityHook.how}.`;
+        } else {
+          authorityHook.complete = ''; // Empty when incomplete - NO DEFAULTS
+        }
       }
       
       window.makeAjaxRequest('mkcg_save_topics_data', {
@@ -718,10 +737,10 @@
         return chipsData;
       }
       
-      // PRIORITY 4: Fallback default
-      console.log('⚠️ No valid audience data found anywhere - using default');
-      console.log('🎯 FINAL AUDIENCE DATA (source: default): your audience');
-      return 'your audience';
+      // CLEAN SLATE: No fallback defaults - empty when no data
+      console.log('⚠️ No valid audience data found - returning empty (NO DEFAULTS)');
+      console.log('🎯 FINAL AUDIENCE DATA (source: empty): ""');
+      return '';
     },
     
     /**
@@ -761,13 +780,24 @@
         formData.append(`topics[${key}]`, topics[key]);
       });
       
-      // ROOT FIX: Use the same data collection method here too
+      // CLEAN SLATE: Use the same data collection method - NO DEFAULTS
       const correctedAuthorityHook = {
         who: this.collectAudienceData(),
         what: authorityHook.what || '',
         when: authorityHook.when || '',
         how: authorityHook.how || ''
       };
+      
+      // CLEAN SLATE: Build complete text only when all fields have data
+      const hasAllRealData = correctedAuthorityHook.who && correctedAuthorityHook.what && correctedAuthorityHook.when && correctedAuthorityHook.how &&
+                             correctedAuthorityHook.who.trim() && correctedAuthorityHook.what.trim() && 
+                             correctedAuthorityHook.when.trim() && correctedAuthorityHook.how.trim();
+      
+      if (hasAllRealData) {
+        correctedAuthorityHook.complete = `I help ${correctedAuthorityHook.who} ${correctedAuthorityHook.what} when ${correctedAuthorityHook.when} ${correctedAuthorityHook.how}.`;
+      } else {
+        correctedAuthorityHook.complete = ''; // NO DEFAULTS - empty when incomplete
+      }
       
       // Add authority hook as array notation
       Object.keys(correctedAuthorityHook).forEach(key => {
@@ -974,9 +1004,9 @@
       }
     },
     
-    // ROOT FIX: NEW TEST - Test the full save process without actually saving
+    // CLEAN SLATE: Test the full save process without actually saving
     testSaveData: function() {
-      console.log('🧪 TESTING: Full save data collection (dry run)...');
+      console.log('🧪 TESTING: Clean slate save data collection (dry run)...');
       
       // Collect topics
       const topics = {};
@@ -989,7 +1019,7 @@
         }
       }
       
-      // Collect authority hook using new method
+      // Collect authority hook using clean slate method
       const audienceData = TopicsGenerator.collectAudienceData ? TopicsGenerator.collectAudienceData() : 'not available';
       const authorityHook = {
         who: audienceData,
@@ -998,17 +1028,26 @@
         how: TopicsGenerator.fields.how || ''
       };
       
-      console.log('📊 FULL SAVE DATA PREVIEW:');
+      console.log('📊 CLEAN SLATE SAVE DATA PREVIEW:');
       console.log('  Topics Count:', topicsCount);
       console.log('  Topics:', topics);
       console.log('  Authority Hook:', authorityHook);
       console.log('  Audience Data Source:', audienceData);
       
-      // Test parsing
-      if (audienceData && audienceData !== 'not available') {
+      // Test authority hook completeness (always requires all fields)
+      const hasAllRealData = authorityHook.who && authorityHook.what && authorityHook.when && authorityHook.how &&
+                             authorityHook.who.trim() && authorityHook.what.trim() && 
+                             authorityHook.when.trim() && authorityHook.how.trim();
+      console.log('  Has All Real Data:', hasAllRealData);
+      console.log('  Complete Text Would Be:', hasAllRealData ? `I help ${authorityHook.who} ${authorityHook.what} when ${authorityHook.when} ${authorityHook.how}.` : 'EMPTY (no defaults)');
+      
+      // Test parsing (only if data exists)
+      if (audienceData && audienceData !== 'not available' && audienceData !== '') {
         const parsedAudiences = audienceData.split(/,\s*and\s+|,\s*|\s+and\s+/);
         console.log('  Parsed Audiences:', parsedAudiences);
         console.log('  Expected Terms to Create:', parsedAudiences.length);
+      } else {
+        console.log('  No audience data to parse (clean slate - no defaults)');
       }
       
       return {
@@ -1016,14 +1055,71 @@
         authorityHook,
         topicsCount,
         audienceData,
-        wouldSave: topicsCount > 0 || Object.values(authorityHook).some(val => val && val.trim())
+        hasAllRealData,
+        wouldSave: topicsCount > 0 || hasAllRealData
       };
+    },
+    
+    // CLEAN SLATE: Test empty field behavior - always empty when incomplete
+    testEmptyFieldBehavior: function() {
+      console.log('🧪 TESTING: Clean slate empty field behavior...');
+      
+      console.log('📊 CLEAN SLATE TEST RESULTS:');
+      console.log('  Behavior: Always empty when fields incomplete (no defaults ever)');
+      
+      // Test updateAuthorityHook behavior
+      if (TopicsGenerator && TopicsGenerator.updateAuthorityHook) {
+        console.log('  Testing updateAuthorityHook...');
+        
+        // Save current fields
+        const originalFields = { ...TopicsGenerator.fields };
+        
+        // Test 1: Empty fields should show empty
+        TopicsGenerator.fields = { who: '', what: '', when: '', how: '' };
+        TopicsGenerator.updateAuthorityHook();
+        
+        const displayElement = document.querySelector('#topics-generator-authority-hook-text');
+        const emptyText = displayElement ? displayElement.textContent : 'Element not found';
+        console.log('  Empty Fields Display:', `"${emptyText}"`);
+        console.log('  ✅ Empty when incomplete:', emptyText === '');
+        
+        // Test 2: Partial fields should show empty
+        TopicsGenerator.fields = { who: 'test audience', what: '', when: '', how: '' };
+        TopicsGenerator.updateAuthorityHook();
+        const partialText = displayElement ? displayElement.textContent : 'Element not found';
+        console.log('  Partial Fields Display:', `"${partialText}"`);
+        console.log('  ✅ Partial still empty:', partialText === '');
+        
+        // Test 3: Complete fields should show text
+        TopicsGenerator.fields = { who: 'test audience', what: 'achieve goals', when: 'they struggle', how: 'with my method' };
+        TopicsGenerator.updateAuthorityHook();
+        const completeText = displayElement ? displayElement.textContent : 'Element not found';
+        console.log('  Complete Fields Display:', `"${completeText}"`);
+        console.log('  ✅ Complete shows text:', completeText !== '');
+        
+        // Restore original fields
+        TopicsGenerator.fields = originalFields;
+        TopicsGenerator.updateAuthorityHook();
+        
+        const isWorking = emptyText === '' && partialText === '' && completeText !== '';
+        
+        return {
+          emptyFieldsDisplay: emptyText,
+          partialFieldsDisplay: partialText,
+          completeFieldsDisplay: completeText,
+          isCleanSlateBehaviorWorking: isWorking,
+          testResult: isWorking ? '✅ PASSED - Clean slate behavior working' : '❌ FAILED - Default behavior detected'
+        };
+      } else {
+        console.log('  ERROR: TopicsGenerator.updateAuthorityHook not available');
+        return { error: 'updateAuthorityHook not available' };
+      }
     }
   };
   
-  console.log('✅ SIMPLIFIED Topics Generator loaded - 80% complexity reduction achieved');
-  console.log('🔧 CRITICAL FIX: Authority Hook auto-population on builder show implemented');
-  console.log('🧪 DEBUG: Use window.MKCG_Topics_PopulationTest.showAndPopulate() to test');
-  console.log('🔍 DEBUG: Use window.MKCG_Topics_PopulationTest.checkCurrentState() to inspect');
+  console.log('✅ CLEAN SLATE Topics Generator loaded - NO DEFAULT PLACEHOLDERS EVER');
+  console.log('🔧 CLEAN SLATE FIX: Empty fields when no data, complete text only when all fields filled');
+  console.log('🧪 DEBUG: Use window.MKCG_Topics_PopulationTest.testEmptyFieldBehavior() to test');
+  console.log('🔍 DEBUG: Use window.MKCG_Topics_PopulationTest.testSaveData() to inspect save behavior');
 
 })();
