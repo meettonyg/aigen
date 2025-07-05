@@ -239,13 +239,13 @@
       const builder = document.querySelector('#offers-generator-authority-hook-builder');
       if (!builder) return;
       
-      const isHidden = builder.classList.contains('offers-generator__builder--hidden');
+      const isHidden = builder.classList.contains('topics-generator__builder--hidden');
       
       if (isHidden) {
-        builder.classList.remove('offers-generator__builder--hidden');
+        builder.classList.remove('topics-generator__builder--hidden');
         console.log('✅ Authority Hook Builder shown');
       } else {
-        builder.classList.add('offers-generator__builder--hidden');
+        builder.classList.add('topics-generator__builder--hidden');
         console.log('✅ Authority Hook Builder hidden');
       }
     },
