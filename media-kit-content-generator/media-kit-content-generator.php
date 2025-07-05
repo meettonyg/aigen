@@ -99,12 +99,15 @@ class Media_Kit_Content_Generator {
             $results['authority_hook'] = $auth_result;
             error_log('MKCG: Authority hook save result: ' . json_encode($auth_result));
             
-            // ROOT FIX: Save audience taxonomy if WHO field contains audience data
+            // DISABLED: Automatic taxonomy creation to prevent data persistence issues
+            // Users can manually add audience terms via WordPress admin if needed
+            /*
             if (!empty($authority_hook_data['who']) && $authority_hook_data['who'] !== 'your audience') {
                 $audience_result = $this->save_audience_taxonomy($post_id, $authority_hook_data['who']);
                 $results['audience_taxonomy'] = $audience_result;
                 error_log('MKCG: Audience taxonomy save result: ' . json_encode($audience_result));
             }
+            */
         }
         
         // Determine overall success
