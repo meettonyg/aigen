@@ -10,50 +10,7 @@
 (function() {
   'use strict';
   
-  /**
-   * Simple AJAX helper function
-   */
-  function makeAjaxRequest(action, data) {
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      const formData = new FormData();
-      
-      formData.append('action', action);
-      formData.append('nonce', document.querySelector('#topics-generator-nonce')?.value || '');
-      
-      // Add data parameters
-      if (data && typeof data === 'object') {
-        Object.keys(data).forEach(key => {
-          formData.append(key, data[key]);
-        });
-      }
-      
-      xhr.open('POST', window.ajaxurl || '/wp-admin/admin-ajax.php');
-      
-      xhr.onload = function() {
-        if (xhr.status === 200) {
-          try {
-            const response = JSON.parse(xhr.responseText);
-            if (response.success) {
-              resolve(response.data);
-            } else {
-              reject(new Error(response.data || 'Ajax request failed'));
-            }
-          } catch (e) {
-            reject(new Error('Invalid JSON response'));
-          }
-        } else {
-          reject(new Error('Network error: ' + xhr.status));
-        }
-      };
-      
-      xhr.onerror = function() {
-        reject(new Error('Network error'));
-      };
-      
-      xhr.send(formData);
-    });
-  }
+  // REMOVED: Conflicting AJAX implementation - now using global makeAjaxRequest from simple-ajax.js
   
   /**
    * SIMPLIFIED Topics Generator
@@ -246,23 +203,42 @@
         }
       });
       
-      // Generate topics button
-      const generateBtn = document.querySelector('#topics-generator-generate-topics');
-      if (generateBtn) {
-        generateBtn.addEventListener('click', () => {
-          this.generateTopics();
-        });
-      }
+      // NOTE: Generate topics button is now handled in the fixed section below
       
-      // Save All Topics button
+      // Save All Topics button - FIXED: Prevent conflicts with generate button
       const saveBtn = document.querySelector('#topics-generator-save-topics');
       if (saveBtn) {
-        saveBtn.addEventListener('click', (e) => {
+        // CRITICAL FIX: Remove any existing listeners to prevent duplicates
+        saveBtn.removeEventListener('click', this.saveAllDataHandler);
+        
+        // Create bound handler
+        this.saveAllDataHandler = (e) => {
           e.preventDefault();
+          e.stopPropagation();
+          console.log('🔘 Save button clicked - calling saveAllData()');
           this.saveAllData();
-        });
+        };
+        
+        saveBtn.addEventListener('click', this.saveAllDataHandler);
+        console.log('✅ Save button event bound correctly');
       } else {
         console.warn('⚠️ Save button not found: #topics-generator-save-topics');
+      }
+      
+      // Generate topics button - FIXED: Ensure no conflicts
+      const generateBtn = document.querySelector('#topics-generator-generate-topics');
+      if (generateBtn) {
+        generateBtn.removeEventListener('click', this.generateTopicsHandler);
+        
+        this.generateTopicsHandler = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('🔘 Generate button clicked - calling generateTopics()');
+          this.generateTopics();
+        };
+        
+        generateBtn.addEventListener('click', this.generateTopicsHandler);
+        console.log('✅ Generate button event bound correctly');
       }
       
       // Auto-save on blur for topic fields
@@ -405,11 +381,11 @@
       
       this.showLoading();
       
-      // Use simple AJAX system
-      makeAjaxRequest('mkcg_generate_topics', {
+      // Use global AJAX system
+      window.makeAjaxRequest('mkcg_generate_topics', {
         authority_hook: authorityHook,
         who: this.fields.who,
-        result: this.fields.result,
+        what: this.fields.what,
         when: this.fields.when,
         how: this.fields.how
       })
@@ -524,7 +500,7 @@
       
       if (!fieldName || !fieldValue.trim()) return;
       
-      makeAjaxRequest('mkcg_save_topic_field', {
+      window.makeAjaxRequest('mkcg_save_topic_field', {
         post_id: postId,
         field_name: fieldName,
         field_value: fieldValue
@@ -538,14 +514,18 @@
     },
     
     /**
-     * SIMPLIFIED: Save all data
+     * FIXED: Save all data with proper error handling and data format
      */
     saveAllData: function() {
+      console.log('🔄 Starting comprehensive save operation...');
+      
       const postId = document.querySelector('#topics-generator-post-id')?.value;
       if (!postId || postId === '0') {
         this.showNotification('No post ID found. Please refresh the page.', 'error');
         return;
       }
+      
+      console.log('📊 Save operation for post ID:', postId);
       
       // Collect topics
       const topics = {};
@@ -564,12 +544,52 @@
         how: this.fields.how
       };
       
+      console.log('📊 Collected data:');
+      console.log('  Topics count:', Object.keys(topics).length);
+      console.log('  Topics:', topics);
+      console.log('  Authority Hook:', authorityHook);
+      
+      // Verify we have data to save
+      const hasTopics = Object.keys(topics).length > 0;
+      const hasAuthorityData = Object.values(authorityHook).some(val => val && val.trim());
+      
+      if (!hasTopics && !hasAuthorityData) {
+        this.showNotification('No data to save. Please add topics or complete the authority hook.', 'warning');
+        return;
+      }
+      
+      console.log('📊 Data validation:', { hasTopics, hasAuthorityData });
+      
+      // Check nonce availability
+      const nonce = window.mkcg_vars?.nonce || 
+                    document.querySelector('#topics-generator-nonce')?.value || 
+                    '';
+      
+      if (!nonce) {
+        console.error('❌ No nonce found for AJAX request');
+        this.showNotification('Security error: Please refresh the page and try again.', 'error');
+        return;
+      }
+      
+      console.log('🔐 Nonce verified:', nonce.substring(0, 10) + '...');
+      
       this.showLoading();
       
-      makeAjaxRequest('mkcg_save_topics_data', {
+      // COMPREHENSIVE: Check if global makeAjaxRequest is available
+      if (!window.makeAjaxRequest || typeof window.makeAjaxRequest !== 'function') {
+        console.error('❌ Global makeAjaxRequest not available, using fallback method');
+        this.saveWithFallbackFetch(postId, topics, authorityHook);
+        return;
+      }
+      
+      // FIXED: Use global makeAjaxRequest with comprehensive data and logging
+      console.log('📡 Sending AJAX request to mkcg_save_topics_data...');
+      
+      window.makeAjaxRequest('mkcg_save_topics_data', {
         post_id: postId,
         topics: topics,
-        authority_hook: authorityHook
+        authority_hook: authorityHook,
+        nonce: nonce  // Explicitly pass nonce
       })
       .then(data => {
         this.hideLoading();
@@ -578,8 +598,110 @@
       })
       .catch(error => {
         this.hideLoading();
-        this.showNotification('Save failed: ' + (error.message || error), 'error');
-        console.error('❌ Save failed:', error);
+        
+        console.error('❌ Save operation failed:', error);
+        
+        // COMPREHENSIVE: Enhanced error message handling
+        let errorMessage = 'Save operation failed';
+        
+        if (typeof error === 'string') {
+          errorMessage = error;
+        } else if (error && error.message) {
+          errorMessage = error.message;
+        } else if (error && typeof error === 'object') {
+          // Prevent "[object Object]" by properly stringifying
+          try {
+            if (error.name && error.stack) {
+              // This is an Error object
+              errorMessage = error.name + ': ' + (error.message || 'Unknown error');
+            } else {
+              // This is a data object, try to extract meaningful info
+              errorMessage = JSON.stringify(error, null, 2);
+            }
+          } catch (e) {
+            errorMessage = 'Unknown error occurred during save';
+          }
+        }
+        
+        this.showNotification('❌ ' + errorMessage, 'error');
+        
+        // Enhanced debugging info
+        console.group('🔍 Save Debug Information');
+        console.log('Post ID:', postId);
+        console.log('Topics Count:', Object.keys(topics).length);
+        console.log('Authority Hook Valid:', hasAuthorityData);
+        console.log('Nonce Available:', !!nonce);
+        console.log('Error Details:', error);
+        console.log('Error Type:', typeof error);
+        if (error && error.stack) {
+          console.log('Stack Trace:', error.stack);
+        }
+        console.groupEnd();
+        
+        // EMERGENCY FALLBACK: Try fallback fetch method if makeAjaxRequest fails
+        console.log('🆘 Primary save failed, attempting fallback method...');
+        this.saveWithFallbackFetch(postId, topics, authorityHook);
+      });
+    },
+    
+    /**
+     * FALLBACK: Emergency save method using standard fetch if global makeAjaxRequest fails
+     */
+    saveWithFallbackFetch: function(postId, topics, authorityHook) {
+      console.log('🔄 Using fallback fetch method for emergency save...');
+      
+      const formData = new URLSearchParams();
+      formData.append('action', 'mkcg_save_topics_data');
+      formData.append('post_id', postId);
+      
+      // Add nonce
+      const nonce = window.mkcg_vars?.nonce || 
+                    document.querySelector('#topics-generator-nonce')?.value || '';
+      formData.append('nonce', nonce);
+      formData.append('security', nonce);
+      
+      // Add topics as array notation for PHP compatibility
+      Object.keys(topics).forEach(key => {
+        formData.append(`topics[${key}]`, topics[key]);
+      });
+      
+      // Add authority hook as array notation
+      Object.keys(authorityHook).forEach(key => {
+        if (authorityHook[key]) {
+          formData.append(`authority_hook[${key}]`, authorityHook[key]);
+        }
+      });
+      
+      const ajaxUrl = window.ajaxurl || window.mkcg_vars?.ajax_url || '/wp-admin/admin-ajax.php';
+      
+      return fetch(ajaxUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: formData.toString()
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Network error: ${response.status} ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(result => {
+        this.hideLoading();
+        
+        if (result.success) {
+          this.showNotification('✅ Data saved successfully (fallback method)!', 'success');
+          console.log('✅ Fallback save successful:', result);
+        } else {
+          const errorMsg = result.data?.message || result.data || 'Server returned error';
+          throw new Error(errorMsg);
+        }
+      })
+      .catch(error => {
+        this.hideLoading();
+        this.showNotification('❌ Fallback save failed: ' + error.message, 'error');
+        console.error('❌ Fallback save failed:', error);
       });
     },
     

@@ -70,8 +70,25 @@ async function makeAjaxRequest(action, data = {}) {
         
         // Handle WordPress AJAX response format
         if (result.success === false) {
-            const message = result.data?.message || result.data || 'Request failed';
-            throw new Error(`Server error: ${message}`);
+            let message = 'Request failed';
+            
+            // FIXED: Properly extract error message from complex objects
+            if (result.data) {
+                if (typeof result.data === 'string') {
+                    message = result.data;
+                } else if (result.data.message && typeof result.data.message === 'string') {
+                    message = result.data.message;
+                } else if (typeof result.data === 'object') {
+                    // Handle complex error objects
+                    try {
+                        message = JSON.stringify(result.data);
+                    } catch (e) {
+                        message = 'Server returned error object';
+                    }
+                }
+            }
+            
+            throw new Error(message);
         }
         
         return result.data || result;

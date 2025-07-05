@@ -51,12 +51,349 @@ class Media_Kit_Content_Generator {
     // REMOVED: Old init_ajax_handlers() method - replaced with on-demand initialization
     
     /**
-     * SIMPLE AJAX HANDLERS - Direct implementation
+     * ROOT FIX: Direct AJAX handler for save topics to avoid complex handler chain
      */
     public function ajax_save_topics() {
-        // Initialize on demand
-        $this->ensure_ajax_handlers();
-        $this->ajax_handlers->handle_save_topics();
+        error_log('MKCG: Starting ajax_save_topics handler - direct implementation');
+        
+        // Verify request
+        if (!$this->verify_ajax_request()) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
+        
+        // Get post ID
+        $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID required']);
+            return;
+        }
+        
+        error_log('MKCG: Processing save for post ID: ' . $post_id);
+        error_log('MKCG: POST data: ' . print_r($_POST, true));
+        
+        // Extract topics data
+        $topics_data = $this->extract_topics_data();
+        $authority_hook_data = $this->extract_authority_hook_data();
+        
+        error_log('MKCG: Extracted topics: ' . print_r($topics_data, true));
+        error_log('MKCG: Extracted authority hook: ' . print_r($authority_hook_data, true));
+        
+        if (empty($topics_data) && empty($authority_hook_data)) {
+            wp_send_json_error(['message' => 'No data provided to save']);
+            return;
+        }
+        
+        $results = [];
+        
+        // Save topics using Pods service
+        if (!empty($topics_data)) {
+            $topics_result = $this->pods_service->save_topics($post_id, $topics_data);
+            $results['topics'] = $topics_result;
+            error_log('MKCG: Topics save result: ' . json_encode($topics_result));
+        }
+        
+        // Save authority hook using Pods service
+        if (!empty($authority_hook_data)) {
+            $auth_result = $this->pods_service->save_authority_hook_components($post_id, $authority_hook_data);
+            $results['authority_hook'] = $auth_result;
+            error_log('MKCG: Authority hook save result: ' . json_encode($auth_result));
+            
+            // ROOT FIX: Save audience taxonomy if WHO field contains audience data
+            if (!empty($authority_hook_data['who']) && $authority_hook_data['who'] !== 'your audience') {
+                $audience_result = $this->save_audience_taxonomy($post_id, $authority_hook_data['who']);
+                $results['audience_taxonomy'] = $audience_result;
+                error_log('MKCG: Audience taxonomy save result: ' . json_encode($audience_result));
+            }
+        }
+        
+        // Determine overall success
+        $overall_success = (!empty($results['topics']) && $results['topics']['success']) || 
+                          (!empty($results['authority_hook']) && $results['authority_hook']['success']);
+        
+        if ($overall_success) {
+            wp_send_json_success([
+                'message' => 'Data saved successfully',
+                'post_id' => $post_id,
+                'results' => $results
+            ]);
+        } else {
+            wp_send_json_error([
+                'message' => 'Failed to save data',
+                'results' => $results
+            ]);
+        }
+    }
+    
+    /**
+     * ROOT FIX: Extract topics data with comprehensive fallback strategies
+     */
+    private function extract_topics_data() {
+        $topics = [];
+        
+        // Method 1: Array notation (topics[topic_1], etc.)
+        foreach ($_POST as $key => $value) {
+            if (strpos($key, 'topics[') === 0) {
+                preg_match('/topics\[(.*?)\]/', $key, $matches);
+                if (isset($matches[1]) && !empty(trim($value))) {
+                    $topics[$matches[1]] = sanitize_textarea_field($value);
+                }
+            }
+        }
+        
+        // Method 2: JSON string in topics field
+        if (empty($topics) && isset($_POST['topics'])) {
+            $topics_raw = is_array($_POST['topics']) ? $_POST['topics'] : stripslashes($_POST['topics']);
+            
+            if (is_string($topics_raw)) {
+                $decoded = json_decode($topics_raw, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    foreach ($decoded as $key => $value) {
+                        if (!empty(trim($value))) {
+                            $topics[$key] = sanitize_textarea_field($value);
+                        }
+                    }
+                }
+            } elseif (is_array($topics_raw)) {
+                foreach ($topics_raw as $key => $value) {
+                    if (!empty(trim($value))) {
+                        $topics[$key] = sanitize_textarea_field($value);
+                    }
+                }
+            }
+        }
+        
+        // Method 3: Individual topic fields
+        if (empty($topics)) {
+            for ($i = 1; $i <= 5; $i++) {
+                $field_name = 'topic_' . $i;
+                if (isset($_POST[$field_name]) && !empty(trim($_POST[$field_name]))) {
+                    $topics[$field_name] = sanitize_textarea_field($_POST[$field_name]);
+                }
+            }
+        }
+        
+        return $topics;
+    }
+    
+    /**
+     * ROOT FIX: Extract authority hook data with comprehensive fallback strategies
+     */
+    private function extract_authority_hook_data() {
+        $components = [];
+        
+        // Method 1: Array notation (authority_hook[who], etc.)
+        foreach ($_POST as $key => $value) {
+            if (strpos($key, 'authority_hook[') === 0) {
+                preg_match('/authority_hook\[(.*?)\]/', $key, $matches);
+                if (isset($matches[1]) && !empty(trim($value))) {
+                    $field = $matches[1];
+                    if ($field === 'result') $field = 'what'; // Map result to what
+                    $components[$field] = sanitize_textarea_field($value);
+                }
+            }
+        }
+        
+        // Method 2: JSON string in authority_hook field
+        if (empty($components) && isset($_POST['authority_hook'])) {
+            $auth_raw = is_array($_POST['authority_hook']) ? $_POST['authority_hook'] : stripslashes($_POST['authority_hook']);
+            
+            if (is_string($auth_raw)) {
+                $decoded = json_decode($auth_raw, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    foreach ($decoded as $key => $value) {
+                        if (!empty(trim($value))) {
+                            $mapped_key = ($key === 'result') ? 'what' : $key;
+                            $components[$mapped_key] = sanitize_textarea_field($value);
+                        }
+                    }
+                }
+            } elseif (is_array($auth_raw)) {
+                foreach ($auth_raw as $key => $value) {
+                    if (!empty(trim($value))) {
+                        $mapped_key = ($key === 'result') ? 'what' : $key;
+                        $components[$mapped_key] = sanitize_textarea_field($value);
+                    }
+                }
+            }
+        }
+        
+        // Method 3: Individual component fields
+        if (empty($components)) {
+            $fields = ['who', 'what', 'result', 'when', 'how'];
+            foreach ($fields as $field) {
+                if (isset($_POST[$field]) && !empty(trim($_POST[$field]))) {
+                    $mapped_field = ($field === 'result') ? 'what' : $field;
+                    $components[$mapped_field] = sanitize_textarea_field($_POST[$field]);
+                }
+            }
+        }
+        
+        return $components;
+    }
+    
+    /**
+     * ROOT FIX: Save audience taxonomy from WHO field content
+     */
+    private function save_audience_taxonomy($post_id, $who_content) {
+        if (!$post_id || empty($who_content) || $who_content === 'your audience') {
+            return ['success' => false, 'message' => 'No valid audience data to save'];
+        }
+        
+        error_log('MKCG: Parsing audience string: "' . $who_content . '"');
+        
+        // Parse audience string to extract individual audiences
+        $audiences = $this->parse_audience_string($who_content);
+        
+        if (empty($audiences)) {
+            return ['success' => false, 'message' => 'No audiences found in WHO field'];
+        }
+        
+        error_log('MKCG: Extracted audiences: ' . json_encode($audiences));
+        
+        // Get or create taxonomy terms
+        $term_ids = [];
+        foreach ($audiences as $audience_name) {
+            $audience_name = trim($audience_name);
+            if (empty($audience_name)) continue;
+            
+            // Check if term exists
+            $existing_term = get_term_by('name', $audience_name, 'audience');
+            
+            if ($existing_term) {
+                $term_ids[] = $existing_term->term_id;
+                error_log('MKCG: Found existing audience term: ' . $audience_name . ' (ID: ' . $existing_term->term_id . ')');
+            } else {
+                // Create new term
+                $new_term = wp_insert_term($audience_name, 'audience');
+                if (!is_wp_error($new_term)) {
+                    $term_ids[] = $new_term['term_id'];
+                    error_log('MKCG: Created new audience term: ' . $audience_name . ' (ID: ' . $new_term['term_id'] . ')');
+                } else {
+                    error_log('MKCG: Failed to create audience term: ' . $audience_name . ' - ' . $new_term->get_error_message());
+                }
+            }
+        }
+        
+        if (empty($term_ids)) {
+            return ['success' => false, 'message' => 'No valid audience terms to assign'];
+        }
+        
+        // Assign terms to post
+        $result = wp_set_post_terms($post_id, $term_ids, 'audience', false); // false = replace existing terms
+        
+        if (is_wp_error($result)) {
+            error_log('MKCG: Failed to assign audience terms: ' . $result->get_error_message());
+            return ['success' => false, 'message' => 'Failed to assign audience terms: ' . $result->get_error_message()];
+        }
+        
+        // Clear taxonomy cache
+        wp_cache_delete($post_id, 'audience_relationships');
+        clean_object_term_cache($post_id, 'audience');
+        
+        error_log('MKCG: Successfully assigned ' . count($term_ids) . ' audience terms to post ' . $post_id);
+        
+        return [
+            'success' => true,
+            'message' => 'Audience taxonomy saved successfully',
+            'audiences_saved' => $audiences,
+            'term_ids' => $term_ids
+        ];
+    }
+    
+    /**
+     * ROOT FIX: Parse audience string to extract individual audience names
+     * IMPROVED: Handles natural language patterns properly
+     */
+    private function parse_audience_string($who_content) {
+        // Handle various formats:
+        // "Authors launching a book"
+        // "2nd value and Authors launching a book" 
+        // "2nd value, Authors launching a book, and 3 value"
+        
+        $audiences = [];
+        
+        error_log('MKCG: Starting to parse audience string: "' . $who_content . '"');
+        
+        // IMPROVED LOGIC: Handle natural language patterns more robustly
+        // Remove any leading/trailing whitespace
+        $who_content = trim($who_content);
+        
+        // Skip if empty or default
+        if (empty($who_content) || $who_content === 'your audience') {
+            error_log('MKCG: Skipping empty or default audience string');
+            return [];
+        }
+        
+        // Strategy 1: Handle the Oxford comma pattern properly
+        // Pattern: "A, B, and C" should become ["A", "B", "C"]
+        if (strpos($who_content, ', and ') !== false) {
+            error_log('MKCG: Detected Oxford comma pattern');
+            
+            // Split on ', and ' first to get the last item
+            $parts = explode(', and ', $who_content);
+            $last_item = array_pop($parts); // "3 value"
+            
+            // The remaining part should be split by comma
+            if (!empty($parts)) {
+                $remaining = $parts[0]; // "2nd value, Authors launching a book"
+                $middle_items = explode(', ', $remaining);
+                
+                // Combine all items
+                foreach ($middle_items as $item) {
+                    $item = trim($item);
+                    if (!empty($item)) {
+                        $audiences[] = $item;
+                    }
+                }
+            }
+            
+            // Add the last item
+            $last_item = trim($last_item);
+            if (!empty($last_item)) {
+                $audiences[] = $last_item;
+            }
+        }
+        // Strategy 2: Handle simple "A and B" pattern
+        elseif (strpos($who_content, ' and ') !== false && strpos($who_content, ',') === false) {
+            error_log('MKCG: Detected simple "A and B" pattern');
+            $parts = explode(' and ', $who_content);
+            foreach ($parts as $part) {
+                $part = trim($part);
+                if (!empty($part)) {
+                    $audiences[] = $part;
+                }
+            }
+        }
+        // Strategy 3: Handle comma-separated without "and"
+        elseif (strpos($who_content, ',') !== false) {
+            error_log('MKCG: Detected comma-separated pattern');
+            $parts = explode(',', $who_content);
+            foreach ($parts as $part) {
+                $part = trim($part);
+                if (!empty($part)) {
+                    $audiences[] = $part;
+                }
+            }
+        }
+        // Strategy 4: Single audience (no separators)
+        else {
+            error_log('MKCG: Detected single audience');
+            $audiences[] = $who_content;
+        }
+        
+        // Clean up and validate each audience
+        $clean_audiences = [];
+        foreach ($audiences as $audience) {
+            $audience = trim($audience);
+            if (!empty($audience) && $audience !== 'your audience') {
+                $clean_audiences[] = $audience;
+            }
+        }
+        
+        error_log('MKCG: Successfully parsed "' . $who_content . '" into ' . count($clean_audiences) . ' audiences: ' . json_encode($clean_audiences));
+        
+        return $clean_audiences;
     }
     
     public function ajax_get_topics() {
@@ -224,6 +561,9 @@ class Media_Kit_Content_Generator {
         add_action('wp_ajax_mkcg_generate_topics', [$this, 'ajax_generate_topics']);
         add_action('wp_ajax_mkcg_save_topic_field', [$this, 'ajax_save_topic_field']);
         
+        // ROOT FIX: Add debug logging for AJAX registration
+        error_log('MKCG: Registered AJAX action wp_ajax_mkcg_save_topics_data');
+        
         // ROOT FIX: Add missing Questions Generator AJAX handlers
         add_action('wp_ajax_mkcg_save_questions', [$this, 'ajax_save_questions']);
         add_action('wp_ajax_mkcg_generate_questions', [$this, 'ajax_generate_questions']);
@@ -331,6 +671,9 @@ class Media_Kit_Content_Generator {
         // CRITICAL FIX: Ensure global services are available early
         $this->ensure_global_services();
         
+        // ROOT FIX: Register audience taxonomy for taxonomy saving
+        $this->register_audience_taxonomy();
+        
         // AJAX handlers are initialized on-demand when AJAX requests come in
         
         // Initialize generators if available
@@ -347,6 +690,43 @@ class Media_Kit_Content_Generator {
         $this->register_shortcodes();
         
         error_log('MKCG: ✅ Simplified plugin initialization completed');
+    }
+    
+    /**
+     * ROOT FIX: Register audience taxonomy for audience management
+     */
+    private function register_audience_taxonomy() {
+        register_taxonomy('audience', ['guests', 'post'], [
+            'labels' => [
+                'name' => 'Audiences',
+                'singular_name' => 'Audience',
+                'menu_name' => 'Audiences',
+                'all_items' => 'All Audiences',
+                'edit_item' => 'Edit Audience',
+                'view_item' => 'View Audience',
+                'update_item' => 'Update Audience',
+                'add_new_item' => 'Add New Audience',
+                'new_item_name' => 'New Audience Name',
+                'search_items' => 'Search Audiences',
+                'not_found' => 'No audiences found'
+            ],
+            'public' => true,
+            'publicly_queryable' => true,
+            'hierarchical' => false,
+            'show_ui' => true,
+            'show_in_menu' => true,
+            'show_admin_column' => true,
+            'show_in_nav_menus' => true,
+            'show_tagcloud' => true,
+            'show_in_rest' => true,
+            'rewrite' => [
+                'slug' => 'audience',
+                'with_front' => false
+            ],
+            'meta_box_cb' => 'post_categories_meta_box', // Use checkbox interface
+        ]);
+        
+        error_log('MKCG: Audience taxonomy registered for guests and post types');
     }
     
     // SIMPLIFIED: Complex error handling and validation removed
