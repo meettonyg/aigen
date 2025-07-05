@@ -66,37 +66,41 @@ class MKCG_Pods_Service {
     }
     
     /**
-     * SIMPLIFIED: Get authority hook components - direct field values
+     * ROOT FIX: Get authority hook components using the cleaned Authority Hook Service
+     * This ensures unified data handling and eliminates default values at the source
      */
     public function get_authority_hook_components($post_id) {
-        $components = [];
-        $defaults = $this->get_default_authority_hook();
-
-        // WHO Component: Try audience taxonomy first, then guest_title
-        $who_value = $this->get_audience_from_taxonomy($post_id);
-        if (empty($who_value)) {
-            $who_value = get_post_meta($post_id, 'guest_title', true);
-        }
-        $components['who'] = !empty($who_value) ? trim($who_value) : $defaults['who'];
-
-        // Other Components: Pull directly from hook_ fields
-        $components['what'] = get_post_meta($post_id, 'hook_what', true) ?: $defaults['what'];
-        $components['when'] = get_post_meta($post_id, 'hook_when', true) ?: $defaults['when'];
-        $components['how'] = get_post_meta($post_id, 'hook_how', true) ?: $defaults['how'];
-        $components['where'] = get_post_meta($post_id, 'hook_where', true) ?: $defaults['where'];
-        $components['why'] = get_post_meta($post_id, 'hook_why', true) ?: $defaults['why'];
-
-        // Build complete authority hook
-        $components['complete'] = $this->build_complete_authority_hook(
-            $components['who'], 
-            $components['what'], 
-            $components['when'], 
-            $components['how'],
-            $components['where'],
-            $components['why']
-        );
+        error_log('MKCG Pods Service: get_authority_hook_components() - Using Authority Hook Service');
         
-        return $components;
+        // ROOT FIX: Load the cleaned Authority Hook Service if not already loaded
+        if (!isset($this->authority_hook_service)) {
+            if (!class_exists('MKCG_Authority_Hook_Service')) {
+                require_once dirname(__FILE__) . '/class-mkcg-authority-hook-service.php';
+            }
+            $this->authority_hook_service = new MKCG_Authority_Hook_Service();
+        }
+        
+        // ROOT FIX: Use the cleaned Authority Hook Service instead of our own logic
+        $authority_hook_data = $this->authority_hook_service->get_authority_hook_data($post_id);
+        
+        if ($authority_hook_data && isset($authority_hook_data['components'])) {
+            $components = $authority_hook_data['components'];
+            
+            // Add the complete hook
+            $components['complete'] = $authority_hook_data['complete_hook'] ?? '';
+            
+            // Add backward compatibility fields that some templates might expect
+            $components['where'] = '';
+            $components['why'] = '';
+            
+            error_log('MKCG Pods Service: Using cleaned Authority Hook Service data: ' . json_encode($components));
+            
+            return $components;
+        }
+        
+        // Fallback to empty structure (no defaults)
+        error_log('MKCG Pods Service: Authority Hook Service returned no data, using empty structure');
+        return $this->get_empty_authority_hook();
     }
     
     /**
@@ -181,37 +185,29 @@ class MKCG_Pods_Service {
     }
     
     /**
-     * SIMPLIFIED: Save authority hook components to Pods fields
+     * ROOT FIX: Save authority hook components using the cleaned Authority Hook Service
      */
     public function save_authority_hook_components($post_id, $hook_data) {
         if (!$post_id || empty($hook_data)) {
             return ['success' => false, 'message' => 'Invalid parameters'];
         }
         
-        $saved_count = 0;
-        $field_mapping = [
-            'when' => 'hook_when',
-            'what' => 'hook_what', 
-            'how' => 'hook_how',
-            'where' => 'hook_where',
-            'why' => 'hook_why'
-        ];
+        error_log('MKCG Pods Service: save_authority_hook_components() - Using Authority Hook Service');
         
-        foreach ($hook_data as $component => $value) {
-            if (isset($field_mapping[$component]) && !empty($value)) {
-                $field_name = $field_mapping[$component];
-                $result = update_post_meta($post_id, $field_name, $value);
-                if ($result !== false) {
-                    $saved_count++;
-                }
+        // ROOT FIX: Load the cleaned Authority Hook Service if not already loaded
+        if (!isset($this->authority_hook_service)) {
+            if (!class_exists('MKCG_Authority_Hook_Service')) {
+                require_once dirname(__FILE__) . '/class-mkcg-authority-hook-service.php';
             }
+            $this->authority_hook_service = new MKCG_Authority_Hook_Service();
         }
         
-        return [
-            'success' => $saved_count > 0,
-            'saved_count' => $saved_count,
-            'message' => $saved_count > 0 ? 'Authority hook saved successfully' : 'No authority hook saved'
-        ];
+        // ROOT FIX: Use the cleaned Authority Hook Service for saving
+        $result = $this->authority_hook_service->save_authority_hook_data($post_id, $hook_data);
+        
+        error_log('MKCG Pods Service: Authority Hook Service save result: ' . json_encode($result));
+        
+        return $result;
     }
     
     /**
@@ -404,16 +400,17 @@ class MKCG_Pods_Service {
     }
     
     /**
-     * Get default authority hook values
+     * ROOT FIX: Get empty authority hook structure - NO DEFAULTS
      */
-    private function get_default_authority_hook() {
+    private function get_empty_authority_hook() {
         return [
-            'who' => 'your audience',
-            'what' => 'achieve their goals',
-            'when' => 'they need help',
-            'how' => 'through your method',
-            'where' => 'in their situation',
-            'why' => 'because they deserve success'
+            'who' => '',
+            'what' => '',
+            'when' => '',
+            'how' => '',
+            'where' => '',
+            'why' => '',
+            'complete' => ''
         ];
     }
     
@@ -433,7 +430,7 @@ class MKCG_Pods_Service {
     }
     
     /**
-     * Get default data structure
+     * ROOT FIX: Get default data structure - EMPTY DEFAULTS ONLY
      */
     private function get_default_data() {
         return [
@@ -446,15 +443,7 @@ class MKCG_Pods_Service {
                 'topic_4' => '',
                 'topic_5' => ''
             ],
-            'authority_hook_components' => [
-                'who' => 'your audience',
-                'what' => 'achieve their goals',
-                'when' => 'they need help',
-                'how' => 'through your method',
-                'where' => 'in their situation',
-                'why' => 'because they deserve success',
-                'complete' => 'I help your audience achieve their goals when they need help by showing them through your method in their situation because they deserve success.'
-            ],
+            'authority_hook_components' => $this->get_empty_authority_hook(),
             'questions' => [],
             'contact' => [],
             'messaging' => []
