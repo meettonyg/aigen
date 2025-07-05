@@ -55,31 +55,64 @@
         
         let dataSource = 'none';
         
+        // ENHANCED DEBUG: Log all available data sources
+        console.log('🔍 Checking window.MKCG_Topics_Data:', window.MKCG_Topics_Data);
+        console.log('🔍 Checking window.MKCG_Questions_Data:', window.MKCG_Questions_Data);
+        console.log('🔍 Checking window.MKCG_Offers_Data:', window.MKCG_Offers_Data);
+        
         // Method 1: Check window.MKCG_Topics_Data
         if (window.MKCG_Topics_Data && window.MKCG_Topics_Data.authorityHook) {
             templateData = window.MKCG_Topics_Data.authorityHook;
             dataSource = 'MKCG_Topics_Data';
+            console.log('✅ Found authority hook data in MKCG_Topics_Data:', templateData);
         }
         // Method 2: Check window.MKCG_Questions_Data  
         else if (window.MKCG_Questions_Data && window.MKCG_Questions_Data.authorityHook) {
             templateData = window.MKCG_Questions_Data.authorityHook;
             dataSource = 'MKCG_Questions_Data';
+            console.log('✅ Found authority hook data in MKCG_Questions_Data:', templateData);
         }
         // Method 3: Check window.MKCG_Offers_Data
         else if (window.MKCG_Offers_Data && window.MKCG_Offers_Data.authorityHook) {
             templateData = window.MKCG_Offers_Data.authorityHook;
             dataSource = 'MKCG_Offers_Data';
+            console.log('✅ Found authority hook data in MKCG_Offers_Data:', templateData);
         }
         // Method 4: Extract from hidden field as fallback
         else {
+            console.log('⚠️ No data found in global objects, trying hidden field extraction...');
             templateData = extractFromHiddenField();
             dataSource = 'hidden_field';
         }
         
         if (templateData) {
-            console.log('✅ Template data loaded from:', dataSource, templateData);
+            console.log('✅ Template data loaded from:', dataSource);
+            console.log('📋 Template data contents:', templateData);
+        
+        // ENHANCED DEBUG: Check DOM readiness
+        console.log('🔍 DOM readiness check:', {
+            readyState: document.readyState,
+            bodyExists: !!document.body,
+            authorityHookBuilderExists: !!document.querySelector('.authority-hook'),
+            whoFieldExists: !!document.getElementById('mkcg-who'),
+            resultFieldExists: !!document.getElementById('mkcg-result'),
+            whenFieldExists: !!document.getElementById('mkcg-when'),
+            howFieldExists: !!document.getElementById('mkcg-how')
+        });
+            
+            // ENHANCED DEBUG: Check if any components have actual data
+            const hasRealData = Object.keys(templateData).some(key => {
+                const value = templateData[key];
+                return value && value.trim() && 
+                       value !== 'your audience' && 
+                       value !== 'achieve their goals' && 
+                       value !== 'they need help' && 
+                       value !== 'through your method';
+            });
+            
+            console.log('🔍 Template data has real (non-default) values:', hasRealData);
         } else {
-            console.log('⚠️ No template data found');
+            console.log('❌ No template data found from any source');
         }
     }
     
@@ -113,12 +146,28 @@
     
     // INTEGRATED: Pre-populate fields from template data
     function prePopulateFields() {
+        console.log('📋 prePopulateFields() called');
+        
         if (!templateData) {
-            console.log('⚠️ No template data available for field population');
+            console.log('❌ No template data available for field population');
             return;
         }
         
-        console.log('📋 Pre-populating Authority Hook fields from template data...');
+        console.log('📋 Pre-populating Authority Hook fields from template data:', templateData);
+        
+        // CRITICAL DEBUG: Check if fields exist before trying to populate
+        const requiredFields = ['mkcg-who', 'mkcg-result', 'mkcg-when', 'mkcg-how'];
+        const foundFields = {};
+        
+        requiredFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            foundFields[fieldId] = field ? 'FOUND' : 'NOT FOUND';
+            if (!field) {
+                console.error(`❌ CRITICAL: Required field ${fieldId} not found in DOM`);
+            }
+        });
+        
+        console.log('🔍 FIELD AVAILABILITY CHECK:', foundFields);
         
         const fieldMappings = {
             'who': 'mkcg-who',
@@ -127,33 +176,58 @@
             'how': 'mkcg-how'
         };
         
+        console.log('🎯 Field mappings:', fieldMappings);
+        
         let populatedCount = 0;
         
         Object.keys(fieldMappings).forEach(key => {
             const fieldId = fieldMappings[key];
             const value = templateData[key] || '';
             
+            console.log(`🔍 Processing component '${key}' -> field '${fieldId}' with value: "${value}"`);
+            
             if (value && value.trim()) {
                 const field = document.getElementById(fieldId);
-                if (field && !field.value) { // Only populate if field is empty
+                
+                if (!field) {
+                    console.error(`❌ Field element not found: ${fieldId}`);
+                    return;
+                }
+                
+                console.log(`✅ Field element found: ${fieldId}`, field);
+                console.log(`🔍 Current field value: "${field.value}"`);
+                
+                if (!field.value) { // Only populate if field is empty
                     field.value = value;
                     populatedCount++;
                     console.log(`✅ Pre-populated ${fieldId} with: "${value}"`);
                     
+                    // Trigger events for other scripts
+                    field.dispatchEvent(new Event('input', { bubbles: true }));
+                    field.dispatchEvent(new Event('change', { bubbles: true }));
+                    
                     // Special handling for WHO field - extract audiences
-                    if (key === 'who' && value.includes(' and ') || value.includes(', ')) {
+                    if (key === 'who' && (value.includes(' and ') || value.includes(', '))) {
+                        console.log(`🎯 Extracting audiences from WHO field: "${value}"`);
                         extractAudiencesFromWhoField(value);
                     }
-                } else if (!field) {
-                    console.warn(`❌ Field not found: ${fieldId}`);
+                } else {
+                    console.log(`⚠️ Field ${fieldId} already has value: "${field.value}", skipping population`);
                 }
+            } else {
+                console.log(`⚠️ No value to populate for component '${key}' (value: "${value}")`);
             }
         });
         
         if (populatedCount > 0) {
             console.log(`✅ Successfully pre-populated ${populatedCount} fields`);
             // Update Authority Hook display after population
-            setTimeout(updateAuthorityHook, 100);
+            setTimeout(() => {
+                console.log('🔄 Updating Authority Hook display after population...');
+                updateAuthorityHook();
+            }, 100);
+        } else {
+            console.log('⚠️ No fields were populated (either no data or fields already have values)');
         }
     }
     
@@ -531,19 +605,71 @@
     
     // Enhanced initialization with multiple triggers
     function initializeWhenReady() {
+        console.log('🚀 Authority Hook Builder: Starting initialization sequence...');
+        
         // Try immediate initialization
+        console.log('🔄 Attempt 1: Immediate initialization');
         init();
         
         // Also try after DOM content loaded
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
+            console.log('🔄 Setting up DOMContentLoaded listener');
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('🔄 Attempt 2: DOMContentLoaded triggered');
+                init();
+            });
+        } else {
+            console.log('🔄 DOM already loaded, skipping DOMContentLoaded');
         }
         
         // Try after a small delay for dynamic content
-        setTimeout(init, 500);
+        setTimeout(() => {
+            console.log('🔄 Attempt 3: 500ms delay');
+            init();
+        }, 500);
         
         // Try after longer delay as final fallback
-        setTimeout(init, 2000);
+        setTimeout(() => {
+            console.log('🔄 Attempt 4: 2 second delay (final fallback)');
+            init();
+        }, 2000);
+        
+        // ENHANCED: Set up mutation observer to watch for field creation
+        const observer = new MutationObserver((mutations) => {
+            let shouldReinit = false;
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'childList') {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeType === 1) { // Element node
+                            // Check if authority hook fields were added
+                            const hasAuthorityFields = node.id && ['mkcg-who', 'mkcg-result', 'mkcg-when', 'mkcg-how'].includes(node.id);
+                            const containsAuthorityFields = node.querySelector && node.querySelector('#mkcg-who, #mkcg-result, #mkcg-when, #mkcg-how');
+                            
+                            if (hasAuthorityFields || containsAuthorityFields) {
+                                shouldReinit = true;
+                            }
+                        }
+                    });
+                }
+            });
+            
+            if (shouldReinit) {
+                console.log('🔄 Authority hook fields detected in DOM, re-initializing...');
+                setTimeout(init, 100); // Small delay to ensure DOM is settled
+            }
+        });
+        
+        // Start observing
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+        
+        // Stop observing after 30 seconds
+        setTimeout(() => {
+            observer.disconnect();
+            console.log('⏰ Authority Hook Builder mutation observer stopped');
+        }, 30000);
     }
     
     // Initialize
@@ -556,7 +682,55 @@
         addAudienceTag,
         clearAllAudiences,
         audienceTags: () => audienceTags,
-        templateData: () => templateData
+        templateData: () => templateData,
+        // ENHANCED DEBUG: Add debug helpers
+        debug: {
+            checkFields: function() {
+                console.log('🔍 Authority Hook Builder Debug Check:');
+                console.log('Template Data:', templateData);
+                console.log('Initialized:', initialized);
+                console.log('Audience Tags:', audienceTags);
+                
+                const fields = ['mkcg-who', 'mkcg-result', 'mkcg-when', 'mkcg-how'];
+                fields.forEach(fieldId => {
+                    const field = document.getElementById(fieldId);
+                    if (field) {
+                        console.log(`Field ${fieldId}: "${field.value}"`);
+                    } else {
+                        console.log(`Field ${fieldId}: NOT FOUND`);
+                    }
+                });
+                
+                // Check for data sources
+                console.log('Available Data Sources:');
+                console.log('- window.MKCG_Topics_Data:', window.MKCG_Topics_Data);
+                console.log('- window.MKCG_Questions_Data:', window.MKCG_Questions_Data);
+                console.log('- window.MKCG_Offers_Data:', window.MKCG_Offers_Data);
+            },
+            rePopulate: function() {
+                console.log('🔄 Re-attempting field population...');
+                loadTemplateData();
+                prePopulateFields();
+            },
+            getCurrentPostId: function() {
+                const sources = [
+                    'topics-generator-post-id',
+                    'questions-generator-post-id', 
+                    'offers-generator-post-id'
+                ];
+                
+                for (const id of sources) {
+                    const field = document.getElementById(id);
+                    if (field && field.value) {
+                        console.log(`Found post ID ${field.value} from ${id}`);
+                        return field.value;
+                    }
+                }
+                
+                console.log('No post ID found in hidden fields');
+                return null;
+            }
+        }
     };
     
     console.log('✅ Authority Hook Builder script loaded (INTEGRATED VERSION)');

@@ -67,29 +67,51 @@ class MKCG_Authority_Hook_Service {
     }
     
     /**
-     * Get Authority Hook data from WordPress post meta
+     * Get Authority Hook data from WordPress post meta - ENHANCED DEBUG VERSION
      * Updated to check for entry parameters and not provide defaults when no entry param
      * 
      * @param int $post_id WordPress post ID
      * @return array Authority Hook components
      */
     public function get_authority_hook_data($post_id) {
+        // ENHANCED DEBUG: Log the incoming request
+        error_log('MKCG Authority Hook Service: get_authority_hook_data() called with post_id=' . $post_id);
+        error_log('MKCG Authority Hook Service: GET params: ' . json_encode($_GET));
+        
         // Check for entry parameter - use different defaults based on presence
         $has_entry_param = isset($_GET['entry']) || isset($_GET['post_id']) || 
                            (isset($_GET['frm_action']) && $_GET['frm_action'] === 'edit');
         
+        error_log('MKCG Authority Hook Service: has_entry_param=' . ($has_entry_param ? 'true' : 'false'));
+        
         $components = $has_entry_param ? self::LEGACY_DEFAULT_COMPONENTS : self::DEFAULT_COMPONENTS;
+        error_log('MKCG Authority Hook Service: Using defaults: ' . json_encode($components));
         
         if (!$post_id || $post_id <= 0) {
             error_log('MKCG Authority Hook Service: No valid post ID - using ' . ($has_entry_param ? 'legacy defaults' : 'empty values'));
             return $this->build_complete_response($components, false, 'No valid post ID provided');
         }
         
+        // ENHANCED DEBUG: Check if post exists
+        $post = get_post($post_id);
+        if (!$post) {
+            error_log('MKCG Authority Hook Service: Post not found for ID ' . $post_id);
+            return $this->build_complete_response($components, false, 'Post not found');
+        }
+        
+        error_log('MKCG Authority Hook Service: Post found: ' . $post->post_title . ' (type: ' . $post->post_type . ')');
+        
         // Load from WordPress post meta
         $components = $this->get_from_postmeta($post_id, $has_entry_param);
         
+        // ENHANCED DEBUG: Log loaded components
+        error_log('MKCG Authority Hook Service: Loaded components: ' . json_encode($components));
+        
         // Ensure all required components exist with fallbacks
         $components = $this->sanitize_components($components, $has_entry_param);
+        
+        // ENHANCED DEBUG: Log final components
+        error_log('MKCG Authority Hook Service: Final components: ' . json_encode($components));
         
         return $this->build_complete_response($components, !$this->is_default_data($components, $has_entry_param), 'Authority Hook data loaded successfully');
     }
@@ -359,18 +381,45 @@ class MKCG_Authority_Hook_Service {
     // Private helper methods
     
     /**
-     * Get Authority Hook data from WordPress post meta - FIXED to use correct field names
+     * Get Authority Hook data from WordPress post meta - ENHANCED DEBUG VERSION
      * Updated to handle entry parameter presence
      */
     private function get_from_postmeta($post_id, $has_entry_param = false) {
+        error_log('MKCG Authority Hook Service: get_from_postmeta() called with post_id=' . $post_id);
+        
         $components = $has_entry_param ? self::LEGACY_DEFAULT_COMPONENTS : self::DEFAULT_COMPONENTS;
         $field_mappings = $this->field_mappings['postmeta'];
         
+        error_log('MKCG Authority Hook Service: Field mappings: ' . json_encode($field_mappings));
+        
         foreach ($field_mappings as $component => $field_name) {
             $value = get_post_meta($post_id, $field_name, true);
+            error_log('MKCG Authority Hook Service: get_post_meta(' . $post_id . ', "' . $field_name . '") = "' . $value . '"');
+            
             if (!empty($value)) {
                 $components[$component] = $value;
+                error_log('MKCG Authority Hook Service: Set component[' . $component . '] = "' . $value . '"');
+            } else {
+                error_log('MKCG Authority Hook Service: Component[' . $component . '] remains default: "' . $components[$component] . '"');
             }
+        }
+        
+        // ENHANCED DEBUG: Check all meta fields for this post
+        $all_meta = get_post_meta($post_id);
+        error_log('MKCG Authority Hook Service: All post meta for post ' . $post_id . ': ' . json_encode(array_keys($all_meta)));
+        
+        // Look for any fields that might contain authority hook data
+        $authority_hook_fields = [];
+        foreach ($all_meta as $key => $value) {
+            if (strpos($key, 'hook') !== false || strpos($key, 'guest') !== false || strpos($key, 'authority') !== false) {
+                $authority_hook_fields[$key] = $value[0]; // get_post_meta returns arrays
+            }
+        }
+        
+        if (!empty($authority_hook_fields)) {
+            error_log('MKCG Authority Hook Service: Found authority hook related fields: ' . json_encode($authority_hook_fields));
+        } else {
+            error_log('MKCG Authority Hook Service: No authority hook related fields found in post meta');
         }
         
         return $components;

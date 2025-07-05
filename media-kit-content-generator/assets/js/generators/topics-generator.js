@@ -11,6 +11,51 @@
   'use strict';
   
   /**
+   * Simple AJAX helper function
+   */
+  function makeAjaxRequest(action, data) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const formData = new FormData();
+      
+      formData.append('action', action);
+      formData.append('nonce', document.querySelector('#topics-generator-nonce')?.value || '');
+      
+      // Add data parameters
+      if (data && typeof data === 'object') {
+        Object.keys(data).forEach(key => {
+          formData.append(key, data[key]);
+        });
+      }
+      
+      xhr.open('POST', window.ajaxurl || '/wp-admin/admin-ajax.php');
+      
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          try {
+            const response = JSON.parse(xhr.responseText);
+            if (response.success) {
+              resolve(response.data);
+            } else {
+              reject(new Error(response.data || 'Ajax request failed'));
+            }
+          } catch (e) {
+            reject(new Error('Invalid JSON response'));
+          }
+        } else {
+          reject(new Error('Network error: ' + xhr.status));
+        }
+      };
+      
+      xhr.onerror = function() {
+        reject(new Error('Network error'));
+      };
+      
+      xhr.send(formData);
+    });
+  }
+  
+  /**
    * SIMPLIFIED Topics Generator
    * 3-step initialization: load data, bind events, update display
    */
@@ -44,6 +89,7 @@
     
     /**
      * SIMPLIFIED: Load data from PHP or defaults
+     * ENHANCED: Better handling of Authority Hook field population timing
      */
     loadExistingData: function() {
       // Check if PHP passed data
@@ -63,10 +109,29 @@
         console.log('📝 MKCG_Topics_Data not available - using empty data');
         this.setDefaultData();
       }
+      
+      // CRITICAL FIX: Try to populate Authority Hook fields if builder is already visible
+      this.checkAndPopulateIfVisible();
+    },
+    
+    /**
+     * CRITICAL FIX: Check if Authority Hook Builder is visible and populate if needed
+     */
+    checkAndPopulateIfVisible: function() {
+      setTimeout(() => {
+        const builder = document.querySelector('#topics-generator-authority-hook-builder');
+        if (builder && !builder.classList.contains('generator__builder--hidden')) {
+          console.log('🔧 Authority Hook Builder already visible, attempting population...');
+          this.populateAuthorityHookFields();
+        } else {
+          console.log('🔧 Authority Hook Builder hidden, will populate when user shows it...');
+        }
+      }, 500);
     },
     
     /**
      * SIMPLIFIED: Populate from PHP data
+     * ENHANCED: Store authority hook data for later population when fields become visible
      */
     populateFromPHPData: function(phpData) {
       if (phpData.authorityHook) {
@@ -75,6 +140,9 @@
         this.fields.when = phpData.authorityHook.when || '';
         this.fields.how = phpData.authorityHook.how || '';
         
+        console.log('📝 Stored authority hook data in internal fields:', this.fields);
+        
+        // Try to update input fields if they exist
         this.updateInputFields();
       }
       
@@ -109,6 +177,7 @@
     
     /**
      * SIMPLIFIED: Update input fields
+     * ENHANCED: More robust field updating that handles visibility
      */
     updateInputFields: function() {
       const fieldMappings = [
@@ -118,12 +187,29 @@
         { field: 'how', selector: '#mkcg-how' }
       ];
       
+      let fieldsFound = 0;
+      let fieldsUpdated = 0;
+      
       fieldMappings.forEach(({ field, selector }) => {
         const input = document.querySelector(selector);
         if (input) {
-          input.value = this.fields[field] || '';
+          fieldsFound++;
+          if (this.fields[field]) {
+            input.value = this.fields[field];
+            fieldsUpdated++;
+            console.log(`✅ Updated ${selector} with: "${this.fields[field]}"`);
+          }
+        } else {
+          console.log(`🔄 Field not found (may be hidden): ${selector}`);
         }
       });
+      
+      console.log(`🔄 Update fields: Found ${fieldsFound}/4, Updated ${fieldsUpdated}`);
+      
+      // If no fields found, they're probably hidden - that's expected
+      if (fieldsFound === 0) {
+        console.log('🔄 No fields found - Authority Hook Builder likely hidden (normal)');
+      }
     },
     
     /**
@@ -199,6 +285,7 @@
     
     /**
      * SIMPLIFIED: Toggle Authority Hook Builder
+     * CRITICAL FIX: Auto-populate fields when builder becomes visible
      */
     toggleBuilder: function() {
       const builder = document.querySelector('#topics-generator-authority-hook-builder');
@@ -212,9 +299,75 @@
       if (isHidden) {
         builder.classList.remove('generator__builder--hidden');
         console.log('✅ Authority Hook Builder shown');
+        
+        // CRITICAL FIX: Auto-populate fields when builder becomes visible
+        setTimeout(() => {
+          this.populateAuthorityHookFields();
+        }, 100);
       } else {
         builder.classList.add('generator__builder--hidden');
         console.log('✅ Authority Hook Builder hidden');
+      }
+    },
+    
+    /**
+     * CRITICAL FIX: Populate Authority Hook fields when they become visible
+     */
+    populateAuthorityHookFields: function() {
+      console.log('🔧 CRITICAL FIX: Populating Authority Hook fields...');
+      
+      // Check if we have data to populate
+      if (!window.MKCG_Topics_Data || !window.MKCG_Topics_Data.authorityHook) {
+        console.log('⚠️ No authority hook data available for population');
+        return;
+      }
+      
+      const data = window.MKCG_Topics_Data.authorityHook;
+      const fieldMappings = [
+        { field: 'who', selector: '#mkcg-who' },
+        { field: 'what', selector: '#mkcg-result' },
+        { field: 'when', selector: '#mkcg-when' },
+        { field: 'how', selector: '#mkcg-how' }
+      ];
+      
+      let populatedCount = 0;
+      
+      fieldMappings.forEach(({ field, selector }) => {
+        const input = document.querySelector(selector);
+        if (input && data[field] && data[field].trim()) {
+          // Only populate if field is empty to avoid overwriting user changes
+          if (!input.value || input.value.trim() === '') {
+            input.value = data[field];
+            this.fields[field] = data[field]; // Update internal state
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            populatedCount++;
+            console.log(`✅ Populated ${selector} with: "${data[field]}"`);
+          } else {
+            console.log(`⚠️ Field ${selector} already has value, skipping: "${input.value}"`);
+          }
+        } else if (!input) {
+          console.error(`❌ Field not found: ${selector}`);
+        } else {
+          console.log(`⚠️ No data for ${selector} (${field}): "${data[field] || 'undefined'}"`);
+        }
+      });
+      
+      if (populatedCount > 0) {
+        console.log(`🎉 SUCCESS: Auto-populated ${populatedCount} authority hook fields!`);
+        
+        // Update the main authority hook display
+        this.updateAuthorityHook();
+        
+        // Update the display element if we have complete authority hook
+        if (data.complete && data.complete.trim()) {
+          const displayElement = document.querySelector('#topics-generator-authority-hook-text');
+          if (displayElement) {
+            displayElement.textContent = data.complete;
+            console.log('✅ Updated main authority hook display with complete text');
+          }
+        }
+      } else {
+        console.log('⚠️ No fields were populated - all may already have values or no data available');
       }
     },
     
@@ -471,6 +624,74 @@
   // Make globally available
   window.TopicsGenerator = TopicsGenerator;
   
+  // CRITICAL FIX: Add debug function for testing the Authority Hook population fix
+  window.MKCG_Topics_PopulationTest = {
+    showAndPopulate: function() {
+      console.log('🧪 TESTING: Show Authority Hook Builder and populate fields...');
+      
+      const builder = document.querySelector('#topics-generator-authority-hook-builder');
+      if (builder) {
+        // Show the builder
+        builder.classList.remove('generator__builder--hidden');
+        console.log('✅ Builder shown');
+        
+        // Wait a moment, then populate
+        setTimeout(() => {
+          if (TopicsGenerator.populateAuthorityHookFields) {
+            TopicsGenerator.populateAuthorityHookFields();
+          } else {
+            console.error('❌ populateAuthorityHookFields method not found');
+          }
+        }, 200);
+      } else {
+        console.error('❌ Authority Hook Builder not found');
+      }
+    },
+    
+    checkCurrentState: function() {
+      console.log('🔍 CHECKING: Current Authority Hook state...');
+      
+      // Check data availability
+      if (window.MKCG_Topics_Data) {
+        console.log('✅ MKCG_Topics_Data available:', window.MKCG_Topics_Data.authorityHook);
+      } else {
+        console.log('❌ MKCG_Topics_Data not available');
+      }
+      
+      // Check internal fields
+      console.log('📝 Internal fields:', TopicsGenerator.fields);
+      
+      // Check builder visibility
+      const builder = document.querySelector('#topics-generator-authority-hook-builder');
+      if (builder) {
+        const isHidden = builder.classList.contains('generator__builder--hidden');
+        console.log(`🏠 Builder found, hidden: ${isHidden}`);
+      } else {
+        console.log('❌ Builder not found');
+      }
+      
+      // Check field existence and values
+      const fieldMappings = [
+        { field: 'who', selector: '#mkcg-who' },
+        { field: 'what', selector: '#mkcg-result' },
+        { field: 'when', selector: '#mkcg-when' },
+        { field: 'how', selector: '#mkcg-how' }
+      ];
+      
+      fieldMappings.forEach(({ field, selector }) => {
+        const input = document.querySelector(selector);
+        if (input) {
+          console.log(`✅ ${selector}: "${input.value}"`);
+        } else {
+          console.log(`❌ ${selector}: NOT FOUND`);
+        }
+      });
+    }
+  };
+  
   console.log('✅ SIMPLIFIED Topics Generator loaded - 80% complexity reduction achieved');
+  console.log('🔧 CRITICAL FIX: Authority Hook auto-population on builder show implemented');
+  console.log('🧪 DEBUG: Use window.MKCG_Topics_PopulationTest.showAndPopulate() to test');
+  console.log('🔍 DEBUG: Use window.MKCG_Topics_PopulationTest.checkCurrentState() to inspect');
 
 })();
