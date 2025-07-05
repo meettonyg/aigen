@@ -1,7 +1,7 @@
 /**
- * Questions Generator JavaScript - Simplified Version  
+ * Questions Generator JavaScript - Unified BEM Architecture
  * Handles questions generation with cross-generator communication
- * Version: 1.0.0 - SIMPLIFIED
+ * Version: 2.0.0 - Updated for BEM Architecture
  */
 
 (function() {
@@ -20,7 +20,7 @@
          * Initialize the Questions Generator
          */
         init: function() {
-            console.log('🎯 Questions Generator: Initializing...');
+            console.log('🎯 Questions Generator: Initializing with BEM architecture...');
             
             // Load existing data
             this.loadExistingData();
@@ -86,15 +86,21 @@
                 // Update the topic card if it exists
                 const topicCard = document.querySelector(`[data-topic="${data.topicId}"]`);
                 if (topicCard) {
-                    const textElement = topicCard.querySelector('.mkcg-topic-text');
+                    const textElement = topicCard.querySelector('.questions-generator__topic-text');
                     if (textElement) {
                         textElement.textContent = data.topicText;
-                        textElement.classList.remove('mkcg-topic-placeholder');
+                        textElement.classList.remove('questions-generator__topic-text--placeholder');
+                        
+                        // Remove placeholder span if it exists
+                        const placeholder = textElement.querySelector('.questions-generator__placeholder-text');
+                        if (placeholder) {
+                            placeholder.remove();
+                        }
                     }
                     
                     // Update empty state
                     topicCard.setAttribute('data-empty', 'false');
-                    topicCard.classList.remove('mkcg-topic-empty');
+                    topicCard.classList.remove('questions-generator__topic-card--empty');
                 }
                 
                 // Update questions heading if this is the current topic
@@ -109,9 +115,9 @@
          */
         loadExistingData: function() {
             // Check if standardized data is available from PHP
-            if (window.MKCG_Topics_Data) {
-                console.log('📝 Questions Generator: Loading data from window.MKCG_Topics_Data');
-                this.populateFromStandardizedData(window.MKCG_Topics_Data);
+            if (window.MKCG_Questions_Data) {
+                console.log('📝 Questions Generator: Loading data from window.MKCG_Questions_Data');
+                this.populateFromStandardizedData(window.MKCG_Questions_Data);
             } else {
                 console.log('⚠️ Questions Generator: No standardized data available');
             }
@@ -144,9 +150,12 @@
             if (data.topics && Object.keys(data.topics).length > 0) {
                 const firstTopic = Object.keys(data.topics)[0];
                 const firstTopicText = data.topics[firstTopic];
-                this.selectedTopicId = parseInt(firstTopic);
-                this.selectedTopicText = firstTopicText;
-                this.updateSelectedTopic(this.selectedTopicId, firstTopicText);
+                if (firstTopicText && firstTopicText.trim()) {
+                    this.selectedTopicId = parseInt(firstTopic);
+                    this.selectedTopicText = firstTopicText;
+                    this.updateSelectedTopic(this.selectedTopicId, firstTopicText);
+                    this.switchToTopic(this.selectedTopicId);
+                }
             }
         },
         
@@ -156,14 +165,20 @@
         updateTopicInUI: function(topicId, topicText) {
             const topicCard = document.querySelector(`[data-topic="${topicId}"]`);
             if (topicCard) {
-                const textElement = topicCard.querySelector('.mkcg-topic-text');
+                const textElement = topicCard.querySelector('.questions-generator__topic-text');
                 if (textElement) {
                     textElement.textContent = topicText;
-                    textElement.classList.remove('mkcg-topic-placeholder');
+                    textElement.classList.remove('questions-generator__topic-text--placeholder');
+                    
+                    // Remove placeholder span if it exists
+                    const placeholder = textElement.querySelector('.questions-generator__placeholder-text');
+                    if (placeholder) {
+                        placeholder.remove();
+                    }
                     
                     // Update empty state
                     topicCard.setAttribute('data-empty', 'false');
-                    topicCard.classList.remove('mkcg-topic-empty');
+                    topicCard.classList.remove('questions-generator__topic-card--empty');
                 }
             }
         },
@@ -176,7 +191,7 @@
                 const topicQuestions = this.currentQuestions[topicId];
                 Object.keys(topicQuestions).forEach(questionNum => {
                     const questionText = topicQuestions[questionNum];
-                    const fieldId = `mkcg-question-field-${topicId}-${questionNum}`;
+                    const fieldId = `questions-generator-question-field-${topicId}-${questionNum}`;
                     const field = document.getElementById(fieldId);
                     if (field && questionText) {
                         field.value = questionText;
@@ -201,16 +216,32 @@
          */
         bindEvents: function() {
             // Topic card clicks
-            document.querySelectorAll('.mkcg-topic-card').forEach(card => {
+            document.querySelectorAll('.questions-generator__topic-card').forEach(card => {
                 card.addEventListener('click', (e) => {
                     const topicId = parseInt(card.getAttribute('data-topic'));
-                    const topicText = card.querySelector('.mkcg-topic-text').textContent;
+                    const topicTextElement = card.querySelector('.questions-generator__topic-text');
+                    let topicText = '';
+                    
+                    if (topicTextElement) {
+                        // Check if it's empty/placeholder
+                        const isPlaceholder = topicTextElement.classList.contains('questions-generator__topic-text--placeholder');
+                        if (!isPlaceholder) {
+                            const placeholderSpan = topicTextElement.querySelector('.questions-generator__placeholder-text');
+                            if (placeholderSpan) {
+                                // This is an empty topic with placeholder text
+                                topicText = '';
+                            } else {
+                                topicText = topicTextElement.textContent.trim();
+                            }
+                        }
+                    }
+                    
                     this.selectTopic(topicId, topicText);
                 });
             });
             
             // Generate questions button
-            const generateBtn = document.getElementById('mkcg-generate-questions');
+            const generateBtn = document.getElementById('questions-generator-generate-questions');
             if (generateBtn) {
                 generateBtn.addEventListener('click', () => {
                     this.generateQuestions();
@@ -218,7 +249,7 @@
             }
             
             // Save all questions button  
-            const saveBtn = document.getElementById('mkcg-save-all-questions');
+            const saveBtn = document.getElementById('questions-generator-save-all-questions');
             if (saveBtn) {
                 saveBtn.addEventListener('click', () => {
                     this.saveAllQuestions();
@@ -226,7 +257,7 @@
             }
             
             // Auto-save on question field changes
-            document.querySelectorAll('[id^="mkcg-question-field-"]').forEach(field => {
+            document.querySelectorAll('[id^="questions-generator-question-field-"]').forEach(field => {
                 field.addEventListener('blur', () => {
                     this.autoSaveQuestion(field);
                 });
@@ -239,7 +270,7 @@
          * Select a topic
          */
         selectTopic: function(topicId, topicText) {
-            console.log(`🎯 Questions Generator: Topic ${topicId} selected: ${topicText}`);
+            console.log(`🎯 Questions Generator: Topic ${topicId} selected: "${topicText}"`);
             
             this.selectedTopicId = topicId;
             this.selectedTopicText = topicText;
@@ -263,19 +294,19 @@
          * Update selected topic display
          */
         updateSelectedTopic: function(topicId, topicText) {
-            const selectedTopicElement = document.getElementById('mkcg-selected-topic-text');
+            const selectedTopicElement = document.getElementById('questions-generator-selected-topic-text');
             if (selectedTopicElement) {
                 selectedTopicElement.textContent = topicText || 'Click to add topic';
             }
             
             // Update active topic card
-            document.querySelectorAll('.mkcg-topic-card').forEach(card => {
-                card.classList.remove('active');
+            document.querySelectorAll('.questions-generator__topic-card').forEach(card => {
+                card.classList.remove('questions-generator__topic-card--active');
             });
             
             const activeCard = document.querySelector(`[data-topic="${topicId}"]`);
             if (activeCard) {
-                activeCard.classList.add('active');
+                activeCard.classList.add('questions-generator__topic-card--active');
             }
         },
         
@@ -284,25 +315,27 @@
          */
         switchToTopic: function(topicId) {
             // Hide all question sections
-            document.querySelectorAll('[id^="mkcg-topic-"][id$="-questions"]').forEach(section => {
+            document.querySelectorAll('[id^="questions-generator-topic-"][id$="-questions"]').forEach(section => {
                 section.style.display = 'none';
             });
             
             // Show selected topic's questions
-            const targetSection = document.getElementById(`mkcg-topic-${topicId}-questions`);
+            const targetSection = document.getElementById(`questions-generator-topic-${topicId}-questions`);
             if (targetSection) {
                 targetSection.style.display = 'block';
             }
             
             // Update questions heading
             this.updateQuestionsHeading(this.selectedTopicText);
+            
+            console.log(`✅ Switched to topic ${topicId} questions section`);
         },
         
         /**
          * Update questions heading
          */
         updateQuestionsHeading: function(topicText) {
-            const heading = document.getElementById('mkcg-questions-heading');
+            const heading = document.getElementById('questions-generator-questions-heading');
             if (heading) {
                 heading.textContent = `Interview Questions for "${topicText || 'Add topic above'}"`;  
             }
@@ -312,8 +345,8 @@
          * Generate questions for selected topic
          */
         generateQuestions: function() {
-            if (!this.selectedTopicText) {
-                this.showNotification('Please select a topic first', 'warning');
+            if (!this.selectedTopicText || this.selectedTopicText.trim() === '') {
+                this.showNotification('Please select a topic with content first', 'warning');
                 return;
             }
             
@@ -324,8 +357,8 @@
             
             // ROOT FIX: Get post_id from template data
             let postId = 0;
-            if (window.MKCG_Topics_Data && window.MKCG_Topics_Data.postId) {
-                postId = window.MKCG_Topics_Data.postId;
+            if (window.MKCG_Questions_Data && window.MKCG_Questions_Data.postId) {
+                postId = window.MKCG_Questions_Data.postId;
             }
             
             // Make AJAX request
@@ -358,7 +391,7 @@
             // Populate the question fields for current topic
             questions.forEach((question, index) => {
                 const questionNum = index + 1;
-                const fieldId = `mkcg-question-field-${this.selectedTopicId}-${questionNum}`;
+                const fieldId = `questions-generator-question-field-${this.selectedTopicId}-${questionNum}`;
                 const field = document.getElementById(fieldId);
                 if (field) {
                     field.value = question;
@@ -376,13 +409,13 @@
             let postId = 0;
             
             // Try to get post_id from standardized data first
-            if (window.MKCG_Topics_Data && window.MKCG_Topics_Data.postId) {
-                postId = window.MKCG_Topics_Data.postId;
+            if (window.MKCG_Questions_Data && window.MKCG_Questions_Data.postId) {
+                postId = window.MKCG_Questions_Data.postId;
             }
             
             // Fallback: try hidden field
             if (!postId) {
-                const postIdField = document.getElementById('mkcg-post-id');
+                const postIdField = document.getElementById('questions-generator-post-id');
                 if (postIdField && postIdField.value) {
                     postId = parseInt(postIdField.value);
                 }
@@ -409,7 +442,7 @@
             
             for (let topic = 1; topic <= 5; topic++) {
                 for (let q = 1; q <= 5; q++) {
-                    const field = document.getElementById(`mkcg-question-field-${topic}-${q}`);
+                    const field = document.getElementById(`questions-generator-question-field-${topic}-${q}`);
                     if (field && field.value.trim()) {
                         // Use flat key format like Topics Generator: "question_1_1", "question_1_2"
                         const key = `question_${topic}_${q}`;
@@ -430,7 +463,7 @@
             }
             
             // Show saving state
-            const saveBtn = document.getElementById('mkcg-save-all-questions');
+            const saveBtn = document.getElementById('questions-generator-save-all-questions');
             if (saveBtn) {
                 saveBtn.disabled = true;
                 saveBtn.textContent = 'Saving...';
@@ -474,8 +507,8 @@
             // ROOT FIX: Get post_id from template data
             let postId = 0;
             
-            if (window.MKCG_Topics_Data && window.MKCG_Topics_Data.postId) {
-                postId = window.MKCG_Topics_Data.postId;
+            if (window.MKCG_Questions_Data && window.MKCG_Questions_Data.postId) {
+                postId = window.MKCG_Questions_Data.postId;
             }
             
             if (!postId || postId === 0 || !field.value.trim()) {
@@ -483,7 +516,7 @@
             }
             
             // Extract topic and question number from field ID
-            const match = field.id.match(/mkcg-question-field-(\\d+)-(\\d+)/);
+            const match = field.id.match(/questions-generator-question-field-(\\d+)-(\\d+)/);
             if (!match) {
                 return;
             }
@@ -533,9 +566,9 @@
          * Show loading state
          */
         showLoading: function() {
-            const loading = document.getElementById('mkcg-loading');
+            const loading = document.getElementById('questions-generator-loading');
             if (loading) {
-                loading.style.display = 'block';
+                loading.classList.remove('generator__loading--hidden');
             }
         },
         
@@ -543,9 +576,9 @@
          * Hide loading state
          */
         hideLoading: function() {
-            const loading = document.getElementById('mkcg-loading');
+            const loading = document.getElementById('questions-generator-loading');
             if (loading) {
-                loading.style.display = 'none';
+                loading.classList.add('generator__loading--hidden');
             }
         },
         
@@ -572,7 +605,7 @@
             // Fallback to basic fetch
             const requestData = new URLSearchParams();
             requestData.append('action', action);
-            requestData.append('nonce', document.getElementById('mkcg-questions-nonce')?.value || '');
+            requestData.append('nonce', document.getElementById('questions-generator-questions-nonce')?.value || '');
             
             Object.keys(data).forEach(key => {
                 if (typeof data[key] === 'object') {
@@ -601,13 +634,13 @@
     
     // Initialize when DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('🎯 Questions Generator: DOM Ready');
+        console.log('🎯 Questions Generator: DOM Ready - BEM Architecture');
         QuestionsGenerator.init();
     });
     
     // Make globally available
     window.QuestionsGenerator = QuestionsGenerator;
     
-    console.log('✅ Questions Generator script loaded successfully');
+    console.log('✅ Questions Generator script loaded successfully - BEM Architecture');
     
 })();
