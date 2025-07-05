@@ -10,205 +10,7 @@ if (!defined('ABSPATH')) {
 }
 ?>
 
-<style>
-/* Topics Display Container Styles (Matching Questions Generator Design) */
-.topics-generator__topics-container {
-    background: #ffffff;
-    border: 1px solid #e0e6ed;
-    border-radius: 12px;
-    padding: 25px;
-    margin: 25px 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
 
-.topics-generator__topics-header {
-    margin-bottom: 20px;
-    border-bottom: 1px solid #f0f0f0;
-    padding-bottom: 15px;
-}
-
-.topics-generator__topics-header h3 {
-    color: #2c3e50;
-    font-size: 18px;
-    font-weight: 600;
-    margin: 0 0 5px 0;
-}
-
-.topics-generator__topics-subheading {
-    font-size: 14px;
-    color: #5a6d7e;
-    margin: 0;
-    font-style: italic;
-}
-
-.topics-generator__topics-display {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-.topics-generator__topic-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 15px;
-    padding: 15px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    border-left: 4px solid #e67e22;
-    transition: all 0.2s ease;
-}
-
-.topics-generator__topic-item:hover {
-    background: #f1f3f4;
-    transform: translateX(2px);
-}
-
-.topics-generator__topic-number {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    background: #e67e22;
-    color: white;
-    border-radius: 50%;
-    font-weight: 600;
-    font-size: 14px;
-    flex-shrink: 0;
-}
-
-.topics-generator__topic-content {
-    flex: 1;
-    min-width: 0;
-}
-
-.topics-generator__topic-input {
-    width: 100%;
-    border: none;
-    background: transparent;
-    color: #2c3e50;
-    font-size: 16px;
-    line-height: 1.5;
-    font-weight: 500;
-    padding: 0;
-    outline: none;
-    resize: none;
-}
-
-.topics-generator__topic-input:focus {
-    background: #ffffff;
-    border-radius: 4px;
-    padding: 8px;
-    box-shadow: 0 0 0 2px #e67e22;
-}
-
-.topics-generator__topic-input::placeholder {
-    color: #95a5a6;
-    font-style: italic;
-    font-weight: normal;
-}
-
-.topics-generator__topic-text {
-    color: #2c3e50;
-    font-size: 16px;
-    line-height: 1.5;
-    font-weight: 500;
-}
-
-.topics-generator__topic-placeholder {
-    color: #95a5a6;
-    font-style: italic;
-    font-weight: normal;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .topics-generator__topics-container {
-        padding: 20px;
-        margin: 20px 0;
-    }
-    
-    .topics-generator__topic-item {
-        gap: 12px;
-        padding: 12px;
-    }
-    
-    .topics-generator__topic-number {
-        width: 28px;
-        height: 28px;
-        font-size: 13px;
-    }
-    
-    .topics-generator__topic-input {
-        font-size: 15px;
-    }
-}
-
-/* Save Section Styles */
-.topics-generator__save-section {
-    margin-top: 25px;
-    padding-top: 20px;
-    border-top: 1px solid #f0f0f0;
-    text-align: center;
-}
-
-.topics-generator__save-button {
-    background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 8px rgba(230, 126, 34, 0.3);
-}
-
-.topics-generator__save-button:hover {
-    background: linear-gradient(135deg, #d35400 0%, #a04000 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(230, 126, 34, 0.4);
-}
-
-.topics-generator__save-button:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 4px rgba(230, 126, 34, 0.3);
-}
-
-.topics-generator__save-button:disabled {
-    background: #bdc3c7;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-}
-
-.topics-generator__save-status {
-    margin-top: 10px;
-    padding: 8px 16px;
-    border-radius: 4px;
-    font-size: 14px;
-    font-weight: 500;
-}
-
-.topics-generator__save-status--success {
-    background: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
-}
-
-.topics-generator__save-status--error {
-    background: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-}
-
-.topics-generator__save-status--loading {
-    background: #d1ecf1;
-    color: #0c5460;
-    border: 1px solid #bee5eb;
-}
-</style>
 
 <?php
 
@@ -337,48 +139,45 @@ error_log('MKCG Topics Template: Authority Hook Components: ' . json_encode($aut
 error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_data=' . ($has_data ? 'true' : 'false'));
 ?>
 
-<div class="topics-generator" data-generator="topics">
-
+<div class="generator__container topics-generator" data-generator="topics">
+    <div class="generator__header">
+        <h1 class="generator__title">Create Your Interview Topics</h1>
+    </div>
     
-    <div class="topics-generator__container">
-        <div class="topics-generator__header">
-            <h1 class="topics-generator__title">Create Your Interview Topics</h1>
-        </div>
-        
-        <div class="topics-generator__content">
-            <!-- LEFT PANEL -->
-            <div class="topics-generator__panel topics-generator__panel--left">
-                <!-- Introduction Text -->
-                <p class="topics-generator__intro">
+    <div class="generator__content">
+        <!-- LEFT PANEL -->
+        <div class="generator__panel generator__panel--left">
+            <!-- Introduction Text -->
+            <p class="topics-generator__intro">
                     Generate 5 compelling podcast interview topics based on your authority hook and target audience. 
                     Topics will be tailored to highlight your expertise and attract podcast hosts.
                 </p>
                 
-                <!-- Authority Hook Result -->
-                <div class="topics-generator__authority-hook">
-                    <div class="topics-generator__authority-hook-header">
-                        <span class="topics-generator__authority-hook-icon">★</span>
-                        <h3 class="topics-generator__authority-hook-title">Your Authority Hook</h3>
-                        <span class="topics-generator__badge">AI GENERATED</span>
-                    </div>
-                    
-                    <div class="topics-generator__authority-hook-content">
-                        <p id="topics-generator-authority-hook-text"><?php echo isset($template_data['no_entry_param']) && $template_data['no_entry_param'] ? '' : esc_html($authority_hook_components['complete']); ?></p>
-                    </div>
-                    
-                    <div class="topics-generator__authority-hook-actions">
-                        <!-- Generate Button -->
-                        <button class="topics-generator__button topics-generator__button--generate" id="topics-generator-generate-topics">
-                            Generate Topics with AI
-                        </button>
-                        <button type="button" class="topics-generator__button topics-generator__button--edit" id="topics-generator-toggle-builder">
-                            Edit Components
-                        </button>
+            <!-- Authority Hook Result -->
+            <div class="generator__authority-hook">
+                <div class="generator__authority-hook-header">
+                    <span class="generator__authority-hook-icon">★</span>
+                    <h3 class="generator__authority-hook-title">Your Authority Hook</h3>
+                    <span class="generator__badge">AI GENERATED</span>
+                </div>
+                
+                <div class="generator__authority-hook-content">
+                    <p id="topics-generator-authority-hook-text"><?php echo isset($template_data['no_entry_param']) && $template_data['no_entry_param'] ? '' : esc_html($authority_hook_components['complete']); ?></p>
+                </div>
+                
+                <div class="generator__authority-hook-actions">
+                    <!-- Generate Button -->
+                    <button class="generator__button generator__button--secondary" id="topics-generator-generate-topics">
+                        Generate Topics with AI
+                    </button>
+                    <button type="button" class="generator__button generator__button--outline" id="topics-generator-toggle-builder">
+                        Edit Components
+                    </button>
                     </div>
                 </div>
                 
-                <!-- Authority Hook Builder - CENTRALIZED SERVICE -->                
-                <div class="topics-generator__builder topics-generator__builder--hidden mkcg-authority-hook authority-hook-builder" id="topics-generator-authority-hook-builder" data-component="authority-hook">
+            <!-- Authority Hook Builder - CENTRALIZED SERVICE -->                
+            <div class="generator__builder generator__builder--hidden mkcg-authority-hook authority-hook-builder" id="topics-generator-authority-hook-builder" data-component="authority-hook">
                     <?php 
                     // USE CENTRALIZED AUTHORITY HOOK SERVICE - PROPER ARCHITECTURE
                     
@@ -411,8 +210,8 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
                     ?>
                 </div>
                 
-                <!-- Loading indicator -->
-                <div class="topics-generator__loading topics-generator__loading--hidden" id="topics-generator-loading">
+            <!-- Loading indicator -->
+            <div class="generator__loading generator__loading--hidden" id="topics-generator-loading">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
                         <path d="M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z"></path>
@@ -420,9 +219,9 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
                     Generating topics...
                 </div>
                 
-                <!-- Topics result - with "Use" buttons -->
-                <div class="topics-generator__results topics-generator__results--hidden" id="topics-generator-topics-result">
-                    <div class="topics-generator__topics-list" id="topics-generator-topics-list">
+            <!-- Topics result - with "Use" buttons -->
+            <div class="generator__results generator__results--hidden" id="topics-generator-topics-result">
+                <div class="topics-generator__topics-list" id="topics-generator-topics-list">
                         <!-- Generated topics will be listed here with "Use" buttons -->
                     </div>
                 </div>
@@ -508,28 +307,28 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
                     </div>
                 </div>
                 
-                <!-- Field Selection Modal -->
-                <div class="topics-generator__modal" id="topics-generator-field-modal">
-                    <div class="topics-generator__modal-content">
-                        <div class="topics-generator__modal-header">
-                            <h3 class="topics-generator__modal-title">Enter the field number to update (1-5):</h3>
-                        </div>
-                        <input type="number" min="1" max="5" class="field__input" id="topics-generator-field-number" value="1">
-                        <div class="topics-generator__modal-actions">
-                            <button class="button button--ai" id="topics-generator-modal-ok">OK</button>
-                            <button class="button button--copy" id="topics-generator-modal-cancel">Cancel</button>
-                        </div>
+            <!-- Field Selection Modal -->
+            <div class="generator__modal" id="topics-generator-field-modal">
+                <div class="generator__modal-content">
+                    <div class="generator__modal-header">
+                        <h3 class="generator__modal-title">Enter the field number to update (1-5):</h3>
+                    </div>
+                    <input type="number" min="1" max="5" class="generator__field-input" id="topics-generator-field-number" value="1">
+                    <div class="generator__modal-actions">
+                        <button class="generator__button generator__button--primary" id="topics-generator-modal-ok">OK</button>
+                        <button class="generator__button generator__button--outline" id="topics-generator-modal-cancel">Cancel</button>
+                    </div>
                     </div>
                 </div>
                 
-                <!-- Hidden fields for AJAX - Pure Pods -->
-                <input type="hidden" id="topics-generator-post-id" value="<?php echo esc_attr($post_id); ?>">
-                <input type="hidden" id="topics-generator-nonce" value="<?php echo wp_create_nonce('mkcg_nonce'); ?>">
-                
-            </div>
+            <!-- Hidden fields for AJAX - Pure Pods -->
+            <input type="hidden" id="topics-generator-post-id" value="<?php echo esc_attr($post_id); ?>">
+            <input type="hidden" id="topics-generator-nonce" value="<?php echo wp_create_nonce('mkcg_nonce'); ?>">
             
-            <!-- RIGHT PANEL -->
-            <div class="topics-generator__panel topics-generator__panel--right">
+        </div>
+        
+        <!-- RIGHT PANEL -->
+        <div class="generator__panel generator__panel--right">
                 <h2 class="topics-generator__guidance-header">Crafting Perfect Interview Topics</h2>
                 <p class="topics-generator__guidance-subtitle">Strong interview topics provide value to listeners, suggest a structure for the conversation, and showcase your expertise. They should be focused on one concept at a time while remaining general enough to allow for discussion.</p>
                 
@@ -612,7 +411,6 @@ error_log('MKCG Topics Template: Rendering with post_id=' . $post_id . ', has_da
                     <p>2. Building an audience that eagerly awaits your content</p>
                     <p>3. Leveraging your book to open doors to speaking and media opportunities</p>
                 </div>
-            </div>
         </div>
     </div>
 </div>
