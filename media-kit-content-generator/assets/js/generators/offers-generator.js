@@ -192,4 +192,313 @@
       ];
       
       businessEvents.forEach(field => {
-        const element = document.querySelector(`#offers-${field.replace('_', '-')}`);\n        if (element) {\n          element.addEventListener('change', () => {\n            this.businessData[field] = element.value;\n          });\n        }\n      });\n      \n      // Generate offers button\n      const generateBtn = document.querySelector('#generate-offers-btn');\n      if (generateBtn) {\n        generateBtn.addEventListener('click', () => {\n          this.generateOffers();\n        });\n      }\n      \n      // Copy all offers button\n      const copyAllBtn = document.querySelector('#copy-all-offers-btn');\n      if (copyAllBtn) {\n        copyAllBtn.addEventListener('click', () => {\n          this.copyAllOffers();\n        });\n      }\n      \n      // Regenerate offers button\n      const regenerateBtn = document.querySelector('#regenerate-offers-btn');\n      if (regenerateBtn) {\n        regenerateBtn.addEventListener('click', () => {\n          this.generateOffers();\n        });\n      }\n    },\n    \n    /**\n     * SIMPLIFIED: Update display\n     */\n    updateDisplay: function() {\n      this.updateAuthorityHook();\n    },\n    \n    /**\n     * SIMPLIFIED: Toggle Authority Hook Builder\n     */\n    toggleBuilder: function() {\n      const builder = document.querySelector('#offers-generator-authority-hook-builder');\n      if (!builder) return;\n      \n      const isHidden = builder.classList.contains('offers-generator__builder--hidden');\n      \n      if (isHidden) {\n        builder.classList.remove('offers-generator__builder--hidden');\n        console.log('✅ Authority Hook Builder shown');\n      } else {\n        builder.classList.add('offers-generator__builder--hidden');\n        console.log('✅ Authority Hook Builder hidden');\n      }\n    },\n    \n    /**\n     * SIMPLIFIED: Update Authority Hook display\n     */\n    updateAuthorityHook: function() {\n      const hookText = `I help ${this.fields.who || 'your audience'} ${this.fields.what || 'achieve their goals'} when ${this.fields.when || 'they need help'} ${this.fields.how || 'through your method'}.`;\n      \n      const displayElement = document.querySelector('#offers-generator-authority-hook-text');\n      if (displayElement) {\n        displayElement.textContent = hookText;\n      }\n      \n      // Update hidden field for form submission\n      const hiddenField = document.querySelector('#mkcg-authority-hook');\n      if (hiddenField) {\n        hiddenField.value = hookText;\n      }\n      \n      // Trigger cross-generator communication\n      if (window.AppEvents) {\n        window.AppEvents.trigger('authority-hook:updated', {\n          text: hookText,\n          components: this.fields,\n          timestamp: Date.now()\n        });\n      }\n    },\n    \n    /**\n     * SIMPLIFIED: Generate offers using simple AJAX\n     */\n    generateOffers: function() {\n      const authorityHook = document.querySelector('#offers-generator-authority-hook-text')?.textContent || \n                          document.querySelector('#mkcg-authority-hook')?.value;\n      \n      if (!authorityHook || authorityHook.trim() === '') {\n        this.showNotification('Please build your authority hook first', 'warning');\n        return;\n      }\n      \n      // Validate business fields\n      if (!this.businessData.business_type) {\n        this.showNotification('Please select your business type', 'warning');\n        return;\n      }\n      \n      if (!this.businessData.target_audience) {\n        this.showNotification('Please describe your target audience', 'warning');\n        return;\n      }\n      \n      this.showLoading();\n      \n      // Use simple AJAX system\n      makeAjaxRequest('mkcg_generate_offers', {\n        authority_hook: authorityHook,\n        business_type: this.businessData.business_type,\n        target_audience: this.businessData.target_audience,\n        price_range: this.businessData.price_range,\n        delivery_method: this.businessData.delivery_method,\n        offer_count: this.businessData.offer_count\n      })\n      .then(data => {\n        this.hideLoading();\n        if (data.offers && data.offers.length > 0) {\n          this.displayOffers(data.offers);\n          this.showNotification('Offers generated successfully!', 'success');\n        } else {\n          this.generateDemoOffers(authorityHook);\n          this.showNotification('Using demo offers - AI temporarily unavailable', 'info');\n        }\n      })\n      .catch(error => {\n        this.hideLoading();\n        this.generateDemoOffers(authorityHook);\n        this.showNotification('Using demo offers - Generation failed', 'info');\n      });\n    },\n    \n    /**\n     * SIMPLIFIED: Generate demo offers - checks for noEntryParam\n     */\n    generateDemoOffers: function(authorityHook) {\n      // If no entry param, don't show demo offers\n      if (window.MKCG_Offers_Data && window.MKCG_Offers_Data.noEntryParam) {\n        this.showNotification('Please log in to generate offers', 'warning');\n        return;\n      }\n      \n      const offers = [\n        'Free: \"The Business Growth Audit Checklist\" – A practical guide to identify opportunities in your business, complete with implementation templates and ROI calculators.',\n        'Low-Ticket: \"Growth Accelerator Workshop ($497)\" – A 3-hour virtual workshop where business owners learn how to implement proven strategies with practical, same-day implementation.',\n        'Premium: \"Elite Business Growth Accelerator ($2,997)\" – A 3-month done-with-you program where we implement complete systems customized for your business, including strategy, setup, and optimization.',\n        'Group: \"Growth Mastermind ($997)\" – A 6-month virtual mastermind where business owners work together to implement proven strategies with weekly group coaching and peer accountability.',\n        'VIP: \"Done-For-You Growth Implementation ($7,497)\" – Complete business transformation where we handle everything from strategy to execution, delivering a fully optimized system in 90 days.'\n      ];\n      \n      this.displayOffers(offers);\n    },\n    \n    /**\n     * SIMPLIFIED: Display offers with Use buttons\n     */\n    displayOffers: function(offers) {\n      const offersList = document.querySelector('#offers-list');\n      if (!offersList) return;\n      \n      offersList.innerHTML = '';\n      \n      offers.forEach((offer, index) => {\n        const offerNumber = index + 1;\n        \n        const offerItem = document.createElement('div');\n        offerItem.className = 'offer';\n        offerItem.innerHTML = `\n          <div class=\"offer__title\">Offer ${offerNumber}:</div>\n          <div class=\"offer__description\">${this.escapeHtml(offer)}</div>\n          <button class=\"button button--use\" data-offer=\"${offerNumber}\" data-text=\"${this.escapeHtml(offer)}\">Use Offer</button>\n        `;\n        \n        // Bind Use button\n        const useBtn = offerItem.querySelector('.button--use');\n        useBtn.addEventListener('click', () => {\n          this.useOffer(offer);\n        });\n        \n        offersList.appendChild(offerItem);\n      });\n      \n      // Show results section\n      const results = document.querySelector('#offers-results');\n      if (results) {\n        results.style.display = 'block';\n        results.scrollIntoView({ behavior: 'smooth', block: 'start' });\n      }\n    },\n    \n    /**\n     * SIMPLIFIED: Use offer (copy to clipboard)\n     */\n    useOffer: function(offerText) {\n      this.copyToClipboard(offerText);\n      this.showNotification('Offer copied to clipboard!', 'success');\n      \n      // Trigger cross-generator communication\n      if (window.AppEvents) {\n        window.AppEvents.trigger('offer:selected', {\n          offerText: offerText,\n          timestamp: Date.now()\n        });\n      }\n    },\n    \n    /**\n     * Copy all offers to clipboard\n     */\n    copyAllOffers: function() {\n      const offerElements = document.querySelectorAll('.offer__description');\n      if (offerElements.length === 0) {\n        this.showNotification('No offers to copy', 'warning');\n        return;\n      }\n      \n      let allOffers = '';\n      offerElements.forEach((element, index) => {\n        allOffers += `${index + 1}. ${element.textContent}\\n\\n`;\n      });\n      \n      this.copyToClipboard(allOffers);\n      this.showNotification('All offers copied to clipboard!', 'success');\n    },\n    \n    /**\n     * Copy text to clipboard\n     */\n    copyToClipboard: function(text) {\n      if (navigator.clipboard && navigator.clipboard.writeText) {\n        navigator.clipboard.writeText(text)\n          .catch(() => this.fallbackCopy(text));\n      } else {\n        this.fallbackCopy(text);\n      }\n    },\n    \n    /**\n     * Fallback copy method\n     */\n    fallbackCopy: function(text) {\n      const textarea = document.createElement('textarea');\n      textarea.value = text;\n      document.body.appendChild(textarea);\n      textarea.select();\n      try {\n        document.execCommand('copy');\n      } catch (err) {\n        console.error('Copy failed:', err);\n      }\n      document.body.removeChild(textarea);\n    },\n    \n    /**\n     * HTML escape utility\n     */\n    escapeHtml: function(text) {\n      const div = document.createElement('div');\n      div.textContent = text;\n      return div.innerHTML;\n    },\n    \n    /**\n     * SIMPLIFIED: Show notification\n     */\n    showNotification: function(message, type = 'info') {\n      if (window.showNotification) {\n        window.showNotification(message, type);\n      } else {\n        console.log(`${type.toUpperCase()}: ${message}`);\n      }\n    },\n    \n    /**\n     * SIMPLIFIED: Show loading\n     */\n    showLoading: function() {\n      const loading = document.querySelector('#offers-loading-overlay');\n      if (loading) {\n        loading.style.display = 'flex';\n      }\n    },\n    \n    /**\n     * SIMPLIFIED: Hide loading\n     */\n    hideLoading: function() {\n      const loading = document.querySelector('#offers-loading-overlay');\n      if (loading) {\n        loading.style.display = 'none';\n      }\n    }\n  };\n\n  // SIMPLIFIED: Initialize when DOM is ready\n  document.addEventListener('DOMContentLoaded', function() {\n    console.log('🎯 Offers Generator: DOM Ready - Starting simple initialization');\n    OffersGenerator.init();\n  });\n\n  // Make globally available\n  window.OffersGenerator = OffersGenerator;\n  \n  console.log('✅ SIMPLIFIED Offers Generator loaded - Following Topics Generator pattern');\n\n})();
+        const element = document.querySelector(`#offers-${field.replace('_', '-')}`);
+        if (element) {
+          element.addEventListener('change', () => {
+            this.businessData[field] = element.value;
+          });
+        }
+      });
+      
+      // Generate offers button - FIXED SELECTOR
+      const generateBtn = document.querySelector('#offers-generator-generate-offers');
+      if (generateBtn) {
+        generateBtn.addEventListener('click', () => {
+          this.generateOffers();
+        });
+      }
+      
+      // Copy all offers button
+      const copyAllBtn = document.querySelector('#copy-all-offers-btn');
+      if (copyAllBtn) {
+        copyAllBtn.addEventListener('click', () => {
+          this.copyAllOffers();
+        });
+      }
+      
+      // Regenerate offers button
+      const regenerateBtn = document.querySelector('#regenerate-offers-btn');
+      if (regenerateBtn) {
+        regenerateBtn.addEventListener('click', () => {
+          this.generateOffers();
+        });
+      }
+    },
+    
+    /**
+     * SIMPLIFIED: Update display
+     */
+    updateDisplay: function() {
+      this.updateAuthorityHook();
+    },
+    
+    /**
+     * SIMPLIFIED: Toggle Authority Hook Builder
+     */
+    toggleBuilder: function() {
+      const builder = document.querySelector('#offers-generator-authority-hook-builder');
+      if (!builder) return;
+      
+      const isHidden = builder.classList.contains('offers-generator__builder--hidden');
+      
+      if (isHidden) {
+        builder.classList.remove('offers-generator__builder--hidden');
+        console.log('✅ Authority Hook Builder shown');
+      } else {
+        builder.classList.add('offers-generator__builder--hidden');
+        console.log('✅ Authority Hook Builder hidden');
+      }
+    },
+    
+    /**
+     * SIMPLIFIED: Update Authority Hook display
+     */
+    updateAuthorityHook: function() {
+      const hookText = `I help ${this.fields.who || 'your audience'} ${this.fields.what || 'achieve their goals'} when ${this.fields.when || 'they need help'} ${this.fields.how || 'through your method'}.`;
+      
+      const displayElement = document.querySelector('#offers-generator-authority-hook-text');
+      if (displayElement) {
+        displayElement.textContent = hookText;
+      }
+      
+      // Update hidden field for form submission
+      const hiddenField = document.querySelector('#mkcg-authority-hook');
+      if (hiddenField) {
+        hiddenField.value = hookText;
+      }
+      
+      // Trigger cross-generator communication
+      if (window.AppEvents) {
+        window.AppEvents.trigger('authority-hook:updated', {
+          text: hookText,
+          components: this.fields,
+          timestamp: Date.now()
+        });
+      }
+    },
+    
+    /**
+     * SIMPLIFIED: Generate offers using simple AJAX
+     */
+    generateOffers: function() {
+      const authorityHook = document.querySelector('#offers-generator-authority-hook-text')?.textContent || 
+                          document.querySelector('#mkcg-authority-hook')?.value;
+      
+      if (!authorityHook || authorityHook.trim() === '') {
+        this.showNotification('Please build your authority hook first', 'warning');
+        return;
+      }
+      
+      // Validate business fields
+      if (!this.businessData.business_type) {
+        this.showNotification('Please select your business type', 'warning');
+        return;
+      }
+      
+      if (!this.businessData.target_audience) {
+        this.showNotification('Please describe your target audience', 'warning');
+        return;
+      }
+      
+      this.showLoading();
+      
+      // Use simple AJAX system
+      makeAjaxRequest('mkcg_generate_offers', {
+        authority_hook: authorityHook,
+        business_type: this.businessData.business_type,
+        target_audience: this.businessData.target_audience,
+        price_range: this.businessData.price_range,
+        delivery_method: this.businessData.delivery_method,
+        offer_count: this.businessData.offer_count
+      })
+      .then(data => {
+        this.hideLoading();
+        if (data.offers && data.offers.length > 0) {
+          this.displayOffers(data.offers);
+          this.showNotification('Offers generated successfully!', 'success');
+        } else {
+          this.generateDemoOffers(authorityHook);
+          this.showNotification('Using demo offers - AI temporarily unavailable', 'info');
+        }
+      })
+      .catch(error => {
+        this.hideLoading();
+        this.generateDemoOffers(authorityHook);
+        this.showNotification('Using demo offers - Generation failed', 'info');
+      });
+    },
+    
+    /**
+     * SIMPLIFIED: Generate demo offers - checks for noEntryParam
+     */
+    generateDemoOffers: function(authorityHook) {
+      // If no entry param, don't show demo offers
+      if (window.MKCG_Offers_Data && window.MKCG_Offers_Data.noEntryParam) {
+        this.showNotification('Please log in to generate offers', 'warning');
+        return;
+      }
+      
+      const offers = [
+        'Free: "The Business Growth Audit Checklist" – A practical guide to identify opportunities in your business, complete with implementation templates and ROI calculators.',
+        'Low-Ticket: "Growth Accelerator Workshop ($497)" – A 3-hour virtual workshop where business owners learn how to implement proven strategies with practical, same-day implementation.',
+        'Premium: "Elite Business Growth Accelerator ($2,997)" – A 3-month done-with-you program where we implement complete systems customized for your business, including strategy, setup, and optimization.',
+        'Group: "Growth Mastermind ($997)" – A 6-month virtual mastermind where business owners work together to implement proven strategies with weekly group coaching and peer accountability.',
+        'VIP: "Done-For-You Growth Implementation ($7,497)" – Complete business transformation where we handle everything from strategy to execution, delivering a fully optimized system in 90 days.'
+      ];
+      
+      this.displayOffers(offers);
+    },
+    
+    /**
+     * SIMPLIFIED: Display offers with Use buttons
+     */
+    displayOffers: function(offers) {
+      const offersList = document.querySelector('#offers-list');
+      if (!offersList) return;
+      
+      offersList.innerHTML = '';
+      
+      offers.forEach((offer, index) => {
+        const offerNumber = index + 1;
+        
+        const offerItem = document.createElement('div');
+        offerItem.className = 'offer';
+        offerItem.innerHTML = `
+          <div class="offer__title">Offer ${offerNumber}:</div>
+          <div class="offer__description">${this.escapeHtml(offer)}</div>
+          <button class="button button--use" data-offer="${offerNumber}" data-text="${this.escapeHtml(offer)}">Use Offer</button>
+        `;
+        
+        // Bind Use button
+        const useBtn = offerItem.querySelector('.button--use');
+        useBtn.addEventListener('click', () => {
+          this.useOffer(offer);
+        });
+        
+        offersList.appendChild(offerItem);
+      });
+      
+      // Show results section
+      const results = document.querySelector('#offers-results');
+      if (results) {
+        results.style.display = 'block';
+        results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    },
+    
+    /**
+     * SIMPLIFIED: Use offer (copy to clipboard)
+     */
+    useOffer: function(offerText) {
+      this.copyToClipboard(offerText);
+      this.showNotification('Offer copied to clipboard!', 'success');
+      
+      // Trigger cross-generator communication
+      if (window.AppEvents) {
+        window.AppEvents.trigger('offer:selected', {
+          offerText: offerText,
+          timestamp: Date.now()
+        });
+      }
+    },
+    
+    /**
+     * Copy all offers to clipboard
+     */
+    copyAllOffers: function() {
+      const offerElements = document.querySelectorAll('.offer__description');
+      if (offerElements.length === 0) {
+        this.showNotification('No offers to copy', 'warning');
+        return;
+      }
+      
+      let allOffers = '';
+      offerElements.forEach((element, index) => {
+        allOffers += `${index + 1}. ${element.textContent}\n\n`;
+      });
+      
+      this.copyToClipboard(allOffers);
+      this.showNotification('All offers copied to clipboard!', 'success');
+    },
+    
+    /**
+     * Copy text to clipboard
+     */
+    copyToClipboard: function(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+          .catch(() => this.fallbackCopy(text));
+      } else {
+        this.fallbackCopy(text);
+      }
+    },
+    
+    /**
+     * Fallback copy method
+     */
+    fallbackCopy: function(text) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+      } catch (err) {
+        console.error('Copy failed:', err);
+      }
+      document.body.removeChild(textarea);
+    },
+    
+    /**
+     * HTML escape utility
+     */
+    escapeHtml: function(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    },
+    
+    /**
+     * SIMPLIFIED: Show notification
+     */
+    showNotification: function(message, type = 'info') {
+      if (window.showNotification) {
+        window.showNotification(message, type);
+      } else {
+        console.log(`${type.toUpperCase()}: ${message}`);
+      }
+    },
+    
+    /**
+     * SIMPLIFIED: Show loading
+     */
+    showLoading: function() {
+      const loading = document.querySelector('#offers-loading-overlay');
+      if (loading) {
+        loading.style.display = 'flex';
+      }
+    },
+    
+    /**
+     * SIMPLIFIED: Hide loading
+     */
+    hideLoading: function() {
+      const loading = document.querySelector('#offers-loading-overlay');
+      if (loading) {
+        loading.style.display = 'none';
+      }
+    }
+  };
+
+  // SIMPLIFIED: Initialize when DOM is ready
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('🎯 Offers Generator: DOM Ready - Starting simple initialization');
+    OffersGenerator.init();
+  });
+
+  // Make globally available
+  window.OffersGenerator = OffersGenerator;
+  
+  console.log('✅ SIMPLIFIED Offers Generator loaded - Following Topics Generator pattern');
+
+})();

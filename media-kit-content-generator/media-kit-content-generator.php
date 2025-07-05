@@ -243,6 +243,7 @@ class Media_Kit_Content_Generator {
 
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_topics_generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_questions_generator.php';
+        require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_offers_generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_ajax_handlers.php';
     }
     
@@ -308,6 +309,11 @@ class Media_Kit_Content_Generator {
         
         // Initialize Questions Generator (pure Pods)
         $this->generators['questions'] = new Enhanced_Questions_Generator(
+            $this->api_service
+        );
+        
+        // Initialize Offers Generator (pure Pods)
+        $this->generators['offers'] = new Enhanced_Offers_Generator(
             $this->api_service
         );
         
@@ -420,7 +426,7 @@ class Media_Kit_Content_Generator {
         global $pods_service, $generator_instance, $generator_type, $authority_hook_service;
         $pods_service = $this->pods_service; // Primary data source
         $authority_hook_service = $this->authority_hook_service; // Centralized Authority Hook functionality
-        $generator_instance = null; // Offers generator doesn't need a specific instance yet
+        $generator_instance = isset($this->generators['offers']) ? $this->generators['offers'] : null;
         $generator_type = 'offers';
         
         // Also make services available
