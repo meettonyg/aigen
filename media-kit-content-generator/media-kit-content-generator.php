@@ -614,6 +614,11 @@ class Media_Kit_Content_Generator {
         // ROOT FIX: Add Impact Intro Generator AJAX handlers
         add_action('wp_ajax_mkcg_save_impact_intro', [$this, 'ajax_save_impact_intro']);
         add_action('wp_ajax_mkcg_get_impact_intro', [$this, 'ajax_get_impact_intro']);
+        
+        // ROOT FIX: Add Biography Generator AJAX handlers
+        add_action('wp_ajax_mkcg_generate_biography', [$this, 'ajax_generate_biography']);
+        add_action('wp_ajax_mkcg_modify_biography_tone', [$this, 'ajax_modify_biography_tone']);
+        add_action('wp_ajax_mkcg_save_biography_to_formidable', [$this, 'ajax_save_biography_to_formidable']);
     }
     
     private function load_dependencies() {
@@ -839,13 +844,49 @@ class Media_Kit_Content_Generator {
     }
     
     /**
-     * Biography Generator Shortcode (placeholder)
+     * Biography Generator Shortcode
      */
     public function biography_shortcode($atts) {
-        // CRITICAL FIX: Ensure global variables are set
+        $atts = shortcode_atts([
+            'post_id' => 0
+        ], $atts);
+        
+        // Force load scripts for shortcode
+        $this->enqueue_scripts();
+        
+        ob_start();
+        
+        // CRITICAL FIX: Ensure global variables are set for template
         $this->ensure_global_services();
         
-        return '<div class="mkcg-placeholder">Biography Generator - Coming Soon</div>';
+        // Set required global variables for template
+        global $pods_service, $generator_instance, $generator_type, $authority_hook_service, $impact_intro_service;
+        $pods_service = $this->pods_service;
+        $authority_hook_service = $this->authority_hook_service;
+        $impact_intro_service = $this->impact_intro_service;
+        
+        // Create biography generator instance if needed
+        if (!isset($this->generators['biography'])) {
+            // Include the enhanced biography generator class
+            require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_biography_generator.php';
+            $this->generators['biography'] = new MKCG_Enhanced_Biography_Generator();
+        }
+        
+        $generator_instance = $this->generators['biography'];
+        $generator_type = 'biography';
+        
+        // Also make services available
+        global $api_service;
+        $api_service = $this->api_service;
+        
+        // Check if we're on the results page
+        if (isset($_GET['results']) && $_GET['results'] === 'true') {
+            include MKCG_PLUGIN_PATH . 'templates/generators/biography/results.php';
+        } else {
+            include MKCG_PLUGIN_PATH . 'templates/generators/biography/default.php';
+        }
+        
+        return ob_get_clean();
     }
     
     /**
@@ -1102,9 +1143,18 @@ class Media_Kit_Content_Generator {
             true
         );
         
+        // Biography Generator
         wp_enqueue_script(
-            'impact-intro-generator',
-            MKCG_PLUGIN_URL . 'assets/js/generators/impact-intro-generator.js',
+            'biography-generator',
+            MKCG_PLUGIN_URL . 'assets/js/generators/biography-generator.js',
+            ['simple-event-bus', 'simple-ajax', 'authority-hook-builder'],
+            MKCG_VERSION,
+            true
+        );
+        
+        wp_enqueue_script(
+            'biography-results',
+            MKCG_PLUGIN_URL . 'assets/js/generators/biography-results.js',
             ['simple-event-bus', 'simple-ajax'],
             MKCG_VERSION,
             true
