@@ -276,6 +276,7 @@
     /**
      * SIMPLIFIED: Toggle Authority Hook Builder
      * CRITICAL FIX: Auto-populate fields when builder becomes visible
+     * NOTE: UX enhancements (button states) handled by centralized Authority Hook Service
      */
     toggleBuilder: function() {
       const builder = document.querySelector('#topics-generator-authority-hook-builder');
@@ -297,6 +298,11 @@
       } else {
         builder.classList.add('generator__builder--hidden');
         console.log('✅ Authority Hook Builder hidden');
+      }
+      
+      // Trigger centralized Authority Hook Service for UX enhancements
+      if (window.AuthorityHookBuilder && window.AuthorityHookBuilder.updateToggleButtonState) {
+        window.AuthorityHookBuilder.updateToggleButtonState('topics-generator-toggle-builder', 'topics-generator-authority-hook-builder');
       }
     },
     

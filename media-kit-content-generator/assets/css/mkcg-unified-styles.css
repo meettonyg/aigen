@@ -244,6 +244,19 @@
   transition: var(--mkcg-transition-fast);
   min-height: 40px;
   font-family: inherit;
+  gap: var(--mkcg-space-xs);
+}
+
+/* Button Icon Styling */
+.generator__button svg {
+  width: 16px;
+  height: 16px;
+  transition: transform var(--mkcg-transition-fast);
+}
+
+/* Toggle Button Animation */
+.generator__button[aria-expanded="true"] svg {
+  transform: rotate(180deg);
 }
 
 .generator__button--primary {

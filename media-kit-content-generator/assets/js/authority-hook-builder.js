@@ -319,6 +319,132 @@
         init();
     }
     
+    // CENTRALIZED UX ENHANCEMENT: Authority Hook Builder Toggle Button State Management
+    // This handles the dynamic button states for ALL generators
+    const AuthorityHookUX = {
+        /**
+         * Update toggle button state based on builder visibility
+         * @param {string} buttonId - ID of the toggle button (e.g., 'topics-generator-toggle-builder')
+         * @param {string} builderId - ID of the builder container (e.g., 'topics-generator-authority-hook-builder')
+         */
+        updateToggleButtonState: function(buttonId, builderId) {
+            const toggleBtn = document.getElementById(buttonId);
+            const builder = document.getElementById(builderId);
+            
+            if (!toggleBtn || !builder) {
+                console.warn(`⚠️ UX Enhancement: Missing elements - button: ${!!toggleBtn}, builder: ${!!builder}`);
+                return;
+            }
+            
+            const isHidden = builder.classList.contains('generator__builder--hidden');
+            
+            if (isHidden) {
+                // Builder is closed - show "open" state
+                toggleBtn.innerHTML = `
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6,9 12,15 18,9"></polyline>
+                  </svg>
+                  Edit Components
+                `;
+                toggleBtn.classList.remove('generator__button--secondary');
+                toggleBtn.classList.add('generator__button--outline');
+                toggleBtn.setAttribute('aria-expanded', 'false');
+                toggleBtn.setAttribute('title', 'Open the Authority Hook Builder to edit components');
+            } else {
+                // Builder is open - show "close" state
+                toggleBtn.innerHTML = `
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="18,15 12,9 6,15"></polyline>
+                  </svg>
+                  Hide Builder
+                `;
+                toggleBtn.classList.remove('generator__button--outline');
+                toggleBtn.classList.add('generator__button--secondary');
+                toggleBtn.setAttribute('aria-expanded', 'true');
+                toggleBtn.setAttribute('title', 'Close the Authority Hook Builder');
+            }
+            
+            // Add subtle click animation feedback
+            toggleBtn.style.transform = 'scale(0.98)';
+            setTimeout(() => {
+                toggleBtn.style.transform = 'scale(1)';
+            }, 150);
+            
+            console.log(`✅ UX Enhancement: Button state updated to ${isHidden ? 'closed' : 'open'} for ${buttonId}`);
+        },
+        
+        /**
+         * Initialize button state on page load
+         * @param {string} buttonId - ID of the toggle button
+         * @param {string} builderId - ID of the builder container
+         */
+        initializeButtonState: function(buttonId, builderId) {
+            const toggleBtn = document.getElementById(buttonId);
+            const builder = document.getElementById(builderId);
+            
+            if (!toggleBtn || !builder) {
+                // Elements might not be ready yet, try again later
+                setTimeout(() => this.initializeButtonState(buttonId, builderId), 500);
+                return;
+            }
+            
+            const isHidden = builder.classList.contains('generator__builder--hidden');
+            
+            // Ensure button has initial icon and state
+            if (isHidden) {
+                toggleBtn.innerHTML = `
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6,9 12,15 18,9"></polyline>
+                  </svg>
+                  Edit Components
+                `;
+                toggleBtn.classList.add('generator__button--outline');
+                toggleBtn.setAttribute('aria-expanded', 'false');
+                toggleBtn.setAttribute('title', 'Open the Authority Hook Builder to edit components');
+            } else {
+                toggleBtn.innerHTML = `
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="18,15 12,9 6,15"></polyline>
+                  </svg>
+                  Hide Builder
+                `;
+                toggleBtn.classList.add('generator__button--secondary');
+                toggleBtn.setAttribute('aria-expanded', 'true');
+                toggleBtn.setAttribute('title', 'Close the Authority Hook Builder');
+            }
+            
+            console.log(`✅ UX Enhancement: Initial button state set for ${buttonId}`);
+        },
+        
+        /**
+         * Auto-initialize for common generator patterns
+         */
+        autoInitialize: function() {
+            // Common generator patterns
+            const patterns = [
+                { button: 'topics-generator-toggle-builder', builder: 'topics-generator-authority-hook-builder' },
+                { button: 'offers-generator-toggle-builder', builder: 'offers-generator-authority-hook-builder' },
+                { button: 'questions-generator-toggle-builder', builder: 'questions-generator-authority-hook-builder' },
+                { button: 'biography-generator-toggle-builder', builder: 'biography-generator-authority-hook-builder' }
+            ];
+            
+            patterns.forEach(pattern => {
+                this.initializeButtonState(pattern.button, pattern.builder);
+            });
+        }
+    };
+    
+    // Make UX enhancements globally available
+    window.AuthorityHookBuilder = window.AuthorityHookBuilder || {};
+    window.AuthorityHookBuilder.updateToggleButtonState = AuthorityHookUX.updateToggleButtonState;
+    window.AuthorityHookBuilder.initializeButtonState = AuthorityHookUX.initializeButtonState;
+    window.AuthorityHookBuilder.autoInitialize = AuthorityHookUX.autoInitialize;
+    
+    // Auto-initialize for all generators
+    setTimeout(() => {
+        AuthorityHookUX.autoInitialize();
+    }, 1000);
+    
     // Enhanced debug function to check example chips
     window.MKCG_DebugExampleChips = function() {
         console.log('🔍 Debugging example chips...');
