@@ -266,26 +266,86 @@ class MKCG_Impact_Intro_Service {
     }
     
     /**
-     * Handle AJAX request to save Impact Intro
+     * Handle AJAX request to save Impact Intro - ENHANCED WITH ROOT-LEVEL FIX
      */
     public function handle_save_ajax() {
-        // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'mkcg_nonce')) {
-            wp_die('Security check failed');
+        error_log("MKCG Impact Intro: handle_save_ajax called");
+        error_log("MKCG Impact Intro: POST data: " . json_encode($_POST));
+        
+        // ROOT FIX: Enhanced nonce verification with detailed logging
+        $nonce = $_POST['nonce'] ?? $_POST['security'] ?? '';
+        if (!wp_verify_nonce($nonce, 'mkcg_nonce')) {
+            error_log("MKCG Impact Intro: Nonce verification failed. Provided: {$nonce}");
+            wp_send_json_error(['message' => 'Security check failed', 'error_code' => 'NONCE_FAILED']);
+            return;
         }
         
+        // ROOT FIX: Enhanced post ID validation
         $post_id = intval($_POST['post_id'] ?? 0);
+        if (!$post_id || $post_id <= 0) {
+            error_log("MKCG Impact Intro: Invalid post ID: {$post_id}");
+            wp_send_json_error(['message' => 'Invalid post ID provided', 'error_code' => 'INVALID_POST_ID']);
+            return;
+        }
+        
+        // ROOT FIX: Enhanced component validation and sanitization
         $components = [
-            'where' => sanitize_text_field($_POST['where'] ?? ''),
-            'why' => sanitize_text_field($_POST['why'] ?? '')
+            'where' => sanitize_textarea_field($_POST['where'] ?? ''),
+            'why' => sanitize_textarea_field($_POST['why'] ?? '')
         ];
         
-        $result = $this->save_impact_intro_data($post_id, $components);
+        error_log("MKCG Impact Intro: Sanitized components: " . json_encode($components));
         
-        if ($result['success']) {
-            wp_send_json_success($result);
-        } else {
-            wp_send_json_error($result);
+        // ROOT FIX: Validate at least one component has content
+        $has_content = false;
+        foreach ($components as $key => $value) {
+            if (!empty(trim($value))) {
+                $has_content = true;
+                break;
+            }
+        }
+        
+        if (!$has_content) {
+            error_log("MKCG Impact Intro: No content provided in any component");
+            wp_send_json_error([
+                'message' => 'Please provide content for at least one field (WHERE or WHY)',
+                'error_code' => 'NO_CONTENT',
+                'components' => $components
+            ]);
+            return;
+        }
+        
+        // ROOT FIX: Attempt save with enhanced error handling
+        try {
+            $result = $this->save_impact_intro_data($post_id, $components);
+            error_log("MKCG Impact Intro: Save result: " . json_encode($result));
+            
+            if ($result['success']) {
+                error_log("MKCG Impact Intro: ✅ Save successful, sending success response");
+                wp_send_json_success([
+                    'message' => $result['message'],
+                    'post_id' => $post_id,
+                    'components' => $result['components'],
+                    'save_details' => $result['save_details'] ?? [],
+                    'saved_count' => $result['saved_count'] ?? 0
+                ]);
+            } else {
+                error_log("MKCG Impact Intro: ❌ Save failed, sending error response: " . $result['message']);
+                wp_send_json_error([
+                    'message' => $result['message'],
+                    'error_code' => 'SAVE_FAILED',
+                    'post_id' => $post_id,
+                    'save_details' => $result['save_details'] ?? [],
+                    'components' => $components
+                ]);
+            }
+        } catch (Exception $e) {
+            error_log("MKCG Impact Intro: Exception in handle_save_ajax: " . $e->getMessage());
+            wp_send_json_error([
+                'message' => 'Server error during save operation: ' . $e->getMessage(),
+                'error_code' => 'SERVER_EXCEPTION',
+                'post_id' => $post_id
+            ]);
         }
     }
     
@@ -356,39 +416,101 @@ class MKCG_Impact_Intro_Service {
     }
     
     /**
-     * Save Impact Intro data to post meta
+     * Save Impact Intro data to post meta - ENHANCED WITH ROOT-LEVEL FIX
      */
     private function save_to_postmeta($post_id, $components) {
         try {
+            error_log("MKCG Impact Intro: Starting save_to_postmeta for post {$post_id}");
+            error_log("MKCG Impact Intro: Components to save: " . json_encode($components));
+            
+            // Validate post exists
+            if (!get_post($post_id)) {
+                error_log("MKCG Impact Intro: Post {$post_id} does not exist");
+                return ['success' => false, 'message' => "Post {$post_id} does not exist"];
+            }
+            
             $field_mappings = $this->field_mappings['postmeta'];
             $saved_count = 0;
+            $save_attempts = 0;
+            $save_details = [];
             
-            // Save WHERE and WHY to post meta
+            // ROOT FIX: Save WHERE and WHY to post meta with enhanced validation
             foreach ($components as $component => $value) {
                 if (isset($field_mappings[$component])) {
                     $field_name = $field_mappings[$component];
+                    $save_attempts++;
+                    
+                    // Get current value for comparison
+                    $current_value = get_post_meta($post_id, $field_name, true);
+                    
+                    error_log("MKCG Impact Intro: Saving {$component} -> {$field_name}");
+                    error_log("MKCG Impact Intro: Current value: '" . $current_value . "'");
+                    error_log("MKCG Impact Intro: New value: '" . $value . "'");
+                    
+                    // ROOT FIX: Always attempt save, even for empty values
                     $result = update_post_meta($post_id, $field_name, $value);
+                    
+                    // ROOT FIX: Enhanced success detection
+                    $save_successful = false;
                     if ($result !== false) {
+                        // update_post_meta returns meta_id on insert, true on update, false on failure
+                        $save_successful = true;
+                        error_log("MKCG Impact Intro: update_post_meta returned: " . var_export($result, true));
+                    } else {
+                        // Check if the value was actually saved despite false return
+                        $verification_value = get_post_meta($post_id, $field_name, true);
+                        if ($verification_value === $value) {
+                            $save_successful = true;
+                            error_log("MKCG Impact Intro: Save verified despite false return - value matches");
+                        } else {
+                            error_log("MKCG Impact Intro: Save failed - verification mismatch. Expected: '{$value}', Got: '{$verification_value}'");
+                        }
+                    }
+                    
+                    if ($save_successful) {
                         $saved_count++;
-                        error_log("MKCG Impact Intro: Saved {$component} to field {$field_name}: {$value}");
+                        $save_details[] = "{$component} -> {$field_name}: '{$value}'";
+                        error_log("MKCG Impact Intro: ✅ Successfully saved {$component} to {$field_name}: {$value}");
+                    } else {
+                        $save_details[] = "{$component} -> {$field_name}: FAILED";
+                        error_log("MKCG Impact Intro: ❌ Failed to save {$component} to {$field_name}: {$value}");
                     }
                 }
             }
             
-            // Save complete intro to legacy field for backward compatibility
+            // ROOT FIX: Save complete intro to legacy field for backward compatibility
             $complete_intro = $this->build_complete_intro($components);
-            update_post_meta($post_id, '_impact_intro_complete', $complete_intro);
+            $legacy_result = update_post_meta($post_id, '_impact_intro_complete', $complete_intro);
+            error_log("MKCG Impact Intro: Legacy complete intro save result: " . var_export($legacy_result, true));
             
-            error_log("MKCG Impact Intro: Saved {$saved_count} components to post {$post_id}");
+            // ROOT FIX: Determine success based on attempts vs saves, not just saved_count > 0
+            $success_rate = $save_attempts > 0 ? ($saved_count / $save_attempts) * 100 : 0;
+            $is_successful = $saved_count >= 1; // At least one component must save
+            
+            $message = $is_successful 
+                ? "Successfully saved {$saved_count}/{$save_attempts} components ({$success_rate}% success rate)" 
+                : "Failed to save any components. Attempted {$save_attempts} saves.";
+            
+            error_log("MKCG Impact Intro: Final result - Success: " . ($is_successful ? 'YES' : 'NO') . 
+                     ", Saved: {$saved_count}/{$save_attempts}, Rate: {$success_rate}%");
+            error_log("MKCG Impact Intro: Save details: " . implode(' | ', $save_details));
             
             return [
-                'success' => $saved_count > 0, 
-                'message' => $saved_count > 0 ? "Saved {$saved_count} components to post meta" : 'No components saved',
-                'saved_count' => $saved_count
+                'success' => $is_successful,
+                'message' => $message,
+                'saved_count' => $saved_count,
+                'save_attempts' => $save_attempts,
+                'success_rate' => $success_rate,
+                'save_details' => $save_details
             ];
         } catch (Exception $e) {
             error_log("MKCG Impact Intro: Save error - " . $e->getMessage());
-            return ['success' => false, 'message' => 'Save error: ' . $e->getMessage()];
+            error_log("MKCG Impact Intro: Exception trace: " . $e->getTraceAsString());
+            return [
+                'success' => false, 
+                'message' => 'Save error: ' . $e->getMessage(),
+                'exception' => $e->getMessage()
+            ];
         }
     }
     
