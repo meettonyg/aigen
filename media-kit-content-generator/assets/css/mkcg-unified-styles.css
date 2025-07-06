@@ -461,8 +461,7 @@
 .generator__field-clear {
   position: absolute;
   right: var(--mkcg-space-xs);
-  top: 50%;
-  transform: translateY(-50%);
+  top: var(--mkcg-space-xs);
   background: none;
   border: none;
   color: var(--mkcg-text-light);
@@ -474,10 +473,46 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 2;
 }
 
 .generator__field-clear:hover {
   color: var(--mkcg-text-secondary);
+}
+
+/* Clear button positioning for single line inputs */
+.field--with-clear:not(.field--textarea) .field__clear {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Clear button positioning for textarea fields */
+.field--textarea .field__clear {
+  top: var(--mkcg-space-xs);
+  transform: none;
+}
+
+/* Textarea Specific Styling */
+.field__textarea {
+  min-height: 80px;
+  resize: vertical;
+  padding: var(--mkcg-space-sm) var(--mkcg-space-md);
+  padding-right: 40px; /* Make room for clear button */
+  line-height: var(--mkcg-line-height-relaxed);
+  font-family: inherit;
+}
+
+.field__textarea:focus {
+  min-height: 100px;
+}
+
+/* Field Container for Textarea */
+.field--textarea {
+  margin-bottom: var(--mkcg-space-lg);
+}
+
+.field--textarea .field__label {
+  margin-bottom: var(--mkcg-space-sm);
 }
 
 /* Helper Text */
@@ -1234,7 +1269,7 @@
   flex-shrink: 0;
 }
 
-/* Clear button styling */
+/* Clear button styling - Updated for textarea support */
 .field--with-clear {
   position: relative;
 }
@@ -1242,11 +1277,9 @@
 .field__clear {
   position: absolute;
   right: var(--mkcg-space-xs);
-  top: 50%;
-  transform: translateY(-50%);
   background: none;
   border: none;
-  color: #95a5a6;
+  color: var(--mkcg-text-light);
   font-size: 18px;
   cursor: pointer;
   transition: var(--mkcg-transition-fast);
@@ -1255,10 +1288,25 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 2;
 }
 
 .field__clear:hover {
-  color: #34495e;
+  color: var(--mkcg-text-secondary);
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: var(--mkcg-radius-full);
+}
+
+/* Clear button positioning for regular inputs */
+.field--with-clear:not(.field--textarea) .field__clear {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Clear button positioning for textarea */
+.field--textarea .field__clear {
+  top: var(--mkcg-space-sm);
+  transform: none;
 }
 
 /* Examples styling within tabs */
@@ -3048,69 +3096,276 @@
 }
 
 /* ============================================================================
-   CREDENTIAL MANAGEMENT FOR IMPACT INTRO
+   CREDENTIAL MANAGEMENT FOR IMPACT INTRO - ENHANCED STYLING
    ============================================================================ */
 
-/* Credential tag styling for Impact Intro */
-.credential-tag {
-  display: inline-flex;
-  align-items: center;
-  background-color: #eaf0f6;
-  padding: 4px 10px 4px 6px;
-  border-radius: 16px;
-  margin: 3px;
-  font-size: 13px;
-  color: #333;
-  border: 1px solid #d8e6f3;
-  transition: background-color 0.2s ease;
+/* Credential Manager Container */
+.credentials-manager {
+  margin: var(--mkcg-space-md) 0;
+  padding: var(--mkcg-space-lg);
+  background: linear-gradient(135deg, #f8f9ff 0%, #f1f4ff 100%);
+  border: 2px solid var(--mkcg-primary);
+  border-radius: var(--mkcg-radius-lg);
+  box-shadow: 0 4px 12px rgba(26, 155, 220, 0.1);
 }
 
-.credential-tag span {
-  color: #333;
+.credentials-manager--primary {
+  background: linear-gradient(135deg, #f8f9ff 0%, #f1f4ff 100%);
+  border-color: var(--mkcg-primary);
 }
 
-.credential-tag.active {
-  background-color: #deeefe;
-  border-color: #a8d1f7;
+/* Credential Manager Label */
+.credentials-manager__label {
+  display: block;
+  color: var(--mkcg-primary-dark);
+  font-size: var(--mkcg-font-size-md);
+  font-weight: var(--mkcg-font-weight-semibold);
+  margin-bottom: var(--mkcg-space-sm);
+  line-height: var(--mkcg-line-height-normal);
 }
 
-/* Credentials container for Impact Intro */
-.credentials-container--enhanced {
-  background: white;
-  border: 2px dashed #e3f2fd;
-  border-radius: 6px;
-  min-height: 80px;
-  padding: 15px;
-  margin-bottom: 12px;
+/* Credential Manager Description */
+.credentials-manager__description {
+  font-size: var(--mkcg-font-size-sm);
+  color: var(--mkcg-text-secondary);
+  margin: 0 0 var(--mkcg-space-md) 0;
+  line-height: var(--mkcg-line-height-relaxed);
+}
+
+/* Input Container */
+.credentials-manager__input-container {
+  display: flex;
+  gap: 0;
+  margin-bottom: var(--mkcg-space-md);
+  box-shadow: var(--mkcg-shadow-sm);
+  border-radius: var(--mkcg-radius);
+  overflow: hidden;
+}
+
+/* Credential Manager Input */
+.credentials-manager__input {
+  flex: 1;
+  padding: var(--mkcg-space-sm) var(--mkcg-space-md);
+  border: 2px solid var(--mkcg-border-medium);
+  border-right: none;
+  border-radius: var(--mkcg-radius) 0 0 var(--mkcg-radius);
+  font-size: var(--mkcg-font-size-md);
+  background-color: var(--mkcg-bg-primary);
+  color: var(--mkcg-text-primary);
+  font-family: inherit;
+  transition: var(--mkcg-transition-fast);
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.credentials-manager__input:focus {
+  outline: none;
+  border-color: var(--mkcg-primary);
+  box-shadow: inset 0 0 0 1px var(--mkcg-primary);
+}
+
+.credentials-manager__input::placeholder {
+  color: var(--mkcg-text-light);
+  font-style: italic;
+}
+
+/* Credential Manager Button */
+.credentials-manager__button {
+  padding: var(--mkcg-space-sm) var(--mkcg-space-lg);
+  background: linear-gradient(135deg, var(--mkcg-primary) 0%, var(--mkcg-primary-dark) 100%);
+  color: var(--mkcg-text-white);
+  border: 2px solid var(--mkcg-primary);
+  border-left: none;
+  border-radius: 0 var(--mkcg-radius) var(--mkcg-radius) 0;
+  font-size: var(--mkcg-font-size-md);
+  font-weight: var(--mkcg-font-weight-semibold);
+  cursor: pointer;
+  transition: var(--mkcg-transition-fast);
+  min-height: 44px;
+  min-width: 80px;
+  font-family: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: var(--mkcg-font-size-sm);
+}
+
+.credentials-manager__button:hover {
+  background: linear-gradient(135deg, var(--mkcg-primary-dark) 0%, #0a7bc2 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(26, 155, 220, 0.3);
+}
+
+.credentials-manager__button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(26, 155, 220, 0.2);
+}
+
+/* Credentials Container */
+.credentials-manager__container {
+  background: var(--mkcg-bg-primary);
+  border: 2px dashed var(--mkcg-border-light);
+  border-radius: var(--mkcg-radius-lg);
+  min-height: 100px;
+  padding: var(--mkcg-space-lg);
+  margin-bottom: var(--mkcg-space-md);
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  transition: border-color 0.3s ease;
+  gap: var(--mkcg-space-xs);
+  transition: all var(--mkcg-transition-normal);
+  position: relative;
 }
 
-.credentials-container--enhanced:empty::before {
+.credentials-manager__container:empty::before {
   content: '✨ Your credentials will appear here. Add some using the field above!';
-  color: #9e9e9e;
+  color: var(--mkcg-text-light);
   font-style: italic;
-  font-size: 13px;
+  font-size: var(--mkcg-font-size-sm);
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   text-align: center;
+  line-height: var(--mkcg-line-height-relaxed);
 }
 
-.credentials-container--enhanced:not(:empty) {
-  border-color: #2196f3;
-  background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+.credentials-manager__container:not(:empty) {
+  border-color: var(--mkcg-primary);
+  border-style: solid;
+  background: linear-gradient(135deg, var(--mkcg-bg-primary) 0%, #f8f9ff 100%);
+  box-shadow: inset 0 2px 4px rgba(26, 155, 220, 0.05);
 }
 
-/* Credential manager status for Impact Intro */
-.credential-manager-status {
-  background: rgba(33, 150, 243, 0.05);
-  border-radius: 4px;
-  padding: 8px 12px;
-  margin-top: 10px;
+/* Credential Tag Styling */
+.credential-tag {
+  display: inline-flex;
+  align-items: center;
+  background: linear-gradient(135deg, #eaf0f6 0%, #e1ebf5 100%);
+  padding: var(--mkcg-space-xs) var(--mkcg-space-sm);
+  border-radius: var(--mkcg-radius-xl);
+  margin: 2px;
+  font-size: var(--mkcg-font-size-sm);
+  color: var(--mkcg-text-primary);
+  border: 1px solid #d8e6f3;
+  transition: all var(--mkcg-transition-fast);
+  cursor: pointer;
+  user-select: none;
+}
+
+.credential-tag span {
+  color: var(--mkcg-text-primary);
+  font-weight: var(--mkcg-font-weight-medium);
+}
+
+.credential-tag.active {
+  background: linear-gradient(135deg, var(--mkcg-primary) 0%, var(--mkcg-primary-dark) 100%);
+  color: var(--mkcg-text-white);
+  border-color: var(--mkcg-primary-dark);
+  box-shadow: 0 2px 8px rgba(26, 155, 220, 0.3);
+  transform: translateY(-1px);
+}
+
+.credential-tag.active span {
+  color: var(--mkcg-text-white);
+  font-weight: var(--mkcg-font-weight-semibold);
+}
+
+/* Checkbox within credential tag */
+.credential-checkbox {
+  margin-right: var(--mkcg-space-xs);
+  width: 16px;
+  height: 16px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 2px solid var(--mkcg-border-medium);
+  border-radius: var(--mkcg-radius-sm);
+  outline: none;
+  cursor: pointer;
+  background: var(--mkcg-bg-primary);
+  position: relative;
+  transition: var(--mkcg-transition-fast);
+}
+
+.credential-checkbox:checked {
+  background-color: var(--mkcg-primary);
+  border-color: var(--mkcg-primary);
+  box-shadow: 0 0 0 2px rgba(26, 155, 220, 0.3);
+}
+
+.credential-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: -1px;
+  width: 6px;
+  height: 10px;
+  border: solid var(--mkcg-text-white);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Remove button for credential tags */
+.credential-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: var(--mkcg-space-xs);
+  cursor: pointer;
+  font-weight: var(--mkcg-font-weight-bold);
+  font-size: var(--mkcg-font-size-md);
+  color: var(--mkcg-text-light);
+  width: 20px;
+  height: 20px;
+  border-radius: var(--mkcg-radius-full);
+  transition: var(--mkcg-transition-fast);
+  line-height: 1;
+}
+
+.credential-remove:hover {
+  background-color: var(--mkcg-error);
+  color: var(--mkcg-text-white);
+  transform: scale(1.1);
+}
+
+/* Credential Manager Status */
+.credentials-manager__status {
+  background: rgba(26, 155, 220, 0.08);
+  border: 1px solid rgba(26, 155, 220, 0.2);
+  border-radius: var(--mkcg-radius);
+  padding: var(--mkcg-space-sm) var(--mkcg-space-md);
+  margin-top: var(--mkcg-space-md);
+}
+
+.credentials-manager__status-text {
+  color: var(--mkcg-primary-dark);
+  font-weight: var(--mkcg-font-weight-medium);
+  font-size: var(--mkcg-font-size-sm);
+}
+
+/* Responsive Design for Credential Manager */
+@media screen and (max-width: 768px) {
+  .credentials-manager {
+    padding: var(--mkcg-space-md);
+  }
+  
+  .credentials-manager__input-container {
+    flex-direction: column;
+    gap: var(--mkcg-space-xs);
+  }
+  
+  .credentials-manager__input {
+    border-radius: var(--mkcg-radius);
+    border: 2px solid var(--mkcg-border-medium);
+  }
+  
+  .credentials-manager__button {
+    border-radius: var(--mkcg-radius);
+    border: 2px solid var(--mkcg-primary);
+    min-height: 44px;
+  }
 }
 
 /* Continue with all existing specific styles... */

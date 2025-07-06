@@ -526,29 +526,29 @@ class MKCG_Impact_Intro_Service {
                 <h4>Showcase Your Authority (WHERE)</h4>
             </div>
             
-            <div class="field field--with-clear">
+            <div class="field field--with-clear field--textarea">
                 <label for="mkcg-where" class="field__label">What specific results or credentials establish your authority?</label>
-                <input type="text" 
+                <textarea 
                 id="mkcg-where" 
                 name="where" 
-                class="field__input" 
-                value="<?php echo esc_attr($value); ?>" 
-                placeholder="<?php echo empty($value) ? 'e.g., Helped 200+ startups land funding' : ''; ?>">
+                class="field__input field__textarea" 
+                rows="3"
+                placeholder="<?php echo empty($value) ? 'e.g., Helped 200+ startups land funding and achieve significant growth milestones' : ''; ?>"><?php echo esc_textarea($value); ?></textarea>
                 <button type="button" class="field__clear" data-field-id="mkcg-where" title="Clear field">×</button>
             </div>
             
             <?php if ($options['show_credential_manager']): ?>
             <div class="credentials-manager credentials-manager--primary">
-                <label>🏆 <strong>Credential Manager</strong> - Add and Select Your Credentials:</label>
-                <p class="helper-text">This is where you manage your credentials. Add new ones and check the boxes to include them in your Impact Intro.</p>
-                <div class="input-container">
-                    <input type="text" id="credential_input" placeholder="Type a credential and click Add">
-                    <button type="button" id="add_credential" class="button">Add</button>
+                <label class="credentials-manager__label">🏆 <strong>Credential Manager</strong> - Add and Select Your Credentials:</label>
+                <p class="credentials-manager__description">This is where you manage your credentials. Add new ones and check the boxes to include them in your Impact Intro.</p>
+                <div class="credentials-manager__input-container">
+                    <input type="text" id="credential_input" class="credentials-manager__input" placeholder="Type a credential and click Add">
+                    <button type="button" id="add_credential" class="credentials-manager__button">Add</button>
                 </div>
-                <div id="credentials_container" class="credentials-container--enhanced"></div>
+                <div id="credentials_container" class="credentials-manager__container"></div>
                 
-                <div class="credential-manager-status">
-                    <small class="status-text">📊 <span id="credential-count">0</span> credentials added | <span id="selected-credential-count">0</span> selected for Impact Intro</small>
+                <div class="credentials-manager__status">
+                    <small class="credentials-manager__status-text">📊 <span id="credential-count">0</span> credentials added | <span id="selected-credential-count">0</span> selected for Impact Intro</small>
                 </div>
             </div>
             <?php endif; ?>
@@ -579,14 +579,14 @@ class MKCG_Impact_Intro_Service {
                 <h4>Share Your Purpose (WHY)</h4>
             </div>
             
-            <div class="field field--with-clear">
+            <div class="field field--with-clear field--textarea">
                 <label for="mkcg-why" class="field__label">What big idea, mission, or purpose drives your work?</label>
-                <input type="text" 
+                <textarea 
                 id="mkcg-why" 
                 name="why" 
-                class="field__input" 
-                value="<?php echo esc_attr($value); ?>" 
-                placeholder="<?php echo empty($value) ? 'e.g., democratize access to business education' : ''; ?>">
+                class="field__input field__textarea" 
+                rows="3"
+                placeholder="<?php echo empty($value) ? 'e.g., democratize access to business education and empower entrepreneurs globally' : ''; ?>"><?php echo esc_textarea($value); ?></textarea>
                 <button type="button" class="field__clear" data-field-id="mkcg-why" title="Clear field">×</button>
             </div>
             

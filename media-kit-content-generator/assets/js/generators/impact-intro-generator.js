@@ -109,7 +109,54 @@
                 }
             });
             
+            // Setup clear button functionality for textareas
+            this.setupClearButtons();
+            
             console.log('✅ Credential manager events bound');
+        },
+        
+        // ROOT FIX: Setup clear button functionality for textarea fields
+        setupClearButtons: function() {
+            const self = this;
+            
+            // Handle clear buttons for both input and textarea fields
+            $(document).off('click.impact-intro-clear').on('click.impact-intro-clear', '.field__clear', function(e) {
+                e.preventDefault();
+                const fieldId = $(this).attr('data-field-id');
+                if (fieldId) {
+                    const field = $('#' + fieldId);
+                    if (field.length) {
+                        field.val('').trigger('input').focus();
+                        
+                        // If it's the WHERE field, also clear credential management
+                        if (fieldId === 'mkcg-where') {
+                            self.clearAllCredentials();
+                        }
+                        
+                        // Update preview and hidden field
+                        self.updatePreview();
+                        self.updateHiddenField();
+                        
+                        console.log('✅ Cleared field:', fieldId);
+                    }
+                }
+            });
+            
+            console.log('✅ Clear button functionality setup for textareas');
+        },
+        
+        // ROOT FIX: Clear all credentials from management system
+        clearAllCredentials: function() {
+            // Clear credential state
+            this.credentialState.credentials = [];
+            
+            // Clear visual container
+            $(this.config.selectors.credentialsContainer).empty();
+            
+            // Update status
+            this.updateCredentialStatus();
+            
+            console.log('✅ Cleared all credentials');
         },
         
         // ROOT FIX: Add credential to management system
@@ -357,34 +404,87 @@
                 self.saveImpactIntro();
             });
             
-            // Field change listeners for real-time updates
+            // Field change listeners for real-time updates (support both input and textarea)
             const fieldSelectors = [
                 this.config.selectors.whereField,
                 this.config.selectors.whyField
             ];
             
             fieldSelectors.forEach(selector => {
-                $(selector).on('input change', function() {
+                $(selector).on('input change keyup paste', function() {
+                    // Check if this is the WHERE field and update credential management accordingly
+                    if (selector === self.config.selectors.whereField) {
+                        // If user manually edits WHERE field, update credential state
+                        self.syncWhereFieldWithCredentials();
+                    }
+                    
                     self.updatePreview();
                     self.updateHiddenField();
                 });
             });
             
-            console.log('✅ Event handlers bound successfully');
+            console.log('✅ Event handlers bound successfully with textarea support');
+        },
+        
+        // ROOT FIX: Sync WHERE field manual edits with credential management
+        syncWhereFieldWithCredentials: function() {
+            const whereValue = $(this.config.selectors.whereField).val();
+            
+            // If WHERE field was manually edited and differs from credential management output
+            const credentialOutput = this.collectCredentialData();
+            
+            if (whereValue !== credentialOutput && whereValue.trim() !== '') {
+                // User manually edited - create temporary credentials from the text
+                const manualCredentials = whereValue.trim().split(/,\s*and\s*|\s*and\s*|,\s*/).filter(Boolean);
+                
+                // Clear existing credentials and add manual ones
+                this.credentialState.credentials = [];
+                
+                manualCredentials.forEach(text => {
+                    if (text && text.trim()) {
+                        this.credentialState.credentials.push({
+                            text: text.trim(),
+                            checked: true
+                        });
+                    }
+                });
+                
+                // Update visual container
+                this.updateVisualCredentials();
+                this.updateCredentialStatus();
+                
+                console.log('✅ Synced manual WHERE field edits with credentials:', manualCredentials);
+            }
+        },
+        
+        // ROOT FIX: Update visual credentials container
+        updateVisualCredentials: function() {
+            const container = $(this.config.selectors.credentialsContainer);
+            container.empty();
+            
+            this.credentialState.credentials.forEach(credData => {
+                this.createVisualCredential(credData);
+            });
         },
         
         // Setup real-time preview updates
         setupRealTimeUpdates: function() {
             const self = this;
             
-            // Listen for field changes and update preview
-            $(document).on('input change', this.config.selectors.whereField + ',' + 
+            // Listen for field changes and update preview (textarea support)
+            $(document).on('input change keyup paste', this.config.selectors.whereField + ',' + 
                                           this.config.selectors.whyField, function() {
+                // Auto-resize textarea as user types
+                if (this.tagName.toLowerCase() === 'textarea') {
+                    this.style.height = 'auto';
+                    this.style.height = Math.max(this.scrollHeight + 10, 80) + 'px';
+                }
+                
                 self.updatePreview();
                 self.updateHiddenField();
             });
             
-            console.log('✅ Real-time updates configured');
+            console.log('✅ Real-time updates configured with textarea support');
         },
         
         // Populate fields with existing data
@@ -392,14 +492,43 @@
             if (window.MKCG_Impact_Intro_Data && window.MKCG_Impact_Intro_Data.hasData) {
                 const data = window.MKCG_Impact_Intro_Data.impactIntro;
                 
+                // Populate textarea fields (not input fields)
                 $(this.config.selectors.whereField).val(data.where || '');
                 $(this.config.selectors.whyField).val(data.why || '');
+                
+                // Auto-resize textareas if they have content
+                this.autoResizeTextareas();
                 
                 this.updatePreview();
                 this.updateHiddenField();
                 
-                console.log('✅ Fields populated with existing data');
+                console.log('✅ Fields populated with existing data (textarea support)');
             }
+        },
+        
+        // ROOT FIX: Auto-resize textarea fields based on content
+        autoResizeTextareas: function() {
+            const textareas = $(this.config.selectors.whereField + ', ' + this.config.selectors.whyField);
+            
+            textareas.each(function() {
+                const textarea = $(this);
+                if (textarea.val().trim()) {
+                    // Calculate required height
+                    const scrollHeight = this.scrollHeight;
+                    const minHeight = 80; // Minimum height from CSS
+                    const newHeight = Math.max(scrollHeight + 10, minHeight);
+                    
+                    textarea.css('height', newHeight + 'px');
+                }
+            });
+            
+            // Add auto-resize on input for future typing
+            textareas.off('input.autoresize').on('input.autoresize', function() {
+                this.style.height = 'auto';
+                this.style.height = Math.max(this.scrollHeight + 10, 80) + 'px';
+            });
+            
+            console.log('✅ Auto-resize functionality added to textareas');
         },
         
         // Update the live preview
@@ -653,7 +782,14 @@
                 nonce: $(this.config.selectors.nonceField).val()?.substring(0, 10) + '...',
                 fields: {
                     where: $(this.config.selectors.whereField).val(),
-                    why: $(this.config.selectors.whyField).val()
+                    why: $(this.config.selectors.whyField).val(),
+                    whereFieldType: $(this.config.selectors.whereField).prop('tagName'),
+                    whyFieldType: $(this.config.selectors.whyField).prop('tagName')
+                },
+                credentialManagement: {
+                    credentials: this.credentialState.credentials,
+                    checkedCount: this.credentialState.credentials.filter(c => c.checked).length,
+                    collectedData: this.collectCredentialData()
                 },
                 windowData: window.MKCG_Impact_Intro_Data,
                 copyButton: $(this.config.selectors.copyToClipboard).length
@@ -681,31 +817,56 @@
             credentials: ImpactIntroGenerator.credentialState.credentials,
             checkedCredentials: ImpactIntroGenerator.credentialState.credentials.filter(cred => cred.checked),
             whereFieldValue: $(ImpactIntroGenerator.config.selectors.whereField).val(),
+            whereFieldType: $(ImpactIntroGenerator.config.selectors.whereField).prop('tagName'),
             collectedCredentialData: ImpactIntroGenerator.collectCredentialData(),
             credentialManagerElements: {
                 credentialInput: $(ImpactIntroGenerator.config.selectors.credentialInput).length,
                 addButton: $(ImpactIntroGenerator.config.selectors.addCredentialButton).length,
                 container: $(ImpactIntroGenerator.config.selectors.credentialsContainer).length
             },
-            exampleChips: $('.tag__add-link').length
+            exampleChips: $('.tag__add-link').length,
+            textareaSupport: {
+                whereIsTextarea: $(ImpactIntroGenerator.config.selectors.whereField).is('textarea'),
+                whyIsTextarea: $(ImpactIntroGenerator.config.selectors.whyField).is('textarea'),
+                clearButtonsCount: $('.field__clear').length
+            }
         });
     };
     
     // ROOT FIX: Test credential management functionality
     window.testCredentialManagement = function() {
-        console.log('🧪 Testing credential management...');
+        console.log('🧪 Testing credential management with textarea support...');
         
         // Test adding a credential
-        ImpactIntroGenerator.addCredential('Test Credential', true);
+        ImpactIntroGenerator.addCredential('Test Credential for Textarea', true);
+        
+        // Test textarea field update
+        const whereField = $(ImpactIntroGenerator.config.selectors.whereField);
+        const isTextarea = whereField.is('textarea');
+        
+        console.log('🔍 Field type check:', {
+            whereSelector: ImpactIntroGenerator.config.selectors.whereField,
+            isTextarea: isTextarea,
+            tagName: whereField.prop('tagName'),
+            currentValue: whereField.val()
+        });
         
         // Test collecting data
         const collected = ImpactIntroGenerator.collectCredentialData();
         console.log('✅ Test complete. Collected data:', collected);
         
-        return collected;
+        // Test clear functionality
+        console.log('🧪 Testing clear functionality...');
+        ImpactIntroGenerator.clearAllCredentials();
+        
+        return {
+            collected: collected,
+            textareaSupported: isTextarea,
+            tagName: whereField.prop('tagName')
+        };
     };
     
-    console.log('✅ Impact Intro Generator script loaded with credential management integration');
+    console.log('✅ Impact Intro Generator script loaded with credential management integration and textarea support');
     console.log('🔧 Debug functions: window.debugImpactIntro(), window.debugCredentialManagement(), window.testCredentialManagement()');
     
 })(jQuery);
