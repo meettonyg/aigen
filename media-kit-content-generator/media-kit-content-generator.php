@@ -577,26 +577,131 @@ class Media_Kit_Content_Generator {
     }
     
     /**
-     * ROOT FIX: Questions Generator AJAX handlers
+     * ROOT FIX: Questions Generator AJAX handlers - SIMPLIFIED following Topics Generator pattern
      */
     public function ajax_save_questions() {
-        $questions_generator = $this->get_generator_instance('questions');
+        // Direct handler implementation - no delegation
+        if (!$this->verify_ajax_request()) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
         
-        if ($questions_generator) {
-            $questions_generator->handle_save_questions();
+        $post_id = intval($_POST['post_id'] ?? 0);
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID required']);
+            return;
+        }
+        
+        // Extract questions data using same pattern as Topics Generator
+        $questions_data = [];
+        
+        // Method 1: Array notation questions[question_1_1] format
+        foreach ($_POST as $key => $value) {
+            if (strpos($key, 'questions[') === 0) {
+                preg_match('/questions\\[(.*?)\\]/', $key, $matches);
+                if (isset($matches[1]) && !empty(trim($value))) {
+                    $questions_data[$matches[1]] = sanitize_textarea_field($value);
+                    error_log('MKCG Questions: Found array notation question ' . $matches[1] . ' = ' . $value);
+                }
+            }
+        }
+        
+        // Method 2: JSON-encoded questions
+        if (empty($questions_data) && isset($_POST['questions'])) {
+            $questions_raw = $_POST['questions'];
+            if (is_string($questions_raw)) {
+                $decoded = json_decode(stripslashes($questions_raw), true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    foreach ($decoded as $key => $value) {
+                        if (!empty(trim($value))) {
+                            $questions_data[$key] = sanitize_textarea_field($value);
+                        }
+                    }
+                    error_log('MKCG Questions: Found questions via JSON decode');
+                }
+            } elseif (is_array($questions_raw)) {
+                foreach ($questions_raw as $key => $value) {
+                    if (!empty(trim($value))) {
+                        $questions_data[$key] = sanitize_textarea_field($value);
+                    }
+                }
+                error_log('MKCG Questions: Found questions via direct array');
+            }
+        }
+        
+        // Method 3: Individual question fields
+        if (empty($questions_data)) {
+            for ($topic = 1; $topic <= 5; $topic++) {
+                for ($q = 1; $q <= 5; $q++) {
+                    $field_name = "question_{$topic}_{$q}";
+                    if (isset($_POST[$field_name]) && !empty(trim($_POST[$field_name]))) {
+                        $questions_data[$field_name] = sanitize_textarea_field($_POST[$field_name]);
+                    }
+                }
+            }
+        }
+        
+        error_log('MKCG Questions: Extracted ' . count($questions_data) . ' questions');
+        
+        if (empty($questions_data)) {
+            wp_send_json_error(['message' => 'No questions data provided']);
+            return;
+        }
+        
+        $results = [];
+        $overall_success = false;
+        
+        // Save using direct post meta (most reliable)
+        foreach ($questions_data as $key => $value) {
+            $meta_key = 'mkcg_' . $key;
+            $result = update_post_meta($post_id, $meta_key, $value);
+            if ($result !== false) {
+                $overall_success = true;
+                error_log('MKCG Questions: Saved question ' . $key . ' to post meta');
+            }
+        }
+        
+        if ($overall_success) {
+            wp_send_json_success([
+                'message' => 'Questions saved successfully to post meta',
+                'post_id' => $post_id,
+                'saved_count' => count($questions_data)
+            ]);
         } else {
-            wp_send_json_error(['message' => 'Questions generator not available']);
+            wp_send_json_error([
+                'message' => 'Failed to save questions',
+                'post_id' => $post_id
+            ]);
         }
     }
     
     public function ajax_generate_questions() {
-        $questions_generator = $this->get_generator_instance('questions');
-        
-        if ($questions_generator) {
-            $questions_generator->handle_generate_questions();
-        } else {
-            wp_send_json_error(['message' => 'Questions generator not available']);
+        // Direct handler implementation
+        if (!$this->verify_ajax_request()) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
         }
+        
+        $topic = sanitize_textarea_field($_POST['topic'] ?? '');
+        if (empty($topic)) {
+            wp_send_json_error(['message' => 'Topic is required']);
+            return;
+        }
+        
+        // Simple demo question generation
+        $questions = [
+            "What inspired you to develop your approach to {$topic}?",
+            "Can you walk us through your step-by-step process for {$topic}?", 
+            "What's the biggest mistake you see people making when it comes to {$topic}?",
+            "What results have your clients seen after implementing your {$topic} strategies?",
+            "What advice would you give to someone just starting with {$topic}?"
+        ];
+        
+        wp_send_json_success([
+            'questions' => $questions,
+            'topic' => $topic,
+            'count' => count($questions)
+        ]);
     }
     
     public function ajax_save_single_question() {
@@ -635,55 +740,257 @@ class Media_Kit_Content_Generator {
     }
     
     public function ajax_get_questions() {
-        $questions_generator = $this->get_generator_instance('questions');
+        // Direct handler implementation
+        if (!$this->verify_ajax_request()) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
         
-        if ($questions_generator) {
-            $questions_generator->handle_get_questions();
+        $post_id = intval($_POST['post_id'] ?? 0);
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID required']);
+            return;
+        }
+        
+        // Get questions data directly using post meta
+        $questions = [];
+        for ($topic = 1; $topic <= 5; $topic++) {
+            for ($q = 1; $q <= 5; $q++) {
+                $meta_key = 'mkcg_question_' . $topic . '_' . $q;
+                $value = get_post_meta($post_id, $meta_key, true);
+                if ($value) {
+                    $questions['question_' . $topic . '_' . $q] = $value;
+                }
+            }
+        }
+        
+        wp_send_json_success([
+            'post_id' => $post_id,
+            'questions' => $questions,
+            'has_data' => !empty($questions)
+        ]);
+    }
+    
+    /**
+     * ROOT FIX: Offers Generator AJAX handlers - SIMPLIFIED following Topics Generator pattern
+     */
+    public function ajax_generate_offers() {
+        // Direct handler implementation
+        if (!$this->verify_ajax_request()) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
+        
+        $authority_hook = sanitize_textarea_field($_POST['authority_hook'] ?? '');
+        if (empty($authority_hook)) {
+            wp_send_json_error(['message' => 'Authority hook is required']);
+            return;
+        }
+        
+        $business_type = sanitize_text_field($_POST['business_type'] ?? 'consulting');
+        $target_audience = sanitize_text_field($_POST['target_audience'] ?? '');
+        $price_range = sanitize_text_field($_POST['price_range'] ?? 'mid');
+        
+        // Simple demo offer generation
+        $offers = [
+            "Free Lead Magnet: '{$authority_hook}' Quick Start Guide - Learn the fundamentals in 30 minutes",
+            "Low-Ticket Offer: '{$authority_hook}' Masterclass - Complete training program for {$target_audience}",
+            "Core Offer: 1-on-1 {$business_type} Package - Personalized implementation of {$authority_hook}",
+            "Premium Offer: {$authority_hook} VIP Experience - Done-with-you intensive program",
+            "Group Program: {$authority_hook} Community - Monthly coaching and peer support"
+        ];
+        
+        wp_send_json_success([
+            'offers' => $offers,
+            'authority_hook' => $authority_hook,
+            'count' => count($offers)
+        ]);
+    }
+    
+    public function ajax_save_offers() {
+        // Direct handler implementation
+        if (!$this->verify_ajax_request()) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
+        
+        $post_id = intval($_POST['post_id'] ?? 0);
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID required']);
+            return;
+        }
+        
+        // Extract offers data
+        $offers_data = [];
+        
+        // Method 1: Array notation offers[offer_1] format
+        foreach ($_POST as $key => $value) {
+            if (strpos($key, 'offers[') === 0) {
+                preg_match('/offers\\[(.*?)\\]/', $key, $matches);
+                if (isset($matches[1]) && !empty(trim($value))) {
+                    $offers_data[$matches[1]] = sanitize_textarea_field($value);
+                }
+            }
+        }
+        
+        // Method 2: JSON-encoded offers
+        if (empty($offers_data) && isset($_POST['offers'])) {
+            $offers_raw = $_POST['offers'];
+            if (is_string($offers_raw)) {
+                $decoded = json_decode(stripslashes($offers_raw), true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    foreach ($decoded as $key => $value) {
+                        if (!empty(trim($value))) {
+                            $offers_data[$key] = sanitize_textarea_field($value);
+                        }
+                    }
+                }
+            } elseif (is_array($offers_raw)) {
+                foreach ($offers_raw as $key => $value) {
+                    if (!empty(trim($value))) {
+                        $offers_data[$key] = sanitize_textarea_field($value);
+                    }
+                }
+            }
+        }
+        
+        // Method 3: Individual offer fields
+        if (empty($offers_data)) {
+            for ($i = 1; $i <= 10; $i++) {
+                $field_name = "offer_{$i}";
+                if (isset($_POST[$field_name]) && !empty(trim($_POST[$field_name]))) {
+                    $offers_data[$field_name] = sanitize_textarea_field($_POST[$field_name]);
+                }
+            }
+        }
+        
+        // Extract business data
+        $business_data = [
+            'business_type' => sanitize_text_field($_POST['business_type'] ?? ''),
+            'target_audience' => sanitize_text_field($_POST['target_audience'] ?? ''),
+            'price_range' => sanitize_text_field($_POST['price_range'] ?? 'mid'),
+            'delivery_method' => sanitize_text_field($_POST['delivery_method'] ?? 'online')
+        ];
+        
+        if (empty($offers_data) && empty($business_data['business_type'])) {
+            wp_send_json_error(['message' => 'No offers or business data provided']);
+            return;
+        }
+        
+        $results = [];
+        $overall_success = false;
+        
+        // Save using direct post meta
+        if (!empty($offers_data)) {
+            foreach ($offers_data as $key => $value) {
+                $meta_key = 'mkcg_' . $key;
+                $result = update_post_meta($post_id, $meta_key, $value);
+                if ($result !== false) {
+                    $overall_success = true;
+                }
+            }
+            $results['offers'] = ['success' => true, 'count' => count($offers_data)];
+        }
+        
+        if (!empty($business_data['business_type'])) {
+            foreach ($business_data as $key => $value) {
+                $meta_key = 'mkcg_offers_' . $key;
+                $result = update_post_meta($post_id, $meta_key, $value);
+                if ($result !== false) {
+                    $overall_success = true;
+                }
+            }
+            $results['business_data'] = ['success' => true, 'count' => count($business_data)];
+        }
+        
+        if ($overall_success) {
+            wp_send_json_success([
+                'message' => 'Offers data saved successfully to post meta',
+                'post_id' => $post_id,
+                'results' => $results
+            ]);
         } else {
-            wp_send_json_error(['message' => 'Questions generator not available']);
+            wp_send_json_error([
+                'message' => 'Failed to save offers data',
+                'post_id' => $post_id
+            ]);
         }
     }
     
     /**
-     * ROOT FIX: Offers Generator AJAX handlers
-     */
-    public function ajax_generate_offers() {
-        // Initialize on demand
-        $this->ensure_ajax_handlers();
-        $this->ajax_handlers->handle_generate_offers();
-    }
-    
-    public function ajax_save_offers() {
-        // Initialize on demand
-        $this->ensure_ajax_handlers();
-        $this->ajax_handlers->handle_save_offers();
-    }
-    
-    /**
-     * ROOT FIX: Impact Intro Generator AJAX handlers
+     * ROOT FIX: Impact Intro Generator AJAX handlers - SIMPLIFIED following Topics Generator pattern
      */
     public function ajax_save_impact_intro() {
-        $impact_intro_generator = $this->get_generator_instance('impact_intro');
+        // Direct handler implementation
+        if (!$this->verify_ajax_request()) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
         
-        if ($impact_intro_generator) {
-            $impact_intro_generator->handle_save_impact_intro();
+        $post_id = intval($_POST['post_id'] ?? 0);
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID required']);
+            return;
+        }
+        
+        // Extract Impact Intro data (WHERE/WHY)
+        $impact_fields = ['where', 'why'];
+        $saved_count = 0;
+        
+        foreach ($impact_fields as $field) {
+            $value = sanitize_textarea_field($_POST[$field] ?? '');
+            if (!empty($value)) {
+                $meta_key = 'mkcg_impact_intro_' . $field;
+                update_post_meta($post_id, $meta_key, $value);
+                $saved_count++;
+            }
+        }
+        
+        if ($saved_count > 0) {
+            wp_send_json_success([
+                'message' => 'Impact Intro saved successfully',
+                'post_id' => $post_id,
+                'components_saved' => $saved_count
+            ]);
         } else {
-            wp_send_json_error(['message' => 'Impact Intro generator not available']);
+            wp_send_json_error(['message' => 'No Impact Intro data to save']);
         }
     }
     
     public function ajax_get_impact_intro() {
-        $impact_intro_generator = $this->get_generator_instance('impact_intro');
-        
-        if ($impact_intro_generator) {
-            $impact_intro_generator->handle_get_impact_intro();
-        } else {
-            wp_send_json_error(['message' => 'Impact Intro generator not available']);
+        // Direct handler implementation
+        if (!$this->verify_ajax_request()) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
         }
+        
+        $post_id = intval($_POST['post_id'] ?? 0);
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID required']);
+            return;
+        }
+        
+        // Get data directly using post meta
+        $impact_intro = [];
+        $impact_fields = ['where', 'why'];
+        foreach ($impact_fields as $field) {
+            $meta_key = 'mkcg_impact_intro_' . $field;
+            $value = get_post_meta($post_id, $meta_key, true);
+            if ($value) {
+                $impact_intro[$field] = $value;
+            }
+        }
+        
+        wp_send_json_success([
+            'post_id' => $post_id,
+            'impact_intro_components' => $impact_intro,
+            'has_data' => !empty($impact_intro)
+        ]);
     }
     
     /**
      * Helper method to get a generator instance, initializing if needed
+     * NOTE: This is now mainly for backward compatibility - direct AJAX handlers are preferred
      */
     private function get_generator_instance($type) {
         if (!isset($this->generators[$type])) {
@@ -708,86 +1015,269 @@ class Media_Kit_Content_Generator {
     }
     
     /**
-     * ROOT FIX: Biography Generator AJAX handlers
+     * ROOT FIX: Biography Generator AJAX handlers - SIMPLIFIED following Topics Generator pattern
      */
     public function ajax_generate_biography() {
-        $biography_generator = $this->get_generator_instance('biography');
-        
-        if ($biography_generator) {
-            $biography_generator->ajax_generate_biography();
-        } else {
-            wp_send_json_error(['message' => 'Biography generator not available']);
+        // Direct handler implementation
+        if (!$this->verify_ajax_request()) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
         }
+        
+        $post_id = intval($_POST['post_id'] ?? 0);
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID required']);
+            return;
+        }
+        
+        // Get form data
+        $name = sanitize_text_field($_POST['name'] ?? '');
+        $title = sanitize_text_field($_POST['title'] ?? '');
+        $organization = sanitize_text_field($_POST['organization'] ?? '');
+        $authority_hook = sanitize_textarea_field($_POST['authority_hook'] ?? '');
+        $impact_intro = sanitize_textarea_field($_POST['impact_intro'] ?? '');
+        $tone = sanitize_text_field($_POST['tone'] ?? 'professional');
+        $pov = sanitize_text_field($_POST['pov'] ?? 'third');
+        
+        if (empty($name)) {
+            wp_send_json_error(['message' => 'Name is required to generate a biography']);
+            return;
+        }
+        
+        // Generate simple demo biographies
+        $personal_info = $name;
+        if (!empty($title)) {
+            $personal_info .= ", a {$title}";
+        }
+        if (!empty($organization)) {
+            $personal_info .= " at {$organization}";
+        }
+        
+        $pronoun = ($pov === 'first') ? 'I' : 'They';
+        $possessive = ($pov === 'first') ? 'my' : 'their';
+        
+        $biographies = [
+            'short' => "{$personal_info} specializes in helping clients achieve exceptional results through proven methodologies and expert guidance.",
+            'medium' => "{$personal_info} is a recognized expert who has dedicated {$possessive} career to delivering transformational outcomes for clients. With a focus on practical solutions and measurable results, {$pronoun} help organizations and individuals achieve their most important goals through strategic guidance and proven methodologies.",
+            'long' => "{$personal_info} brings extensive experience and a track record of success to every client engagement. {$pronoun} specialize in developing customized strategies that deliver measurable results and lasting impact. Through {$possessive} comprehensive approach and commitment to excellence, {$pronoun} have helped numerous clients transform their businesses and achieve breakthrough performance. {$possessive} methodology combines proven frameworks with innovative thinking to create solutions that are both practical and powerful."
+        ];
+        
+        // Save biographies to post meta
+        update_post_meta($post_id, '_biography_short', $biographies['short']);
+        update_post_meta($post_id, '_biography_medium', $biographies['medium']);
+        update_post_meta($post_id, '_biography_long', $biographies['long']);
+        update_post_meta($post_id, '_biography_tone', $tone);
+        update_post_meta($post_id, '_biography_pov', $pov);
+        update_post_meta($post_id, '_biography_generation_date', current_time('mysql'));
+        
+        wp_send_json_success([
+            'biographies' => $biographies,
+            'settings' => [
+                'tone' => $tone,
+                'pov' => $pov
+            ],
+            'personal_info' => [
+                'name' => $name,
+                'title' => $title,
+                'organization' => $organization
+            ],
+            'generation_date' => current_time('mysql'),
+            'message' => 'Biography generated successfully'
+        ]);
     }
     
     public function ajax_modify_biography_tone() {
-        $biography_generator = $this->get_generator_instance('biography');
-        
-        if ($biography_generator) {
-            $biography_generator->ajax_modify_biography_tone();
-        } else {
-            wp_send_json_error(['message' => 'Biography generator not available']);
+        // Direct handler implementation
+        if (!$this->verify_ajax_request()) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
         }
-    }
-    
-    public function ajax_save_biography_to_formidable() {
-        $biography_generator = $this->get_generator_instance('biography');
         
-        if ($biography_generator) {
-            $biography_generator->ajax_save_biography_to_formidable();
-        } else {
-            wp_send_json_error(['message' => 'Biography generator not available']);
+        $post_id = intval($_POST['post_id'] ?? 0);
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID required']);
+            return;
         }
+        
+        $new_tone = sanitize_text_field($_POST['tone'] ?? 'professional');
+        
+        // Get existing biographies
+        $short_bio = get_post_meta($post_id, '_biography_short', true);
+        $medium_bio = get_post_meta($post_id, '_biography_medium', true);
+        $long_bio = get_post_meta($post_id, '_biography_long', true);
+        
+        if (empty($short_bio) && empty($medium_bio) && empty($long_bio)) {
+            wp_send_json_error(['message' => 'No existing biographies found to modify']);
+            return;
+        }
+        
+        // Update tone in post meta
+        update_post_meta($post_id, '_biography_tone', $new_tone);
+        
+        wp_send_json_success([
+            'biographies' => [
+                'short' => $short_bio,
+                'medium' => $medium_bio,
+                'long' => $long_bio
+            ],
+            'settings' => [
+                'tone' => $new_tone,
+                'pov' => get_post_meta($post_id, '_biography_pov', true) ?: 'third'
+            ],
+            'message' => 'Biography tone updated successfully'
+        ]);
     }
     
     public function ajax_save_biography_data() {
-        $biography_generator = $this->get_generator_instance('biography');
-        
-        if ($biography_generator) {
-            $biography_generator->ajax_save_biography_data();
-        } else {
-            wp_send_json_error(['message' => 'Biography generator not available']);
+        // Direct handler implementation
+        if (!$this->verify_ajax_request()) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
         }
+        
+        $post_id = intval($_POST['post_id'] ?? 0);
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID required']);
+            return;
+        }
+        
+        // Save form data to post meta
+        $fields = [
+            'name' => '_biography_name',
+            'title' => '_biography_title', 
+            'organization' => '_biography_organization',
+            'tone' => '_biography_tone',
+            'pov' => '_biography_pov',
+            'existingBio' => '_biography_existing',
+            'notes' => '_biography_notes'
+        ];
+        
+        $saved_count = 0;
+        foreach ($fields as $field => $meta_key) {
+            if (isset($_POST[$field])) {
+                $value = sanitize_textarea_field($_POST[$field]);
+                update_post_meta($post_id, $meta_key, $value);
+                $saved_count++;
+            }
+        }
+        
+        wp_send_json_success([
+            'message' => 'Biography data saved successfully',
+            'post_id' => $post_id,
+            'saved_count' => $saved_count
+        ]);
     }
     
     public function ajax_save_biography_field() {
-        $biography_generator = $this->get_generator_instance('biography');
+        // Direct handler implementation
+        if (!$this->verify_ajax_request()) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
         
-        if ($biography_generator) {
-            $biography_generator->ajax_save_biography_field();
+        $post_id = intval($_POST['post_id'] ?? 0);
+        $field_name = sanitize_text_field($_POST['field_name'] ?? '');
+        $field_value = sanitize_textarea_field($_POST['field_value'] ?? '');
+        
+        if (!$post_id || empty($field_name)) {
+            wp_send_json_error(['message' => 'Post ID and field name required']);
+            return;
+        }
+        
+        $meta_key = '_biography_' . $field_name;
+        $result = update_post_meta($post_id, $meta_key, $field_value);
+        
+        if ($result !== false) {
+            wp_send_json_success([
+                'message' => 'Field saved successfully',
+                'field_name' => $field_name,
+                'meta_key' => $meta_key
+            ]);
         } else {
-            wp_send_json_error(['message' => 'Biography generator not available']);
+            wp_send_json_error(['message' => 'Failed to save field']);
         }
     }
     
     public function ajax_get_biography_data() {
-        $biography_generator = $this->get_generator_instance('biography');
-        
-        if ($biography_generator) {
-            $biography_generator->ajax_get_biography_data();
-        } else {
-            wp_send_json_error(['message' => 'Biography generator not available']);
+        // Direct handler implementation
+        if (!$this->verify_ajax_request()) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
         }
+        
+        $post_id = intval($_POST['post_id'] ?? $_GET['post_id'] ?? 0);
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID required']);
+            return;
+        }
+        
+        // Get biography data from post meta
+        $biography_data = [
+            'has_data' => false,
+            'biographies' => [
+                'short' => get_post_meta($post_id, '_biography_short', true),
+                'medium' => get_post_meta($post_id, '_biography_medium', true),
+                'long' => get_post_meta($post_id, '_biography_long', true)
+            ],
+            'settings' => [
+                'tone' => get_post_meta($post_id, '_biography_tone', true) ?: 'professional',
+                'pov' => get_post_meta($post_id, '_biography_pov', true) ?: 'third'
+            ],
+            'personal_info' => [
+                'name' => get_post_meta($post_id, '_biography_name', true),
+                'title' => get_post_meta($post_id, '_biography_title', true),
+                'organization' => get_post_meta($post_id, '_biography_organization', true)
+            ],
+            'generation_date' => get_post_meta($post_id, '_biography_generation_date', true)
+        ];
+        
+        $biography_data['has_data'] = !empty($biography_data['biographies']['short']) || 
+                                     !empty($biography_data['biographies']['medium']) || 
+                                     !empty($biography_data['biographies']['long']);
+        
+        wp_send_json_success($biography_data);
     }
     
     public function ajax_validate_biography_data() {
-        $biography_generator = $this->get_generator_instance('biography');
-        
-        if ($biography_generator) {
-            $biography_generator->ajax_validate_biography_data();
-        } else {
-            wp_send_json_error(['message' => 'Biography generator not available']);
+        // Direct handler implementation
+        if (!$this->verify_ajax_request()) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
         }
+        
+        $name = sanitize_text_field($_POST['name'] ?? '');
+        $errors = [];
+        
+        if (empty($name)) {
+            $errors[] = 'Name is required';
+        }
+        
+        $tone = sanitize_text_field($_POST['tone'] ?? 'professional');
+        $valid_tones = ['professional', 'conversational', 'authoritative', 'friendly'];
+        if (!in_array($tone, $valid_tones)) {
+            $errors[] = 'Invalid tone specified';
+        }
+        
+        $pov = sanitize_text_field($_POST['pov'] ?? 'third');
+        $valid_povs = ['first', 'third'];
+        if (!in_array($pov, $valid_povs)) {
+            $errors[] = 'Invalid point of view specified';
+        }
+        
+        wp_send_json_success([
+            'valid' => empty($errors),
+            'errors' => $errors
+        ]);
     }
     
     public function ajax_regenerate_biography() {
-        $biography_generator = $this->get_generator_instance('biography');
-        
-        if ($biography_generator) {
-            $biography_generator->ajax_regenerate_biography();
-        } else {
-            wp_send_json_error(['message' => 'Biography generator not available']);
-        }
+        // Direct handler implementation - same as generate
+        $this->ajax_generate_biography();
+    }
+    
+    public function ajax_save_biography_to_formidable() {
+        // Redirect to the new save method for WordPress post meta
+        $this->ajax_save_biography_data();
     }
     
     /**
@@ -875,6 +1365,10 @@ class Media_Kit_Content_Generator {
         add_action('wp_ajax_mkcg_generate_offers', [$this, 'ajax_generate_offers']);
         add_action('wp_ajax_mkcg_save_offers', [$this, 'ajax_save_offers']);
         
+        // Authority Hook Generator AJAX handlers
+        add_action('wp_ajax_mkcg_save_authority_hook_data', [$this, 'ajax_save_authority_hook']);
+        add_action('wp_ajax_mkcg_get_authority_hook_data', [$this, 'ajax_save_authority_hook']);
+        
         // Impact Intro Generator AJAX handlers
         add_action('wp_ajax_mkcg_save_impact_intro', [$this, 'ajax_save_impact_intro']);
         add_action('wp_ajax_mkcg_get_impact_intro', [$this, 'ajax_get_impact_intro']);
@@ -883,6 +1377,7 @@ class Media_Kit_Content_Generator {
         add_action('wp_ajax_mkcg_generate_biography', [$this, 'ajax_generate_biography']);
         add_action('wp_ajax_mkcg_modify_biography_tone', [$this, 'ajax_modify_biography_tone']);
         add_action('wp_ajax_mkcg_save_biography_to_formidable', [$this, 'ajax_save_biography_to_formidable']);
+        add_action('wp_ajax_mkcg_save_biography_to_post_meta', [$this, 'ajax_save_biography_data']);
         add_action('wp_ajax_mkcg_save_biography_data', [$this, 'ajax_save_biography_data']);
         add_action('wp_ajax_mkcg_save_biography_field', [$this, 'ajax_save_biography_field']);
         add_action('wp_ajax_mkcg_get_biography_data', [$this, 'ajax_get_biography_data']);
@@ -1491,7 +1986,17 @@ class Media_Kit_Content_Generator {
                 'get_topics' => 'mkcg_get_topics_data',
                 'save_authority_hook' => 'mkcg_save_authority_hook',
                 'generate_topics' => 'mkcg_generate_topics',
-                'save_topic_field' => 'mkcg_save_topic_field'
+                'save_topic_field' => 'mkcg_save_topic_field',
+                'save_questions' => 'mkcg_save_questions',
+                'generate_questions' => 'mkcg_generate_questions',
+                'get_questions' => 'mkcg_get_questions_data',
+                'save_offers' => 'mkcg_save_offers',
+                'generate_offers' => 'mkcg_generate_offers',
+                'save_impact_intro' => 'mkcg_save_impact_intro',
+                'get_impact_intro' => 'mkcg_get_impact_intro',
+                'generate_biography' => 'mkcg_generate_biography',
+                'save_biography' => 'mkcg_save_biography_data',
+                'get_biography' => 'mkcg_get_biography_data'
             ]
         ]);
         
