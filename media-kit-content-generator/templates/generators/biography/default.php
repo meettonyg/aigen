@@ -9,52 +9,133 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Get entry information
-$entry_id = 0;
-$entry_key = '';
-$post_id = 0;
-
-// Try to get entry from URL parameters  
-if (isset($_GET['entry'])) {
-    $entry_key = sanitize_text_field($_GET['entry']);
-    
-    // Use the Formidable service to resolve entry ID
-    if (isset($formidable_service)) {
-        $entry_data = $formidable_service->get_entry_data($entry_key);
-        if ($entry_data['success']) {
-            $entry_id = $entry_data['entry_id'];
-        }
-    }
-}
-
-// Try to get post ID from URL parameters
-if (isset($_GET['post_id']) && intval($_GET['post_id']) > 0) {
-    $post_id = intval($_GET['post_id']);
-} else if (isset($_GET['entry']) && intval($_GET['entry']) > 0) {
-    $post_id = intval($_GET['entry']);
-}
-
-// Get template data if generator instance is available
+// CLEAN CODE: Simple data loading following Topics Generator pattern
 $template_data = [];
+$debug_info = [];
+
+// Primary Method: Try to get data from generator instance
 if (isset($generator_instance) && method_exists($generator_instance, 'get_template_data')) {
     $template_data = $generator_instance->get_template_data();
+    $debug_info[] = '✅ Got data from Biography generator instance';
     error_log('MKCG Biography Template: Got data from generator instance');
 } else {
-    // Fallback: Create empty structure
-    $template_data = [
-        'post_id' => $post_id,
-        'entry_id' => $entry_id,
-        'has_data' => false
-    ];
-    error_log('MKCG Biography Template: Using fallback empty structure');
+    $debug_info[] = '⚠️ Biography generator instance not available';
+    
+    // Fallback Method: Try direct Pods service
+    if (class_exists('MKCG_Pods_Service')) {
+        $pods_service = new MKCG_Pods_Service();
+        
+        // Try to get post ID from various sources
+        $post_id = 0;
+        if (isset($_GET['post_id']) && intval($_GET['post_id']) > 0) {
+            $post_id = intval($_GET['post_id']);
+            $debug_info[] = "📍 Using post_id from URL: {$post_id}";
+        } else if (isset($_GET['entry']) && intval($_GET['entry']) > 0) {
+            $post_id = intval($_GET['entry']);
+            $debug_info[] = "📍 Using entry from URL: {$post_id}";
+        } else {
+            // Get the most recent guest post for testing
+            $recent_guest = get_posts([
+                'post_type' => 'guests',
+                'post_status' => 'publish',
+                'numberposts' => 1,
+                'orderby' => 'date',
+                'order' => 'DESC'
+            ]);
+            if (!empty($recent_guest)) {
+                $post_id = $recent_guest[0]->ID;
+                $debug_info[] = "🎯 Using most recent guest post: {$post_id}";
+            }
+        }
+        
+        if ($post_id > 0) {
+            $guest_data = $pods_service->get_guest_data($post_id);
+            
+            // Get biography-specific data from post meta
+            $biography_data = [
+                'short' => get_post_meta($post_id, '_biography_short', true),
+                'medium' => get_post_meta($post_id, '_biography_medium', true),
+                'long' => get_post_meta($post_id, '_biography_long', true)
+            ];
+            
+            $personal_info = [
+                'name' => get_post_meta($post_id, '_guest_name', true) ?: get_the_title($post_id),
+                'title' => get_post_meta($post_id, '_guest_title', true),
+                'organization' => get_post_meta($post_id, '_guest_company', true)
+            ];
+            
+            $settings = [
+                'tone' => get_post_meta($post_id, '_biography_tone', true) ?: 'professional',
+                'pov' => get_post_meta($post_id, '_biography_pov', true) ?: 'third'
+            ];
+            
+            $template_data = [
+                'post_id' => $post_id,
+                'authority_hook_components' => $guest_data['authority_hook_components'],
+                'impact_intro_components' => $guest_data['impact_intro_components'],
+                'biographies' => $biography_data,
+                'personal_info' => $personal_info,
+                'settings' => $settings,
+                'has_data' => $guest_data['has_data'] || !empty($biography_data['short']) || !empty($biography_data['medium']) || !empty($biography_data['long'])
+            ];
+            $debug_info[] = "✅ Loaded data via direct Pods service";
+            $debug_info[] = "👤 Name: " . $personal_info['name'];
+            $debug_info[] = "🔑 Authority hook WHO: " . $guest_data['authority_hook_components']['who'];
+        } else {
+            $debug_info[] = "❌ No valid post ID found";
+        }
+    } else {
+        $debug_info[] = "❌ MKCG_Pods_Service not available";
+    }
+    
+    // Fallback: Create empty structure when no data found
+    if (empty($template_data)) {
+        $template_data = [
+            'post_id' => 0,
+            'authority_hook_components' => [
+                'who' => '',
+                'what' => '',
+                'when' => '',
+                'how' => '',
+                'complete' => ''
+            ],
+            'impact_intro_components' => [
+                'where' => '',
+                'why' => '',
+                'complete' => ''
+            ],
+            'biographies' => [
+                'short' => '',
+                'medium' => '',
+                'long' => ''
+            ],
+            'personal_info' => [
+                'name' => '',
+                'title' => '',
+                'organization' => ''
+            ],
+            'settings' => [
+                'tone' => 'professional',
+                'pov' => 'third'
+            ],
+            'has_data' => false
+        ];
+        $debug_info[] = "⚠️ Using empty structure (no data found)";
+    }
+    
+    error_log('MKCG Biography Template: ' . implode(' | ', $debug_info));
 }
 
-// Extract data for easier access
-$post_id = $template_data['post_id'] ?? $post_id;
-$entry_id = $template_data['entry_id'] ?? $entry_id;
-$has_data = $template_data['has_data'] ?? false;
+// Extract data for easier access in template
+$post_id = $template_data['post_id'];
+$authority_hook_components = $template_data['authority_hook_components'];
+$impact_intro_components = $template_data['impact_intro_components'];
+$biographies = $template_data['biographies'];
+$personal_info = $template_data['personal_info'];
+$settings = $template_data['settings'];
+$has_data = $template_data['has_data'];
 
-error_log('MKCG Biography Template: Rendering with post_id=' . $post_id . ', entry_id=' . $entry_id . ', has_data=' . ($has_data ? 'true' : 'false'));
+error_log('MKCG Biography Template: Rendering with post_id=' . $post_id . ', has_data=' . ($has_data ? 'true' : 'false'));
 ?>
 
 <div class="generator__container biography-generator" data-generator="biography">
@@ -82,9 +163,18 @@ error_log('MKCG Biography Template: Rendering with post_id=' . $post_id . ', ent
                 </div>
                 
                 <div class="generator__authority-hook-content">
-                    <p id="biography-generator-authority-hook-text">
-                        <!-- Authority hook text will be populated by service -->
-                    </p>
+                    <p id="biography-generator-authority-hook-text"><?php 
+                        // CLEAN CODE: Show text only when all components have real data
+                        $all_components_exist = !empty($authority_hook_components['who']) && 
+                                                !empty($authority_hook_components['what']) && 
+                                                !empty($authority_hook_components['when']) && 
+                                                !empty($authority_hook_components['how']);
+
+                        if ($all_components_exist) {
+                            echo esc_html($authority_hook_components['complete']);
+                        }
+                        // Empty when incomplete - no defaults
+                    ?></p>
                 </div>
                 
                 <div class="generator__authority-hook-actions">
@@ -117,12 +207,16 @@ error_log('MKCG Biography Template: Rendering with post_id=' . $post_id . ', ent
                 }
                 
                 if ($authority_hook_service) {
-                    // Get current authority hook data
-                    $authority_hook_data = [];
-                    if ($post_id) {
-                        $hook_result = $authority_hook_service->get_authority_hook_data($post_id);
-                        $authority_hook_data = $hook_result['components'];
-                    }
+                    // CLEAN CODE: Pass values as-is to Authority Hook Service
+                    $current_values = [
+                        'who' => $authority_hook_components['who'] ?? '',
+                        'what' => $authority_hook_components['what'] ?? '', 
+                        'when' => $authority_hook_components['when'] ?? '',
+                        'how' => $authority_hook_components['how'] ?? ''
+                    ];
+                    
+                    error_log('MKCG Biography Template: Authority Hook Components: ' . json_encode($authority_hook_components));
+                    error_log('MKCG Biography Template: Current Values: ' . json_encode($current_values));
                     
                     // Render options for Biography Generator
                     $render_options = [
@@ -135,7 +229,7 @@ error_log('MKCG Biography Template: Rendering with post_id=' . $post_id . ', ent
                     ];
                     
                     // Render Authority Hook Builder
-                    echo $authority_hook_service->render_authority_hook_builder('biography', $authority_hook_data, $render_options);
+                    echo $authority_hook_service->render_authority_hook_builder('biography', $current_values, $render_options);
                     error_log('MKCG Biography: Authority Hook Builder rendered via centralized service');
                 } else {
                     echo '<div class="generator__message generator__message--error">Authority Hook Service not available</div>';
@@ -153,9 +247,16 @@ error_log('MKCG Biography Template: Rendering with post_id=' . $post_id . ', ent
                 </div>
                 
                 <div class="generator__authority-hook-content">
-                    <p id="biography-generator-impact-intro-text">
-                        <!-- Impact intro text will be populated by service -->
-                    </p>
+                    <p id="biography-generator-impact-intro-text"><?php 
+                        // CLEAN CODE: Show text only when components have real data
+                        $impact_components_exist = !empty($impact_intro_components['where']) && 
+                                                  !empty($impact_intro_components['why']);
+
+                        if ($impact_components_exist) {
+                            echo esc_html($impact_intro_components['complete']);
+                        }
+                        // Empty when incomplete - no defaults
+                    ?></p>
                 </div>
                 
                 <div class="generator__authority-hook-actions">
@@ -188,12 +289,14 @@ error_log('MKCG Biography Template: Rendering with post_id=' . $post_id . ', ent
                 }
                 
                 if ($impact_intro_service) {
-                    // Get current impact intro data
-                    $impact_intro_data = [];
-                    if ($post_id) {
-                        $intro_result = $impact_intro_service->get_impact_intro_data($post_id);
-                        $impact_intro_data = $intro_result['components'];
-                    }
+                    // CLEAN CODE: Pass values as-is to Impact Intro Service
+                    $current_impact_values = [
+                        'where' => $impact_intro_components['where'] ?? '',
+                        'why' => $impact_intro_components['why'] ?? ''
+                    ];
+                    
+                    error_log('MKCG Biography Template: Impact Intro Components: ' . json_encode($impact_intro_components));
+                    error_log('MKCG Biography Template: Current Impact Values: ' . json_encode($current_impact_values));
                     
                     // Render options for Biography Generator
                     $render_options = [
@@ -206,7 +309,7 @@ error_log('MKCG Biography Template: Rendering with post_id=' . $post_id . ', ent
                     ];
                     
                     // Render Impact Intro Builder
-                    echo $impact_intro_service->render_impact_intro_builder('biography', $impact_intro_data, $render_options);
+                    echo $impact_intro_service->render_impact_intro_builder('biography', $current_impact_values, $render_options);
                     error_log('MKCG Biography: Impact Intro Builder rendered via centralized service');
                 } else {
                     echo '<div class="generator__message generator__message--error">Impact Intro Service not available</div>';
@@ -228,6 +331,7 @@ error_log('MKCG Biography Template: Rendering with post_id=' . $post_id . ', ent
                            id="biography-name" 
                            name="name" 
                            class="field__input"
+                           value="<?php echo esc_attr($personal_info['name']); ?>"
                            placeholder="Enter your full name">
                 </div>
                 
@@ -237,6 +341,7 @@ error_log('MKCG Biography Template: Rendering with post_id=' . $post_id . ', ent
                            id="biography-title" 
                            name="title" 
                            class="field__input"
+                           value="<?php echo esc_attr($personal_info['title']); ?>"
                            placeholder="e.g., CEO, Marketing Consultant, Business Coach">
                 </div>
                 
@@ -246,6 +351,7 @@ error_log('MKCG Biography Template: Rendering with post_id=' . $post_id . ', ent
                            id="biography-organization" 
                            name="organization" 
                            class="field__input"
+                           value="<?php echo esc_attr($personal_info['organization']); ?>"
                            placeholder="Your company or organization name">
                 </div>
             </div>
@@ -261,10 +367,10 @@ error_log('MKCG Biography Template: Rendering with post_id=' . $post_id . ', ent
                     <div class="field">
                         <label for="biography-tone" class="field__label">Tone</label>
                         <select id="biography-tone" name="tone" class="field__input">
-                            <option value="professional">Professional</option>
-                            <option value="conversational">Conversational</option>
-                            <option value="authoritative">Authoritative</option>
-                            <option value="friendly">Friendly</option>
+                            <option value="professional"<?php echo $settings['tone'] === 'professional' ? ' selected' : ''; ?>>Professional</option>
+                            <option value="conversational"<?php echo $settings['tone'] === 'conversational' ? ' selected' : ''; ?>>Conversational</option>
+                            <option value="authoritative"<?php echo $settings['tone'] === 'authoritative' ? ' selected' : ''; ?>>Authoritative</option>
+                            <option value="friendly"<?php echo $settings['tone'] === 'friendly' ? ' selected' : ''; ?>>Friendly</option>
                         </select>
                     </div>
                     
@@ -280,8 +386,8 @@ error_log('MKCG Biography Template: Rendering with post_id=' . $post_id . ', ent
                     <div class="field">
                         <label for="biography-pov" class="field__label">Point of View</label>
                         <select id="biography-pov" name="pov" class="field__input">
-                            <option value="third" selected>Third Person (He/She/They)</option>
-                            <option value="first">First Person (I/My)</option>
+                            <option value="third"<?php echo $settings['pov'] === 'third' ? ' selected' : ''; ?>>Third Person (He/She/They)</option>
+                            <option value="first"<?php echo $settings['pov'] === 'first' ? ' selected' : ''; ?>>First Person (I/My)</option>
                         </select>
                     </div>
                 </div>
@@ -356,10 +462,8 @@ error_log('MKCG Biography Template: Rendering with post_id=' . $post_id . ', ent
                 </div>
             </div>
             
-            <!-- Hidden fields for data transmission -->
+            <!-- Hidden fields for data transmission - Pure Pods -->
             <input type="hidden" id="biography-post-id" value="<?php echo esc_attr($post_id); ?>">
-            <input type="hidden" id="biography-entry-id" value="<?php echo esc_attr($entry_id); ?>">
-            <input type="hidden" id="biography-entry-key" value="<?php echo esc_attr($entry_key); ?>">
             <input type="hidden" id="biography-nonce" value="<?php echo wp_create_nonce('mkcg_nonce'); ?>">
             
             <!-- Data storage for services -->
@@ -468,15 +572,93 @@ error_log('MKCG Biography Template: Rendering with post_id=' . $post_id . ', ent
 
 <!-- Pass PHP data to JavaScript -->
 <script type="text/javascript">
-    // Biography Generator data for JavaScript
+    // Biography Generator data for JavaScript - Pure Pods integration
+    console.log('🎯 MKCG Biography: Template data loaded', {
+        postId: <?php echo intval($post_id); ?>,
+        hasData: <?php echo $has_data ? 'true' : 'false'; ?>
+    });
+    
+    // ENHANCED DEBUG: Show what data we're passing to JavaScript
+    console.log('🔍 Authority Hook Components from PHP:', <?php echo json_encode($authority_hook_components); ?>);
+    console.log('🔍 Impact Intro Components from PHP:', <?php echo json_encode($impact_intro_components); ?>);
+    console.log('🔍 Personal Info from PHP:', <?php echo json_encode($personal_info); ?>);
+    console.log('🔍 Current URL parameters:', {
+        entry: '<?php echo esc_js($_GET['entry'] ?? ''); ?>',
+        post_id: '<?php echo esc_js($_GET['post_id'] ?? ''); ?>'
+    });
+    
+    // CLEAN CODE: Template data - always empty defaults, loads real data if exists
     window.MKCG_Biography_Data = {
         postId: <?php echo intval($post_id); ?>,
-        entryId: <?php echo intval($entry_id); ?>,
-        entryKey: '<?php echo esc_js($entry_key); ?>',
         hasData: <?php echo $has_data ? 'true' : 'false'; ?>,
-        ajaxUrl: '<?php echo admin_url('admin-ajax.php'); ?>',
-        nonce: '<?php echo wp_create_nonce('mkcg_nonce'); ?>'
+        authorityHook: {
+            who: '<?php echo esc_js($authority_hook_components['who'] ?? ''); ?>',
+            what: '<?php echo esc_js($authority_hook_components['what'] ?? ''); ?>',
+            when: '<?php echo esc_js($authority_hook_components['when'] ?? ''); ?>',
+            how: '<?php echo esc_js($authority_hook_components['how'] ?? ''); ?>',
+            complete: '<?php echo esc_js($authority_hook_components['complete'] ?? ''); ?>'
+        },
+        impactIntro: {
+            where: '<?php echo esc_js($impact_intro_components['where'] ?? ''); ?>',
+            why: '<?php echo esc_js($impact_intro_components['why'] ?? ''); ?>',
+            complete: '<?php echo esc_js($impact_intro_components['complete'] ?? ''); ?>'
+        },
+        personalInfo: {
+            name: '<?php echo esc_js($personal_info['name'] ?? ''); ?>',
+            title: '<?php echo esc_js($personal_info['title'] ?? ''); ?>',
+            organization: '<?php echo esc_js($personal_info['organization'] ?? ''); ?>'
+        },
+        settings: {
+            tone: '<?php echo esc_js($settings['tone'] ?? 'professional'); ?>',
+            pov: '<?php echo esc_js($settings['pov'] ?? 'third'); ?>'
+        },
+        biographies: {
+            short: '<?php echo esc_js($biographies['short'] ?? ''); ?>',
+            medium: '<?php echo esc_js($biographies['medium'] ?? ''); ?>',
+            long: '<?php echo esc_js($biographies['long'] ?? ''); ?>'
+        },
+        dataSource: '<?php echo isset($generator_instance) ? 'generator_instance' : 'fallback'; ?>'
     };
     
-    console.log('MKCG Biography: Template data loaded', window.MKCG_Biography_Data);
+    console.log('✅ MKCG Biography: Final data loaded', window.MKCG_Biography_Data);
+    
+    // Set up AJAX URL for WordPress
+    if (!window.ajaxurl) {
+        window.ajaxurl = '<?php echo admin_url('admin-ajax.php'); ?>';
+    }
+    
+    // CRITICAL DEBUG: Check for immediate population
+    if (window.MKCG_Biography_Data.hasData) {
+        console.log('📋 MKCG Biography: Data found - should populate automatically');
+        
+        // ROOT FIX: Check if authority hook text element exists and populate if needed
+        const hookText = document.getElementById('biography-generator-authority-hook-text');
+        if (hookText) {
+            console.log('✅ Authority hook element found with text:', hookText.textContent);
+            
+            // ROOT FIX: If element is empty but we have authority hook data, populate it
+            if (!hookText.textContent.trim() && window.MKCG_Biography_Data.authorityHook.complete) {
+                hookText.textContent = window.MKCG_Biography_Data.authorityHook.complete;
+                console.log('✅ Populated empty authority hook element with template data');
+            }
+        } else {
+            console.error('❌ Authority hook element not found - check selector mismatch');
+        }
+        
+        // Check if impact intro element exists and populate if needed
+        const impactText = document.getElementById('biography-generator-impact-intro-text');
+        if (impactText) {
+            console.log('✅ Impact intro element found with text:', impactText.textContent);
+            
+            if (!impactText.textContent.trim() && window.MKCG_Biography_Data.impactIntro.complete) {
+                impactText.textContent = window.MKCG_Biography_Data.impactIntro.complete;
+                console.log('✅ Populated empty impact intro element with template data');
+            }
+        }
+        
+    } else {
+        console.log('⚠️ MKCG Biography: No data found - using defaults');
+    }
+    
+    console.log('✅ MKCG Biography: Template loaded - Pure Pods integration applied');
 </script>

@@ -2,10 +2,10 @@
 /**
  * Enhanced Biography Generator - Complete Backend PHP Class
  * 
- * PROMPT 4 IMPLEMENTATION: Complete PHP backend with all AJAX handlers, OpenAI integration,
- * and Formidable Forms compatibility following established patterns.
+ * PROMPT 4 IMPLEMENTATION: Complete PHP backend with OpenAI integration,
+ * and Pure Pods compatibility following unified architecture patterns.
  * 
- * Handles biography generation, AJAX requests, OpenAI integration, and Formidable Forms compatibility.
+ * Handles biography generation, AJAX requests, OpenAI integration, and WordPress post meta storage.
  * Follows unified generator architecture and service-based approach.
  *
  * @package Media_Kit_Content_Generator
@@ -54,18 +54,7 @@ class MKCG_Enhanced_Biography_Generator {
     ];
     
     /**
-     * Formidable Forms field mappings
-     */
-    private $formidable_fields = [
-        'short_bio' => 'field_9001',
-        'medium_bio' => 'field_9002',
-        'long_bio' => 'field_9003',
-        'tone' => 'field_9004',
-        'pov' => 'field_9005'
-    ];
-    
-    /**
-     * Post meta field mappings
+     * Post meta field mappings for WordPress storage
      */
     private $post_meta_fields = [
         'short_bio' => '_biography_short',
@@ -116,7 +105,7 @@ class MKCG_Enhanced_Biography_Generator {
     }
     
     /**
-     * Initialize centralized services
+     * Initialize centralized services - Pure Pods integration
      */
     private function init_services() {
         // Initialize Authority Hook Service
@@ -128,6 +117,8 @@ class MKCG_Enhanced_Biography_Generator {
         if (class_exists('MKCG_Impact_Intro_Service')) {
             $this->impact_intro_service = new MKCG_Impact_Intro_Service();
         }
+        
+        error_log('MKCG Biography Generator: Initialized with centralized services (Pure Pods integration)');
     }
     
     /**
@@ -138,9 +129,8 @@ class MKCG_Enhanced_Biography_Generator {
         add_action('wp_ajax_mkcg_modify_biography_tone', [$this, 'ajax_modify_biography_tone']);
         add_action('wp_ajax_mkcg_save_biography_data', [$this, 'ajax_save_biography_data']);
         add_action('wp_ajax_mkcg_save_biography_field', [$this, 'ajax_save_biography_field']);
-        add_action('wp_ajax_mkcg_save_biography_to_formidable', [$this, 'ajax_save_biography_to_formidable']);
         
-        error_log('MKCG Biography Generator: All AJAX handlers registered');
+        error_log('MKCG Biography Generator: AJAX handlers registered (Pure Pods integration)');
         add_action('wp_ajax_mkcg_get_biography_data', [$this, 'ajax_get_biography_data']);
         add_action('wp_ajax_mkcg_validate_biography_data', [$this, 'ajax_validate_biography_data']);
         add_action('wp_ajax_mkcg_regenerate_biography', [$this, 'ajax_regenerate_biography']);
@@ -213,7 +203,7 @@ class MKCG_Enhanced_Biography_Generator {
     }
     
     /**
-     * Get template data for rendering
+     * Get template data for rendering - Pure Pods integration
      * 
      * @return array Template data
      */
@@ -1156,41 +1146,6 @@ class MKCG_Enhanced_Biography_Generator {
         
         // Update last modified timestamp
         update_post_meta($post_id, $this->post_meta_fields['last_modified'], current_time('mysql'));
-    }
-    
-    /**
-     * Save biographies to Formidable Forms entry
-     * 
-     * @param int $entry_id Entry ID
-     * @param array $biographies Biographies to save
-     * @param array $settings Settings to save
-     * @return bool Success status
-     */
-    private function save_biographies_to_formidable($entry_id, $biographies, $settings) {
-        // Check if Formidable Forms is active
-        if (!class_exists('FrmEntry')) {
-            return false;
-        }
-        
-        // Check if entry exists
-        $entry = FrmEntry::getOne($entry_id);
-        if (!$entry) {
-            return false;
-        }
-        
-        // Prepare field values
-        $field_values = [
-            $this->formidable_fields['short_bio'] => $biographies['short'],
-            $this->formidable_fields['medium_bio'] => $biographies['medium'],
-            $this->formidable_fields['long_bio'] => $biographies['long'],
-            $this->formidable_fields['tone'] => $settings['tone'],
-            $this->formidable_fields['pov'] => $settings['pov']
-        ];
-        
-        // Update entry
-        $result = FrmEntry::update($entry_id, $field_values);
-        
-        return $result !== false;
     }
     
     /**
