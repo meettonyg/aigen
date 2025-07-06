@@ -3239,16 +3239,16 @@
   box-shadow: inset 0 2px 4px rgba(26, 155, 220, 0.05);
 }
 
-/* Credential Tag Styling */
+/* Credential Tag Styling - FIXED: Match Audience Builder Colors Exactly */
 .credential-tag {
   display: inline-flex;
   align-items: center;
-  background: linear-gradient(135deg, #eaf0f6 0%, #e1ebf5 100%);
+  background-color: #eaf0f6;
   padding: var(--mkcg-space-xs) var(--mkcg-space-sm);
   border-radius: var(--mkcg-radius-xl);
   margin: 2px;
   font-size: var(--mkcg-font-size-sm);
-  color: var(--mkcg-text-primary);
+  color: #333;
   border: 1px solid #d8e6f3;
   transition: all var(--mkcg-transition-fast);
   cursor: pointer;
@@ -3256,31 +3256,40 @@
 }
 
 .credential-tag span {
-  color: var(--mkcg-text-primary);
+  color: #333;
   font-weight: var(--mkcg-font-weight-medium);
 }
 
+.credential-tag:hover {
+  background-color: #deeefe;
+  border-color: #a8d1f7;
+}
+
 .credential-tag.active {
-  background: linear-gradient(135deg, var(--mkcg-primary) 0%, var(--mkcg-primary-dark) 100%);
-  color: var(--mkcg-text-white);
-  border-color: var(--mkcg-primary-dark);
-  box-shadow: 0 2px 8px rgba(26, 155, 220, 0.3);
-  transform: translateY(-1px);
+  background-color: #deeefe;
+  color: #333;
+  border-color: #a8d1f7;
+  box-shadow: 0 1px 3px rgba(168, 209, 247, 0.3);
 }
 
 .credential-tag.active span {
-  color: var(--mkcg-text-white);
+  color: #333;
   font-weight: var(--mkcg-font-weight-semibold);
 }
 
-/* Checkbox within credential tag */
+.credential-tag.active:hover {
+  background-color: #deeefe;
+  border-color: #a8d1f7;
+}
+
+/* Checkbox within credential tag - FIXED: Match Audience Builder Colors */
 .credential-checkbox {
   margin-right: var(--mkcg-space-xs);
   width: 16px;
   height: 16px;
   appearance: none;
   -webkit-appearance: none;
-  border: 2px solid var(--mkcg-border-medium);
+  border: 2px solid #cbd6e2;
   border-radius: var(--mkcg-radius-sm);
   outline: none;
   cursor: pointer;
@@ -3290,9 +3299,9 @@
 }
 
 .credential-checkbox:checked {
-  background-color: var(--mkcg-primary);
-  border-color: var(--mkcg-primary);
-  box-shadow: 0 0 0 2px rgba(26, 155, 220, 0.3);
+  background-color: #0074e0;
+  border-color: #0074e0;
+  box-shadow: 0 0 0 1px rgba(0, 116, 224, 0.3);
 }
 
 .credential-checkbox:checked::after {
@@ -3307,7 +3316,7 @@
   transform: rotate(45deg);
 }
 
-/* Remove button for credential tags */
+/* Remove button for credential tags - FIXED: Match Audience Builder Colors */
 .credential-remove {
   display: inline-flex;
   align-items: center;
@@ -3316,7 +3325,7 @@
   cursor: pointer;
   font-weight: var(--mkcg-font-weight-bold);
   font-size: var(--mkcg-font-size-md);
-  color: var(--mkcg-text-light);
+  color: #999;
   width: 20px;
   height: 20px;
   border-radius: var(--mkcg-radius-full);
