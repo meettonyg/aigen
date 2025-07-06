@@ -64,6 +64,8 @@ class MKCG_Enhanced_Biography_Generator {
         // Register AJAX handlers
         add_action('wp_ajax_mkcg_generate_biography', [$this, 'ajax_generate_biography']);
         add_action('wp_ajax_mkcg_modify_biography_tone', [$this, 'ajax_modify_biography_tone']);
+        add_action('wp_ajax_mkcg_save_biography_data', [$this, 'ajax_save_biography_data']);
+        add_action('wp_ajax_mkcg_save_biography_field', [$this, 'ajax_save_biography_field']);
         add_action('wp_ajax_mkcg_save_biography_to_formidable', [$this, 'ajax_save_biography_to_formidable']);
         
         // Register scripts and styles - hook into the main plugin
@@ -862,6 +864,159 @@ class MKCG_Enhanced_Biography_Generator {
             wp_send_json_error([
                 'message' => 'Failed to save biographies to Formidable Forms.',
                 'entry_id' => $entry_id
+            ]);
+        }
+    }
+    
+    /**
+     * AJAX handler for saving all biography data - Following Topics Generator pattern
+     */
+    public function ajax_save_biography_data() {
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mkcg_nonce')) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+            return;
+        }
+        
+        // Check if we have post ID
+        if (!isset($_POST['post_id']) || intval($_POST['post_id']) <= 0) {
+            wp_send_json_error(['message' => 'Post ID is required.']);
+            return;
+        }
+        
+        $post_id = intval($_POST['post_id']);
+        
+        // Collect form data
+        $form_data = [
+            'name' => isset($_POST['name']) ? sanitize_text_field($_POST['name']) : '',
+            'title' => isset($_POST['title']) ? sanitize_text_field($_POST['title']) : '',
+            'organization' => isset($_POST['organization']) ? sanitize_text_field($_POST['organization']) : '',
+            'tone' => isset($_POST['tone']) ? sanitize_text_field($_POST['tone']) : $this->default_settings['tone'],
+            'length' => isset($_POST['length']) ? sanitize_text_field($_POST['length']) : $this->default_settings['length'],
+            'pov' => isset($_POST['pov']) ? sanitize_text_field($_POST['pov']) : $this->default_settings['pov'],
+            'existingBio' => isset($_POST['existingBio']) ? sanitize_textarea_field($_POST['existingBio']) : '',
+            'notes' => isset($_POST['notes']) ? sanitize_textarea_field($_POST['notes']) : ''
+        ];
+        
+        // Authority Hook components
+        $authority_hook = [
+            'who' => isset($_POST['authority_who']) ? sanitize_text_field($_POST['authority_who']) : '',
+            'what' => isset($_POST['authority_what']) ? sanitize_text_field($_POST['authority_what']) : '',
+            'when' => isset($_POST['authority_when']) ? sanitize_text_field($_POST['authority_when']) : '',
+            'how' => isset($_POST['authority_how']) ? sanitize_text_field($_POST['authority_how']) : ''
+        ];
+        
+        // Impact Intro components
+        $impact_intro = [
+            'where' => isset($_POST['impact_where']) ? sanitize_text_field($_POST['impact_where']) : '',
+            'why' => isset($_POST['impact_why']) ? sanitize_text_field($_POST['impact_why']) : ''
+        ];
+        
+        // Biographies (if provided)
+        $biographies = [];
+        if (isset($_POST['biographies']) && is_array($_POST['biographies'])) {
+            $biographies = [
+                'short' => isset($_POST['biographies']['short']) ? sanitize_textarea_field($_POST['biographies']['short']) : '',
+                'medium' => isset($_POST['biographies']['medium']) ? sanitize_textarea_field($_POST['biographies']['medium']) : '',
+                'long' => isset($_POST['biographies']['long']) ? sanitize_textarea_field($_POST['biographies']['long']) : ''
+            ];
+        }
+        
+        // Save basic biography fields to post meta
+        update_post_meta($post_id, '_biography_name', $form_data['name']);
+        update_post_meta($post_id, '_biography_title', $form_data['title']);
+        update_post_meta($post_id, '_biography_organization', $form_data['organization']);
+        update_post_meta($post_id, '_biography_existing', $form_data['existingBio']);
+        update_post_meta($post_id, '_biography_notes', $form_data['notes']);
+        
+        // Save settings
+        update_post_meta($post_id, $this->post_meta_fields['tone'], $form_data['tone']);
+        update_post_meta($post_id, $this->post_meta_fields['pov'], $form_data['pov']);
+        
+        // Save Authority Hook data using centralized service
+        if (class_exists('MKCG_Authority_Hook_Service')) {
+            $authority_service = new MKCG_Authority_Hook_Service();
+            $authority_service->save_authority_hook_data($post_id, $authority_hook);
+        }
+        
+        // Save Impact Intro data using centralized service
+        if (class_exists('MKCG_Impact_Intro_Service')) {
+            $impact_service = new MKCG_Impact_Intro_Service();
+            $impact_service->save_impact_intro_data($post_id, $impact_intro);
+        }
+        
+        // Save biographies if provided
+        if (!empty($biographies['short']) || !empty($biographies['medium']) || !empty($biographies['long'])) {
+            $this->save_biographies_to_post_meta($post_id, $biographies, [
+                'tone' => $form_data['tone'],
+                'pov' => $form_data['pov']
+            ]);
+        }
+        
+        wp_send_json_success([
+            'message' => 'Biography data saved successfully.',
+            'post_id' => $post_id,
+            'form_data' => $form_data,
+            'biographies' => $biographies
+        ]);
+    }
+    
+    /**
+     * AJAX handler for auto-saving individual biography fields
+     */
+    public function ajax_save_biography_field() {
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mkcg_nonce')) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+            return;
+        }
+        
+        // Check if we have post ID
+        if (!isset($_POST['post_id']) || intval($_POST['post_id']) <= 0) {
+            wp_send_json_error(['message' => 'Post ID is required.']);
+            return;
+        }
+        
+        // Check if we have field name and value
+        if (!isset($_POST['field_name']) || !isset($_POST['field_value'])) {
+            wp_send_json_error(['message' => 'Field name and value are required.']);
+            return;
+        }
+        
+        $post_id = intval($_POST['post_id']);
+        $field_name = sanitize_text_field($_POST['field_name']);
+        $field_value = sanitize_textarea_field($_POST['field_value']);
+        
+        // Map field names to post meta keys
+        $field_mapping = [
+            'biography-name' => '_biography_name',
+            'name' => '_biography_name',
+            'biography-title' => '_biography_title',
+            'title' => '_biography_title',
+            'biography-organization' => '_biography_organization',
+            'organization' => '_biography_organization',
+            'biography-existing' => '_biography_existing',
+            'existingBio' => '_biography_existing',
+            'biography-notes' => '_biography_notes',
+            'notes' => '_biography_notes'
+        ];
+        
+        // Get the meta key for this field
+        $meta_key = isset($field_mapping[$field_name]) ? $field_mapping[$field_name] : '_biography_' . $field_name;
+        
+        // Save the field
+        $result = update_post_meta($post_id, $meta_key, $field_value);
+        
+        if ($result !== false) {
+            wp_send_json_success([
+                'message' => 'Field saved successfully.',
+                'field_name' => $field_name,
+                'meta_key' => $meta_key
+            ]);
+        } else {
+            wp_send_json_error([
+                'message' => 'Failed to save field.',
+                'field_name' => $field_name
             ]);
         }
     }

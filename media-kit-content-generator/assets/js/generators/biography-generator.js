@@ -1,688 +1,1285 @@
 /**
- * Biography Generator - Core Functionality
+ * Biography Generator JavaScript - Unified Architecture Implementation
+ * Following Topics Generator patterns with biography-specific enhancements
  * 
- * Handles biography generation, preview, and management functionality with a modern vanilla JS approach.
- * Follows the Topics Generator pattern while enhancing with biography-specific features.
- *
+ * Architecture: Vanilla JS, unified service integration, BEM methodology
+ * Features: AI generation, multiple versions, tone modification, auto-save
+ * 
  * @package Media_Kit_Content_Generator
- * @version 1.0
+ * @version 3.0 - Complete rewrite following unified patterns
  */
 
 (function() {
-    'use strict';
+  'use strict';
+  
+  /**
+   * Biography Generator - Following Topics Generator Architecture
+   * 3-step initialization: load data, bind events, update display
+   */
+  const BiographyGenerator = {
+    
+    // Essential data storage
+    fields: {
+      // Authority Hook components
+      who: '',
+      what: '',
+      when: '',
+      how: '',
+      
+      // Impact Intro components  
+      where: '',
+      why: '',
+      
+      // Biography-specific fields
+      name: '',
+      title: '',
+      organization: '',
+      tone: 'professional',
+      length: 'medium',
+      pov: 'third',
+      existingBio: '',
+      notes: ''
+    },
+    
+    // Generated biographies storage
+    biographies: {
+      short: '',
+      medium: '',
+      long: ''
+    },
+    
+    // Form metadata
+    metadata: {
+      postId: 0,
+      entryId: 0,
+      entryKey: '',
+      nonce: '',
+      hasData: false
+    },
     
     /**
-     * Biography Generator Class
-     * Follows a module pattern for clean organization
+     * Initialize Biography Generator - Following Topics Generator pattern
      */
-    const BiographyGenerator = {
-        // Configuration
-        config: {
-            selectors: {
-                container: '.biography-generator',
-                authorityHookText: '#biography-generator-authority-hook-text',
-                authorityHookBuilder: '#biography-generator-authority-hook-builder',
-                toggleAuthorityBuilder: '#biography-generator-toggle-authority-builder',
-                impactIntroText: '#biography-generator-impact-intro-text',
-                impactIntroBuilder: '#biography-generator-impact-intro-builder',
-                toggleImpactBuilder: '#biography-generator-toggle-impact-builder',
-                previewDataButton: '#biography-preview-data',
-                generateButton: '#biography-generate-with-ai',
-                loadingIndicator: '#biography-generator-loading',
-                resultsContainer: '#biography-generator-results',
-                resultsContent: '#biography-generator-results-content',
-                authorityHookField: '#mkcg-authority-hook',
-                impactIntroField: '#mkcg-impact-intro',
-                postIdField: '#biography-post-id',
-                entryIdField: '#biography-entry-id',
-                entryKeyField: '#biography-entry-key',
-                nonceField: '#biography-nonce',
-                // Form fields
-                nameField: '#biography-name',
-                titleField: '#biography-title',
-                organizationField: '#biography-organization',
-                toneField: '#biography-tone',
-                lengthField: '#biography-length',
-                povField: '#biography-pov',
-                existingBioField: '#biography-existing',
-                notesField: '#biography-notes'
-            },
-            endpoints: {
-                generateBiography: 'mkcg_generate_biography',
-                saveBiography: 'mkcg_save_biography',
-                modifyBiographyTone: 'mkcg_modify_biography_tone'
-            },
-            classes: {
-                hidden: 'generator__builder--hidden',
-                loading: 'generator__loading--hidden',
-                results: 'generator__results--hidden'
-            }
-        },
+    init: function() {
+      console.log('🎯 Biography Generator: Simple initialization starting');
+      
+      // Step 1: Load existing data
+      this.loadExistingData();
+      
+      // Step 2: Bind form events  
+      this.bindEvents();
+      
+      // Step 3: Update display
+      this.updateDisplay();
+      
+      console.log('✅ Biography Generator: Simple initialization completed');
+    },
+    
+    /**
+     * Load data from PHP or defaults - Following Topics Generator pattern
+     */
+    loadExistingData: function() {
+      // Check if PHP passed data
+      if (window.MKCG_Biography_Data) {
+        // Load metadata
+        this.metadata = {
+          postId: window.MKCG_Biography_Data.postId || 0,
+          entryId: window.MKCG_Biography_Data.entryId || 0,
+          entryKey: window.MKCG_Biography_Data.entryKey || '',
+          nonce: window.MKCG_Biography_Data.nonce || '',
+          hasData: window.MKCG_Biography_Data.hasData || false
+        };
         
-        // Data storage
-        data: {
-            postId: 0,
-            entryId: 0,
-            entryKey: '',
-            nonce: '',
-            authorityHook: '',
-            impactIntro: '',
-            hasData: false,
-            biographies: {
-                short: '',
-                medium: '',
-                long: ''
-            }
-        },
-        
-        /**
-         * Initialize the Biography Generator
-         */
-        init: function() {
-            // Load configuration from global data if available
-            if (window.MKCG_Biography_Data) {
-                this.data.postId = window.MKCG_Biography_Data.postId || 0;
-                this.data.entryId = window.MKCG_Biography_Data.entryId || 0;
-                this.data.entryKey = window.MKCG_Biography_Data.entryKey || '';
-                this.data.nonce = window.MKCG_Biography_Data.nonce || '';
-                this.data.hasData = window.MKCG_Biography_Data.hasData || false;
-            }
-            
-            // Get references to key elements
-            this.elements = {};
-            for (const [key, selector] of Object.entries(this.config.selectors)) {
-                this.elements[key] = document.querySelector(selector);
-            }
-            
-            // If any critical elements are missing, log an error and exit
-            if (!this.elements.container || !this.elements.generateButton) {
-                console.error('MKCG Biography: Critical elements not found.');
-                return;
-            }
-            
-            // Attach event listeners
-            this.attachEventListeners();
-            
-            // Load Authority Hook and Impact Intro
-            this.loadAuthorityHook();
-            this.loadImpactIntro();
-            
-            console.log('MKCG Biography Generator: Initialized');
-        },
-        
-        /**
-         * Attach event listeners to elements
-         */
-        attachEventListeners: function() {
-            // Toggle Authority Hook Builder
-            if (this.elements.toggleAuthorityBuilder) {
-                this.elements.toggleAuthorityBuilder.addEventListener('click', () => this.toggleBuilder('authorityHookBuilder'));
-            }
-            
-            // Toggle Impact Intro Builder
-            if (this.elements.toggleImpactBuilder) {
-                this.elements.toggleImpactBuilder.addEventListener('click', () => this.toggleBuilder('impactIntroBuilder'));
-            }
-            
-            // Preview Data Button
-            if (this.elements.previewDataButton) {
-                this.elements.previewDataButton.addEventListener('click', () => this.previewData());
-            }
-            
-            // Generate Button
-            if (this.elements.generateButton) {
-                this.elements.generateButton.addEventListener('click', () => this.generateBiography());
-            }
-            
-            // Listen for Authority Hook updates from the service
-            document.addEventListener('authority-hook-updated', (event) => {
-                if (event.detail && event.detail.completeHook) {
-                    this.updateAuthorityHook(event.detail.completeHook);
-                }
-            });
-            
-            // Listen for Impact Intro updates from the service
-            document.addEventListener('impact-intro-updated', (event) => {
-                if (event.detail && event.detail.completeIntro) {
-                    this.updateImpactIntro(event.detail.completeIntro);
-                }
-            });
-        },
-        
-        /**
-         * Toggle visibility of a builder component
-         * @param {string} builderType - Type of builder to toggle (authorityHookBuilder or impactIntroBuilder)
-         */
-        toggleBuilder: function(builderType) {
-            if (this.elements[builderType]) {
-                this.elements[builderType].classList.toggle(this.config.classes.hidden);
-            }
-        },
-        
-        /**
-         * Load Authority Hook from centralized service
-         */
-        loadAuthorityHook: function() {
-            // If no element to display the hook, exit
-            if (!this.elements.authorityHookText) return;
-            
-            // If we already have authority hook data in the hidden field, use it
-            if (this.elements.authorityHookField && this.elements.authorityHookField.value) {
-                this.updateAuthorityHook(this.elements.authorityHookField.value);
-                return;
-            }
-            
-            // Otherwise, try to request it via AJAX if we have a post ID
-            if (this.data.postId > 0) {
-                // We use the existing AJAX endpoint from the Authority Hook Service
-                const data = new FormData();
-                data.append('action', 'mkcg_get_authority_hook');
-                data.append('post_id', this.data.postId);
-                data.append('nonce', this.data.nonce);
-                
-                fetch(window.ajaxurl, {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    body: data
-                })
-                .then(response => response.json())
-                .then(response => {
-                    if (response.success && response.data) {
-                        this.updateAuthorityHook(response.data.complete_hook);
-                    } else {
-                        console.warn('MKCG Biography: Failed to load Authority Hook data');
-                    }
-                })
-                .catch(error => {
-                    console.error('MKCG Biography: Error loading Authority Hook', error);
-                });
-            }
-        },
-        
-        /**
-         * Load Impact Intro from centralized service
-         */
-        loadImpactIntro: function() {
-            // If no element to display the intro, exit
-            if (!this.elements.impactIntroText) return;
-            
-            // If we already have impact intro data in the hidden field, use it
-            if (this.elements.impactIntroField && this.elements.impactIntroField.value) {
-                this.updateImpactIntro(this.elements.impactIntroField.value);
-                return;
-            }
-            
-            // Otherwise, try to request it via AJAX if we have a post ID
-            if (this.data.postId > 0) {
-                // We use the existing AJAX endpoint from the Impact Intro Service
-                const data = new FormData();
-                data.append('action', 'mkcg_get_impact_intro');
-                data.append('post_id', this.data.postId);
-                data.append('nonce', this.data.nonce);
-                
-                fetch(window.ajaxurl, {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    body: data
-                })
-                .then(response => response.json())
-                .then(response => {
-                    if (response.success && response.data) {
-                        this.updateImpactIntro(response.data.complete_intro);
-                    } else {
-                        console.warn('MKCG Biography: Failed to load Impact Intro data');
-                    }
-                })
-                .catch(error => {
-                    console.error('MKCG Biography: Error loading Impact Intro', error);
-                });
-            }
-        },
-        
-        /**
-         * Update Authority Hook display
-         * @param {string} hookText - Complete Authority Hook text
-         */
-        updateAuthorityHook: function(hookText) {
-            if (!hookText) return;
-            
-            // Update data
-            this.data.authorityHook = hookText;
-            
-            // Update display
-            if (this.elements.authorityHookText) {
-                this.elements.authorityHookText.textContent = hookText;
-            }
-            
-            // Update hidden field
-            if (this.elements.authorityHookField) {
-                this.elements.authorityHookField.value = hookText;
-            }
-        },
-        
-        /**
-         * Update Impact Intro display
-         * @param {string} introText - Complete Impact Intro text
-         */
-        updateImpactIntro: function(introText) {
-            if (!introText) return;
-            
-            // Update data
-            this.data.impactIntro = introText;
-            
-            // Update display
-            if (this.elements.impactIntroText) {
-                this.elements.impactIntroText.textContent = introText;
-            }
-            
-            // Update hidden field
-            if (this.elements.impactIntroField) {
-                this.elements.impactIntroField.value = introText;
-            }
-        },
-        
-        /**
-         * Preview the data that will be used for generation
-         */
-        previewData: function() {
-            // Collect all form data
-            const formData = this.collectFormData();
-            
-            // Create a formatted preview
-            const preview = `
-                <h3>Authority Hook:</h3>
-                <p>${formData.authority_hook || 'Not provided'}</p>
-                
-                <h3>Impact Intro:</h3>
-                <p>${formData.impact_intro || 'Not provided'}</p>
-                
-                <h3>Personal Information:</h3>
-                <p><strong>Name:</strong> ${formData.name || 'Not provided'}</p>
-                <p><strong>Title:</strong> ${formData.title || 'Not provided'}</p>
-                <p><strong>Organization:</strong> ${formData.organization || 'Not provided'}</p>
-                
-                <h3>Biography Settings:</h3>
-                <p><strong>Tone:</strong> ${this.getToneLabel(formData.tone)}</p>
-                <p><strong>Length:</strong> ${this.getLengthLabel(formData.length)}</p>
-                <p><strong>Point of View:</strong> ${this.getPOVLabel(formData.pov)}</p>
-                
-                <h3>Additional Content:</h3>
-                <p><strong>Existing Biography:</strong> ${formData.existing_bio ? 'Provided' : 'Not provided'}</p>
-                <p><strong>Additional Notes:</strong> ${formData.additional_notes ? 'Provided' : 'Not provided'}</p>
-            `;
-            
-            // Display preview in an alert
-            alert('Biography Generation Preview:\n\n' + 
-                  'Authority Hook: ' + (formData.authority_hook || 'Not provided') + '\n\n' +
-                  'Impact Intro: ' + (formData.impact_intro || 'Not provided') + '\n\n' +
-                  'Name: ' + (formData.name || 'Not provided') + '\n' +
-                  'Title: ' + (formData.title || 'Not provided') + '\n' +
-                  'Organization: ' + (formData.organization || 'Not provided') + '\n\n' +
-                  'Tone: ' + this.getToneLabel(formData.tone) + '\n' +
-                  'Length: ' + this.getLengthLabel(formData.length) + '\n' +
-                  'Point of View: ' + this.getPOVLabel(formData.pov) + '\n\n' +
-                  'Existing Bio: ' + (formData.existing_bio ? 'Provided' : 'Not provided') + '\n' +
-                  'Additional Notes: ' + (formData.additional_notes ? 'Provided' : 'Not provided')
-            );
-        },
-        
-        /**
-         * Get human-readable label for tone setting
-         * @param {string} tone - Tone value
-         * @return {string} Human-readable tone label
-         */
-        getToneLabel: function(tone) {
-            const toneLabels = {
-                'professional': 'Professional',
-                'conversational': 'Conversational',
-                'authoritative': 'Authoritative',
-                'friendly': 'Friendly'
-            };
-            
-            return toneLabels[tone] || tone;
-        },
-        
-        /**
-         * Get human-readable label for length setting
-         * @param {string} length - Length value
-         * @return {string} Human-readable length label
-         */
-        getLengthLabel: function(length) {
-            const lengthLabels = {
-                'short': 'Short (50-75 words)',
-                'medium': 'Medium (100-150 words)',
-                'long': 'Long (200-300 words)'
-            };
-            
-            return lengthLabels[length] || length;
-        },
-        
-        /**
-         * Get human-readable label for point of view setting
-         * @param {string} pov - Point of view value
-         * @return {string} Human-readable POV label
-         */
-        getPOVLabel: function(pov) {
-            const povLabels = {
-                'first': 'First Person (I/My)',
-                'third': 'Third Person (He/She/They)'
-            };
-            
-            return povLabels[pov] || pov;
-        },
-        
-        /**
-         * Collect all form data needed for biography generation
-         * @return {Object} Form data object
-         */
-        collectFormData: function() {
-            // Get data from form fields
-            const formData = {
-                // Core fields
-                post_id: this.elements.postIdField ? parseInt(this.elements.postIdField.value) : this.data.postId,
-                entry_id: this.elements.entryIdField ? parseInt(this.elements.entryIdField.value) : this.data.entryId,
-                entry_key: this.elements.entryKeyField ? this.elements.entryKeyField.value : this.data.entryKey,
-                nonce: this.elements.nonceField ? this.elements.nonceField.value : this.data.nonce,
-                
-                // Component data
-                authority_hook: this.elements.authorityHookField ? this.elements.authorityHookField.value : this.data.authorityHook,
-                impact_intro: this.elements.impactIntroField ? this.elements.impactIntroField.value : this.data.impactIntro,
-                
-                // Personal info
-                name: this.elements.nameField ? this.elements.nameField.value : '',
-                title: this.elements.titleField ? this.elements.titleField.value : '',
-                organization: this.elements.organizationField ? this.elements.organizationField.value : '',
-                
-                // Settings
-                tone: this.elements.toneField ? this.elements.toneField.value : 'professional',
-                length: this.elements.lengthField ? this.elements.lengthField.value : 'medium',
-                pov: this.elements.povField ? this.elements.povField.value : 'third',
-                
-                // Additional content
-                existing_bio: this.elements.existingBioField ? this.elements.existingBioField.value : '',
-                additional_notes: this.elements.notesField ? this.elements.notesField.value : ''
-            };
-            
-            return formData;
-        },
-        
-        /**
-         * Validate form data before generation
-         * @param {Object} formData - Collected form data
-         * @return {Object} Validation result with status and message
-         */
-        validateFormData: function(formData) {
-            // Required fields
-            if (!formData.name) {
-                return {
-                    valid: false,
-                    message: 'Please enter your full name.'
-                };
-            }
-            
-            if (!formData.title) {
-                return {
-                    valid: false,
-                    message: 'Please enter your professional title.'
-                };
-            }
-            
-            // Check if we have at least one of authority hook or impact intro
-            if (!formData.authority_hook && !formData.impact_intro) {
-                return {
-                    valid: false,
-                    message: 'Please provide either an Authority Hook or Impact Intro before generating your biography.'
-                };
-            }
-            
-            return { valid: true };
-        },
-        
-        /**
-         * Generate the biography using collected data
-         */
-        generateBiography: function() {
-            // Collect all form data
-            const formData = this.collectFormData();
-            
-            // Validate form data
-            const validation = this.validateFormData(formData);
-            if (!validation.valid) {
-                alert(validation.message);
-                return;
-            }
-            
-            // Show loading indicator
-            if (this.elements.loadingIndicator) {
-                this.elements.loadingIndicator.classList.remove(this.config.classes.loading);
-            }
-            
-            // Disable generate button to prevent multiple submissions
-            if (this.elements.generateButton) {
-                this.elements.generateButton.setAttribute('disabled', 'disabled');
-            }
-            
-            // Prepare AJAX request
-            const data = new FormData();
-            
-            // Add all form data to request
-            for (const [key, value] of Object.entries(formData)) {
-                data.append(key, value);
-            }
-            
-            // Add action
-            data.append('action', this.config.endpoints.generateBiography);
-            
-            // Send request
-            fetch(window.ajaxurl, {
-                method: 'POST',
-                credentials: 'same-origin',
-                body: data
-            })
-            .then(response => response.json())
-            .then(response => {
-                // Re-enable generate button
-                if (this.elements.generateButton) {
-                    this.elements.generateButton.removeAttribute('disabled');
-                }
-                
-                // Hide loading indicator
-                if (this.elements.loadingIndicator) {
-                    this.elements.loadingIndicator.classList.add(this.config.classes.loading);
-                }
-                
-                if (response.success && response.data) {
-                    // Store generated biographies
-                    this.data.biographies = response.data.biographies;
-                    
-                    // Display results
-                    this.displayResults(response.data);
-                } else {
-                    console.error('MKCG Biography: Generation failed', response);
-                    alert('Failed to generate biography. Please try again.\n\n' + 
-                          (response.data && response.data.message ? response.data.message : 'Unknown error.'));
-                }
-            })
-            .catch(error => {
-                console.error('MKCG Biography: Generation error', error);
-                
-                // Re-enable generate button
-                if (this.elements.generateButton) {
-                    this.elements.generateButton.removeAttribute('disabled');
-                }
-                
-                // Hide loading indicator
-                if (this.elements.loadingIndicator) {
-                    this.elements.loadingIndicator.classList.add(this.config.classes.loading);
-                }
-                
-                alert('An error occurred while generating your biography. Please try again.');
-            });
-        },
-        
-        /**
-         * Display the generated biography results
-         * @param {Object} data - Response data containing biographies
-         */
-        displayResults: function(data) {
-            // If no results container, exit
-            if (!this.elements.resultsContainer || !this.elements.resultsContent) {
-                console.error('MKCG Biography: Results container not found');
-                return;
-            }
-            
-            // Show results container
-            this.elements.resultsContainer.classList.remove(this.config.classes.results);
-            
-            // Create HTML for each biography version
-            const biographiesHtml = `
-                <div class="biography-generator__tabs">
-                    <button class="biography-generator__tab biography-generator__tab--active" data-tab="short">
-                        Short <span class="biography-generator__length-indicator biography-generator__length-short">(50-75 words)</span>
-                    </button>
-                    <button class="biography-generator__tab" data-tab="medium">
-                        Medium <span class="biography-generator__length-indicator biography-generator__length-medium">(100-150 words)</span>
-                    </button>
-                    <button class="biography-generator__tab" data-tab="long">
-                        Long <span class="biography-generator__length-indicator biography-generator__length-long">(200-300 words)</span>
-                    </button>
-                </div>
-                
-                <div class="biography-generator__result-item" id="biography-tab-short" style="display:block;">
-                    <div class="biography-generator__result-header">
-                        <h4 class="biography-generator__result-title">Short Biography</h4>
-                        <span class="biography-generator__result-badge">SOCIAL MEDIA & BRIEF INTROS</span>
-                    </div>
-                    <div class="biography-generator__result-content">
-                        ${data.biographies.short.replace(/\n/g, '<br>')}
-                    </div>
-                    <div class="biography-generator__result-actions">
-                        <button type="button" class="biography-generator__action-button" data-action="copy" data-version="short">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                            </svg>
-                            Copy to Clipboard
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="biography-generator__result-item" id="biography-tab-medium" style="display:none;">
-                    <div class="biography-generator__result-header">
-                        <h4 class="biography-generator__result-title">Medium Biography</h4>
-                        <span class="biography-generator__result-badge">WEBSITES & SPEAKER INTROS</span>
-                    </div>
-                    <div class="biography-generator__result-content">
-                        ${data.biographies.medium.replace(/\n/g, '<br>')}
-                    </div>
-                    <div class="biography-generator__result-actions">
-                        <button type="button" class="biography-generator__action-button" data-action="copy" data-version="medium">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                            </svg>
-                            Copy to Clipboard
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="biography-generator__result-item" id="biography-tab-long" style="display:none;">
-                    <div class="biography-generator__result-header">
-                        <h4 class="biography-generator__result-title">Long Biography</h4>
-                        <span class="biography-generator__result-badge">DETAILED MARKETING MATERIALS</span>
-                    </div>
-                    <div class="biography-generator__result-content">
-                        ${data.biographies.long.replace(/\n/g, '<br>')}
-                    </div>
-                    <div class="biography-generator__result-actions">
-                        <button type="button" class="biography-generator__action-button" data-action="copy" data-version="long">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                            </svg>
-                            Copy to Clipboard
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="biography-generator__button-group" style="justify-content: center; margin-top: 30px;">
-                    <a href="?generator=biography&post_id=${this.data.postId}&entry=${this.data.entryId}&results=true" class="generator__button generator__button--primary">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M19 19H5V5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.6l-9.8 9.8 1.4 1.4L19 6.4V10h2V3h-7z"/>
-                        </svg>
-                        View Full Results Page
-                    </a>
-                </div>
-            `;
-            
-            // Update results content
-            this.elements.resultsContent.innerHTML = biographiesHtml;
-            
-            // Add event listeners for tabs
-            const tabs = this.elements.resultsContent.querySelectorAll('.biography-generator__tab');
-            tabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    // Remove active class from all tabs
-                    tabs.forEach(t => t.classList.remove('biography-generator__tab--active'));
-                    // Add active class to clicked tab
-                    tab.classList.add('biography-generator__tab--active');
-                    
-                    // Get tab version
-                    const version = tab.getAttribute('data-tab');
-                    
-                    // Hide all tab content
-                    const tabContents = this.elements.resultsContent.querySelectorAll('.biography-generator__result-item');
-                    tabContents.forEach(content => {
-                        content.style.display = 'none';
-                    });
-                    
-                    // Show the selected tab content
-                    const selectedContent = this.elements.resultsContent.querySelector(`#biography-tab-${version}`);
-                    if (selectedContent) {
-                        selectedContent.style.display = 'block';
-                    }
-                });
-            });
-            
-            // Add event listeners for copy buttons
-            const copyButtons = this.elements.resultsContent.querySelectorAll('[data-action="copy"]');
-            copyButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    // Get version
-                    const version = button.getAttribute('data-version');
-                    
-                    // Get biography text
-                    const biography = data.biographies[version];
-                    
-                    // Copy to clipboard
-                    navigator.clipboard.writeText(biography).then(() => {
-                        // Temporary feedback
-                        const originalText = button.innerHTML;
-                        button.innerHTML = `
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-                            </svg>
-                            Copied!
-                        `;
-                        
-                        // Reset after 2 seconds
-                        setTimeout(() => {
-                            button.innerHTML = originalText;
-                        }, 2000);
-                    }).catch(err => {
-                        console.error('Failed to copy text: ', err);
-                        alert('Failed to copy to clipboard. Please try again.');
-                    });
-                });
-            });
-            
-            // Scroll to results
-            this.elements.resultsContainer.scrollIntoView({ behavior: 'smooth' });
+        // Check if we're in non-entry mode
+        if (window.MKCG_Biography_Data.noEntryParam) {
+          console.log('📝 No entry parameter - using empty data');
+          this.setDefaultData();
+        } else if (window.MKCG_Biography_Data.hasData) {
+          console.log('📝 Loading data from PHP:', window.MKCG_Biography_Data);
+          this.populateFromPHPData(window.MKCG_Biography_Data);
+        } else {
+          console.log('📝 No data found but entry param exists - using empty data');
+          this.setDefaultData();
         }
-    };
+      } else {
+        console.log('📝 MKCG_Biography_Data not available - using empty data');
+        this.setDefaultData();
+      }
+      
+      // Try to populate service fields if builders are already visible
+      this.checkAndPopulateIfVisible();
+    },
     
-    // Initialize on DOM ready
-    document.addEventListener('DOMContentLoaded', function() {
-        BiographyGenerator.init();
-    });
+    /**
+     * Check if service builders are visible and populate if needed
+     */
+    checkAndPopulateIfVisible: function() {
+      setTimeout(() => {
+        // Check Authority Hook Builder
+        const authorityBuilder = document.querySelector('#biography-generator-authority-hook-builder');
+        if (authorityBuilder && !authorityBuilder.classList.contains('generator__builder--hidden')) {
+          console.log('🔧 Authority Hook Builder already visible, attempting population...');
+          this.populateAuthorityHookFields();
+        }
+        
+        // Check Impact Intro Builder
+        const impactBuilder = document.querySelector('#biography-generator-impact-intro-builder');
+        if (impactBuilder && !impactBuilder.classList.contains('generator__builder--hidden')) {
+          console.log('🔧 Impact Intro Builder already visible, attempting population...');
+          this.populateImpactIntroFields();
+        }
+      }, 500);
+    },
     
-    // Make BiographyGenerator available globally for other scripts
-    window.BiographyGenerator = BiographyGenerator;
+    /**
+     * Populate from PHP data
+     */
+    populateFromPHPData: function(phpData) {
+      // Load Authority Hook data
+      if (phpData.authorityHook) {
+        this.fields.who = phpData.authorityHook.who || '';
+        this.fields.what = phpData.authorityHook.what || '';
+        this.fields.when = phpData.authorityHook.when || '';
+        this.fields.how = phpData.authorityHook.how || '';
+        
+        console.log('📝 Stored authority hook data:', this.fields);
+        this.updateInputFields('authority');
+      }
+      
+      // Load Impact Intro data
+      if (phpData.impactIntro) {
+        this.fields.where = phpData.impactIntro.where || '';
+        this.fields.why = phpData.impactIntro.why || '';
+        
+        console.log('📝 Stored impact intro data:', this.fields);
+        this.updateInputFields('impact');
+      }
+      
+      // Load biography-specific fields
+      if (phpData.biography) {
+        this.fields.name = phpData.biography.name || '';
+        this.fields.title = phpData.biography.title || '';
+        this.fields.organization = phpData.biography.organization || '';
+        this.fields.tone = phpData.biography.tone || 'professional';
+        this.fields.length = phpData.biography.length || 'medium';
+        this.fields.pov = phpData.biography.pov || 'third';
+        this.fields.existingBio = phpData.biography.existing || '';
+        this.fields.notes = phpData.biography.notes || '';
+        
+        this.updateBiographyFields();
+      }
+      
+      // Load existing biographies if available
+      if (phpData.biographies) {
+        this.biographies = {
+          short: phpData.biographies.short || '',
+          medium: phpData.biographies.medium || '',
+          long: phpData.biographies.long || ''
+        };
+        
+        // Display results if we have biographies
+        if (this.biographies.short || this.biographies.medium || this.biographies.long) {
+          this.displayResults({ biographies: this.biographies });
+        }
+      }
+    },
+    
+    /**
+     * Set default data - empty values when no entry param
+     */
+    setDefaultData: function() {
+      // All fields default to empty
+      Object.keys(this.fields).forEach(key => {
+        if (typeof this.fields[key] === 'string') {
+          this.fields[key] = '';
+        }
+      });
+      
+      // Set default values for selection fields
+      this.fields.tone = 'professional';
+      this.fields.length = 'medium';
+      this.fields.pov = 'third';
+      
+      this.updateInputFields('all');
+      this.updateDisplay();
+    },
+    
+    /**
+     * Update input fields for specific service or all
+     */
+    updateInputFields: function(serviceType = 'all') {
+      if (serviceType === 'authority' || serviceType === 'all') {
+        this.updateAuthorityHookInputs();
+      }
+      
+      if (serviceType === 'impact' || serviceType === 'all') {
+        this.updateImpactIntroInputs();
+      }
+      
+      if (serviceType === 'biography' || serviceType === 'all') {
+        this.updateBiographyFields();
+      }
+    },
+    
+    /**
+     * Update Authority Hook input fields
+     */
+    updateAuthorityHookInputs: function() {
+      const fieldMappings = [
+        { field: 'who', selector: '#mkcg-authority-who' },
+        { field: 'what', selector: '#mkcg-authority-what' },
+        { field: 'when', selector: '#mkcg-authority-when' },
+        { field: 'how', selector: '#mkcg-authority-how' }
+      ];
+      
+      let fieldsFound = 0;
+      let fieldsUpdated = 0;
+      
+      fieldMappings.forEach(({ field, selector }) => {
+        const input = document.querySelector(selector);
+        if (input) {
+          fieldsFound++;
+          if (this.fields[field]) {
+            input.value = this.fields[field];
+            fieldsUpdated++;
+            console.log(`✅ Updated ${selector} with: "${this.fields[field]}"`);
+          }
+        }
+      });
+      
+      console.log(`🔄 Authority Hook fields: Found ${fieldsFound}/4, Updated ${fieldsUpdated}`);
+    },
+    
+    /**
+     * Update Impact Intro input fields
+     */
+    updateImpactIntroInputs: function() {
+      const fieldMappings = [
+        { field: 'where', selector: '#mkcg-impact-where' },
+        { field: 'why', selector: '#mkcg-impact-why' }
+      ];
+      
+      let fieldsFound = 0;
+      let fieldsUpdated = 0;
+      
+      fieldMappings.forEach(({ field, selector }) => {
+        const input = document.querySelector(selector);
+        if (input) {
+          fieldsFound++;
+          if (this.fields[field]) {
+            input.value = this.fields[field];
+            fieldsUpdated++;
+            console.log(`✅ Updated ${selector} with: "${this.fields[field]}"`);
+          }
+        }
+      });
+      
+      console.log(`🔄 Impact Intro fields: Found ${fieldsFound}/2, Updated ${fieldsUpdated}`);
+    },
+    
+    /**
+     * Update biography-specific fields
+     */
+    updateBiographyFields: function() {
+      const fieldMappings = [
+        { field: 'name', selector: '#biography-name' },
+        { field: 'title', selector: '#biography-title' },
+        { field: 'organization', selector: '#biography-organization' },
+        { field: 'tone', selector: '#biography-tone' },
+        { field: 'length', selector: '#biography-length' },
+        { field: 'pov', selector: '#biography-pov' },
+        { field: 'existingBio', selector: '#biography-existing' },
+        { field: 'notes', selector: '#biography-notes' }
+      ];
+      
+      fieldMappings.forEach(({ field, selector }) => {
+        const input = document.querySelector(selector);
+        if (input && this.fields[field] !== '') {
+          input.value = this.fields[field];
+          console.log(`✅ Updated ${selector} with: "${this.fields[field]}"`);
+        }
+      });
+    },
+    
+    /**
+     * Bind events - Following Topics Generator pattern with biography enhancements
+     */
+    bindEvents: function() {
+      // Authority Hook Builder toggle
+      this.bindToggleButton('biography-generator-toggle-authority-builder', 'biography-generator-authority-hook-builder', 'authority');
+      
+      // Impact Intro Builder toggle
+      this.bindToggleButton('biography-generator-toggle-impact-builder', 'biography-generator-impact-intro-builder', 'impact');
+      
+      // Generate biography button
+      this.bindGenerateButton();
+      
+      // Preview data button
+      this.bindPreviewButton();
+      
+      // Save biography button
+      this.bindSaveButton();
+      
+      // Authority Hook input events
+      this.bindServiceInputs('authority');
+      
+      // Impact Intro input events
+      this.bindServiceInputs('impact');
+      
+      // Biography field events
+      this.bindBiographyInputs();
+      
+      // Auto-save on blur for biography fields
+      this.bindAutoSave();
+    },
+    
+    /**
+     * Bind toggle button for service builders
+     */
+    bindToggleButton: function(buttonId, builderId, serviceType) {
+      const toggleBtn = document.querySelector(`#${buttonId}`);
+      
+      if (toggleBtn) {
+        // Remove existing listeners to prevent duplicates
+        toggleBtn.removeEventListener('click', this[`toggle${serviceType}Handler`]);
+        
+        this[`toggle${serviceType}Handler`] = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.toggleBuilder(builderId, serviceType);
+        };
+        
+        toggleBtn.addEventListener('click', this[`toggle${serviceType}Handler`]);
+        console.log(`✅ ${serviceType} builder toggle bound correctly`);
+      } else {
+        console.warn(`⚠️ Toggle button not found: #${buttonId}`);
+      }
+    },
+    
+    /**
+     * Bind generate biography button
+     */
+    bindGenerateButton: function() {
+      const generateBtn = document.querySelector('#biography-generator-generate');
+      
+      if (generateBtn) {
+        generateBtn.removeEventListener('click', this.generateBiographyHandler);
+        
+        this.generateBiographyHandler = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('🔘 Generate biography button clicked');
+          this.generateBiography();
+        };
+        
+        generateBtn.addEventListener('click', this.generateBiographyHandler);
+        console.log('✅ Generate biography button bound correctly');
+      } else {
+        console.warn('⚠️ Generate button not found: #biography-generator-generate');
+      }
+    },
+    
+    /**
+     * Bind preview data button
+     */
+    bindPreviewButton: function() {
+      const previewBtn = document.querySelector('#biography-generator-preview');
+      
+      if (previewBtn) {
+        previewBtn.removeEventListener('click', this.previewDataHandler);
+        
+        this.previewDataHandler = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.previewData();
+        };
+        
+        previewBtn.addEventListener('click', this.previewDataHandler);
+        console.log('✅ Preview button bound correctly');
+      }
+    },
+    
+    /**
+     * Bind save biography button
+     */
+    bindSaveButton: function() {
+      const saveBtn = document.querySelector('#biography-generator-save');
+      
+      if (saveBtn) {
+        saveBtn.removeEventListener('click', this.saveAllDataHandler);
+        
+        this.saveAllDataHandler = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('🔘 Save biography button clicked');
+          this.saveAllData();
+        };
+        
+        saveBtn.addEventListener('click', this.saveAllDataHandler);
+        console.log('✅ Save biography button bound correctly');
+      }
+    },
+    
+    /**
+     * Bind service input events (authority hook or impact intro)
+     */
+    bindServiceInputs: function(serviceType) {
+      let inputEvents = [];
+      
+      if (serviceType === 'authority') {
+        inputEvents = [
+          { selector: '#mkcg-authority-who', field: 'who' },
+          { selector: '#mkcg-authority-what', field: 'what' },
+          { selector: '#mkcg-authority-when', field: 'when' },
+          { selector: '#mkcg-authority-how', field: 'how' }
+        ];
+      } else if (serviceType === 'impact') {
+        inputEvents = [
+          { selector: '#mkcg-impact-where', field: 'where' },
+          { selector: '#mkcg-impact-why', field: 'why' }
+        ];
+      }
+      
+      inputEvents.forEach(({ selector, field }) => {
+        const input = document.querySelector(selector);
+        if (input) {
+          input.addEventListener('input', () => {
+            this.fields[field] = input.value;
+            if (serviceType === 'authority') {
+              this.updateAuthorityHook();
+            } else if (serviceType === 'impact') {
+              this.updateImpactIntro();
+            }
+          });
+        }
+      });
+    },
+    
+    /**
+     * Bind biography-specific input events
+     */
+    bindBiographyInputs: function() {
+      const inputEvents = [
+        { selector: '#biography-name', field: 'name' },
+        { selector: '#biography-title', field: 'title' },
+        { selector: '#biography-organization', field: 'organization' },
+        { selector: '#biography-tone', field: 'tone' },
+        { selector: '#biography-length', field: 'length' },
+        { selector: '#biography-pov', field: 'pov' },
+        { selector: '#biography-existing', field: 'existingBio' },
+        { selector: '#biography-notes', field: 'notes' }
+      ];
+      
+      inputEvents.forEach(({ selector, field }) => {
+        const input = document.querySelector(selector);
+        if (input) {
+          input.addEventListener('input', () => {
+            this.fields[field] = input.value;
+          });
+          
+          // Also bind change event for select fields
+          if (input.tagName === 'SELECT') {
+            input.addEventListener('change', () => {
+              this.fields[field] = input.value;
+            });
+          }
+        }
+      });
+    },
+    
+    /**
+     * Bind auto-save functionality
+     */
+    bindAutoSave: function() {
+      const autoSaveFields = [
+        '#biography-name',
+        '#biography-title', 
+        '#biography-organization',
+        '#biography-existing',
+        '#biography-notes'
+      ];
+      
+      autoSaveFields.forEach(selector => {
+        const field = document.querySelector(selector);
+        if (field) {
+          field.addEventListener('blur', () => {
+            this.autoSaveField(field);
+          });
+        }
+      });
+    },
+    
+    /**
+     * Update display - Following Topics Generator pattern
+     */
+    updateDisplay: function() {
+      this.updateAuthorityHook();
+      this.updateImpactIntro();
+    },
+    
+    /**
+     * Toggle service builder visibility
+     */
+    toggleBuilder: function(builderId, serviceType) {
+      const builder = document.querySelector(`#${builderId}`);
+      if (!builder) {
+        console.warn(`⚠️ Builder not found: #${builderId}`);
+        return;
+      }
+      
+      const isHidden = builder.classList.contains('generator__builder--hidden');
+      
+      if (isHidden) {
+        builder.classList.remove('generator__builder--hidden');
+        console.log(`✅ ${serviceType} Builder shown`);
+        
+        // Auto-populate fields when builder becomes visible
+        setTimeout(() => {
+          if (serviceType === 'authority') {
+            this.populateAuthorityHookFields();
+          } else if (serviceType === 'impact') {
+            this.populateImpactIntroFields();
+          }
+        }, 100);
+      } else {
+        builder.classList.add('generator__builder--hidden');
+        console.log(`✅ ${serviceType} Builder hidden`);
+      }
+      
+      // Trigger centralized service for UX enhancements
+      if (window.AuthorityHookBuilder && serviceType === 'authority') {
+        window.AuthorityHookBuilder.updateToggleButtonState(
+          'biography-generator-toggle-authority-builder',
+          'biography-generator-authority-hook-builder'
+        );
+      }
+    },
+    
+    /**
+     * Populate Authority Hook fields when visible
+     */
+    populateAuthorityHookFields: function() {
+      console.log('🔧 Populating Authority Hook fields...');
+      
+      if (!window.MKCG_Biography_Data || !window.MKCG_Biography_Data.authorityHook) {
+        console.log('⚠️ No authority hook data available for population');
+        return;
+      }
+      
+      const data = window.MKCG_Biography_Data.authorityHook;
+      const fieldMappings = [
+        { field: 'who', selector: '#mkcg-authority-who' },
+        { field: 'what', selector: '#mkcg-authority-what' },
+        { field: 'when', selector: '#mkcg-authority-when' },
+        { field: 'how', selector: '#mkcg-authority-how' }
+      ];
+      
+      let populatedCount = 0;
+      
+      fieldMappings.forEach(({ field, selector }) => {
+        const input = document.querySelector(selector);
+        if (input && data[field] && data[field].trim()) {
+          if (!input.value || input.value.trim() === '') {
+            input.value = data[field];
+            this.fields[field] = data[field];
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            populatedCount++;
+            console.log(`✅ Populated ${selector} with: "${data[field]}"`);
+          }
+        }
+      });
+      
+      if (populatedCount > 0) {
+        console.log(`🎉 Auto-populated ${populatedCount} authority hook fields!`);
+        this.updateAuthorityHook();
+      }
+    },
+    
+    /**
+     * Populate Impact Intro fields when visible
+     */
+    populateImpactIntroFields: function() {
+      console.log('🔧 Populating Impact Intro fields...');
+      
+      if (!window.MKCG_Biography_Data || !window.MKCG_Biography_Data.impactIntro) {
+        console.log('⚠️ No impact intro data available for population');
+        return;
+      }
+      
+      const data = window.MKCG_Biography_Data.impactIntro;
+      const fieldMappings = [
+        { field: 'where', selector: '#mkcg-impact-where' },
+        { field: 'why', selector: '#mkcg-impact-why' }
+      ];
+      
+      let populatedCount = 0;
+      
+      fieldMappings.forEach(({ field, selector }) => {
+        const input = document.querySelector(selector);
+        if (input && data[field] && data[field].trim()) {
+          if (!input.value || input.value.trim() === '') {
+            input.value = data[field];
+            this.fields[field] = data[field];
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            populatedCount++;
+            console.log(`✅ Populated ${selector} with: "${data[field]}"`);
+          }
+        }
+      });
+      
+      if (populatedCount > 0) {
+        console.log(`🎉 Auto-populated ${populatedCount} impact intro fields!`);
+        this.updateImpactIntro();
+      }
+    },
+    
+    /**
+     * Update Authority Hook display - no defaults ever
+     */
+    updateAuthorityHook: function() {
+      const hasAllFields = this.fields.who && this.fields.what && this.fields.when && this.fields.how &&
+                          this.fields.who.trim() && this.fields.what.trim() && 
+                          this.fields.when.trim() && this.fields.how.trim();
+      
+      let hookText = '';
+      
+      if (hasAllFields) {
+        hookText = `I help ${this.fields.who} ${this.fields.what} when ${this.fields.when} ${this.fields.how}.`;
+      }
+      
+      const displayElement = document.querySelector('#biography-generator-authority-hook-text');
+      if (displayElement) {
+        displayElement.textContent = hookText;
+      }
+      
+      // Trigger cross-generator communication
+      if (window.AppEvents) {
+        window.AppEvents.trigger('authority-hook:updated', {
+          text: hookText,
+          components: {
+            who: this.fields.who,
+            what: this.fields.what,
+            when: this.fields.when,
+            how: this.fields.how
+          },
+          timestamp: Date.now(),
+          isEmpty: hookText === ''
+        });
+      }
+    },
+    
+    /**
+     * Update Impact Intro display - no defaults ever
+     */
+    updateImpactIntro: function() {
+      const hasAllFields = this.fields.where && this.fields.why &&
+                          this.fields.where.trim() && this.fields.why.trim();
+      
+      let introText = '';
+      
+      if (hasAllFields) {
+        introText = `${this.fields.where}. ${this.fields.why}`;
+      }
+      
+      const displayElement = document.querySelector('#biography-generator-impact-intro-text');
+      if (displayElement) {
+        displayElement.textContent = introText;
+      }
+      
+      // Trigger cross-generator communication
+      if (window.AppEvents) {
+        window.AppEvents.trigger('impact-intro:updated', {
+          text: introText,
+          components: {
+            where: this.fields.where,
+            why: this.fields.why
+          },
+          timestamp: Date.now(),
+          isEmpty: introText === ''
+        });
+      }
+    },
+    
+    /**
+     * Preview data that will be used for generation
+     */
+    previewData: function() {
+      const formData = this.collectFormData();
+      
+      let preview = 'Biography Generation Preview:\\n\\n';
+      
+      // Authority Hook
+      preview += `Authority Hook: ${formData.authorityHook || 'Not provided'}\\n\\n`;
+      
+      // Impact Intro
+      preview += `Impact Intro: ${formData.impactIntro || 'Not provided'}\\n\\n`;
+      
+      // Personal Information
+      preview += 'Personal Information:\\n';
+      preview += `  Name: ${formData.name || 'Not provided'}\\n`;
+      preview += `  Title: ${formData.title || 'Not provided'}\\n`;
+      preview += `  Organization: ${formData.organization || 'Not provided'}\\n\\n`;
+      
+      // Settings
+      preview += 'Biography Settings:\\n';
+      preview += `  Tone: ${this.getToneLabel(formData.tone)}\\n`;
+      preview += `  Length: ${this.getLengthLabel(formData.length)}\\n`;
+      preview += `  Point of View: ${this.getPOVLabel(formData.pov)}\\n\\n`;
+      
+      // Additional Content
+      preview += 'Additional Content:\\n';
+      preview += `  Existing Biography: ${formData.existingBio ? 'Provided' : 'Not provided'}\\n`;
+      preview += `  Additional Notes: ${formData.notes ? 'Provided' : 'Not provided'}`;
+      
+      alert(preview);
+    },
+    
+    /**
+     * Get human-readable labels for form values
+     */
+    getToneLabel: function(tone) {
+      const labels = {
+        'professional': 'Professional',
+        'conversational': 'Conversational', 
+        'authoritative': 'Authoritative',
+        'friendly': 'Friendly'
+      };
+      return labels[tone] || tone;
+    },
+    
+    getLengthLabel: function(length) {
+      const labels = {
+        'short': 'Short (50-75 words)',
+        'medium': 'Medium (100-150 words)',
+        'long': 'Long (200-300 words)'
+      };
+      return labels[length] || length;
+    },
+    
+    getPOVLabel: function(pov) {
+      const labels = {
+        'first': 'First Person (I/My)',
+        'third': 'Third Person (He/She/They)'
+      };
+      return labels[pov] || pov;
+    },
+    
+    /**
+     * Collect all form data for generation
+     */
+    collectFormData: function() {
+      // Build complete authority hook
+      const hasAllAuthorityFields = this.fields.who && this.fields.what && this.fields.when && this.fields.how &&
+                                   this.fields.who.trim() && this.fields.what.trim() && 
+                                   this.fields.when.trim() && this.fields.how.trim();
+      
+      const authorityHook = hasAllAuthorityFields ? 
+        `I help ${this.fields.who} ${this.fields.what} when ${this.fields.when} ${this.fields.how}.` : '';
+      
+      // Build complete impact intro
+      const hasAllImpactFields = this.fields.where && this.fields.why &&
+                                this.fields.where.trim() && this.fields.why.trim();
+      
+      const impactIntro = hasAllImpactFields ?
+        `${this.fields.where}. ${this.fields.why}` : '';
+      
+      return {
+        // Metadata
+        post_id: this.metadata.postId,
+        entry_id: this.metadata.entryId,
+        entry_key: this.metadata.entryKey,
+        nonce: this.metadata.nonce,
+        
+        // Service components
+        authorityHook: authorityHook,
+        impactIntro: impactIntro,
+        
+        // Authority Hook components
+        authority_who: this.fields.who,
+        authority_what: this.fields.what,
+        authority_when: this.fields.when,
+        authority_how: this.fields.how,
+        
+        // Impact Intro components
+        impact_where: this.fields.where,
+        impact_why: this.fields.why,
+        
+        // Biography fields
+        name: this.fields.name,
+        title: this.fields.title,
+        organization: this.fields.organization,
+        tone: this.fields.tone,
+        length: this.fields.length,
+        pov: this.fields.pov,
+        existingBio: this.fields.existingBio,
+        notes: this.fields.notes
+      };
+    },
+    
+    /**
+     * Validate form data before generation
+     */
+    validateFormData: function(formData) {
+      // Required personal fields
+      if (!formData.name || !formData.name.trim()) {
+        return {
+          valid: false,
+          message: 'Please enter your full name.'
+        };
+      }
+      
+      if (!formData.title || !formData.title.trim()) {
+        return {
+          valid: false,
+          message: 'Please enter your professional title.'
+        };
+      }
+      
+      // Require at least one service component
+      if (!formData.authorityHook && !formData.impactIntro) {
+        return {
+          valid: false,
+          message: 'Please complete either an Authority Hook or Impact Intro before generating your biography.'
+        };
+      }
+      
+      return { valid: true };
+    },
+    
+    /**
+     * Generate biography using unified AJAX patterns
+     */
+    generateBiography: function() {
+      const formData = this.collectFormData();
+      
+      // Validate form data
+      const validation = this.validateFormData(formData);
+      if (!validation.valid) {
+        this.showNotification(validation.message, 'warning');
+        return;
+      }
+      
+      console.log('🔄 Starting biography generation...', formData);
+      
+      this.showLoading();
+      
+      // Use global AJAX system
+      if (!window.makeAjaxRequest) {
+        console.error('❌ Global makeAjaxRequest not available');
+        this.hideLoading();
+        this.showNotification('System error: AJAX service not available', 'error');
+        return;
+      }
+      
+      window.makeAjaxRequest('mkcg_generate_biography', formData)
+        .then(data => {
+          this.hideLoading();
+          if (data.biographies) {
+            // Store generated biographies
+            this.biographies = data.biographies;
+            
+            // Display results
+            this.displayResults(data);
+            this.showNotification('Biographies generated successfully!', 'success');
+            
+            // Trigger cross-generator communication
+            if (window.AppEvents) {
+              window.AppEvents.trigger('biography:generated', {
+                biographies: data.biographies,
+                timestamp: Date.now()
+              });
+            }
+          } else {
+            this.generateDemoBiographies(formData);
+            this.showNotification('Using demo biographies - AI temporarily unavailable', 'info');
+          }
+        })
+        .catch(error => {
+          this.hideLoading();
+          console.error('❌ Biography generation failed:', error);
+          
+          // Show helpful error message
+          let errorMessage = 'Biography generation failed';
+          if (typeof error === 'string') {
+            errorMessage = error;
+          } else if (error && error.message) {
+            errorMessage = error.message;
+          }
+          
+          this.showNotification(`❌ ${errorMessage}`, 'error');
+          
+          // Try to generate demo biographies as fallback
+          this.generateDemoBiographies(formData);
+        });
+    },
+    
+    /**
+     * Generate demo biographies when AI is unavailable
+     */
+    generateDemoBiographies: function(formData) {
+      console.log('🔄 Generating demo biographies...');
+      
+      const name = formData.name || 'Professional Name';
+      const title = formData.title || 'Expert Title';
+      const organization = formData.organization || 'Leading Organization';
+      
+      // Create demo biographies based on provided information
+      const demoBiographies = {
+        short: `${name} is a ${title}${organization ? ` at ${organization}` : ''}. ${formData.authorityHook || 'A recognized expert in their field.'} Known for delivering exceptional results and innovative solutions.`,
+        
+        medium: `${name} is a ${title}${organization ? ` at ${organization}` : ''} with extensive experience in their field. ${formData.authorityHook || 'They help clients achieve remarkable results through proven methodologies.'} ${formData.impactIntro || 'With a track record of success, they are committed to delivering exceptional value to every client.'} ${name} is recognized for their expertise and dedication to excellence.`,
+        
+        long: `${name} is a distinguished ${title}${organization ? ` at ${organization}` : ''} with a proven track record of success in their field. ${formData.authorityHook || 'They specialize in helping clients achieve remarkable results through innovative approaches and proven methodologies.'} \\n\\n${formData.impactIntro || 'With years of experience and a commitment to excellence, they have built a reputation for delivering exceptional value to clients and organizations.'} \\n\\n${name} is passionate about sharing their expertise and helping others succeed. They are frequently sought after for speaking engagements and consulting opportunities, and their insights have been featured in leading industry publications. When not working with clients, ${name} enjoys staying current with industry trends and continuously expanding their knowledge and skills.`
+      };
+      
+      this.biographies = demoBiographies;
+      this.displayResults({ biographies: demoBiographies });
+    },
+    
+    /**
+     * Display biography results with tabs and copy functionality
+     */
+    displayResults: function(data) {
+      const resultsContainer = document.querySelector('#biography-generator-results');
+      const resultsContent = document.querySelector('#biography-generator-results-content');
+      
+      if (!resultsContainer || !resultsContent) {
+        console.error('❌ Results container not found');
+        return;
+      }
+      
+      // Show results container
+      resultsContainer.classList.remove('generator__results--hidden');
+      
+      // Create HTML for results with tabs
+      const biographiesHtml = `
+        <div class="biography-generator__tabs">
+          <button class="biography-generator__tab biography-generator__tab--active" data-tab="short">
+            Short <span class="biography-generator__length-indicator">(50-75 words)</span>
+          </button>
+          <button class="biography-generator__tab" data-tab="medium">
+            Medium <span class="biography-generator__length-indicator">(100-150 words)</span>
+          </button>
+          <button class="biography-generator__tab" data-tab="long">
+            Long <span class="biography-generator__length-indicator">(200-300 words)</span>
+          </button>
+        </div>
+        
+        <div class="biography-generator__content">
+          <div class="biography-generator__result-item biography-generator__result-item--active" id="biography-tab-short">
+            <div class="biography-generator__result-header">
+              <h4 class="biography-generator__result-title">Short Biography</h4>
+              <span class="biography-generator__result-badge">Social Media & Brief Intros</span>
+            </div>
+            <div class="biography-generator__result-content">
+              ${data.biographies.short.replace(/\\n/g, '<br>')}
+            </div>
+            <div class="biography-generator__result-actions">
+              <button class="generator__button generator__button--outline biography-generator__copy-button" data-version="short">
+                Copy to Clipboard
+              </button>
+            </div>
+          </div>
+          
+          <div class="biography-generator__result-item" id="biography-tab-medium">
+            <div class="biography-generator__result-header">
+              <h4 class="biography-generator__result-title">Medium Biography</h4>
+              <span class="biography-generator__result-badge">Websites & Speaker Intros</span>
+            </div>
+            <div class="biography-generator__result-content">
+              ${data.biographies.medium.replace(/\\n/g, '<br>')}
+            </div>
+            <div class="biography-generator__result-actions">
+              <button class="generator__button generator__button--outline biography-generator__copy-button" data-version="medium">
+                Copy to Clipboard
+              </button>
+            </div>
+          </div>
+          
+          <div class="biography-generator__result-item" id="biography-tab-long">
+            <div class="biography-generator__result-header">
+              <h4 class="biography-generator__result-title">Long Biography</h4>
+              <span class="biography-generator__result-badge">Detailed Marketing Materials</span>
+            </div>
+            <div class="biography-generator__result-content">
+              ${data.biographies.long.replace(/\\n/g, '<br>')}
+            </div>
+            <div class="biography-generator__result-actions">
+              <button class="generator__button generator__button--outline biography-generator__copy-button" data-version="long">
+                Copy to Clipboard
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="biography-generator__global-actions">
+          <button class="generator__button generator__button--secondary" onclick="window.location.href='?generator=biography&post_id=${this.metadata.postId}&entry=${this.metadata.entryId}&results=true'">
+            View Full Results Page
+          </button>
+          <button class="generator__button generator__button--primary biography-generator__save-all" data-action="save-all">
+            Save All Biographies
+          </button>
+        </div>
+      `;
+      
+      resultsContent.innerHTML = biographiesHtml;
+      
+      // Bind tab switching
+      this.bindResultsTabs();
+      
+      // Bind copy buttons
+      this.bindCopyButtons();
+      
+      // Bind save all button
+      this.bindSaveAllButton();
+      
+      // Scroll to results
+      resultsContainer.scrollIntoView({ behavior: 'smooth' });
+    },
+    
+    /**
+     * Bind results tab switching
+     */
+    bindResultsTabs: function() {
+      const tabs = document.querySelectorAll('.biography-generator__tab');
+      const contents = document.querySelectorAll('.biography-generator__result-item');
+      
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          const version = tab.getAttribute('data-tab');
+          
+          // Update active tab
+          tabs.forEach(t => t.classList.remove('biography-generator__tab--active'));
+          tab.classList.add('biography-generator__tab--active');
+          
+          // Update active content
+          contents.forEach(c => c.classList.remove('biography-generator__result-item--active'));
+          const activeContent = document.querySelector(`#biography-tab-${version}`);
+          if (activeContent) {
+            activeContent.classList.add('biography-generator__result-item--active');
+          }
+        });
+      });
+    },
+    
+    /**
+     * Bind copy to clipboard buttons
+     */
+    bindCopyButtons: function() {
+      const copyButtons = document.querySelectorAll('.biography-generator__copy-button');
+      
+      copyButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          const version = button.getAttribute('data-version');
+          const biography = this.biographies[version];
+          
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(biography).then(() => {
+              // Show success feedback
+              const originalText = button.textContent;
+              button.textContent = 'Copied!';
+              button.classList.add('generator__button--success');
+              
+              setTimeout(() => {
+                button.textContent = originalText;
+                button.classList.remove('generator__button--success');
+              }, 2000);
+              
+              this.showNotification(`${version} biography copied to clipboard!`, 'success');
+            }).catch(err => {
+              console.error('Failed to copy:', err);
+              this.showNotification('Failed to copy to clipboard', 'error');
+            });
+          } else {
+            this.showNotification('Clipboard not available in this browser', 'warning');
+          }
+        });
+      });
+    },
+    
+    /**
+     * Bind save all biographies button
+     */
+    bindSaveAllButton: function() {
+      const saveAllBtn = document.querySelector('.biography-generator__save-all');
+      
+      if (saveAllBtn) {
+        saveAllBtn.addEventListener('click', () => {
+          this.saveAllData();
+        });
+      }
+    },
+    
+    /**
+     * Auto-save individual field
+     */
+    autoSaveField: function(inputElement) {
+      if (this.metadata.postId === 0) return;
+      
+      const fieldName = inputElement.getAttribute('name') || inputElement.id;
+      const fieldValue = inputElement.value;
+      
+      if (!fieldName || !fieldValue.trim()) return;
+      
+      console.log(`🔄 Auto-saving field: ${fieldName}`);
+      
+      window.makeAjaxRequest('mkcg_save_biography_field', {
+        post_id: this.metadata.postId,
+        field_name: fieldName,
+        field_value: fieldValue,
+        nonce: this.metadata.nonce
+      })
+      .then(() => {
+        console.log(`✅ Auto-saved field: ${fieldName}`);
+      })
+      .catch(error => {
+        console.log(`⚠️ Auto-save failed for field: ${fieldName}`, error);
+      });
+    },
+    
+    /**
+     * Save all biography data - Following Topics Generator pattern
+     */
+    saveAllData: function() {
+      console.log('🔄 Starting comprehensive biography save operation...');
+      
+      if (this.metadata.postId === 0) {
+        this.showNotification('No post ID found. Please refresh the page.', 'error');
+        return;
+      }
+      
+      // Collect all data
+      const formData = this.collectFormData();
+      
+      // Validate we have something to save
+      const hasPersonalInfo = formData.name || formData.title || formData.organization;
+      const hasServiceData = formData.authorityHook || formData.impactIntro;
+      const hasBiographies = this.biographies.short || this.biographies.medium || this.biographies.long;
+      
+      if (!hasPersonalInfo && !hasServiceData && !hasBiographies) {
+        this.showNotification('No data to save. Please add some information first.', 'warning');
+        return;
+      }
+      
+      console.log('📊 Saving biography data...', formData);
+      
+      this.showLoading();
+      
+      // Add biographies to form data
+      formData.biographies = this.biographies;
+      
+      window.makeAjaxRequest('mkcg_save_biography_data', formData)
+        .then(data => {
+          this.hideLoading();
+          this.showNotification('✅ Biography data saved successfully!', 'success');
+          console.log('✅ Save successful:', data);
+          
+          // Trigger cross-generator communication
+          if (window.AppEvents) {
+            window.AppEvents.trigger('biography:saved', {
+              formData: formData,
+              biographies: this.biographies,
+              timestamp: Date.now()
+            });
+          }
+        })
+        .catch(error => {
+          this.hideLoading();
+          console.error('❌ Save failed:', error);
+          
+          let errorMessage = 'Save operation failed';
+          if (typeof error === 'string') {
+            errorMessage = error;
+          } else if (error && error.message) {
+            errorMessage = error.message;
+          }
+          
+          this.showNotification(`❌ ${errorMessage}`, 'error');
+        });
+    },
+    
+    /**
+     * Utility functions - Following Topics Generator pattern
+     */
+    showNotification: function(message, type = 'info') {
+      if (window.showNotification) {
+        window.showNotification(message, type);
+      } else {
+        console.log(`${type.toUpperCase()}: ${message}`);
+      }
+    },
+    
+    showLoading: function() {
+      const loading = document.querySelector('#biography-generator-loading');
+      if (loading) {
+        loading.classList.remove('generator__loading--hidden');
+      }
+    },
+    
+    hideLoading: function() {
+      const loading = document.querySelector('#biography-generator-loading');
+      if (loading) {
+        loading.classList.add('generator__loading--hidden');
+      }
+    }
+  };
+
+  // Initialize when DOM is ready - Following Topics Generator pattern
+  document.addEventListener('DOMContentLoaded', function() {
+    const biographyContainer = document.querySelector('.biography-generator');
+    if (!biographyContainer) {
+      console.log('🎯 Biography Generator: DOM elements not found - skipping initialization');
+      return;
+    }
+    
+    console.log('🎯 Biography Generator: DOM Ready - Starting initialization');
+    BiographyGenerator.init();
+  });
+
+  // Make globally available
+  window.BiographyGenerator = BiographyGenerator;
+  
+  // Debug functions for testing
+  window.MKCG_Biography_Test = {
+    showData: function() {
+      console.log('🔍 Biography Generator current state:');
+      console.log('Fields:', BiographyGenerator.fields);
+      console.log('Biographies:', BiographyGenerator.biographies);
+      console.log('Metadata:', BiographyGenerator.metadata);
+    },
+    
+    testGeneration: function() {
+      console.log('🧪 Testing biography generation...');
+      BiographyGenerator.generateBiography();
+    },
+    
+    testSave: function() {
+      console.log('🧪 Testing save operation...');
+      BiographyGenerator.saveAllData();
+    },
+    
+    populateTestData: function() {
+      console.log('🧪 Populating test data...');
+      
+      // Set test values
+      BiographyGenerator.fields.name = 'Jane Smith';
+      BiographyGenerator.fields.title = 'Digital Marketing Expert';
+      BiographyGenerator.fields.organization = 'Growth Solutions Inc';
+      BiographyGenerator.fields.who = 'small business owners';
+      BiographyGenerator.fields.what = 'scale their revenue to 7 figures';
+      BiographyGenerator.fields.when = 'they feel stuck at their current level';
+      BiographyGenerator.fields.how = 'through proven digital marketing strategies';
+      
+      // Update form fields
+      BiographyGenerator.updateInputFields('all');
+      BiographyGenerator.updateDisplay();
+      
+      console.log('✅ Test data populated');
+    }
+  };
+  
+  console.log('✅ Biography Generator loaded - Following unified patterns');
+  console.log('🔧 No jQuery dependencies - Pure vanilla JavaScript');
+  console.log('🧪 DEBUG: Use window.MKCG_Biography_Test.populateTestData() to test');
+
 })();
