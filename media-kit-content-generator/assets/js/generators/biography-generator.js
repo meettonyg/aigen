@@ -305,32 +305,48 @@
      * Bind events - Following Topics Generator pattern with biography enhancements
      */
     bindEvents: function() {
-      // Authority Hook Builder toggle
-      this.bindToggleButton('biography-generator-toggle-authority-builder', 'biography-generator-authority-hook-builder', 'authority');
-      
-      // Impact Intro Builder toggle
-      this.bindToggleButton('biography-generator-toggle-impact-builder', 'biography-generator-impact-intro-builder', 'impact');
-      
-      // Generate biography button
-      this.bindGenerateButton();
-      
-      // Preview data button
-      this.bindPreviewButton();
-      
-      // Save biography button
-      this.bindSaveButton();
-      
-      // Authority Hook input events
-      this.bindServiceInputs('authority');
-      
-      // Impact Intro input events
-      this.bindServiceInputs('impact');
-      
-      // Biography field events
-      this.bindBiographyInputs();
-      
-      // Auto-save on blur for biography fields
-      this.bindAutoSave();
+    // PERFORMANCE OPTIMIZATION: Use event delegation for most interactions
+    // Define container for event delegation
+    const containerLeft = document.querySelector('.generator__panel--left');
+    if (containerLeft) {
+        // Delegate most button clicks
+        containerLeft.addEventListener('click', (e) => {
+            const target = e.target.closest('button');
+            if (!target) return;
+            
+            // Handle button clicks based on ID
+            if (target.id === 'biography-generator-toggle-authority-builder') {
+                e.preventDefault();
+                this.toggleBuilder('biography-generator-authority-hook-builder', 'authority');
+            } else if (target.id === 'biography-generator-toggle-impact-builder') {
+                e.preventDefault();
+                this.toggleBuilder('biography-generator-impact-intro-builder', 'impact');
+            } else if (target.id === 'biography-generator-generate') {
+                e.preventDefault();
+                console.log('🔘 Generate biography button clicked');
+                this.generateBiography();
+            } else if (target.id === 'biography-generator-preview') {
+                e.preventDefault();
+                this.previewData();
+            } else if (target.id === 'biography-generator-save') {
+                e.preventDefault();
+                console.log('🔘 Save biography button clicked');
+                    this.saveAllData();
+                }
+            });
+        }
+        
+        // Authority Hook input events with debounced input handling
+        this.bindServiceInputs('authority');
+        
+        // Impact Intro input events with debounced input handling
+        this.bindServiceInputs('impact');
+        
+        // Biography field events
+        this.bindBiographyInputs();
+        
+        // Auto-save on blur for biography fields
+        this.bindAutoSave();
     },
     
     /**
@@ -423,90 +439,125 @@
     /**
      * Bind service input events (authority hook or impact intro)
      */
+    // Debounce function for performance optimization
+    debounce: function(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+    const later = () => {
+    clearTimeout(timeout);
+    func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+    };
+    },
+    
     bindServiceInputs: function(serviceType) {
-      let inputEvents = [];
-      
-      if (serviceType === 'authority') {
-        inputEvents = [
-          { selector: '#mkcg-authority-who', field: 'who' },
-          { selector: '#mkcg-authority-what', field: 'what' },
-          { selector: '#mkcg-authority-when', field: 'when' },
-          { selector: '#mkcg-authority-how', field: 'how' }
-        ];
-      } else if (serviceType === 'impact') {
-        inputEvents = [
-          { selector: '#mkcg-impact-where', field: 'where' },
-          { selector: '#mkcg-impact-why', field: 'why' }
-        ];
-      }
-      
-      inputEvents.forEach(({ selector, field }) => {
-        const input = document.querySelector(selector);
-        if (input) {
-          input.addEventListener('input', () => {
-            this.fields[field] = input.value;
+    // Define which container to use for event delegation
+    const containerSelector = serviceType === 'authority' ? 
+        '#biography-generator-authority-hook-builder' : 
+        '#biography-generator-impact-intro-builder';
+    
+    const container = document.querySelector(containerSelector);
+    if (!container) return;
+    
+    // Define field maps for lookup
+    const fieldMap = serviceType === 'authority' ? 
+    {
+    'mkcg-authority-who': 'who',
+    'mkcg-authority-what': 'what',
+    'mkcg-authority-when': 'when',
+        'mkcg-authority-how': 'how'
+        } : 
+            {
+                'mkcg-impact-where': 'where',
+                'mkcg-impact-why': 'why'
+            };
+        
+        // Create debounced update function
+        const debouncedUpdate = this.debounce(() => {
             if (serviceType === 'authority') {
-              this.updateAuthorityHook();
+                this.updateAuthorityHook();
             } else if (serviceType === 'impact') {
-              this.updateImpactIntro();
+                this.updateImpactIntro();
             }
-          });
-        }
-      });
+        }, 300); // 300ms debounce
+        
+        // Use event delegation for input events
+        container.addEventListener('input', (e) => {
+            const input = e.target;
+            const field = fieldMap[input.id];
+            
+            if (field) {
+                this.fields[field] = input.value;
+                debouncedUpdate();
+            }
+        });
     },
     
     /**
      * Bind biography-specific input events
      */
     bindBiographyInputs: function() {
-      const inputEvents = [
-        { selector: '#biography-name', field: 'name' },
-        { selector: '#biography-title', field: 'title' },
-        { selector: '#biography-organization', field: 'organization' },
-        { selector: '#biography-tone', field: 'tone' },
-        { selector: '#biography-length', field: 'length' },
-        { selector: '#biography-pov', field: 'pov' },
-        { selector: '#biography-existing', field: 'existingBio' },
-        { selector: '#biography-notes', field: 'notes' }
-      ];
-      
-      inputEvents.forEach(({ selector, field }) => {
-        const input = document.querySelector(selector);
-        if (input) {
-          input.addEventListener('input', () => {
-            this.fields[field] = input.value;
-          });
-          
-          // Also bind change event for select fields
-          if (input.tagName === 'SELECT') {
-            input.addEventListener('change', () => {
-              this.fields[field] = input.value;
-            });
-          }
-        }
-      });
+    // PERFORMANCE OPTIMIZATION: Use event delegation for all biography inputs
+    const container = document.querySelector('.generator__panel--left');
+    if (!container) return;
+    
+    // Define field mapping for easy lookup
+    const fieldMap = {
+    'biography-name': 'name',
+    'biography-title': 'title',
+    'biography-organization': 'organization',
+        'biography-tone': 'tone',
+        'biography-length': 'length',
+        'biography-pov': 'pov',
+    'biography-existing': 'existingBio',
+    'biography-notes': 'notes'
+    };
+    
+    // Handle all input events with one listener
+    container.addEventListener('input', (e) => {
+    const field = fieldMap[e.target.id];
+    if (field) {
+    this.fields[field] = e.target.value;
+    }
+    });
+    
+    // Handle change events for select fields
+    container.addEventListener('change', (e) => {
+            if (e.target.tagName === 'SELECT') {
+                const field = fieldMap[e.target.id];
+                if (field) {
+                    this.fields[field] = e.target.value;
+                }
+            }
+        });
     },
     
     /**
      * Bind auto-save functionality
      */
     bindAutoSave: function() {
-      const autoSaveFields = [
-        '#biography-name',
-        '#biography-title', 
-        '#biography-organization',
-        '#biography-existing',
-        '#biography-notes'
-      ];
-      
-      autoSaveFields.forEach(selector => {
-        const field = document.querySelector(selector);
-        if (field) {
-          field.addEventListener('blur', () => {
-            this.autoSaveField(field);
-          });
-        }
-      });
+    // PERFORMANCE OPTIMIZATION: Use event delegation for autosave
+    const container = document.querySelector('.generator__panel--left');
+    if (!container) return;
+    
+    // Define which fields should auto-save
+    const autoSaveFieldIds = [
+        'biography-name',
+        'biography-title', 
+        'biography-organization',
+    'biography-existing',
+    'biography-notes'
+    ];
+    
+    // Listen for blur events on the container
+    container.addEventListener('blur', (e) => {
+        // Check if the blurred element is one we want to auto-save
+            if (autoSaveFieldIds.includes(e.target.id)) {
+                this.autoSaveField(e.target);
+            }
+        }, true); // Use capture phase to ensure we catch the blur
     },
     
     /**
