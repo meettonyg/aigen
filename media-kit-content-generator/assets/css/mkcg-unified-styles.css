@@ -3773,14 +3773,21 @@
 }
 
 /* ============================================================================
-   BIOGRAPHY GENERATOR SPECIFIC STYLES - ENHANCED FOR AI GENERATION
+   BIOGRAPHY GENERATOR ENHANCED STYLES - COMPREHENSIVE FEATURE SUPPORT
    ============================================================================ */
+
+/* Animation support variables */
+:root {
+  --mkcg-animation-duration: 300ms;
+  --mkcg-animation-easing: ease-in-out;
+}
 
 /* Biography Generator Container */
 .biography-generator {
   font-family: var(--mkcg-font-family);
   color: var(--mkcg-text-primary);
   line-height: var(--mkcg-line-height-normal);
+  position: relative;
 }
 
 /* Biography Generator Introduction */
@@ -3872,6 +3879,711 @@
   padding: var(--mkcg-space-lg);
   margin: var(--mkcg-space-lg) 0;
   box-shadow: 0 4px 12px rgba(26, 155, 220, 0.1);
+}
+
+/* ============================================================================
+   BIOGRAPHY RESULTS PAGE ENHANCED STYLES
+   ============================================================================ */
+
+/* Results Content with animations */
+.biography-generator__results-content {
+  position: relative;
+  overflow: hidden;
+}
+
+.biography-generator__result-item {
+  background: var(--mkcg-bg-primary);
+  border: 1px solid var(--mkcg-border-light);
+  border-radius: var(--mkcg-radius);
+  padding: var(--mkcg-space-md);
+  margin-bottom: var(--mkcg-space-md);
+  box-shadow: var(--mkcg-shadow-sm);
+  transition: all var(--mkcg-animation-duration) var(--mkcg-animation-easing);
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* State Modifiers */
+.biography-generator--animating .biography-generator__result-item {
+  pointer-events: none;
+}
+
+/* Editing Mode */
+.biography-generator__result-item--editing {
+  border-color: var(--mkcg-primary);
+  box-shadow: 0 0 0 3px rgba(26, 155, 220, 0.1);
+  background: linear-gradient(135deg, var(--mkcg-bg-primary) 0%, #f8f9ff 100%);
+}
+
+.biography-generator__editable-content {
+  outline: none;
+  border-radius: var(--mkcg-radius-sm);
+  padding: var(--mkcg-space-sm);
+  transition: var(--mkcg-transition-fast);
+  min-height: 2em;
+}
+
+.biography-generator__editable-content:focus {
+  background: var(--mkcg-bg-primary);
+  box-shadow: inset 0 0 0 2px var(--mkcg-primary);
+}
+
+/* Editing Controls */
+.biography-generator__editing-controls {
+  margin: var(--mkcg-space-sm) 0;
+  padding: var(--mkcg-space-sm);
+  background: var(--mkcg-bg-secondary);
+  border-radius: var(--mkcg-radius-sm);
+  border: 1px solid var(--mkcg-border-light);
+}
+
+.biography-generator__editing-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--mkcg-space-xs);
+}
+
+.biography-generator__edit-action {
+  background: none;
+  border: 1px solid var(--mkcg-border-medium);
+  color: var(--mkcg-text-secondary);
+  padding: var(--mkcg-space-xs);
+  border-radius: var(--mkcg-radius-sm);
+  cursor: pointer;
+  transition: var(--mkcg-transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.biography-generator__edit-action:hover {
+  background: var(--mkcg-bg-primary);
+  border-color: var(--mkcg-primary);
+  color: var(--mkcg-primary);
+}
+
+.biography-generator__edit-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--mkcg-border-light);
+  margin: 0 var(--mkcg-space-xs);
+}
+
+.biography-generator__edit-hint {
+  font-size: var(--mkcg-font-size-xs);
+  color: var(--mkcg-text-tertiary);
+  margin-left: auto;
+}
+
+/* Statistics Display */
+.biography-generator__stats {
+  display: flex;
+  gap: var(--mkcg-space-md);
+  margin: var(--mkcg-space-sm) 0;
+  padding: var(--mkcg-space-sm);
+  background: var(--mkcg-bg-tertiary);
+  border-radius: var(--mkcg-radius-sm);
+  border: 1px solid var(--mkcg-border-light);
+}
+
+.biography-generator__stat-item {
+  display: flex;
+  align-items: center;
+  gap: var(--mkcg-space-xs);
+  font-size: var(--mkcg-font-size-sm);
+}
+
+.biography-generator__stat-label {
+  color: var(--mkcg-text-secondary);
+  font-weight: var(--mkcg-font-weight-medium);
+}
+
+.biography-generator__word-count,
+.biography-generator__char-count,
+.biography-generator__reading-time {
+  color: var(--mkcg-primary);
+  font-weight: var(--mkcg-font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Comparison Mode */
+.biography-generator--comparing {
+  /* Add any special styling for comparison mode */
+}
+
+.biography-generator__comparison-view {
+  background: var(--mkcg-bg-primary);
+  border: 1px solid var(--mkcg-border-light);
+  border-radius: var(--mkcg-radius-lg);
+  padding: var(--mkcg-space-lg);
+  margin: var(--mkcg-space-lg) 0;
+  animation: fadeIn var(--mkcg-animation-duration) var(--mkcg-animation-easing);
+}
+
+.biography-generator__comparison-header {
+  text-align: center;
+  margin-bottom: var(--mkcg-space-lg);
+  border-bottom: 1px solid var(--mkcg-border-light);
+  padding-bottom: var(--mkcg-space-md);
+}
+
+.biography-generator__comparison-header h3 {
+  font-size: var(--mkcg-font-size-lg);
+  font-weight: var(--mkcg-font-weight-semibold);
+  color: var(--mkcg-text-primary);
+  margin: 0 0 var(--mkcg-space-xs) 0;
+}
+
+.biography-generator__comparison-header p {
+  color: var(--mkcg-text-secondary);
+  margin: 0;
+  font-size: var(--mkcg-font-size-sm);
+}
+
+.biography-generator__comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--mkcg-space-lg);
+}
+
+.biography-generator__comparison-column {
+  background: var(--mkcg-bg-secondary);
+  border: 1px solid var(--mkcg-border-light);
+  border-radius: var(--mkcg-radius);
+  padding: var(--mkcg-space-md);
+}
+
+.biography-generator__comparison-column h4 {
+  font-size: var(--mkcg-font-size-md);
+  font-weight: var(--mkcg-font-weight-semibold);
+  color: var(--mkcg-text-primary);
+  margin: 0 0 var(--mkcg-space-sm) 0;
+  text-align: center;
+}
+
+.biography-generator__comparison-stats {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: var(--mkcg-space-md);
+  padding-bottom: var(--mkcg-space-sm);
+  border-bottom: 1px solid var(--mkcg-border-light);
+}
+
+.biography-generator__comparison-stat {
+  text-align: center;
+  font-size: var(--mkcg-font-size-xs);
+}
+
+.biography-generator__comparison-stat .label {
+  display: block;
+  color: var(--mkcg-text-tertiary);
+  margin-bottom: 2px;
+}
+
+.biography-generator__comparison-stat .value {
+  display: block;
+  color: var(--mkcg-primary);
+  font-weight: var(--mkcg-font-weight-semibold);
+}
+
+.biography-generator__comparison-content {
+  font-size: var(--mkcg-font-size-sm);
+  line-height: var(--mkcg-line-height-relaxed);
+  color: var(--mkcg-text-primary);
+}
+
+/* Share Modal */
+.biography-generator__share-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: var(--mkcg-z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--mkcg-animation-duration) var(--mkcg-animation-easing);
+}
+
+.biography-generator__share-modal--show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.biography-generator__share-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--mkcg-bg-overlay);
+  cursor: pointer;
+}
+
+.biography-generator__share-content {
+  position: relative;
+  background: var(--mkcg-bg-primary);
+  border-radius: var(--mkcg-radius-lg);
+  padding: var(--mkcg-space-lg);
+  max-width: 480px;
+  width: 90%;
+  box-shadow: var(--mkcg-shadow-xl);
+  transform: scale(0.9);
+  transition: transform var(--mkcg-animation-duration) var(--mkcg-animation-easing);
+}
+
+.biography-generator__share-modal--show .biography-generator__share-content {
+  transform: scale(1);
+}
+
+.biography-generator__share-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--mkcg-space-lg);
+  border-bottom: 1px solid var(--mkcg-border-light);
+  padding-bottom: var(--mkcg-space-md);
+}
+
+.biography-generator__share-header h3 {
+  font-size: var(--mkcg-font-size-lg);
+  font-weight: var(--mkcg-font-weight-semibold);
+  color: var(--mkcg-text-primary);
+  margin: 0;
+}
+
+.biography-generator__share-close {
+  background: none;
+  border: none;
+  color: var(--mkcg-text-secondary);
+  font-size: 24px;
+  cursor: pointer;
+  padding: var(--mkcg-space-xs);
+  border-radius: var(--mkcg-radius-sm);
+  transition: var(--mkcg-transition-fast);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.biography-generator__share-close:hover {
+  background: var(--mkcg-bg-secondary);
+  color: var(--mkcg-text-primary);
+}
+
+.biography-generator__share-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mkcg-space-sm);
+}
+
+.biography-generator__share-option {
+  display: flex;
+  align-items: center;
+  gap: var(--mkcg-space-md);
+  padding: var(--mkcg-space-md);
+  border: 1px solid var(--mkcg-border-light);
+  border-radius: var(--mkcg-radius);
+  background: var(--mkcg-bg-primary);
+  color: var(--mkcg-text-primary);
+  cursor: pointer;
+  transition: var(--mkcg-transition-fast);
+  font-size: var(--mkcg-font-size-md);
+  font-weight: var(--mkcg-font-weight-medium);
+  text-align: left;
+  width: 100%;
+}
+
+.biography-generator__share-option:hover {
+  background: var(--mkcg-bg-secondary);
+  border-color: var(--mkcg-primary);
+  color: var(--mkcg-primary);
+}
+
+.biography-generator__share-option svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* Context Menu */
+.biography-generator__context-menu {
+  position: fixed;
+  background: var(--mkcg-bg-primary);
+  border: 1px solid var(--mkcg-border-light);
+  border-radius: var(--mkcg-radius);
+  box-shadow: var(--mkcg-shadow-lg);
+  z-index: var(--mkcg-z-dropdown);
+  padding: var(--mkcg-space-xs);
+  min-width: 200px;
+}
+
+.biography-generator__context-option {
+  display: flex;
+  align-items: center;
+  gap: var(--mkcg-space-sm);
+  padding: var(--mkcg-space-sm) var(--mkcg-space-md);
+  border-radius: var(--mkcg-radius-sm);
+  cursor: pointer;
+  transition: var(--mkcg-transition-fast);
+  font-size: var(--mkcg-font-size-sm);
+  color: var(--mkcg-text-primary);
+}
+
+.biography-generator__context-option:hover {
+  background: var(--mkcg-bg-secondary);
+  color: var(--mkcg-primary);
+}
+
+.biography-generator__context-option svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* Notifications */
+.biography-generator__notification {
+  position: fixed;
+  top: var(--mkcg-space-md);
+  right: var(--mkcg-space-md);
+  padding: var(--mkcg-space-md) var(--mkcg-space-lg);
+  border-radius: var(--mkcg-radius);
+  color: var(--mkcg-text-white);
+  font-weight: var(--mkcg-font-weight-medium);
+  z-index: var(--mkcg-z-toast);
+  max-width: 400px;
+  box-shadow: var(--mkcg-shadow-lg);
+  animation: slideIn var(--mkcg-animation-duration) var(--mkcg-animation-easing);
+}
+
+.biography-generator__notification--success {
+  background: var(--mkcg-success);
+}
+
+.biography-generator__notification--error {
+  background: var(--mkcg-error);
+}
+
+.biography-generator__notification--warning {
+  background: var(--mkcg-warning);
+  color: var(--mkcg-text-primary);
+}
+
+.biography-generator__notification--info {
+  background: var(--mkcg-info);
+}
+
+/* Help Button */
+.biography-generator__help-button {
+  position: fixed;
+  bottom: var(--mkcg-space-md);
+  right: var(--mkcg-space-md);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--mkcg-primary);
+  color: var(--mkcg-text-white);
+  border: none;
+  font-size: 18px;
+  font-weight: var(--mkcg-font-weight-bold);
+  cursor: pointer;
+  z-index: 1000;
+  box-shadow: var(--mkcg-shadow-lg);
+  transition: var(--mkcg-transition-fast);
+}
+
+.biography-generator__help-button:hover {
+  background: var(--mkcg-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--mkcg-shadow-xl);
+}
+
+/* Shortcuts Modal */
+.biography-generator__shortcuts-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: var(--mkcg-z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity var(--mkcg-animation-duration) var(--mkcg-animation-easing);
+}
+
+.biography-generator__shortcuts-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--mkcg-bg-overlay);
+  cursor: pointer;
+}
+
+.biography-generator__shortcuts-content {
+  position: relative;
+  background: var(--mkcg-bg-primary);
+  border-radius: var(--mkcg-radius-lg);
+  padding: var(--mkcg-space-lg);
+  max-width: 600px;
+  width: 90%;
+  box-shadow: var(--mkcg-shadow-xl);
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.biography-generator__shortcuts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--mkcg-space-lg);
+  border-bottom: 1px solid var(--mkcg-border-light);
+  padding-bottom: var(--mkcg-space-md);
+}
+
+.biography-generator__shortcuts-header h3 {
+  font-size: var(--mkcg-font-size-lg);
+  font-weight: var(--mkcg-font-weight-semibold);
+  color: var(--mkcg-text-primary);
+  margin: 0;
+}
+
+.biography-generator__shortcuts-close {
+  background: none;
+  border: none;
+  color: var(--mkcg-text-secondary);
+  font-size: 32px;
+  cursor: pointer;
+  padding: var(--mkcg-space-xs);
+  border-radius: var(--mkcg-radius-sm);
+  transition: var(--mkcg-transition-fast);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.biography-generator__shortcuts-close:hover {
+  background: var(--mkcg-bg-secondary);
+  color: var(--mkcg-text-primary);
+}
+
+.biography-generator__shortcuts-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mkcg-space-sm);
+}
+
+.biography-generator__shortcut-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--mkcg-space-sm) var(--mkcg-space-md);
+  background: var(--mkcg-bg-secondary);
+  border-radius: var(--mkcg-radius);
+  border: 1px solid var(--mkcg-border-light);
+}
+
+.biography-generator__shortcut-item kbd {
+  background: var(--mkcg-bg-quaternary);
+  color: var(--mkcg-text-primary);
+  padding: 4px 8px;
+  border-radius: var(--mkcg-radius-sm);
+  font-family: var(--mkcg-font-family-mono);
+  font-size: var(--mkcg-font-size-xs);
+  font-weight: var(--mkcg-font-weight-semibold);
+  border: 1px solid var(--mkcg-border-medium);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.biography-generator__shortcut-item span {
+  color: var(--mkcg-text-secondary);
+  font-size: var(--mkcg-font-size-sm);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Print Styles */
+@media print {
+  .biography-generator__result-actions,
+  .biography-generator__modification-controls,
+  .biography-generator__save-section,
+  .generator__panel--right,
+  .biography-generator__help-button,
+  .biography-generator__editing-controls {
+    display: none !important;
+  }
+  
+  .biography-generator__result-content {
+    font-size: 14px !important;
+    line-height: 1.6 !important;
+    color: #000 !important;
+  }
+  
+  .biography-generator__results-tabs {
+    display: none !important;
+  }
+  
+  .biography-generator__result-item {
+    display: block !important;
+    page-break-inside: avoid;
+    margin-bottom: 40px;
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+  }
+  
+  .biography-generator__result-header {
+    border-bottom: 2px solid #000 !important;
+  }
+  
+  .biography-generator__stats {
+    background: transparent !important;
+    border: 1px solid #ccc !important;
+  }
+}
+
+/* Responsive Design for Enhanced Features */
+@media screen and (max-width: 768px) {
+  .biography-generator__comparison-grid {
+    grid-template-columns: 1fr;
+    gap: var(--mkcg-space-md);
+  }
+  
+  .biography-generator__stats {
+    flex-direction: column;
+    gap: var(--mkcg-space-xs);
+  }
+  
+  .biography-generator__share-content {
+    width: 95%;
+    padding: var(--mkcg-space-md);
+  }
+  
+  .biography-generator__shortcuts-content {
+    width: 95%;
+    padding: var(--mkcg-space-md);
+  }
+  
+  .biography-generator__help-button {
+    bottom: var(--mkcg-space-sm);
+    right: var(--mkcg-space-sm);
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+  
+  .biography-generator__notification {
+    top: var(--mkcg-space-sm);
+    right: var(--mkcg-space-sm);
+    left: var(--mkcg-space-sm);
+    max-width: none;
+  }
+  
+  .biography-generator__editing-toolbar {
+    flex-wrap: wrap;
+  }
+  
+  .biography-generator__edit-hint {
+    width: 100%;
+    margin-left: 0;
+    margin-top: var(--mkcg-space-xs);
+    text-align: center;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .biography-generator__comparison-column {
+    padding: var(--mkcg-space-sm);
+  }
+  
+  .biography-generator__comparison-stats {
+    flex-direction: column;
+    gap: var(--mkcg-space-xs);
+  }
+  
+  .biography-generator__share-option {
+    padding: var(--mkcg-space-sm);
+    font-size: var(--mkcg-font-size-sm);
+  }
+  
+  .biography-generator__context-menu {
+    min-width: 160px;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .biography-generator__result-item--editing {
+    border-width: 3px;
+  }
+  
+  .biography-generator__editable-content:focus {
+    box-shadow: inset 0 0 0 3px var(--mkcg-primary);
+  }
+  
+  .biography-generator__notification {
+    border: 2px solid currentColor;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .biography-generator,
+  .biography-generator *,
+  .biography-generator *::before,
+  .biography-generator *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus visible support */
+.biography-generator__action-button:focus-visible,
+.biography-generator__edit-action:focus-visible,
+.biography-generator__share-option:focus-visible {
+  outline: 2px solid var(--mkcg-primary);
+  outline-offset: 2px;
+}
+
+/* Dark mode support (if theme switching is added later) */
+@media (prefers-color-scheme: dark) {
+  .biography-generator {
+    /* Dark mode styles would go here if needed */
+  }
+} rgba(26, 155, 220, 0.1);
 }
 
 .biography-generator__generation-title {
