@@ -2893,5 +2893,225 @@
   border: 1px solid #bee5eb;
 }
 
+/* ============================================================================
+   IMPACT INTRO COMPONENT STYLES
+   ============================================================================ */
+
+/* Impact Intro Edit Link/Button Styling */
+.impact-intro__edit-link {
+  display: inline-flex;
+  align-items: center;
+  color: var(--mkcg-primary);
+  text-decoration: none;
+  font-size: 14px;
+  padding: 8px 12px;
+  border: 1px solid var(--mkcg-primary);
+  border-radius: var(--mkcg-radius-sm);
+  background: transparent;
+  cursor: pointer;
+  transition: var(--mkcg-transition-fast);
+  font-family: inherit;
+  font-weight: 500;
+}
+
+.impact-intro__edit-link:hover {
+  background-color: var(--mkcg-primary);
+  color: var(--mkcg-bg-primary);
+  text-decoration: none;
+}
+
+.impact-intro__edit-link svg {
+  margin-right: 6px;
+  width: 16px;
+  height: 16px;
+}
+
+/* FIXED: Impact Intro Builder container - prevent border conflicts */
+.impact-intro {
+  background-color: var(--mkcg-bg-primary);
+  border-radius: var(--mkcg-radius);
+  overflow: hidden;
+  margin-bottom: var(--mkcg-space-lg);
+  /* Removed duplicate border - handled by parent .generator__builder */
+}
+
+.impact-intro__builder {
+  padding: var(--mkcg-space-lg);
+}
+
+.impact-intro__builder-title {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--mkcg-space-sm);
+  font-size: var(--mkcg-font-size-lg);
+  font-weight: var(--mkcg-font-weight-semibold);
+  color: var(--mkcg-text-primary);
+}
+
+/* ROOT FIX: Impact Intro highlight spans */
+.impact-intro__highlight {
+  color: var(--mkcg-primary);
+  font-weight: var(--mkcg-font-weight-semibold);
+}
+
+/* ROOT FIX: Impact Intro content areas */
+.impact-intro__content {
+  padding: var(--mkcg-space-md);
+  background-color: var(--mkcg-bg-secondary);
+  border-radius: var(--mkcg-radius-sm);
+  margin: var(--mkcg-space-md) 0;
+  border-left: 4px solid var(--mkcg-primary);
+  font-size: var(--mkcg-font-size-md);
+  line-height: var(--mkcg-line-height-relaxed);
+  color: var(--mkcg-text-primary);
+}
+
+/* ROOT FIX: Impact Intro preview */
+.impact-intro__preview {
+  background-color: var(--mkcg-bg-secondary);
+  border: 1px solid var(--mkcg-border-light);
+  border-radius: var(--mkcg-radius);
+  padding: var(--mkcg-space-md);
+  margin-top: var(--mkcg-space-md);
+}
+
+.impact-intro__preview-title {
+  display: flex;
+  align-items: center;
+  font-weight: var(--mkcg-font-weight-semibold);
+  color: var(--mkcg-text-primary);
+  margin-bottom: var(--mkcg-space-sm);
+}
+
+.impact-intro__ai-label {
+  margin-left: auto;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 2px var(--mkcg-space-xs);
+  border-radius: var(--mkcg-radius-sm);
+  font-size: var(--mkcg-font-size-xs);
+  font-weight: var(--mkcg-font-weight-bold);
+}
+
+/* Impact Intro field number circles */
+.impact-intro__field-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background-color: var(--mkcg-primary);
+  color: var(--mkcg-bg-primary);
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: var(--mkcg-font-weight-bold);
+  flex-shrink: 0;
+}
+
+/* =============================================================================
+   CSS-ONLY RADIO BUTTON TAB SYSTEM FOR IMPACT INTRO - FIXED STRUCTURE
+   ============================================================================= */
+
+/* Impact Intro Tab system (2 tabs instead of 4) */
+.impact-intro .tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: auto 1fr;
+  width: 100%;
+  margin-bottom: var(--mkcg-space-md);
+  border: 1px solid var(--mkcg-border-light);
+  border-radius: var(--mkcg-radius);
+  overflow: hidden;
+  background-color: var(--mkcg-bg-primary);
+  box-shadow: var(--mkcg-shadow-sm);
+}
+
+/* Show specific panels when corresponding radio is checked */
+#tabwhere:checked ~ .tabs__panel:nth-of-type(1) {
+  display: block;
+}
+
+#tabwhy:checked ~ .tabs__panel:nth-of-type(2) {
+  display: block;
+}
+
+/* Impact Intro responsive tab design - Stack vertically on mobile */
+@media screen and (max-width: 768px) {
+  .impact-intro .tabs {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(2, auto) 1fr;
+  }
+  
+  .impact-intro .tabs__panel {
+    grid-row: 4;
+  }
+}
+
+/* ============================================================================
+   CREDENTIAL MANAGEMENT FOR IMPACT INTRO
+   ============================================================================ */
+
+/* Credential tag styling for Impact Intro */
+.credential-tag {
+  display: inline-flex;
+  align-items: center;
+  background-color: #eaf0f6;
+  padding: 4px 10px 4px 6px;
+  border-radius: 16px;
+  margin: 3px;
+  font-size: 13px;
+  color: #333;
+  border: 1px solid #d8e6f3;
+  transition: background-color 0.2s ease;
+}
+
+.credential-tag span {
+  color: #333;
+}
+
+.credential-tag.active {
+  background-color: #deeefe;
+  border-color: #a8d1f7;
+}
+
+/* Credentials container for Impact Intro */
+.credentials-container--enhanced {
+  background: white;
+  border: 2px dashed #e3f2fd;
+  border-radius: 6px;
+  min-height: 80px;
+  padding: 15px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  transition: border-color 0.3s ease;
+}
+
+.credentials-container--enhanced:empty::before {
+  content: '✨ Your credentials will appear here. Add some using the field above!';
+  color: #9e9e9e;
+  font-style: italic;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+}
+
+.credentials-container--enhanced:not(:empty) {
+  border-color: #2196f3;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+}
+
+/* Credential manager status for Impact Intro */
+.credential-manager-status {
+  background: rgba(33, 150, 243, 0.05);
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin-top: 10px;
+}
+
 /* Continue with all existing specific styles... */
 /* This ensures complete backward compatibility while implementing the new base architecture */

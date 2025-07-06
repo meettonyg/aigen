@@ -25,6 +25,7 @@ class Media_Kit_Content_Generator {
     private $api_service;
     private $pods_service;
     private $authority_hook_service;
+    private $impact_intro_service;
     private $ajax_handlers = null;
 
     private $generators = [];
@@ -516,6 +517,27 @@ class Media_Kit_Content_Generator {
     }
     
     /**
+     * ROOT FIX: Impact Intro Generator AJAX handlers
+     */
+    public function ajax_save_impact_intro() {
+        // Delegate to Impact Intro Generator
+        if (isset($this->generators['impact_intro'])) {
+            $this->generators['impact_intro']->handle_save_impact_intro();
+        } else {
+            wp_send_json_error(['message' => 'Impact Intro generator not available']);
+        }
+    }
+    
+    public function ajax_get_impact_intro() {
+        // Delegate to Impact Intro Generator
+        if (isset($this->generators['impact_intro'])) {
+            $this->generators['impact_intro']->handle_get_impact_intro();
+        } else {
+            wp_send_json_error(['message' => 'Impact Intro generator not available']);
+        }
+    }
+    
+    /**
      * Simple AJAX request verification
      */
     private function verify_ajax_request() {
@@ -588,6 +610,10 @@ class Media_Kit_Content_Generator {
         // ROOT FIX: Add missing Offers Generator AJAX handlers
         add_action('wp_ajax_mkcg_generate_offers', [$this, 'ajax_generate_offers']);
         add_action('wp_ajax_mkcg_save_offers', [$this, 'ajax_save_offers']);
+        
+        // ROOT FIX: Add Impact Intro Generator AJAX handlers
+        add_action('wp_ajax_mkcg_save_impact_intro', [$this, 'ajax_save_impact_intro']);
+        add_action('wp_ajax_mkcg_get_impact_intro', [$this, 'ajax_get_impact_intro']);
     }
     
     private function load_dependencies() {
@@ -595,11 +621,13 @@ class Media_Kit_Content_Generator {
         require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-api-service.php';
         require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-pods-service.php';
         require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-authority-hook-service.php';
+        require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-impact-intro-service.php';
 
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_topics_generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_questions_generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_offers_generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_authority_hook_generator.php';
+        require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_impact_intro_generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_ajax_handlers.php';
     }
     
@@ -617,23 +645,32 @@ class Media_Kit_Content_Generator {
         // Initialize Authority Hook Service (centralized functionality)
         $this->authority_hook_service = new MKCG_Authority_Hook_Service();
         
-        // CRITICAL FIX: Make Authority Hook Service available globally for templates
-        global $authority_hook_service;
-        $authority_hook_service = $this->authority_hook_service;
+        // Initialize Impact Intro Service (centralized functionality)
+        $this->impact_intro_service = new MKCG_Impact_Intro_Service();
         
-        error_log('MKCG: Services initialized with Pods as primary data source and centralized Authority Hook service');
-        error_log('MKCG: Authority Hook Service made available globally for templates');
+        // CRITICAL FIX: Make services available globally for templates
+        global $authority_hook_service, $impact_intro_service;
+        $authority_hook_service = $this->authority_hook_service;
+        $impact_intro_service = $this->impact_intro_service;
+        
+        error_log('MKCG: Services initialized with Pods as primary data source and centralized services');
+        error_log('MKCG: Authority Hook and Impact Intro Services made available globally for templates');
     }
     
     /**
      * CRITICAL FIX: Ensure global services are available
      */
     private function ensure_global_services() {
-        global $authority_hook_service, $pods_service, $api_service;
+        global $authority_hook_service, $impact_intro_service, $pods_service, $api_service;
         
         if (!$authority_hook_service && isset($this->authority_hook_service)) {
             $authority_hook_service = $this->authority_hook_service;
             error_log('MKCG: Global authority_hook_service variable set');
+        }
+        
+        if (!$impact_intro_service && isset($this->impact_intro_service)) {
+            $impact_intro_service = $this->impact_intro_service;
+            error_log('MKCG: Global impact_intro_service variable set');
         }
         
         if (!$pods_service && isset($this->pods_service)) {
@@ -648,6 +685,7 @@ class Media_Kit_Content_Generator {
         
         // Debug confirmation
         error_log('MKCG: Global services status - Authority Hook: ' . (isset($authority_hook_service) ? 'SET' : 'NOT SET') . 
+                  ', Impact Intro: ' . (isset($impact_intro_service) ? 'SET' : 'NOT SET') . 
                   ', Pods: ' . (isset($pods_service) ? 'SET' : 'NOT SET') . 
                   ', API: ' . (isset($api_service) ? 'SET' : 'NOT SET'));
     }
@@ -675,6 +713,9 @@ class Media_Kit_Content_Generator {
         
         // Initialize Authority Hook Generator (pure Authority Hook service)
         $this->generators['authority_hook'] = new Enhanced_Authority_Hook_Generator();
+        
+        // Initialize Impact Intro Generator (pure Impact Intro service)
+        $this->generators['impact_intro'] = new Enhanced_Impact_Intro_Generator();
         
         error_log('MKCG: Generators initialized: ' . implode(', ', array_keys($this->generators)));
     }
@@ -759,6 +800,7 @@ class Media_Kit_Content_Generator {
         add_shortcode('mkcg_offers', [$this, 'offers_shortcode']);
         add_shortcode('mkcg_questions', [$this, 'questions_shortcode']);
         add_shortcode('mkcg_authority_hook', [$this, 'authority_hook_shortcode']);
+        add_shortcode('mkcg_impact_intro', [$this, 'impact_intro_shortcode']);
     }
     
     /**
@@ -943,6 +985,41 @@ class Media_Kit_Content_Generator {
         return ob_get_clean();
     }
     
+    /**
+     * Impact Intro Generator Shortcode - Dedicated Impact Intro page
+     */
+    public function impact_intro_shortcode($atts) {
+        $atts = shortcode_atts([
+            'post_id' => 0
+        ], $atts);
+        
+        // Force load scripts for shortcode
+        $this->enqueue_scripts();
+        
+        ob_start();
+        
+        // CRITICAL FIX: Ensure global variables are set for template
+        $this->ensure_global_services();
+        
+        // SIMPLIFIED: Set required global variables for template
+        global $pods_service, $generator_instance, $generator_type, $impact_intro_service;
+        $pods_service = $this->pods_service; // Primary data source
+        $impact_intro_service = $this->impact_intro_service; // Centralized Impact Intro functionality
+        $generator_instance = isset($this->generators['impact_intro']) ? $this->generators['impact_intro'] : null;
+        $generator_type = 'impact_intro';
+        
+        // Also make services available
+        global $api_service;
+        $api_service = $this->api_service;
+        
+        error_log('MKCG Shortcode: Loading impact intro template with centralized Impact Intro service');
+        
+        // Include the template
+        include MKCG_PLUGIN_PATH . 'templates/generators/impact-intro/default.php';
+        
+        return ob_get_clean();
+    }
+    
     public function enqueue_scripts() {
         // Load CSS
         wp_enqueue_style(
@@ -1025,6 +1102,14 @@ class Media_Kit_Content_Generator {
             true
         );
         
+        wp_enqueue_script(
+            'impact-intro-generator',
+            MKCG_PLUGIN_URL . 'assets/js/generators/impact-intro-generator.js',
+            ['simple-event-bus', 'simple-ajax'],
+            MKCG_VERSION,
+            true
+        );
+        
         // Pass data to JavaScript - UPDATED for Pods integration
         wp_localize_script('simple-ajax', 'mkcg_vars', [
             'ajax_url' => admin_url('admin-ajax.php'),
@@ -1061,7 +1146,9 @@ class Media_Kit_Content_Generator {
                 'generate_questions' => 'mkcg_generate_questions',
                 'save_single_question' => 'mkcg_save_single_question',
                 'generate_offers' => 'mkcg_generate_offers',
-                'save_offers' => 'mkcg_save_offers'
+                'save_offers' => 'mkcg_save_offers',
+                'save_impact_intro' => 'mkcg_save_impact_intro',
+                'get_impact_intro' => 'mkcg_get_impact_intro'
             ]
         ]);
         
