@@ -1,6 +1,7 @@
 /**
- * Authority Hook Generator JavaScript
+ * Authority Hook Generator JavaScript - WITH AUDIENCE MANAGEMENT INTEGRATION
  * Handles dedicated Authority Hook page functionality
+ * ROOT FIX: Properly integrates with Authority Hook Builder audience management system
  */
 
 (function($) {
@@ -22,7 +23,13 @@
                 whenField: '#mkcg-when',
                 howField: '#mkcg-how',
                 copyToClipboard: '#copy-authority-hook-btn',
-                hiddenField: '#mkcg-authority-hook'
+                hiddenField: '#mkcg-authority-hook',
+                // AUDIENCE MANAGEMENT SELECTORS
+                tagInput: '#tag_input',
+                addTagButton: '#add_tag',
+                tagsContainer: '#tags_container',
+                audienceCount: '#audience-count',
+                selectedCount: '#selected-count'
             },
             ajax: {
                 action: 'mkcg_save_authority_hook',
@@ -30,15 +37,311 @@
             }
         },
         
+        // ROOT FIX: Add audience management state
+        audienceState: {
+            tags: [],
+            initialized: false
+        },
+        
         // Initialize the generator
         init: function() {
-            console.log('🔧 Authority Hook Generator: Initializing...');
+            console.log('🔧 Authority Hook Generator: Initializing with audience management...');
             
             this.bindEvents();
             this.setupRealTimeUpdates();
             this.populateFields();
             
-            console.log('✅ Authority Hook Generator: Initialized successfully');
+            // ROOT FIX: Initialize audience management system
+            this.initializeAudienceManagement();
+            
+            console.log('✅ Authority Hook Generator: Initialized successfully with audience management');
+        },
+        
+        // ROOT FIX: Initialize audience management system
+        initializeAudienceManagement: function() {
+            console.log('🎯 ROOT FIX: Initializing audience management integration...');
+            
+            // Wait for Authority Hook Builder to be available
+            const waitForBuilder = () => {
+                if (typeof window.AuthorityHookBuilder !== 'undefined' || 
+                    document.getElementById(this.config.selectors.tagInput.substring(1))) {
+                    this.setupAudienceManager();
+                    this.loadExistingAudiences();
+                    this.setupExampleChips();
+                    console.log('✅ Audience management system initialized');
+                } else {
+                    console.log('⏳ Waiting for Authority Hook Builder...');
+                    setTimeout(waitForBuilder, 500);
+                }
+            };
+            
+            waitForBuilder();
+        },
+        
+        // ROOT FIX: Setup audience manager integration
+        setupAudienceManager: function() {
+            const tagInput = $(this.config.selectors.tagInput);
+            const addButton = $(this.config.selectors.addTagButton);
+            
+            if (!tagInput.length || !addButton.length) {
+                console.warn('⚠️ Audience manager elements not found');
+                return;
+            }
+            
+            const self = this;
+            
+            // Add tag button click
+            addButton.off('click').on('click', function(e) {
+                e.preventDefault();
+                const text = tagInput.val().trim();
+                if (text) {
+                    self.addAudienceTag(text, true);
+                    tagInput.val('');
+                }
+            });
+            
+            // Enter key in input
+            tagInput.off('keypress').on('keypress', function(e) {
+                if (e.which === 13) { // Enter key
+                    e.preventDefault();
+                    const text = $(this).val().trim();
+                    if (text) {
+                        self.addAudienceTag(text, true);
+                        $(this).val('');
+                    }
+                }
+            });
+            
+            console.log('✅ Audience manager events bound');
+        },
+        
+        // ROOT FIX: Add audience tag to management system
+        addAudienceTag: function(text, checked = true) {
+            // Check for duplicates
+            const existing = this.audienceState.tags.find(tag => tag.text === text);
+            if (existing) {
+                console.log('⚠️ Audience tag already exists:', text);
+                return;
+            }
+            
+            // Add to state
+            const tagData = { text: text, checked: checked };
+            this.audienceState.tags.push(tagData);
+            
+            // Create visual tag
+            this.createVisualTag(tagData);
+            
+            // Update WHO field
+            this.updateWhoField();
+            
+            // Update status
+            this.updateAudienceStatus();
+            
+            console.log('✅ Added audience tag:', text);
+        },
+        
+        // ROOT FIX: Create visual tag element
+        createVisualTag: function(tagData) {
+            const container = $(this.config.selectors.tagsContainer);
+            if (!container.length) return;
+            
+            const tagEl = $(`
+                <div class="audience-tag ${tagData.checked ? 'active' : ''}">
+                    <input type="checkbox" ${tagData.checked ? 'checked' : ''}>
+                    <span>${this.escapeHtml(tagData.text)}</span>
+                    <span class="credential-remove">&times;</span>
+                </div>
+            `);
+            
+            const self = this;
+            
+            // Remove button
+            tagEl.find('.credential-remove').on('click', function() {
+                self.removeAudienceTag(tagData.text);
+            });
+            
+            // Checkbox change
+            tagEl.find('input[type="checkbox"]').on('change', function() {
+                tagData.checked = $(this).is(':checked');
+                tagEl.toggleClass('active', tagData.checked);
+                self.updateWhoField();
+                self.updateAudienceStatus();
+            });
+            
+            container.append(tagEl);
+        },
+        
+        // ROOT FIX: Remove audience tag
+        removeAudienceTag: function(text) {
+            // Remove from state
+            this.audienceState.tags = this.audienceState.tags.filter(tag => tag.text !== text);
+            
+            // Remove visual element
+            $(this.config.selectors.tagsContainer + ' .audience-tag').each(function() {
+                if ($(this).find('span').first().text() === text) {
+                    $(this).remove();
+                }
+            });
+            
+            // Update WHO field
+            this.updateWhoField();
+            
+            // Update status
+            this.updateAudienceStatus();
+            
+            console.log('✅ Removed audience tag:', text);
+        },
+        
+        // ROOT FIX: Update WHO field with selected audiences
+        updateWhoField: function() {
+            const checkedTags = this.audienceState.tags.filter(tag => tag.checked);
+            let text = '';
+            
+            if (checkedTags.length === 1) {
+                text = checkedTags[0].text;
+            } else if (checkedTags.length === 2) {
+                text = checkedTags.map(tag => tag.text).join(' and ');
+            } else if (checkedTags.length > 2) {
+                const texts = checkedTags.map(tag => tag.text);
+                text = texts.slice(0, -1).join(', ') + ', and ' + texts.slice(-1);
+            }
+            
+            $(this.config.selectors.whoField).val(text);
+            
+            // Trigger update events
+            this.updatePreview();
+            this.updateHiddenField();
+            
+            console.log('✅ Updated WHO field:', text);
+        },
+        
+        // ROOT FIX: Update audience status display
+        updateAudienceStatus: function() {
+            const total = this.audienceState.tags.length;
+            const checked = this.audienceState.tags.filter(tag => tag.checked).length;
+            
+            $(this.config.selectors.audienceCount).text(total);
+            $(this.config.selectors.selectedCount).text(checked);
+        },
+        
+        // ROOT FIX: Load existing audiences from WHO field
+        loadExistingAudiences: function() {
+            const whoField = $(this.config.selectors.whoField);
+            const existingValue = whoField.val();
+            
+            if (!existingValue || existingValue.trim() === '' || this.audienceState.tags.length > 0) {
+                return;
+            }
+            
+            // Parse existing WHO field value into audiences
+            const audiences = existingValue.trim().split(/,\s*and\s*|\s*and\s*|,\s*/).filter(Boolean);
+            
+            audiences.forEach(text => {
+                if (text && text.trim()) {
+                    this.addAudienceTag(text.trim(), true);
+                }
+            });
+            
+            this.updateAudienceStatus();
+            
+            console.log('✅ Loaded existing audiences:', audiences);
+        },
+        
+        // ROOT FIX: Setup example chips integration
+        setupExampleChips: function() {
+            const self = this;
+            
+            // Use event delegation for example chips
+            $(document).off('click.authority-hook-examples').on('click.authority-hook-examples', '.tag__add-link', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const tag = $(this).closest('.tag');
+                const targetField = tag.attr('data-target');
+                const value = tag.attr('data-value');
+                
+                console.log('🎯 Example chip clicked:', { targetField, value });
+                
+                if (targetField && value) {
+                    if (targetField === 'mkcg-who') {
+                        // Add to audience management system
+                        self.addAudienceTag(value, true);
+                        
+                        // Visual feedback
+                        $(this).text('✓ Added to List')
+                               .css({ backgroundColor: '#d4edda', color: '#155724' });
+                        
+                        setTimeout(() => {
+                            $(this).text('+ Add')
+                                   .css({ backgroundColor: '', color: '' });
+                        }, 2000);
+                    } else {
+                        // Regular field population
+                        $('#' + targetField).val(value).trigger('input');
+                        
+                        // Visual feedback
+                        $(this).text('✓ Added')
+                               .css({ backgroundColor: '#d4edda', color: '#155724' });
+                        
+                        setTimeout(() => {
+                            $(this).text('+ Add')
+                                   .css({ backgroundColor: '', color: '' });
+                        }, 2000);
+                    }
+                }
+            });
+            
+            console.log('✅ Example chips integration setup');
+        },
+        
+        // ROOT FIX: Collect audience data for saving
+        collectAudienceData: function() {
+            console.log('🔄 ROOT FIX: Collecting audience data for save...');
+            
+            // Priority 1: Check audience management system
+            const checkedTags = this.audienceState.tags.filter(tag => tag.checked);
+            if (checkedTags.length > 0) {
+                const audienceText = this.formatAudienceList(checkedTags.map(tag => tag.text));
+                console.log('✅ Using audience management data:', audienceText);
+                return audienceText;
+            }
+            
+            // Priority 2: Check WHO field directly
+            const whoField = $(this.config.selectors.whoField).val();
+            if (whoField && whoField.trim() && whoField.trim() !== 'your audience') {
+                console.log('✅ Using WHO field data:', whoField.trim());
+                return whoField.trim();
+            }
+            
+            // No audience data found
+            console.log('⚠️ No audience data found');
+            return '';
+        },
+        
+        // ROOT FIX: Format audience list with proper grammar
+        formatAudienceList: function(audiences) {
+            if (!audiences || audiences.length === 0) {
+                return '';
+            }
+            
+            if (audiences.length === 1) {
+                return audiences[0];
+            }
+            
+            if (audiences.length === 2) {
+                return audiences.join(' and ');
+            }
+            
+            // For 3+ audiences: "A, B, and C"
+            const lastAudience = audiences.pop();
+            return audiences.join(', ') + ', and ' + lastAudience;
+        },
+        
+        // ROOT FIX: HTML escape utility
+        escapeHtml: function(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         },
         
         // Bind event handlers
@@ -205,9 +508,9 @@
             document.body.removeChild(textArea);
         },
         
-        // Save Authority Hook data
+        // ROOT FIX: Save Authority Hook data with audience management integration
         saveAuthorityHook: function() {
-            console.log('🔄 Starting Authority Hook save operation...');
+            console.log('🔄 Starting Authority Hook save operation with audience management...');
             
             const postId = $(this.config.selectors.postIdField).val();
             const nonce = $(this.config.selectors.nonceField).val();
@@ -217,13 +520,18 @@
                 return;
             }
             
-            // Collect Authority Hook data
+            // ROOT FIX: Collect Authority Hook data with proper audience integration
             const authorityHookData = {
-                who: $(this.config.selectors.whoField).val() || '',
+                who: this.collectAudienceData(), // Use audience management system
                 what: $(this.config.selectors.whatField).val() || '',
                 when: $(this.config.selectors.whenField).val() || '',
                 how: $(this.config.selectors.howField).val() || ''
             };
+            
+            // Also ensure WHO field is updated with latest audience data
+            if (authorityHookData.who) {
+                $(this.config.selectors.whoField).val(authorityHookData.who);
+            }
             
             // Validate data
             const validation = this.validateData(authorityHookData);
@@ -232,7 +540,13 @@
                 return;
             }
             
-            console.log('📊 Saving Authority Hook data:', authorityHookData);
+            console.log('📊 Saving Authority Hook data with audience management:', authorityHookData);
+            console.log('🎯 Audience data source:', {
+                audienceManagementTags: this.audienceState.tags.length,
+                checkedTags: this.audienceState.tags.filter(tag => tag.checked).length,
+                whoFieldValue: $(this.config.selectors.whoField).val(),
+                finalWhoValue: authorityHookData.who
+            });
             
             this.showLoading();
             
@@ -258,7 +572,7 @@
                     
                     if (response.success) {
                         this.showMessage('✅ Authority Hook saved successfully!', 'success');
-                        console.log('✅ Save successful:', response);
+                        console.log('✅ Save successful with audience management:', response);
                         
                         // Update window data
                         if (window.MKCG_Authority_Hook_Data) {
@@ -269,6 +583,10 @@
                         // Trigger saved event
                         $(document).trigger('authority-hook-saved', {
                             authorityHook: authorityHookData,
+                            audienceData: {
+                                tags: this.audienceState.tags,
+                                selectedCount: this.audienceState.tags.filter(tag => tag.checked).length
+                            },
                             timestamp: Date.now()
                         });
                         
@@ -384,11 +702,43 @@
         }
     });
     
-    // Make debug function available globally
+    // ROOT FIX: Enhanced debug functions with audience management
     window.debugAuthorityHook = function() {
         AuthorityHookGenerator.debug();
     };
     
-    console.log('✅ Authority Hook Generator script loaded');
+    // ROOT FIX: Debug audience management system
+    window.debugAudienceManagement = function() {
+        console.log('🔍 Authority Hook Generator Audience Management Debug:', {
+            audienceState: AuthorityHookGenerator.audienceState,
+            audienceTags: AuthorityHookGenerator.audienceState.tags,
+            checkedTags: AuthorityHookGenerator.audienceState.tags.filter(tag => tag.checked),
+            whoFieldValue: $(AuthorityHookGenerator.config.selectors.whoField).val(),
+            collectedAudienceData: AuthorityHookGenerator.collectAudienceData(),
+            audienceManagerElements: {
+                tagInput: $(AuthorityHookGenerator.config.selectors.tagInput).length,
+                addButton: $(AuthorityHookGenerator.config.selectors.addTagButton).length,
+                container: $(AuthorityHookGenerator.config.selectors.tagsContainer).length
+            },
+            exampleChips: $('.tag__add-link').length
+        });
+    };
+    
+    // ROOT FIX: Test audience management functionality
+    window.testAudienceManagement = function() {
+        console.log('🧪 Testing audience management...');
+        
+        // Test adding a tag
+        AuthorityHookGenerator.addAudienceTag('Test Audience', true);
+        
+        // Test collecting data
+        const collected = AuthorityHookGenerator.collectAudienceData();
+        console.log('✅ Test complete. Collected data:', collected);
+        
+        return collected;
+    };
+    
+    console.log('✅ Authority Hook Generator script loaded with audience management integration');
+    console.log('🔧 Debug functions: window.debugAuthorityHook(), window.debugAudienceManagement(), window.testAudienceManagement()');
     
 })(jQuery);

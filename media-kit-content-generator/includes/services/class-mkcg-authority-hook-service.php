@@ -36,6 +36,11 @@ class MKCG_Authority_Hook_Service {
     ];
     
     /**
+     * ROOT FIX: Audience taxonomy name for WordPress admin integration
+     */
+    const AUDIENCE_TAXONOMY = 'audience';
+    
+    /**
      * OLD DEFAULT VALUES TO IGNORE
      * CLEAN CODE: Treat these as empty even if found in database
      */
@@ -47,14 +52,14 @@ class MKCG_Authority_Hook_Service {
     ];
     
     /**
-     * Field mappings for WordPress post meta - FIXED to match Pods Service expectations
+     * Field mappings for WordPress post meta - AUDIENCE TAXONOMY ONLY
      */
     private $field_mappings = [
         'postmeta' => [
-            'who' => 'guest_title', // Use existing guest_title field for WHO component
-            'what' => 'hook_what',   // Match Pods Service field names
-            'when' => 'hook_when',   // Match Pods Service field names 
-            'how' => 'hook_how'      // Match Pods Service field names
+            'what' => 'hook_what',   // WHAT, WHEN, HOW save to post meta
+            'when' => 'hook_when',
+            'how' => 'hook_how'
+            // WHO field saves to audience taxonomy, not post meta
         ]
     ];
     
@@ -68,7 +73,7 @@ class MKCG_Authority_Hook_Service {
     }
     
     /**
-     * Get Authority Hook data from WordPress post meta - CLEAN VERSION
+     * ROOT FIX: Get Authority Hook data from WordPress post meta AND audience taxonomy
      * CLEAN CODE: Always returns empty defaults, loads real data if exists
      * 
      * @param int $post_id WordPress post ID
@@ -97,12 +102,61 @@ class MKCG_Authority_Hook_Service {
         // Load from WordPress post meta
         $components = $this->get_from_postmeta($post_id);
         
+        // ROOT FIX: Try to load WHO from audience taxonomy if post meta is empty
+        if (empty($components['who'])) {
+            $audience_from_taxonomy = $this->get_from_audience_taxonomy($post_id);
+            if (!empty($audience_from_taxonomy)) {
+                $components['who'] = $audience_from_taxonomy;
+                error_log('MKCG Authority Hook Service: Loaded WHO from audience taxonomy: ' . $audience_from_taxonomy);
+            }
+        }
+        
         // Sanitize components (security only, no defaults added)
         $components = $this->sanitize_components($components);
         
         error_log('MKCG Authority Hook Service: Final components: ' . json_encode($components));
         
         return $this->build_complete_response($components, !$this->is_default_data($components), 'Authority Hook data loaded successfully');
+    }
+    
+    /**
+     * ROOT FIX: Get WHO component from audience taxonomy
+     */
+    private function get_from_audience_taxonomy($post_id) {
+        if (!$post_id) {
+            return '';
+        }
+        
+        try {
+            // Clear cache and get audience terms
+            wp_cache_delete($post_id, 'audience_relationships');
+            $audience_terms = wp_get_post_terms($post_id, 'audience', ['fields' => 'names']);
+            
+            if (is_wp_error($audience_terms) || empty($audience_terms)) {
+                error_log('MKCG Authority Hook Service: No audience terms found for post ' . $post_id);
+                return '';
+            }
+            
+            error_log('MKCG Authority Hook Service: Found audience terms: ' . json_encode($audience_terms));
+            
+            // Format for natural language: "A and B" or "A, B, and C"
+            $formatted_audience = '';
+            if (count($audience_terms) === 1) {
+                $formatted_audience = $audience_terms[0];
+            } elseif (count($audience_terms) === 2) {
+                $formatted_audience = $audience_terms[0] . ' and ' . $audience_terms[1];
+            } else {
+                $last = array_pop($audience_terms);
+                $formatted_audience = implode(', ', $audience_terms) . ', and ' . $last;
+            }
+            
+            error_log('MKCG Authority Hook Service: Formatted audience string: "' . $formatted_audience . '"');
+            return $formatted_audience;
+            
+        } catch (Exception $e) {
+            error_log('MKCG Authority Hook Service: Error loading audience taxonomy: ' . $e->getMessage());
+            return '';
+        }
     }
     
     /**
@@ -443,21 +497,34 @@ class MKCG_Authority_Hook_Service {
     }
     
     /**
-     * Save Authority Hook data to WordPress post meta - FIXED to use correct field names
+     * ROOT FIX: Save Authority Hook data to post meta AND audience taxonomy
+     * WHO component saves ONLY to audience taxonomy (like Topics Generator)
      */
     private function save_to_postmeta($post_id, $components) {
         try {
             $field_mappings = $this->field_mappings['postmeta'];
             $saved_count = 0;
             
+            // Save WHAT, WHEN, HOW to post meta
             foreach ($components as $component => $value) {
-                if (isset($field_mappings[$component])) {
+                if ($component !== 'who' && isset($field_mappings[$component])) {
                     $field_name = $field_mappings[$component];
                     $result = update_post_meta($post_id, $field_name, $value);
                     if ($result !== false) {
                         $saved_count++;
                         error_log("MKCG Authority Hook: Saved {$component} to field {$field_name}: {$value}");
                     }
+                }
+            }
+            
+            // ROOT FIX: Save WHO component ONLY to audience taxonomy (like Topics Generator)
+            if (!empty($components['who'])) {
+                $audience_save_result = $this->save_to_audience_taxonomy($post_id, $components['who']);
+                if ($audience_save_result['success']) {
+                    $saved_count++;
+                    error_log("MKCG Authority Hook: Saved WHO to audience taxonomy: {$components['who']}");
+                } else {
+                    error_log("MKCG Authority Hook: Failed to save to audience taxonomy: " . $audience_save_result['message']);
                 }
             }
             
@@ -469,13 +536,136 @@ class MKCG_Authority_Hook_Service {
             
             return [
                 'success' => $saved_count > 0, 
-                'message' => $saved_count > 0 ? "Saved {$saved_count} components to correct fields" : 'No components saved',
+                'message' => $saved_count > 0 ? "Saved {$saved_count} components to taxonomy and post meta" : 'No components saved',
                 'saved_count' => $saved_count
             ];
         } catch (Exception $e) {
             error_log("MKCG Authority Hook: Save error - " . $e->getMessage());
-            return ['success' => false, 'message' => 'Post meta save error: ' . $e->getMessage()];
+            return ['success' => false, 'message' => 'Save error: ' . $e->getMessage()];
         }
+    }
+    
+    /**
+     * ROOT FIX: Save WHO component to audience taxonomy
+     * This makes the data appear in the WordPress admin "Audiences" field
+     */
+    private function save_to_audience_taxonomy($post_id, $who_value) {
+        if (!$who_value || empty(trim($who_value))) {
+            return ['success' => false, 'message' => 'No WHO value provided'];
+        }
+        
+        try {
+            // Parse the WHO value into individual audiences
+            // Handle formats like "A and B" or "A, B, and C"
+            $audiences = $this->parse_audiences_from_text($who_value);
+            
+            if (empty($audiences)) {
+                return ['success' => false, 'message' => 'No audiences parsed from WHO value'];
+            }
+            
+            error_log("MKCG Authority Hook: Parsing WHO value '{$who_value}' into audiences: " . json_encode($audiences));
+            
+            // Get or create terms for each audience
+            $term_ids = [];
+            foreach ($audiences as $audience_name) {
+                $audience_name = trim($audience_name);
+                if (empty($audience_name)) continue;
+                
+                // Check if term exists, create if not
+                $term = get_term_by('name', $audience_name, 'audience');
+                if (!$term) {
+                    // Create new term
+                    $term_result = wp_insert_term($audience_name, 'audience');
+                    if (!is_wp_error($term_result)) {
+                        $term_ids[] = $term_result['term_id'];
+                        error_log("MKCG Authority Hook: Created new audience term: {$audience_name} (ID: {$term_result['term_id']})");
+                    } else {
+                        error_log("MKCG Authority Hook: Failed to create term '{$audience_name}': " . $term_result->get_error_message());
+                    }
+                } else {
+                    $term_ids[] = $term->term_id;
+                    error_log("MKCG Authority Hook: Using existing audience term: {$audience_name} (ID: {$term->term_id})");
+                }
+            }
+            
+            if (empty($term_ids)) {
+                return ['success' => false, 'message' => 'No valid audience terms created or found'];
+            }
+            
+            // Set the terms for this post (replace existing)
+            $result = wp_set_post_terms($post_id, $term_ids, 'audience', false);
+            
+            if (is_wp_error($result)) {
+                error_log("MKCG Authority Hook: Failed to set post terms: " . $result->get_error_message());
+                return ['success' => false, 'message' => 'Failed to set audience terms: ' . $result->get_error_message()];
+            }
+            
+            error_log("MKCG Authority Hook: Successfully set " . count($term_ids) . " audience terms for post {$post_id}");
+            
+            // Clear any caches
+            wp_cache_delete($post_id, 'audience_relationships');
+            clean_post_cache($post_id);
+            
+            return [
+                'success' => true, 
+                'message' => 'Successfully saved ' . count($term_ids) . ' audience terms',
+                'term_ids' => $term_ids,
+                'audiences' => $audiences
+            ];
+            
+        } catch (Exception $e) {
+            error_log("MKCG Authority Hook: Audience taxonomy save error - " . $e->getMessage());
+            return ['success' => false, 'message' => 'Audience taxonomy save error: ' . $e->getMessage()];
+        }
+    }
+    
+    /**
+     * ROOT FIX: Parse audiences from natural language text
+     * Handles formats like "A and B" or "A, B, and C" or "A, B, C"
+     */
+    private function parse_audiences_from_text($text) {
+        if (!$text || empty(trim($text))) {
+            return [];
+        }
+        
+        $text = trim($text);
+        
+        // Handle different formats:
+        // "A and B" -> ["A", "B"]
+        // "A, B, and C" -> ["A", "B", "C"]
+        // "A, B, C" -> ["A", "B", "C"]
+        
+        // First, split by commas
+        $parts = explode(',', $text);
+        $audiences = [];
+        
+        foreach ($parts as $part) {
+            $part = trim($part);
+            
+            // Check if this part contains "and"
+            if (strpos($part, ' and ') !== false) {
+                // Split by "and" and add both parts
+                $and_parts = explode(' and ', $part);
+                foreach ($and_parts as $and_part) {
+                    $and_part = trim($and_part);
+                    if (!empty($and_part)) {
+                        $audiences[] = $and_part;
+                    }
+                }
+            } else {
+                // Single part, add it directly
+                if (!empty($part)) {
+                    $audiences[] = $part;
+                }
+            }
+        }
+        
+        // Remove duplicates and empty values
+        $audiences = array_unique(array_filter($audiences, function($audience) {
+            return !empty(trim($audience));
+        }));
+        
+        return array_values($audiences);
     }
     
     /**
