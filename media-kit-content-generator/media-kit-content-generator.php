@@ -35,6 +35,15 @@ class Media_Kit_Content_Generator {
 
     private $generators = [];
     
+    /**
+     * Helper method for conditional debug logging
+     */
+    private function debug_log($message) {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log($message);
+        }
+    }
+    
     public static function get_instance() {
         if (null === self::$instance) {
             self::$instance = new self();
@@ -60,7 +69,7 @@ class Media_Kit_Content_Generator {
      * ROOT FIX: Direct AJAX handler for save topics to avoid complex handler chain
      */
     public function ajax_save_topics() {
-        error_log('MKCG: Starting ajax_save_topics handler - direct implementation');
+        $this->debug_log('MKCG: Starting ajax_save_topics handler - direct implementation');
         
         // Verify request
         if (!$this->verify_ajax_request()) {
@@ -75,15 +84,15 @@ class Media_Kit_Content_Generator {
             return;
         }
         
-        error_log('MKCG: Processing save for post ID: ' . $post_id);
-        error_log('MKCG: POST data: ' . print_r($_POST, true));
+        $this->debug_log('MKCG: Processing save for post ID: ' . $post_id);
+        $this->debug_log('MKCG: POST data: ' . print_r($_POST, true));
         
         // Extract topics data
         $topics_data = $this->extract_topics_data();
         $authority_hook_data = $this->extract_authority_hook_data();
         
-        error_log('MKCG: Extracted topics: ' . print_r($topics_data, true));
-        error_log('MKCG: Extracted authority hook: ' . print_r($authority_hook_data, true));
+        $this->debug_log('MKCG: Extracted topics: ' . print_r($topics_data, true));
+        $this->debug_log('MKCG: Extracted authority hook: ' . print_r($authority_hook_data, true));
         
         if (empty($topics_data) && empty($authority_hook_data)) {
             wp_send_json_error(['message' => 'No data provided to save']);
@@ -136,50 +145,50 @@ class Media_Kit_Content_Generator {
     }
     
     /**
-     * ROOT FIX: Extract topics data with comprehensive fallback strategies
+     * ROOT FIX: Extract topics data with optimized processing
      */
     private function extract_topics_data() {
         $topics = [];
         
-        // Method 1: Array notation (topics[topic_1], etc.)
+        // Primary method: Direct array access (most common)
+        if (isset($_POST['topics']) && is_array($_POST['topics'])) {
+            foreach ($_POST['topics'] as $key => $value) {
+                if (!empty(trim($value))) {
+                    $topics[sanitize_key($key)] = sanitize_textarea_field($value);
+                }
+            }
+            return $topics;
+        }
+        
+        // Fallback 1: Array notation (topics[topic_1], etc.)
         foreach ($_POST as $key => $value) {
             if (strpos($key, 'topics[') === 0) {
                 preg_match('/topics\[(.*?)\]/', $key, $matches);
                 if (isset($matches[1]) && !empty(trim($value))) {
-                    $topics[$matches[1]] = sanitize_textarea_field($value);
+                    $topics[sanitize_key($matches[1])] = sanitize_textarea_field($value);
                 }
             }
         }
+        if (!empty($topics)) return $topics;
         
-        // Method 2: JSON string in topics field
-        if (empty($topics) && isset($_POST['topics'])) {
-            $topics_raw = is_array($_POST['topics']) ? $_POST['topics'] : stripslashes($_POST['topics']);
-            
-            if (is_string($topics_raw)) {
-                $decoded = json_decode($topics_raw, true);
-                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                    foreach ($decoded as $key => $value) {
-                        if (!empty(trim($value))) {
-                            $topics[$key] = sanitize_textarea_field($value);
-                        }
-                    }
-                }
-            } elseif (is_array($topics_raw)) {
-                foreach ($topics_raw as $key => $value) {
+        // Fallback 2: JSON string in topics field
+        if (isset($_POST['topics']) && is_string($_POST['topics'])) {
+            $decoded = json_decode(stripslashes($_POST['topics']), true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                foreach ($decoded as $key => $value) {
                     if (!empty(trim($value))) {
-                        $topics[$key] = sanitize_textarea_field($value);
+                        $topics[sanitize_key($key)] = sanitize_textarea_field($value);
                     }
                 }
+                return $topics;
             }
         }
         
-        // Method 3: Individual topic fields
-        if (empty($topics)) {
-            for ($i = 1; $i <= 5; $i++) {
-                $field_name = 'topic_' . $i;
-                if (isset($_POST[$field_name]) && !empty(trim($_POST[$field_name]))) {
-                    $topics[$field_name] = sanitize_textarea_field($_POST[$field_name]);
-                }
+        // Fallback 3: Individual topic fields
+        for ($i = 1; $i <= 5; $i++) {
+            $field_name = 'topic_' . $i;
+            if (isset($_POST[$field_name]) && !empty(trim($_POST[$field_name]))) {
+                $topics[$field_name] = sanitize_textarea_field($_POST[$field_name]);
             }
         }
         
@@ -445,18 +454,20 @@ class Media_Kit_Content_Generator {
      * ROOT FIX: Questions Generator AJAX handlers
      */
     public function ajax_save_questions() {
-        // Delegate to Questions Generator
-        if (isset($this->generators['questions'])) {
-            $this->generators['questions']->handle_save_questions();
+        $questions_generator = $this->get_generator_instance('questions');
+        
+        if ($questions_generator) {
+            $questions_generator->handle_save_questions();
         } else {
             wp_send_json_error(['message' => 'Questions generator not available']);
         }
     }
     
     public function ajax_generate_questions() {
-        // Delegate to Questions Generator
-        if (isset($this->generators['questions'])) {
-            $this->generators['questions']->handle_generate_questions();
+        $questions_generator = $this->get_generator_instance('questions');
+        
+        if ($questions_generator) {
+            $questions_generator->handle_generate_questions();
         } else {
             wp_send_json_error(['message' => 'Questions generator not available']);
         }
@@ -498,9 +509,10 @@ class Media_Kit_Content_Generator {
     }
     
     public function ajax_get_questions() {
-        // Delegate to Questions Generator
-        if (isset($this->generators['questions'])) {
-            $this->generators['questions']->handle_get_questions();
+        $questions_generator = $this->get_generator_instance('questions');
+        
+        if ($questions_generator) {
+            $questions_generator->handle_get_questions();
         } else {
             wp_send_json_error(['message' => 'Questions generator not available']);
         }
@@ -525,141 +537,128 @@ class Media_Kit_Content_Generator {
      * ROOT FIX: Impact Intro Generator AJAX handlers
      */
     public function ajax_save_impact_intro() {
-        // Delegate to Impact Intro Generator
-        if (isset($this->generators['impact_intro'])) {
-            $this->generators['impact_intro']->handle_save_impact_intro();
+        $impact_intro_generator = $this->get_generator_instance('impact_intro');
+        
+        if ($impact_intro_generator) {
+            $impact_intro_generator->handle_save_impact_intro();
         } else {
             wp_send_json_error(['message' => 'Impact Intro generator not available']);
         }
     }
     
     public function ajax_get_impact_intro() {
-        // Delegate to Impact Intro Generator
-        if (isset($this->generators['impact_intro'])) {
-            $this->generators['impact_intro']->handle_get_impact_intro();
+        $impact_intro_generator = $this->get_generator_instance('impact_intro');
+        
+        if ($impact_intro_generator) {
+            $impact_intro_generator->handle_get_impact_intro();
         } else {
             wp_send_json_error(['message' => 'Impact Intro generator not available']);
         }
     }
     
     /**
+     * Helper method to get a generator instance, initializing if needed
+     */
+    private function get_generator_instance($type) {
+        if (!isset($this->generators[$type])) {
+            $class_map = [
+                'biography' => 'MKCG_Enhanced_Biography_Generator',
+                'topics' => 'Enhanced_Topics_Generator',
+                'questions' => 'Enhanced_Questions_Generator',
+                'offers' => 'Enhanced_Offers_Generator',
+                'authority_hook' => 'Enhanced_Authority_Hook_Generator',
+                'impact_intro' => 'Enhanced_Impact_Intro_Generator'
+            ];
+            
+            $file_path = MKCG_PLUGIN_PATH . 'includes/generators/enhanced_' . $type . '_generator.php';
+            
+            if (isset($class_map[$type]) && file_exists($file_path)) {
+                require_once $file_path;
+                $this->generators[$type] = new $class_map[$type]();
+                $this->debug_log('MKCG: Initialized ' . $type . ' generator on demand');
+            }
+        }
+        return $this->generators[$type] ?? null;
+    }
+    
+    /**
      * ROOT FIX: Biography Generator AJAX handlers
      */
     public function ajax_generate_biography() {
-        // Ensure biography generator is initialized
-        if (!isset($this->generators['biography'])) {
-            require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_biography_generator.php';
-            $this->generators['biography'] = new MKCG_Enhanced_Biography_Generator();
-        }
+        $biography_generator = $this->get_generator_instance('biography');
         
-        // Delegate to Biography Generator
-        if (isset($this->generators['biography'])) {
-            $this->generators['biography']->ajax_generate_biography();
+        if ($biography_generator) {
+            $biography_generator->ajax_generate_biography();
         } else {
             wp_send_json_error(['message' => 'Biography generator not available']);
         }
     }
     
     public function ajax_modify_biography_tone() {
-        // Ensure biography generator is initialized
-        if (!isset($this->generators['biography'])) {
-            require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_biography_generator.php';
-            $this->generators['biography'] = new MKCG_Enhanced_Biography_Generator();
-        }
+        $biography_generator = $this->get_generator_instance('biography');
         
-        // Delegate to Biography Generator
-        if (isset($this->generators['biography'])) {
-            $this->generators['biography']->ajax_modify_biography_tone();
+        if ($biography_generator) {
+            $biography_generator->ajax_modify_biography_tone();
         } else {
             wp_send_json_error(['message' => 'Biography generator not available']);
         }
     }
     
     public function ajax_save_biography_to_formidable() {
-        // Ensure biography generator is initialized
-        if (!isset($this->generators['biography'])) {
-            require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_biography_generator.php';
-            $this->generators['biography'] = new MKCG_Enhanced_Biography_Generator();
-        }
+        $biography_generator = $this->get_generator_instance('biography');
         
-        // Delegate to Biography Generator
-        if (isset($this->generators['biography'])) {
-            $this->generators['biography']->ajax_save_biography_to_formidable();
+        if ($biography_generator) {
+            $biography_generator->ajax_save_biography_to_formidable();
         } else {
             wp_send_json_error(['message' => 'Biography generator not available']);
         }
     }
     
     public function ajax_save_biography_data() {
-        // Ensure biography generator is initialized
-        if (!isset($this->generators['biography'])) {
-            require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_biography_generator.php';
-            $this->generators['biography'] = new MKCG_Enhanced_Biography_Generator();
-        }
+        $biography_generator = $this->get_generator_instance('biography');
         
-        // Delegate to Biography Generator
-        if (isset($this->generators['biography'])) {
-            $this->generators['biography']->ajax_save_biography_data();
+        if ($biography_generator) {
+            $biography_generator->ajax_save_biography_data();
         } else {
             wp_send_json_error(['message' => 'Biography generator not available']);
         }
     }
     
     public function ajax_save_biography_field() {
-        // Ensure biography generator is initialized
-        if (!isset($this->generators['biography'])) {
-            require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_biography_generator.php';
-            $this->generators['biography'] = new MKCG_Enhanced_Biography_Generator();
-        }
+        $biography_generator = $this->get_generator_instance('biography');
         
-        // Delegate to Biography Generator
-        if (isset($this->generators['biography'])) {
-            $this->generators['biography']->ajax_save_biography_field();
+        if ($biography_generator) {
+            $biography_generator->ajax_save_biography_field();
         } else {
             wp_send_json_error(['message' => 'Biography generator not available']);
         }
     }
     
     public function ajax_get_biography_data() {
-        // Ensure biography generator is initialized
-        if (!isset($this->generators['biography'])) {
-            require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_biography_generator.php';
-            $this->generators['biography'] = new MKCG_Enhanced_Biography_Generator();
-        }
+        $biography_generator = $this->get_generator_instance('biography');
         
-        // Delegate to Biography Generator
-        if (isset($this->generators['biography'])) {
-            $this->generators['biography']->ajax_get_biography_data();
+        if ($biography_generator) {
+            $biography_generator->ajax_get_biography_data();
         } else {
             wp_send_json_error(['message' => 'Biography generator not available']);
         }
     }
     
     public function ajax_validate_biography_data() {
-        // Ensure biography generator is initialized
-        if (!isset($this->generators['biography'])) {
-            require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_biography_generator.php';
-            $this->generators['biography'] = new MKCG_Enhanced_Biography_Generator();
-        }
+        $biography_generator = $this->get_generator_instance('biography');
         
-        // Delegate to Biography Generator
-        if (isset($this->generators['biography'])) {
-            $this->generators['biography']->ajax_validate_biography_data();
+        if ($biography_generator) {
+            $biography_generator->ajax_validate_biography_data();
         } else {
             wp_send_json_error(['message' => 'Biography generator not available']);
         }
     }
     
     public function ajax_regenerate_biography() {
-        // Ensure biography generator is initialized
-        if (!isset($this->generators['biography'])) {
-            require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_biography_generator.php';
-            $this->generators['biography'] = new MKCG_Enhanced_Biography_Generator();
-        }
+        $biography_generator = $this->get_generator_instance('biography');
         
-        // Delegate to Biography Generator
-        if (isset($this->generators['biography'])) {
-            $this->generators['biography']->ajax_regenerate_biography();
+        if ($biography_generator) {
+            $biography_generator->ajax_regenerate_biography();
         } else {
             wp_send_json_error(['message' => 'Biography generator not available']);
         }
@@ -796,6 +795,20 @@ class Media_Kit_Content_Generator {
         
         error_log('MKCG: Services initialized with Pods as primary data source and centralized services');
         error_log('MKCG: Authority Hook and Impact Intro Services made available globally for templates');
+    }
+    
+    /**
+     * Helper method to prepare template data structure
+     */
+    private function prepare_template_data($generator_type, $additional_data = []) {
+        return array_merge([
+            'pods_service' => $this->pods_service,
+            'authority_hook_service' => $this->authority_hook_service,
+            'impact_intro_service' => $this->impact_intro_service,
+            'api_service' => $this->api_service,
+            'generator_instance' => $this->generators[$generator_type] ?? null,
+            'generator_type' => $generator_type,
+        ], $additional_data);
     }
     
     /**
@@ -963,18 +976,18 @@ class Media_Kit_Content_Generator {
         // CRITICAL FIX: Ensure global variables are set for template
         $this->ensure_global_services();
         
-        // SIMPLIFIED: Set required global variables for template
-        global $pods_service, $generator_instance, $generator_type, $authority_hook_service;
-        $pods_service = $this->pods_service; // Primary data source
-        $authority_hook_service = $this->authority_hook_service; // Centralized Authority Hook functionality
-        $generator_instance = isset($this->generators['topics']) ? $this->generators['topics'] : null;
-        $generator_type = 'topics';
+        // OPTIMIZED: Use helper method for template data preparation
+        $template_data = $this->prepare_template_data('topics', ['post_id' => $atts['post_id']]);
         
-        // Also make services available
-        global $api_service;
-        $api_service = $this->api_service;
+        // Set global variables for backward compatibility
+        global $pods_service, $generator_instance, $generator_type, $authority_hook_service, $api_service;
+        $pods_service = $template_data['pods_service'];
+        $authority_hook_service = $template_data['authority_hook_service'];
+        $generator_instance = $template_data['generator_instance'];
+        $generator_type = $template_data['generator_type'];
+        $api_service = $template_data['api_service'];
         
-        error_log('MKCG Shortcode: Loading topics template with pure Pods generator and centralized Authority Hook service');
+        $this->debug_log('MKCG Shortcode: Loading topics template with optimized data structure');
         
         // Include the template
         include MKCG_PLUGIN_PATH . 'templates/generators/topics/default.php';
@@ -1201,6 +1214,13 @@ class Media_Kit_Content_Generator {
     }
     
     public function enqueue_scripts() {
+        // Only load scripts if needed
+        if (!$this->should_load_scripts()) {
+            return;
+        }
+        
+        $this->debug_log('MKCG: Enqueuing scripts for current page');
+        
         // Load CSS
         wp_enqueue_style(
             'mkcg-unified-styles', 
@@ -1367,26 +1387,38 @@ class Media_Kit_Content_Generator {
     // SIMPLIFIED: All complex script loading methods removed
     
     private function should_load_scripts() {
-        // Always load for now during development/testing
-        return true;
-        
         // Check if we're on a page that uses any of our generators
         global $post;
         
         if (!$post) {
+            // Check for admin pages that need our scripts
+            if (is_admin()) {
+                $screen = get_current_screen();
+                if ($screen && ($screen->id === 'mkcg-tests' || strpos($screen->id, 'mkcg-') === 0)) {
+                    return true;
+                }
+            }
             return false;
         }
         
         // Check for shortcodes in post content
-        $generator_shortcodes = ['mkcg_biography', 'mkcg_offers', 'mkcg_topics', 'mkcg_questions'];
+        $generator_shortcodes = ['mkcg_biography', 'mkcg_offers', 'mkcg_topics', 'mkcg_questions', 'mkcg_authority_hook', 'mkcg_impact_intro'];
         foreach ($generator_shortcodes as $shortcode) {
             if (has_shortcode($post->post_content, $shortcode)) {
+                $this->debug_log('MKCG: Loading scripts for shortcode: ' . $shortcode);
                 return true;
             }
         }
         
         // Check for Formidable edit pages
         if (isset($_GET['frm_action']) && $_GET['frm_action'] === 'edit' && isset($_GET['entry'])) {
+            $this->debug_log('MKCG: Loading scripts for Formidable edit page');
+            return true;
+        }
+        
+        // Check for biography results pages
+        if (isset($_GET['results']) && $_GET['results'] === 'true') {
+            $this->debug_log('MKCG: Loading scripts for results page');
             return true;
         }
         
