@@ -545,44 +545,92 @@
     },
     
     /**
-     * COMPREHENSIVE ROOT-LEVEL FIX FOR TOPICS GENERATOR SAVE BUTTON ISSUES
+     * ROOT-LEVEL FIX: Enhanced Topics Generator Save with Comprehensive Data Collection
      * 
-     * Root Problems Fixed:
-     * 1. Conflicting AJAX implementations (XMLHttpRequest vs fetch)
-     * 2. Data format mismatch between JavaScript and PHP
-     * 3. Error handling issues causing "[object Object]" errors
-     * 4. CSS Architecture changes potentially affecting selectors
-     * 5. Save button mistakenly triggering AI generator
-     * 
-     * This fix addresses all root causes without patches or quick fixes.
+     * Fixed Issues:
+     * 1. Topic field collection failing after CSS changes
+     * 2. Authority hook data not being collected from form fields
+     * 3. 400 error due to server validation mismatch
+     * 4. Data format incompatibility with PHP handlers
      */
     saveAllData: function() {
-      console.log('🔄 Starting comprehensive save operation...');
+      console.log('🔄 FIXED: Starting enhanced save operation...');
       
-      const postId = document.querySelector('#topics-generator-post-id')?.value;
+      // STEP 1: Enhanced post ID detection
+      const postId = document.querySelector('#topics-generator-post-id')?.value || 
+                     window.MKCG_Topics_Data?.postId || 
+                     new URLSearchParams(window.location.search).get('post_id') || 
+                     new URLSearchParams(window.location.search).get('entry') || '0';
+                     
+      console.log('📍 FIXED: Post ID detected:', postId);
+      
       if (!postId || postId === '0') {
         this.showNotification('No post ID found. Please refresh the page.', 'error');
         return;
       }
       
-      // FIXED: Collect topics with better validation
+      // STEP 2: Enhanced topics collection with multiple strategies
       const topics = {};
       let topicsCount = 0;
+      
+      // Strategy 1: Direct field selectors (current method)
       for (let i = 1; i <= 5; i++) {
         const field = document.querySelector(`#topics-generator-topic-field-${i}`);
         if (field && field.value && field.value.trim()) {
           topics[`topic_${i}`] = field.value.trim();
           topicsCount++;
+          console.log(`✅ FIXED: Collected topic ${i}:`, field.value.trim());
         }
       }
       
-      // FIXED: Collect authority hook with proper field mapping
-      const authorityHook = {
-        who: this.fields.who || '',
-        what: this.fields.what || '',  // FIXED: was 'result' in old version
-        when: this.fields.when || '',
-        how: this.fields.how || ''
-      };
+      // Strategy 2: Fallback using class selectors
+      if (topicsCount === 0) {
+        console.log('🔄 FIXED: No topics found with ID selectors, trying class selectors...');
+        const topicFields = document.querySelectorAll('.mkcg-topic-field, .topics-generator__topic-input');
+        topicFields.forEach((field, index) => {
+          if (field.value && field.value.trim()) {
+            const topicNumber = index + 1;
+            if (topicNumber <= 5) {
+              topics[`topic_${topicNumber}`] = field.value.trim();
+              topicsCount++;
+              console.log(`✅ FIXED: Collected topic ${topicNumber} via class:`, field.value.trim());
+            }
+          }
+        });
+      }
+      
+      console.log(`📊 FIXED: Collected ${topicsCount} topics total`);
+      
+      // STEP 3: Enhanced authority hook collection
+      const authorityHook = {};
+      
+      // Strategy 1: Form fields (when Authority Hook Builder is open)
+      const whoField = document.querySelector('#mkcg-who');
+      const whatField = document.querySelector('#mkcg-result, #mkcg-what');
+      const whenField = document.querySelector('#mkcg-when');
+      const howField = document.querySelector('#mkcg-how');
+      
+      if (whoField) authorityHook.who = whoField.value || '';
+      if (whatField) authorityHook.what = whatField.value || '';
+      if (whenField) authorityHook.when = whenField.value || '';
+      if (howField) authorityHook.how = howField.value || '';
+      
+      // Strategy 2: Fallback to internal data
+      if (!authorityHook.who && this.fields.who) authorityHook.who = this.fields.who;
+      if (!authorityHook.what && this.fields.what) authorityHook.what = this.fields.what;
+      if (!authorityHook.when && this.fields.when) authorityHook.when = this.fields.when;
+      if (!authorityHook.how && this.fields.how) authorityHook.how = this.fields.how;
+      
+      // Strategy 3: Fallback to template data
+      if (window.MKCG_Topics_Data?.authorityHook) {
+        const templateData = window.MKCG_Topics_Data.authorityHook;
+        if (!authorityHook.who && templateData.who) authorityHook.who = templateData.who;
+        if (!authorityHook.what && templateData.what) authorityHook.what = templateData.what;
+        if (!authorityHook.when && templateData.when) authorityHook.when = templateData.when;
+        if (!authorityHook.how && templateData.how) authorityHook.how = templateData.how;
+      }
+      
+      console.log('🔍 FIXED: Authority Hook Data collected:', authorityHook);
       
       // Validate we have something to save
       const hasTopics = topicsCount > 0;
@@ -593,37 +641,73 @@
         return;
       }
       
-      console.log(`📊 Saving ${topicsCount} topics and authority hook data...`);
-      console.log('🔍 Authority Hook Data:', authorityHook);
-      console.log('🔍 Topics Data:', topics);
+      console.log(`📊 FIXED: Saving ${topicsCount} topics and authority hook data...`);
+      console.log('🔍 FIXED: Authority Hook Data:', authorityHook);
+      console.log('🔍 FIXED: Topics Data:', topics);
       
+      // STEP 4: Enhanced loading state management
       this.showLoading();
       
-      // FIXED: Use window.makeAjaxRequest with proper error handling
-      if (!window.makeAjaxRequest) {
-        console.error('❌ Global makeAjaxRequest not available, falling back to fetch');
-        this.saveWithFetch(postId, topics, authorityHook);
+      // Disable save button to prevent double submission
+      const saveButton = document.querySelector('#topics-generator-save-topics');
+      const originalButtonText = saveButton?.textContent || 'Save All Topics & Authority Hook';
+      if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.textContent = 'Saving...';
+      }
+      
+      // STEP 5: Build complete authority hook text (only if all fields have data)
+      if (hasAuthorityData) {
+        const allFieldsComplete = authorityHook.who && authorityHook.what && authorityHook.when && authorityHook.how &&
+                                 authorityHook.who.trim() && authorityHook.what.trim() && 
+                                 authorityHook.when.trim() && authorityHook.how.trim();
+        
+        if (allFieldsComplete) {
+          authorityHook.complete = `I help ${authorityHook.who} ${authorityHook.what} when ${authorityHook.when} ${authorityHook.how}.`;
+        }
+      }
+      
+      // STEP 6: Enhanced nonce collection
+      const nonce = document.querySelector('#topics-generator-nonce')?.value || 
+                    window.mkcg_vars?.nonce || 
+                    '';
+                    
+      console.log('🔐 FIXED: Nonce collected:', nonce ? 'Found' : 'Missing');
+      
+      if (!nonce) {
+        this.hideLoading();
+        if (saveButton) {
+          saveButton.disabled = false;
+          saveButton.textContent = originalButtonText;
+        }
+        this.showNotification('Security token missing. Please refresh the page.', 'error');
         return;
       }
       
-      // Build complete authority hook text
-      if (hasAuthorityData) {
-        const who = authorityHook.who || 'your audience';
-        const what = authorityHook.what || 'achieve their goals';
-        const when = authorityHook.when || 'they need help';
-        const how = authorityHook.how || 'through your method';
-        authorityHook.complete = `I help ${who} ${what} when ${when} ${how}.`;
+      // STEP 7: Enhanced AJAX request with fallback
+      if (!window.makeAjaxRequest) {
+        console.error('❌ Global makeAjaxRequest not available, falling back to fetch');
+        this.saveWithFetch(postId, topics, authorityHook, saveButton, originalButtonText);
+        return;
       }
       
       window.makeAjaxRequest('mkcg_save_topics_data', {
-        post_id: postId,
+        post_id: parseInt(postId),
         topics: topics,
-        authority_hook: authorityHook
+        authority_hook: authorityHook,
+        nonce: nonce
       })
       .then(data => {
         this.hideLoading();
+        
+        // Re-enable save button
+        if (saveButton) {
+          saveButton.disabled = false;
+          saveButton.textContent = originalButtonText;
+        }
+        
         this.showNotification(`✅ Successfully saved ${topicsCount} topics and authority hook!`, 'success');
-        console.log('✅ Save successful:', data);
+        console.log('✅ FIXED: Save successful:', data);
         
         // Update the authority hook display if we have complete text
         if (authorityHook.complete) {
@@ -632,6 +716,12 @@
             displayElement.textContent = authorityHook.complete;
           }
         }
+        
+        // Update internal fields to reflect saved data
+        if (authorityHook.who) this.fields.who = authorityHook.who;
+        if (authorityHook.what) this.fields.what = authorityHook.what;
+        if (authorityHook.when) this.fields.when = authorityHook.when;
+        if (authorityHook.how) this.fields.how = authorityHook.how;
         
         // Trigger cross-generator communication
         if (window.AppEvents) {
@@ -644,9 +734,16 @@
       })
       .catch(error => {
         this.hideLoading();
-        console.error('❌ Save failed:', error);
         
-        // FIXED: Comprehensive error message handling
+        // Re-enable save button
+        if (saveButton) {
+          saveButton.disabled = false;
+          saveButton.textContent = originalButtonText;
+        }
+        
+        console.error('❌ FIXED: Save failed:', error);
+        
+        // Enhanced error message handling
         let errorMessage = 'Save operation failed';
         
         if (typeof error === 'string') {
@@ -654,7 +751,6 @@
         } else if (error && error.message) {
           errorMessage = error.message;
         } else if (error && typeof error === 'object') {
-          // Prevent "[object Object]" by properly stringifying
           try {
             errorMessage = JSON.stringify(error);
           } catch (e) {
@@ -664,26 +760,32 @@
         
         this.showNotification('❌ ' + errorMessage, 'error');
         
-        // Show helpful debugging info
-        console.group('🔍 Save Debug Information');
+        // Enhanced debugging info
+        console.group('🔍 FIXED: Save Debug Information');
         console.log('Post ID:', postId);
         console.log('Topics Count:', topicsCount);
         console.log('Authority Hook Valid:', hasAuthorityData);
+        console.log('Nonce Available:', !!nonce);
+        console.log('Request Data:', { post_id: parseInt(postId), topics, authority_hook: authorityHook });
         console.log('Error Details:', error);
         console.groupEnd();
       });
     },
     
     /**
-     * FIXED: Add fallback fetch method for emergency cases
+     * FIXED: Enhanced fallback fetch method with button handling
      */
-    saveWithFetch: function(postId, topics, authorityHook) {
-      console.log('🔄 Using fallback fetch method...');
+    saveWithFetch: function(postId, topics, authorityHook, saveButton, originalButtonText) {
+      console.log('🔄 FIXED: Using enhanced fallback fetch method...');
+      
+      const nonce = document.querySelector('#topics-generator-nonce')?.value || 
+                    window.mkcg_vars?.nonce || '';
       
       const formData = new URLSearchParams();
       formData.append('action', 'mkcg_save_topics_data');
-      formData.append('nonce', document.querySelector('#topics-generator-nonce')?.value || '');
-      formData.append('post_id', postId);
+      formData.append('nonce', nonce);
+      formData.append('security', nonce);
+      formData.append('post_id', parseInt(postId));
       
       // Add topics as array notation for PHP compatibility
       Object.keys(topics).forEach(key => {
@@ -695,6 +797,13 @@
         if (authorityHook[key]) {
           formData.append(`authority_hook[${key}]`, authorityHook[key]);
         }
+      });
+      
+      console.log('🔍 FIXED: Fallback request data:', {
+        action: 'mkcg_save_topics_data',
+        post_id: parseInt(postId),
+        topics_count: Object.keys(topics).length,
+        has_nonce: !!nonce
       });
       
       fetch(window.ajaxurl || '/wp-admin/admin-ajax.php', {
@@ -713,17 +822,38 @@
       .then(result => {
         this.hideLoading();
         
+        // Re-enable save button
+        if (saveButton) {
+          saveButton.disabled = false;
+          saveButton.textContent = originalButtonText;
+        }
+        
         if (result.success) {
           this.showNotification('✅ Data saved successfully!', 'success');
-          console.log('✅ Fallback save successful:', result);
+          console.log('✅ FIXED: Fallback save successful:', result);
+          
+          // Update the authority hook display if we have complete text
+          if (authorityHook.complete) {
+            const displayElement = document.querySelector('#topics-generator-authority-hook-text');
+            if (displayElement) {
+              displayElement.textContent = authorityHook.complete;
+            }
+          }
         } else {
           throw new Error(result.data?.message || result.data || 'Server returned error');
         }
       })
       .catch(error => {
         this.hideLoading();
+        
+        // Re-enable save button
+        if (saveButton) {
+          saveButton.disabled = false;
+          saveButton.textContent = originalButtonText;
+        }
+        
         this.showNotification('❌ Fallback save failed: ' + error.message, 'error');
-        console.error('❌ Fallback save failed:', error);
+        console.error('❌ FIXED: Fallback save failed:', error);
       });
     },
 
@@ -1184,5 +1314,91 @@
   console.log('🔧 CLEAN SLATE FIX: Empty fields when no data, complete text only when all fields filled');
   console.log('🧪 DEBUG: Use window.MKCG_Topics_PopulationTest.testEmptyFieldBehavior() to test');
   console.log('🔍 DEBUG: Use window.MKCG_Topics_PopulationTest.testSaveData() to inspect save behavior');
+  
+  // CRITICAL FIX: Add real-time data collection testing
+  window.MKCG_Topics_DataTest = {
+    checkTopicFields: function() {
+      console.log('🔍 TESTING: Current topic field status...');
+      const results = {};
+      
+      for (let i = 1; i <= 5; i++) {
+        const field = document.querySelector(`#topics-generator-topic-field-${i}`);
+        results[`topic_${i}`] = {
+          found: !!field,
+          value: field ? field.value : 'N/A',
+          hasValue: field ? (field.value && field.value.trim()) : false
+        };
+        console.log(`  Topic ${i}:`, results[`topic_${i}`]);
+      }
+      
+      const totalWithValues = Object.values(results).filter(r => r.hasValue).length;
+      console.log(`📊 SUMMARY: ${totalWithValues}/5 topic fields have values`);
+      
+      return results;
+    },
+    
+    testSaveDataCollection: function() {
+      console.log('🧪 TESTING: Simulate save data collection...');
+      
+      if (!window.TopicsGenerator) {
+        console.error('❌ TopicsGenerator not available');
+        return null;
+      }
+      
+      // Test the exact same logic as saveAllData
+      const postId = document.querySelector('#topics-generator-post-id')?.value || 
+                     window.MKCG_Topics_Data?.postId || '0';
+                     
+      console.log('📍 Post ID detection:', postId);
+      
+      // Test topics collection
+      const topics = {};
+      let topicsCount = 0;
+      
+      for (let i = 1; i <= 5; i++) {
+        const field = document.querySelector(`#topics-generator-topic-field-${i}`);
+        if (field && field.value && field.value.trim()) {
+          topics[`topic_${i}`] = field.value.trim();
+          topicsCount++;
+          console.log(`✅ COLLECTED topic ${i}:`, field.value.trim());
+        } else {
+          console.log(`⚠️ SKIPPED topic ${i}:`, field ? `empty value "${field.value}"` : 'field not found');
+        }
+      }
+      
+      console.log(`📊 RESULT: Would collect ${topicsCount} topics`);
+      console.log('🔍 Topics object:', topics);
+      
+      return {
+        postId,
+        topics,
+        topicsCount,
+        wouldProceed: topicsCount > 0
+      };
+    },
+    
+    quickTest: function() {
+      console.log('🚀 QUICK TEST: Complete data collection check');
+      const fieldCheck = this.checkTopicFields();
+      const saveTest = this.testSaveDataCollection();
+      
+      console.log('📊 QUICK TEST SUMMARY:');
+      console.log('  Fields with values:', Object.values(fieldCheck).filter(r => r.hasValue).length);
+      console.log('  Would collect topics:', saveTest?.topicsCount || 0);
+      console.log('  Save would proceed:', saveTest?.wouldProceed || false);
+      
+      if (saveTest?.topicsCount === 0) {
+        console.log('⚠️ ISSUE: No topics would be collected!');
+        console.log('💡 SOLUTION: Enter some text in the topic fields above and try again');
+      }
+      
+      return {
+        fieldsCheck: fieldCheck,
+        saveTest: saveTest
+      };
+    }
+  };
+  
+  console.log('🚀 DEBUG HELPER: Use window.MKCG_Topics_DataTest.quickTest() to diagnose save issues');
 
 })();

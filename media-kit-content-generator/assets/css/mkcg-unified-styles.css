@@ -116,6 +116,106 @@
   --mkcg-z-tooltip: 4000;
 }
 
+/**
+ * DARK MODE THEME VARIABLES
+ * 
+ * Advanced theming system that allows for dark mode switching.
+ * Use data-theme="dark" on html element to activate dark mode.
+ */
+[data-theme="dark"] {
+  /* Brand Colors - Adjusted for dark mode */
+  --mkcg-primary: #4db8e8;
+  --mkcg-primary-light: #7ccbeb;
+  --mkcg-primary-dark: #1a9bdc;
+  --mkcg-secondary: #fa9a5a;
+  --mkcg-secondary-light: #fbb377;
+  --mkcg-secondary-dark: #f87f34;
+  
+  /* Status Colors - Dark mode friendly */
+  --mkcg-success: #4ade80;
+  --mkcg-warning: #fbbf24;
+  --mkcg-error: #f87171;
+  --mkcg-info: #60a5fa;
+  
+  /* Text Colors - Inverted hierarchy */
+  --mkcg-text-primary: #f8fafc;
+  --mkcg-text-secondary: #cbd5e1;
+  --mkcg-text-tertiary: #94a3b8;
+  --mkcg-text-light: #64748b;
+  --mkcg-text-white: #ffffff;
+  
+  /* Background Colors - Dark variants */
+  --mkcg-bg-primary: #0f172a;
+  --mkcg-bg-secondary: #1e293b;
+  --mkcg-bg-tertiary: #334155;
+  --mkcg-bg-quaternary: #475569;
+  --mkcg-bg-overlay: rgba(0, 0, 0, 0.8);
+  
+  /* Border Colors - Dark mode optimized */
+  --mkcg-border-light: #334155;
+  --mkcg-border-medium: #475569;
+  --mkcg-border-dark: #64748b;
+  --mkcg-border-focus: var(--mkcg-primary);
+}
+
+/**
+ * AUTO DARK MODE - System preference based
+ * 
+ * Automatically switches to dark mode based on user's system preference.
+ * Can be overridden by explicit data-theme attribute.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    /* Inherit all dark mode variables when system preference is dark */
+    --mkcg-primary: #4db8e8;
+    --mkcg-primary-light: #7ccbeb;
+    --mkcg-primary-dark: #1a9bdc;
+    --mkcg-secondary: #fa9a5a;
+    --mkcg-secondary-light: #fbb377;
+    --mkcg-secondary-dark: #f87f34;
+    
+    --mkcg-success: #4ade80;
+    --mkcg-warning: #fbbf24;
+    --mkcg-error: #f87171;
+    --mkcg-info: #60a5fa;
+    
+    --mkcg-text-primary: #f8fafc;
+    --mkcg-text-secondary: #cbd5e1;
+    --mkcg-text-tertiary: #94a3b8;
+    --mkcg-text-light: #64748b;
+    --mkcg-text-white: #ffffff;
+    
+    --mkcg-bg-primary: #0f172a;
+    --mkcg-bg-secondary: #1e293b;
+    --mkcg-bg-tertiary: #334155;
+    --mkcg-bg-quaternary: #475569;
+    --mkcg-bg-overlay: rgba(0, 0, 0, 0.8);
+    
+    --mkcg-border-light: #334155;
+    --mkcg-border-medium: #475569;
+    --mkcg-border-dark: #64748b;
+    --mkcg-border-focus: var(--mkcg-primary);
+  }
+}
+
+/**
+ * THEME SWITCHING UTILITIES
+ * 
+ * JavaScript can use these classes to implement theme switching.
+ * Example: document.documentElement.setAttribute('data-theme', 'dark');
+ */
+.theme-light {
+  color-scheme: light;
+}
+
+.theme-dark {
+  color-scheme: dark;
+}
+
+.theme-auto {
+  color-scheme: light dark;
+}
+
 /* Reset */
 *,
 *::before,
@@ -663,32 +763,433 @@
 }
 
 /* ============================================================================
-   7. UTILITY CLASSES
+   7. UTILITY CLASSES - ENHANCED SYSTEM
    ============================================================================ */
 
-/* Display Utilities */
+/**
+ * ENHANCED UTILITY SYSTEM
+ * 
+ * This section provides a comprehensive utility class system for rapid
+ * development and consistent styling across all generators.
+ * 
+ * Categories:
+ * - Display utilities
+ * - Flexbox utilities
+ * - CSS Grid utilities
+ * - Spacing utilities (margin/padding)
+ * - Typography utilities
+ * - Color utilities
+ * - Layout utilities
+ * - Responsive utilities
+ */
+
+/* =============================================================================
+   DISPLAY & VISIBILITY UTILITIES
+   ============================================================================= */
 .generator__hidden { display: none !important; }
 .generator__visible { display: block !important; }
 .generator__flex { display: flex !important; }
 .generator__inline-flex { display: inline-flex !important; }
+.generator__grid { display: grid !important; }
+.generator__inline-grid { display: inline-grid !important; }
+.generator__inline { display: inline !important; }
+.generator__inline-block { display: inline-block !important; }
 
-/* Spacing Utilities */
+/* Visibility */
+.generator__invisible { visibility: hidden !important; }
+.generator__visible-vis { visibility: visible !important; }
+.generator__opacity-0 { opacity: 0 !important; }
+.generator__opacity-50 { opacity: 0.5 !important; }
+.generator__opacity-100 { opacity: 1 !important; }
+
+/* =============================================================================
+   FLEXBOX UTILITIES
+   ============================================================================= */
+
+/* Flex Direction */
+.generator__flex-row { flex-direction: row !important; }
+.generator__flex-row-reverse { flex-direction: row-reverse !important; }
+.generator__flex-col { flex-direction: column !important; }
+.generator__flex-col-reverse { flex-direction: column-reverse !important; }
+
+/* Flex Wrap */
+.generator__flex-wrap { flex-wrap: wrap !important; }
+.generator__flex-nowrap { flex-wrap: nowrap !important; }
+.generator__flex-wrap-reverse { flex-wrap: wrap-reverse !important; }
+
+/* Justify Content */
+.generator__justify-start { justify-content: flex-start !important; }
+.generator__justify-end { justify-content: flex-end !important; }
+.generator__justify-center { justify-content: center !important; }
+.generator__justify-between { justify-content: space-between !important; }
+.generator__justify-around { justify-content: space-around !important; }
+.generator__justify-evenly { justify-content: space-evenly !important; }
+
+/* Align Items */
+.generator__items-start { align-items: flex-start !important; }
+.generator__items-end { align-items: flex-end !important; }
+.generator__items-center { align-items: center !important; }
+.generator__items-baseline { align-items: baseline !important; }
+.generator__items-stretch { align-items: stretch !important; }
+
+/* Align Self */
+.generator__self-auto { align-self: auto !important; }
+.generator__self-start { align-self: flex-start !important; }
+.generator__self-end { align-self: flex-end !important; }
+.generator__self-center { align-self: center !important; }
+.generator__self-stretch { align-self: stretch !important; }
+
+/* Flex Grow/Shrink */
+.generator__flex-1 { flex: 1 1 0% !important; }
+.generator__flex-auto { flex: 1 1 auto !important; }
+.generator__flex-initial { flex: 0 1 auto !important; }
+.generator__flex-none { flex: none !important; }
+.generator__grow { flex-grow: 1 !important; }
+.generator__grow-0 { flex-grow: 0 !important; }
+.generator__shrink { flex-shrink: 1 !important; }
+.generator__shrink-0 { flex-shrink: 0 !important; }
+
+/* =============================================================================
+   CSS GRID UTILITIES
+   ============================================================================= */
+
+/* Grid Template Columns */
+.generator__grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)) !important; }
+.generator__grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+.generator__grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+.generator__grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+.generator__grid-cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+.generator__grid-cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; }
+.generator__grid-cols-auto { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)) !important; }
+.generator__grid-cols-none { grid-template-columns: none !important; }
+
+/* Grid Template Rows */
+.generator__grid-rows-1 { grid-template-rows: repeat(1, minmax(0, 1fr)) !important; }
+.generator__grid-rows-2 { grid-template-rows: repeat(2, minmax(0, 1fr)) !important; }
+.generator__grid-rows-3 { grid-template-rows: repeat(3, minmax(0, 1fr)) !important; }
+.generator__grid-rows-4 { grid-template-rows: repeat(4, minmax(0, 1fr)) !important; }
+.generator__grid-rows-auto { grid-template-rows: auto !important; }
+.generator__grid-rows-none { grid-template-rows: none !important; }
+
+/* Grid Column Span */
+.generator__col-auto { grid-column: auto !important; }
+.generator__col-span-1 { grid-column: span 1 / span 1 !important; }
+.generator__col-span-2 { grid-column: span 2 / span 2 !important; }
+.generator__col-span-3 { grid-column: span 3 / span 3 !important; }
+.generator__col-span-4 { grid-column: span 4 / span 4 !important; }
+.generator__col-span-5 { grid-column: span 5 / span 5 !important; }
+.generator__col-span-6 { grid-column: span 6 / span 6 !important; }
+.generator__col-span-full { grid-column: 1 / -1 !important; }
+
+/* Grid Row Span */
+.generator__row-auto { grid-row: auto !important; }
+.generator__row-span-1 { grid-row: span 1 / span 1 !important; }
+.generator__row-span-2 { grid-row: span 2 / span 2 !important; }
+.generator__row-span-3 { grid-row: span 3 / span 3 !important; }
+.generator__row-span-4 { grid-row: span 4 / span 4 !important; }
+.generator__row-span-full { grid-row: 1 / -1 !important; }
+
+/* Grid Gap */
+.generator__gap-0 { gap: 0 !important; }
+.generator__gap-xs { gap: var(--mkcg-space-xs) !important; }
+.generator__gap-sm { gap: var(--mkcg-space-sm) !important; }
+.generator__gap-md { gap: var(--mkcg-space-md) !important; }
+.generator__gap-lg { gap: var(--mkcg-space-lg) !important; }
+.generator__gap-xl { gap: var(--mkcg-space-xl) !important; }
+.generator__gap-xxl { gap: var(--mkcg-space-xxl) !important; }
+
+.generator__gap-x-0 { column-gap: 0 !important; }
+.generator__gap-x-xs { column-gap: var(--mkcg-space-xs) !important; }
+.generator__gap-x-sm { column-gap: var(--mkcg-space-sm) !important; }
+.generator__gap-x-md { column-gap: var(--mkcg-space-md) !important; }
+.generator__gap-x-lg { column-gap: var(--mkcg-space-lg) !important; }
+
+.generator__gap-y-0 { row-gap: 0 !important; }
+.generator__gap-y-xs { row-gap: var(--mkcg-space-xs) !important; }
+.generator__gap-y-sm { row-gap: var(--mkcg-space-sm) !important; }
+.generator__gap-y-md { row-gap: var(--mkcg-space-md) !important; }
+.generator__gap-y-lg { row-gap: var(--mkcg-space-lg) !important; }
+
+/* =============================================================================
+   SPACING UTILITIES - ENHANCED
+   ============================================================================= */
+
+/* Margin */
 .generator__m-0 { margin: 0 !important; }
-.generator__mt-sm { margin-top: var(--mkcg-space-sm) !important; }
-.generator__mb-sm { margin-bottom: var(--mkcg-space-sm) !important; }
-.generator__mt-md { margin-top: var(--mkcg-space-md) !important; }
-.generator__mb-md { margin-bottom: var(--mkcg-space-md) !important; }
-.generator__mt-lg { margin-top: var(--mkcg-space-lg) !important; }
-.generator__mb-lg { margin-bottom: var(--mkcg-space-lg) !important; }
+.generator__m-xs { margin: var(--mkcg-space-xs) !important; }
+.generator__m-sm { margin: var(--mkcg-space-sm) !important; }
+.generator__m-md { margin: var(--mkcg-space-md) !important; }
+.generator__m-lg { margin: var(--mkcg-space-lg) !important; }
+.generator__m-xl { margin: var(--mkcg-space-xl) !important; }
+.generator__m-auto { margin: auto !important; }
 
-/* Text Utilities */
-.generator__text-center { text-align: center !important; }
+/* Margin Top */
+.generator__mt-0 { margin-top: 0 !important; }
+.generator__mt-xs { margin-top: var(--mkcg-space-xs) !important; }
+.generator__mt-sm { margin-top: var(--mkcg-space-sm) !important; }
+.generator__mt-md { margin-top: var(--mkcg-space-md) !important; }
+.generator__mt-lg { margin-top: var(--mkcg-space-lg) !important; }
+.generator__mt-xl { margin-top: var(--mkcg-space-xl) !important; }
+.generator__mt-auto { margin-top: auto !important; }
+
+/* Margin Right */
+.generator__mr-0 { margin-right: 0 !important; }
+.generator__mr-xs { margin-right: var(--mkcg-space-xs) !important; }
+.generator__mr-sm { margin-right: var(--mkcg-space-sm) !important; }
+.generator__mr-md { margin-right: var(--mkcg-space-md) !important; }
+.generator__mr-lg { margin-right: var(--mkcg-space-lg) !important; }
+.generator__mr-xl { margin-right: var(--mkcg-space-xl) !important; }
+.generator__mr-auto { margin-right: auto !important; }
+
+/* Margin Bottom */
+.generator__mb-0 { margin-bottom: 0 !important; }
+.generator__mb-xs { margin-bottom: var(--mkcg-space-xs) !important; }
+.generator__mb-sm { margin-bottom: var(--mkcg-space-sm) !important; }
+.generator__mb-md { margin-bottom: var(--mkcg-space-md) !important; }
+.generator__mb-lg { margin-bottom: var(--mkcg-space-lg) !important; }
+.generator__mb-xl { margin-bottom: var(--mkcg-space-xl) !important; }
+.generator__mb-auto { margin-bottom: auto !important; }
+
+/* Margin Left */
+.generator__ml-0 { margin-left: 0 !important; }
+.generator__ml-xs { margin-left: var(--mkcg-space-xs) !important; }
+.generator__ml-sm { margin-left: var(--mkcg-space-sm) !important; }
+.generator__ml-md { margin-left: var(--mkcg-space-md) !important; }
+.generator__ml-lg { margin-left: var(--mkcg-space-lg) !important; }
+.generator__ml-xl { margin-left: var(--mkcg-space-xl) !important; }
+.generator__ml-auto { margin-left: auto !important; }
+
+/* Margin X (horizontal) */
+.generator__mx-0 { margin-left: 0 !important; margin-right: 0 !important; }
+.generator__mx-xs { margin-left: var(--mkcg-space-xs) !important; margin-right: var(--mkcg-space-xs) !important; }
+.generator__mx-sm { margin-left: var(--mkcg-space-sm) !important; margin-right: var(--mkcg-space-sm) !important; }
+.generator__mx-md { margin-left: var(--mkcg-space-md) !important; margin-right: var(--mkcg-space-md) !important; }
+.generator__mx-lg { margin-left: var(--mkcg-space-lg) !important; margin-right: var(--mkcg-space-lg) !important; }
+.generator__mx-xl { margin-left: var(--mkcg-space-xl) !important; margin-right: var(--mkcg-space-xl) !important; }
+.generator__mx-auto { margin-left: auto !important; margin-right: auto !important; }
+
+/* Margin Y (vertical) */
+.generator__my-0 { margin-top: 0 !important; margin-bottom: 0 !important; }
+.generator__my-xs { margin-top: var(--mkcg-space-xs) !important; margin-bottom: var(--mkcg-space-xs) !important; }
+.generator__my-sm { margin-top: var(--mkcg-space-sm) !important; margin-bottom: var(--mkcg-space-sm) !important; }
+.generator__my-md { margin-top: var(--mkcg-space-md) !important; margin-bottom: var(--mkcg-space-md) !important; }
+.generator__my-lg { margin-top: var(--mkcg-space-lg) !important; margin-bottom: var(--mkcg-space-lg) !important; }
+.generator__my-xl { margin-top: var(--mkcg-space-xl) !important; margin-bottom: var(--mkcg-space-xl) !important; }
+.generator__my-auto { margin-top: auto !important; margin-bottom: auto !important; }
+
+/* Padding */
+.generator__p-0 { padding: 0 !important; }
+.generator__p-xs { padding: var(--mkcg-space-xs) !important; }
+.generator__p-sm { padding: var(--mkcg-space-sm) !important; }
+.generator__p-md { padding: var(--mkcg-space-md) !important; }
+.generator__p-lg { padding: var(--mkcg-space-lg) !important; }
+.generator__p-xl { padding: var(--mkcg-space-xl) !important; }
+
+/* Padding Top */
+.generator__pt-0 { padding-top: 0 !important; }
+.generator__pt-xs { padding-top: var(--mkcg-space-xs) !important; }
+.generator__pt-sm { padding-top: var(--mkcg-space-sm) !important; }
+.generator__pt-md { padding-top: var(--mkcg-space-md) !important; }
+.generator__pt-lg { padding-top: var(--mkcg-space-lg) !important; }
+.generator__pt-xl { padding-top: var(--mkcg-space-xl) !important; }
+
+/* Padding Right */
+.generator__pr-0 { padding-right: 0 !important; }
+.generator__pr-xs { padding-right: var(--mkcg-space-xs) !important; }
+.generator__pr-sm { padding-right: var(--mkcg-space-sm) !important; }
+.generator__pr-md { padding-right: var(--mkcg-space-md) !important; }
+.generator__pr-lg { padding-right: var(--mkcg-space-lg) !important; }
+.generator__pr-xl { padding-right: var(--mkcg-space-xl) !important; }
+
+/* Padding Bottom */
+.generator__pb-0 { padding-bottom: 0 !important; }
+.generator__pb-xs { padding-bottom: var(--mkcg-space-xs) !important; }
+.generator__pb-sm { padding-bottom: var(--mkcg-space-sm) !important; }
+.generator__pb-md { padding-bottom: var(--mkcg-space-md) !important; }
+.generator__pb-lg { padding-bottom: var(--mkcg-space-lg) !important; }
+.generator__pb-xl { padding-bottom: var(--mkcg-space-xl) !important; }
+
+/* Padding Left */
+.generator__pl-0 { padding-left: 0 !important; }
+.generator__pl-xs { padding-left: var(--mkcg-space-xs) !important; }
+.generator__pl-sm { padding-left: var(--mkcg-space-sm) !important; }
+.generator__pl-md { padding-left: var(--mkcg-space-md) !important; }
+.generator__pl-lg { padding-left: var(--mkcg-space-lg) !important; }
+.generator__pl-xl { padding-left: var(--mkcg-space-xl) !important; }
+
+/* Padding X (horizontal) */
+.generator__px-0 { padding-left: 0 !important; padding-right: 0 !important; }
+.generator__px-xs { padding-left: var(--mkcg-space-xs) !important; padding-right: var(--mkcg-space-xs) !important; }
+.generator__px-sm { padding-left: var(--mkcg-space-sm) !important; padding-right: var(--mkcg-space-sm) !important; }
+.generator__px-md { padding-left: var(--mkcg-space-md) !important; padding-right: var(--mkcg-space-md) !important; }
+.generator__px-lg { padding-left: var(--mkcg-space-lg) !important; padding-right: var(--mkcg-space-lg) !important; }
+.generator__px-xl { padding-left: var(--mkcg-space-xl) !important; padding-right: var(--mkcg-space-xl) !important; }
+
+/* Padding Y (vertical) */
+.generator__py-0 { padding-top: 0 !important; padding-bottom: 0 !important; }
+.generator__py-xs { padding-top: var(--mkcg-space-xs) !important; padding-bottom: var(--mkcg-space-xs) !important; }
+.generator__py-sm { padding-top: var(--mkcg-space-sm) !important; padding-bottom: var(--mkcg-space-sm) !important; }
+.generator__py-md { padding-top: var(--mkcg-space-md) !important; padding-bottom: var(--mkcg-space-md) !important; }
+.generator__py-lg { padding-top: var(--mkcg-space-lg) !important; padding-bottom: var(--mkcg-space-lg) !important; }
+.generator__py-xl { padding-top: var(--mkcg-space-xl) !important; padding-bottom: var(--mkcg-space-xl) !important; }
+
+/* =============================================================================
+   TYPOGRAPHY UTILITIES - ENHANCED
+   ============================================================================= */
+
+/* Text Alignment */
 .generator__text-left { text-align: left !important; }
+.generator__text-center { text-align: center !important; }
 .generator__text-right { text-align: right !important; }
+.generator__text-justify { text-align: justify !important; }
+
+/* Font Sizes */
+.generator__text-xs { font-size: var(--mkcg-font-size-xs) !important; }
+.generator__text-sm { font-size: var(--mkcg-font-size-sm) !important; }
+.generator__text-md { font-size: var(--mkcg-font-size-md) !important; }
+.generator__text-lg { font-size: var(--mkcg-font-size-lg) !important; }
+.generator__text-xl { font-size: var(--mkcg-font-size-xl) !important; }
+.generator__text-xxl { font-size: var(--mkcg-font-size-xxl) !important; }
+
+/* Font Weights */
+.generator__font-normal { font-weight: var(--mkcg-font-weight-normal) !important; }
+.generator__font-medium { font-weight: var(--mkcg-font-weight-medium) !important; }
+.generator__font-semibold { font-weight: var(--mkcg-font-weight-semibold) !important; }
+.generator__font-bold { font-weight: var(--mkcg-font-weight-bold) !important; }
+
+/* Line Heights */
+.generator__leading-tight { line-height: var(--mkcg-line-height-tight) !important; }
+.generator__leading-normal { line-height: var(--mkcg-line-height-normal) !important; }
+.generator__leading-relaxed { line-height: var(--mkcg-line-height-relaxed) !important; }
+
+/* Text Transform */
+.generator__uppercase { text-transform: uppercase !important; }
+.generator__lowercase { text-transform: lowercase !important; }
+.generator__capitalize { text-transform: capitalize !important; }
+.generator__normal-case { text-transform: none !important; }
+
+/* Text Decoration */
+.generator__underline { text-decoration: underline !important; }
+.generator__no-underline { text-decoration: none !important; }
+.generator__line-through { text-decoration: line-through !important; }
+
+/* Font Style */
+.generator__italic { font-style: italic !important; }
+.generator__not-italic { font-style: normal !important; }
+
+/* =============================================================================
+   COLOR UTILITIES - ENHANCED
+   ============================================================================= */
+
+/* Text Colors */
 .generator__text-primary { color: var(--mkcg-text-primary) !important; }
 .generator__text-secondary { color: var(--mkcg-text-secondary) !important; }
+.generator__text-tertiary { color: var(--mkcg-text-tertiary) !important; }
+.generator__text-light { color: var(--mkcg-text-light) !important; }
+.generator__text-white { color: var(--mkcg-text-white) !important; }
+
+/* Brand Colors */
+.generator__text-brand-primary { color: var(--mkcg-primary) !important; }
+.generator__text-brand-secondary { color: var(--mkcg-secondary) !important; }
+
+/* Status Colors */
 .generator__text-success { color: var(--mkcg-success) !important; }
+.generator__text-warning { color: var(--mkcg-warning) !important; }
 .generator__text-error { color: var(--mkcg-error) !important; }
+.generator__text-info { color: var(--mkcg-info) !important; }
+
+/* Background Colors */
+.generator__bg-primary { background-color: var(--mkcg-bg-primary) !important; }
+.generator__bg-secondary { background-color: var(--mkcg-bg-secondary) !important; }
+.generator__bg-tertiary { background-color: var(--mkcg-bg-tertiary) !important; }
+.generator__bg-quaternary { background-color: var(--mkcg-bg-quaternary) !important; }
+
+/* Brand Background Colors */
+.generator__bg-brand-primary { background-color: var(--mkcg-primary) !important; }
+.generator__bg-brand-secondary { background-color: var(--mkcg-secondary) !important; }
+
+/* Status Background Colors */
+.generator__bg-success { background-color: var(--mkcg-success) !important; }
+.generator__bg-warning { background-color: var(--mkcg-warning) !important; }
+.generator__bg-error { background-color: var(--mkcg-error) !important; }
+.generator__bg-info { background-color: var(--mkcg-info) !important; }
+
+/* Transparent */
+.generator__bg-transparent { background-color: transparent !important; }
+
+/* =============================================================================
+   LAYOUT UTILITIES
+   ============================================================================= */
+
+/* Position */
+.generator__static { position: static !important; }
+.generator__fixed { position: fixed !important; }
+.generator__absolute { position: absolute !important; }
+.generator__relative { position: relative !important; }
+.generator__sticky { position: sticky !important; }
+
+/* Top/Right/Bottom/Left */
+.generator__inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+.generator__top-0 { top: 0 !important; }
+.generator__right-0 { right: 0 !important; }
+.generator__bottom-0 { bottom: 0 !important; }
+.generator__left-0 { left: 0 !important; }
+
+/* Z-Index */
+.generator__z-auto { z-index: auto !important; }
+.generator__z-0 { z-index: 0 !important; }
+.generator__z-10 { z-index: 10 !important; }
+.generator__z-20 { z-index: 20 !important; }
+.generator__z-30 { z-index: 30 !important; }
+.generator__z-40 { z-index: 40 !important; }
+.generator__z-50 { z-index: 50 !important; }
+.generator__z-dropdown { z-index: var(--mkcg-z-dropdown) !important; }
+.generator__z-modal { z-index: var(--mkcg-z-modal) !important; }
+.generator__z-toast { z-index: var(--mkcg-z-toast) !important; }
+.generator__z-tooltip { z-index: var(--mkcg-z-tooltip) !important; }
+
+/* Overflow */
+.generator__overflow-auto { overflow: auto !important; }
+.generator__overflow-hidden { overflow: hidden !important; }
+.generator__overflow-visible { overflow: visible !important; }
+.generator__overflow-scroll { overflow: scroll !important; }
+.generator__overflow-x-auto { overflow-x: auto !important; }
+.generator__overflow-x-hidden { overflow-x: hidden !important; }
+.generator__overflow-y-auto { overflow-y: auto !important; }
+.generator__overflow-y-hidden { overflow-y: hidden !important; }
+
+/* Width */
+.generator__w-auto { width: auto !important; }
+.generator__w-full { width: 100% !important; }
+.generator__w-screen { width: 100vw !important; }
+.generator__w-min { width: min-content !important; }
+.generator__w-max { width: max-content !important; }
+.generator__w-fit { width: fit-content !important; }
+
+/* Max Width */
+.generator__max-w-none { max-width: none !important; }
+.generator__max-w-xs { max-width: 20rem !important; }
+.generator__max-w-sm { max-width: 24rem !important; }
+.generator__max-w-md { max-width: 28rem !important; }
+.generator__max-w-lg { max-width: 32rem !important; }
+.generator__max-w-xl { max-width: 36rem !important; }
+.generator__max-w-2xl { max-width: 42rem !important; }
+.generator__max-w-full { max-width: 100% !important; }
+
+/* Height */
+.generator__h-auto { height: auto !important; }
+.generator__h-full { height: 100% !important; }
+.generator__h-screen { height: 100vh !important; }
+.generator__h-min { height: min-content !important; }
+.generator__h-max { height: max-content !important; }
+.generator__h-fit { height: fit-content !important; }
+
+/* Min/Max Height */
+.generator__min-h-0 { min-height: 0 !important; }
+.generator__min-h-full { min-height: 100% !important; }
+.generator__min-h-screen { min-height: 100vh !important; }
+.generator__max-h-full { max-height: 100% !important; }
+.generator__max-h-screen { max-height: 100vh !important; }
 
 /* ============================================================================
    8. RESPONSIVE DESIGN
@@ -746,31 +1247,381 @@
   }
 }
 
+/* =============================================================================
+   RESPONSIVE UTILITY CLASSES
+   ============================================================================= */
+
+/**
+ * Responsive breakpoint utilities for show/hide at different screen sizes.
+ * These utilities allow fine-grained control over element visibility.
+ */
+
+/* Hide on mobile (< 768px) */
+@media screen and (max-width: 767px) {
+  .generator__hidden-mobile { display: none !important; }
+}
+
+/* Hide on tablet (768px - 1023px) */
+@media screen and (min-width: 768px) and (max-width: 1023px) {
+  .generator__hidden-tablet { display: none !important; }
+}
+
+/* Hide on desktop (>= 1024px) */
+@media screen and (min-width: 1024px) {
+  .generator__hidden-desktop { display: none !important; }
+}
+
+/* Show only on mobile */
+@media screen and (min-width: 768px) {
+  .generator__mobile-only { display: none !important; }
+}
+
+/* Show only on tablet */
+@media screen and (max-width: 767px), screen and (min-width: 1024px) {
+  .generator__tablet-only { display: none !important; }
+}
+
+/* Show only on desktop */
+@media screen and (max-width: 1023px) {
+  .generator__desktop-only { display: none !important; }
+}
+
+/* =============================================================================
+   ENHANCED ANIMATION SYSTEM
+   ============================================================================= */
+
+/**
+ * Advanced animation utilities for smooth user experiences.
+ * These classes provide sophisticated animation effects beyond basic transitions.
+ */
+
+/* Slide animations */
+.generator__slide-in-left {
+  animation: slideInLeft 0.3s ease-out;
+}
+
+.generator__slide-in-right {
+  animation: slideInRight 0.3s ease-out;
+}
+
+.generator__slide-in-up {
+  animation: slideInUp 0.3s ease-out;
+}
+
+.generator__slide-in-down {
+  animation: slideInDown 0.3s ease-out;
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Fade animations */
+.generator__fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.generator__fade-in-slow {
+  animation: fadeIn 0.6s ease-out;
+}
+
+.generator__fade-out {
+  animation: fadeOut 0.3s ease-out;
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Scale animations */
+.generator__scale-in {
+  animation: scaleIn 0.2s ease-out;
+}
+
+.generator__scale-out {
+  animation: scaleOut 0.2s ease-out;
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes scaleOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+/* Bounce animation */
+.generator__bounce {
+  animation: bounce 0.6s ease-in-out;
+}
+
+@keyframes bounce {
+  0%, 20%, 53%, 80%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  40%, 43% {
+    transform: translate3d(0, -30px, 0);
+  }
+  70% {
+    transform: translate3d(0, -15px, 0);
+  }
+  90% {
+    transform: translate3d(0, -4px, 0);
+  }
+}
+
+/* Pulse animation */
+.generator__pulse {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Shake animation for errors */
+.generator__shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-10px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(10px);
+  }
+}
+
+/* Rotation animations */
+.generator__rotate-in {
+  animation: rotateIn 0.5s ease-out;
+}
+
+@keyframes rotateIn {
+  from {
+    opacity: 0;
+    transform: rotate(-200deg);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(0);
+  }
+}
+
+/* Loading spinner */
+.generator__spinner {
+  animation: spin 1s linear infinite;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .generator__slide-in-left,
+  .generator__slide-in-right,
+  .generator__slide-in-up,
+  .generator__slide-in-down,
+  .generator__fade-in,
+  .generator__fade-in-slow,
+  .generator__fade-out,
+  .generator__scale-in,
+  .generator__scale-out,
+  .generator__bounce,
+  .generator__pulse,
+  .generator__shake,
+  .generator__rotate-in {
+    animation: none !important;
+  }
+  
+  .generator__spinner {
+    animation: spin 1s linear infinite !important;
+  }
+}
+
+/* =============================================================================
+   DEVELOPER DOCUMENTATION & COMPONENT REFERENCE
+   ============================================================================= */
+
+/**
+ * MEDIA KIT CONTENT GENERATOR - CSS ARCHITECTURE DOCUMENTATION
+ * 
+ * This comprehensive CSS system provides a complete design foundation
+ * for all Media Kit Content Generator components.
+ * 
+ * ARCHITECTURE OVERVIEW:
+ * =====================
+ * 
+ * 1. DESIGN TOKENS (:root)
+ *    - Colors, spacing, typography, shadows, transitions
+ *    - Dark mode support with automatic system preference detection
+ *    - Consistent design language across all generators
+ * 
+ * 2. BASE GENERATOR CLASSES (.generator__*)
+ *    - Shared layout and styling for all generators
+ *    - Container, panels, headers, buttons, forms
+ *    - Authority Hook and Impact Intro integration
+ * 
+ * 3. UTILITY CLASSES
+ *    - Comprehensive spacing, typography, color utilities
+ *    - Modern CSS Grid and Flexbox utilities
+ *    - Responsive visibility controls
+ *    - Layout and positioning utilities
+ * 
+ * 4. COMPONENT SYSTEM
+ *    - Modals, toasts, progress bars
+ *    - Form components with validation states
+ *    - Button variants and loading states
+ * 
+ * 5. GENERATOR-SPECIFIC STYLES
+ *    - Topics, Offers, Questions, Biography generators
+ *    - Specialized components and layouts
+ *    - Unique functionality styling
+ * 
+ * USAGE GUIDELINES:
+ * ================
+ * 
+ * Class Naming Convention (BEM):
+ * - Block: .generator (or .topics-generator, .offers-generator, etc.)
+ * - Element: .generator__panel, .generator__button
+ * - Modifier: .generator__button--primary, .generator__panel--hidden
+ * 
+ * Spacing System (8px base unit):
+ * - xs: 8px,  sm: 12px, md: 20px, lg: 30px, xl: 40px, xxl: 60px
+ * - Use utility classes: .generator__mt-md, .generator__px-lg
+ * 
+ * Color System:
+ * - Primary: Brand blue (#1a9bdc)
+ * - Secondary: Brand orange (#f87f34) 
+ * - Text: Primary (#2c3e50), Secondary (#5a6d7e), Light (#95a5a6)
+ * - Background: Primary (#ffffff), Secondary (#f9fafb), Tertiary (#f5f7fa)
+ * 
+ * Typography Scale:
+ * - xs: 12px, sm: 14px, md: 16px, lg: 18px, xl: 24px, xxl: 32px
+ * - Weights: normal (400), medium (500), semibold (600), bold (700)
+ * 
+ * Responsive Breakpoints:
+ * - Mobile: < 768px
+ * - Tablet: 768px - 1023px  
+ * - Desktop: >= 1024px
+ * 
+ * Dark Mode Support:
+ * - Automatic system preference detection
+ * - Manual override: data-theme="dark" or data-theme="light"
+ * - JavaScript: document.documentElement.setAttribute('data-theme', 'dark')
+ * 
+ * PERFORMANCE NOTES:
+ * =================
+ * 
+ * - CSS Variables used throughout for theming flexibility
+ * - Animations respect prefers-reduced-motion
+ * - Utility classes follow atomic CSS principles
+ * - Component-specific styles minimize cascade conflicts
+ * 
+ * BROWSER SUPPORT:
+ * ===============
+ * 
+ * - Modern browsers with CSS Grid and Flexbox support
+ * - CSS Variables (custom properties) support required
+ * - ES6+ JavaScript features used in companion JS files
+ * 
+ * MAINTENANCE:
+ * ===========
+ * 
+ * - Add new utilities following existing patterns
+ * - Generator-specific styles should extend base classes
+ * - Test dark mode when adding new components
+ * - Maintain responsive design for all new components
+ * 
+ * VERSION: 2.0.0 - Enhanced Utility System with Dark Mode
+ * LAST UPDATED: 2025
+ * TOTAL LINES: ~4000+ (comprehensive system)
+ * 
+ */
+
 /* ============================================================================
-   LEGACY COMPATIBILITY - Maintain existing class names for backward compatibility
+   LEGACY COMPATIBILITY - Streamlined for essential compatibility only
    ============================================================================ */
 
-/* Topics Generator - Now uses base classes directly in template */
-.topics-generator {
+/* Generator Container Aliases - Essential for backwards compatibility */
+.topics-generator,
+.offers-generator,
+.questions-generator,
+.biography-generator {
   font-family: var(--mkcg-font-family);
   color: var(--mkcg-text-primary);
   line-height: var(--mkcg-line-height-normal);
 }
 
-/* Offers Generator - Uses same base classes as Topics Generator */
-.offers-generator {
-  font-family: var(--mkcg-font-family);
-  color: var(--mkcg-text-primary);
-  line-height: var(--mkcg-line-height-normal);
-}
-
-/* DEPRECATED - Questions Generator now uses unified BEM classes */
-.mkcg-questions-generator-wrapper {
-  font-family: var(--mkcg-font-family);
-  color: var(--mkcg-text-primary);
-  line-height: var(--mkcg-line-height-normal);
-}
-
+/* Legacy MKCG Classes - Maintained for compatibility, templates should migrate to .generator__* classes */
 .mkcg-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -783,14 +1634,14 @@
 .mkcg-onboard-header {
   text-align: center;
   padding: var(--mkcg-space-lg) 0;
-  margin-bottom: var(--mkcg-space-md);
+  margin-bottom: var(--mkcg-space-sm);
 }
 
 .mkcg-tool-title {
   font-size: var(--mkcg-font-size-xxl);
   font-weight: var(--mkcg-font-weight-bold);
   color: var(--mkcg-text-primary);
-  margin: 0 0 var(--mkcg-space-sm) 0;
+  margin: 0;
   line-height: var(--mkcg-line-height-tight);
 }
 
@@ -1536,45 +2387,7 @@
   font-weight: var(--mkcg-font-weight-normal);
 }
 
-/* Topics Generator Save Section */
-.topics-generator__save-section {
-  margin-top: var(--mkcg-space-lg);
-  padding-top: var(--mkcg-space-md);
-  border-top: 1px solid var(--mkcg-border-light);
-  text-align: center;
-}
-
-.topics-generator__save-button {
-  background: linear-gradient(135deg, var(--mkcg-secondary) 0%, var(--mkcg-secondary-dark) 100%);
-  color: var(--mkcg-text-white);
-  border: none;
-  padding: var(--mkcg-space-sm) var(--mkcg-space-lg);
-  border-radius: var(--mkcg-radius);
-  font-size: var(--mkcg-font-size-md);
-  font-weight: var(--mkcg-font-weight-semibold);
-  cursor: pointer;
-  transition: var(--mkcg-transition-fast);
-  box-shadow: var(--mkcg-shadow-md);
-  font-family: inherit;
-}
-
-.topics-generator__save-button:hover {
-  background: linear-gradient(135deg, var(--mkcg-secondary-dark) 0%, #a04000 100%);
-  transform: translateY(-1px);
-  box-shadow: var(--mkcg-shadow-lg);
-}
-
-.topics-generator__save-button:active {
-  transform: translateY(0);
-  box-shadow: var(--mkcg-shadow-sm);
-}
-
-.topics-generator__save-button:disabled {
-  background: var(--mkcg-text-light);
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
+/* Topics Generator Save Section - Now uses base .generator__save-section */
 
 .topics-generator__save-status {
   margin-top: var(--mkcg-space-xs);
@@ -1602,14 +2415,7 @@
   border: 1px solid #bee5eb;
 }
 
-/* Topics Generator Right Panel Content */
-.topics-generator__guidance-header {
-  font-size: var(--mkcg-font-size-xl);
-  color: var(--mkcg-text-primary);
-  margin: 0 0 var(--mkcg-space-sm) 0;
-  font-weight: var(--mkcg-font-weight-semibold);
-  line-height: var(--mkcg-line-height-tight);
-}
+/* Topics Generator Right Panel Content - Now uses base .generator__guidance-header */
 
 .topics-generator__guidance-subtitle {
   color: var(--mkcg-text-secondary);
@@ -1618,91 +2424,11 @@
   line-height: var(--mkcg-line-height-relaxed);
 }
 
-.topics-generator__formula-box {
-  background-color: var(--mkcg-bg-primary);
-  border: 1px solid var(--mkcg-border-light);
-  border-radius: var(--mkcg-radius);
-  padding: var(--mkcg-space-md);
-  margin-bottom: var(--mkcg-space-lg);
-  font-size: var(--mkcg-font-size-md);
-  line-height: var(--mkcg-line-height-relaxed);
-  color: var(--mkcg-text-primary);
-}
+/* Topics Generator Formula - Now uses base .generator__formula-box, .generator__formula-label, .generator__highlight */
 
-.topics-generator__formula-label {
-  display: inline-block;
-  background-color: var(--mkcg-bg-tertiary);
-  color: var(--mkcg-text-secondary);
-  padding: 3px var(--mkcg-space-xs);
-  border-radius: var(--mkcg-radius-sm);
-  font-size: var(--mkcg-font-size-xs);
-  font-weight: var(--mkcg-font-weight-bold);
-  margin-bottom: var(--mkcg-space-xs);
-}
+/* Topics Generator Process Steps - Now uses base .generator__process-step, .generator__process-icon, .generator__process-content, .generator__process-title, .generator__process-description */
 
-.topics-generator__highlight {
-  color: var(--mkcg-primary);
-  font-weight: var(--mkcg-font-weight-semibold);
-}
-
-.topics-generator__process-step {
-  display: flex;
-  margin-bottom: var(--mkcg-space-lg);
-}
-
-.topics-generator__process-icon {
-  flex: 0 0 40px;
-  color: var(--mkcg-primary);
-  margin-right: var(--mkcg-space-sm);
-  margin-top: 5px;
-}
-
-.topics-generator__process-content {
-  flex: 1;
-}
-
-.topics-generator__process-title {
-  font-size: var(--mkcg-font-size-md);
-  margin: 0 0 var(--mkcg-space-xs) 0;
-  color: var(--mkcg-text-primary);
-  font-weight: var(--mkcg-font-weight-semibold);
-}
-
-.topics-generator__process-description {
-  color: var(--mkcg-text-secondary);
-  font-size: var(--mkcg-font-size-sm);
-  line-height: var(--mkcg-line-height-relaxed);
-  margin: 0;
-}
-
-.topics-generator__examples-header {
-  margin: var(--mkcg-space-lg) 0 var(--mkcg-space-sm);
-  font-size: var(--mkcg-font-size-md);
-  color: var(--mkcg-text-primary);
-  font-weight: var(--mkcg-font-weight-semibold);
-}
-
-.topics-generator__example-card {
-  background-color: var(--mkcg-bg-primary);
-  border: 1px solid var(--mkcg-border-light);
-  border-radius: var(--mkcg-radius);
-  padding: var(--mkcg-space-sm);
-  margin-bottom: var(--mkcg-space-sm);
-}
-
-.topics-generator__example-card strong {
-  display: block;
-  margin-bottom: var(--mkcg-space-xs);
-  color: var(--mkcg-text-primary);
-  font-weight: var(--mkcg-font-weight-semibold);
-}
-
-.topics-generator__example-card p {
-  margin: var(--mkcg-space-xs) 0;
-  color: var(--mkcg-text-secondary);
-  font-size: var(--mkcg-font-size-sm);
-  line-height: var(--mkcg-line-height-normal);
-}
+/* Topics Generator Examples - Now uses base .generator__examples-header, .generator__example-card */
 
 /* Topics Generator Lists */
 .topics-generator__topics-list {
@@ -1906,17 +2632,7 @@
   justify-content: center;
 }
 
-/* Generate Button Specific Styling */
-.offers-generator__button--generate {
-  background: linear-gradient(135deg, var(--mkcg-secondary) 0%, var(--mkcg-secondary-dark) 100%);
-  box-shadow: var(--mkcg-shadow-sm);
-}
-
-.offers-generator__button--generate:hover {
-  background: linear-gradient(135deg, var(--mkcg-secondary-dark) 0%, #a04000 100%);
-  transform: translateY(-1px);
-  box-shadow: var(--mkcg-shadow-md);
-}
+/* Generate Button - Now uses base .generator__button--call-to-action */
 
 /* Loading Overlay for Offers Generator */
 .offers-generator__loading-overlay {
@@ -1989,111 +2705,7 @@
   margin-left: var(--mkcg-space-xs);
 }
 
-/* Offers Generator Right Panel Content */
-.offers-generator__guidance {
-  /* Inherits base panel styling from .generator__panel--right */
-}
-
-.offers-generator__guidance-header {
-  font-size: var(--mkcg-font-size-xl);
-  color: var(--mkcg-text-primary);
-  margin: 0 0 var(--mkcg-space-sm) 0;
-  font-weight: var(--mkcg-font-weight-semibold);
-  line-height: var(--mkcg-line-height-tight);
-}
-
-.offers-generator__guidance-subtitle {
-  color: var(--mkcg-text-secondary);
-  margin-bottom: var(--mkcg-space-lg);
-  font-size: var(--mkcg-font-size-md);
-  line-height: var(--mkcg-line-height-relaxed);
-}
-
-.offers-generator__formula-box {
-  background-color: var(--mkcg-bg-primary);
-  border: 1px solid var(--mkcg-border-light);
-  border-radius: var(--mkcg-radius);
-  padding: var(--mkcg-space-md);
-  margin-bottom: var(--mkcg-space-lg);
-  font-size: var(--mkcg-font-size-md);
-  line-height: var(--mkcg-line-height-relaxed);
-  color: var(--mkcg-text-primary);
-}
-
-.offers-generator__formula-label {
-  display: inline-block;
-  background-color: var(--mkcg-bg-tertiary);
-  color: var(--mkcg-text-secondary);
-  padding: 3px var(--mkcg-space-xs);
-  border-radius: var(--mkcg-radius-sm);
-  font-size: var(--mkcg-font-size-xs);
-  font-weight: var(--mkcg-font-weight-bold);
-  margin-bottom: var(--mkcg-space-xs);
-}
-
-.offers-generator__highlight {
-  color: var(--mkcg-primary);
-  font-weight: var(--mkcg-font-weight-semibold);
-}
-
-.offers-generator__process-step {
-  display: flex;
-  margin-bottom: var(--mkcg-space-lg);
-}
-
-.offers-generator__process-icon {
-  flex: 0 0 40px;
-  color: var(--mkcg-primary);
-  margin-right: var(--mkcg-space-sm);
-  margin-top: 5px;
-}
-
-.offers-generator__process-content {
-  flex: 1;
-}
-
-.offers-generator__process-title {
-  font-size: var(--mkcg-font-size-md);
-  margin: 0 0 var(--mkcg-space-xs) 0;
-  color: var(--mkcg-text-primary);
-  font-weight: var(--mkcg-font-weight-semibold);
-}
-
-.offers-generator__process-description {
-  color: var(--mkcg-text-secondary);
-  font-size: var(--mkcg-font-size-sm);
-  line-height: var(--mkcg-line-height-relaxed);
-  margin: 0;
-}
-
-.offers-generator__examples-header {
-  margin: var(--mkcg-space-lg) 0 var(--mkcg-space-sm);
-  font-size: var(--mkcg-font-size-md);
-  color: var(--mkcg-text-primary);
-  font-weight: var(--mkcg-font-weight-semibold);
-}
-
-.offers-generator__example-card {
-  background-color: var(--mkcg-bg-primary);
-  border: 1px solid var(--mkcg-border-light);
-  border-radius: var(--mkcg-radius);
-  padding: var(--mkcg-space-sm);
-  margin-bottom: var(--mkcg-space-sm);
-}
-
-.offers-generator__example-card strong {
-  display: block;
-  margin-bottom: var(--mkcg-space-xs);
-  color: var(--mkcg-text-primary);
-  font-weight: var(--mkcg-font-weight-semibold);
-}
-
-.offers-generator__example-card p {
-  margin: var(--mkcg-space-xs) 0;
-  color: var(--mkcg-text-secondary);
-  font-size: var(--mkcg-font-size-sm);
-  line-height: var(--mkcg-line-height-normal);
-}
+/* Offers Generator Right Panel Content - Now uses base .generator__* classes */
 
 /* Responsive Design for Offers Generator */
 @media screen and (max-width: 768px) {
@@ -2429,111 +3041,7 @@
   text-align: center;
 }
 
-/* Questions Generator Right Panel Content */
-.questions-generator__guidance {
-  /* Inherits base panel styling from .generator__panel--right */
-}
-
-.questions-generator__guidance-header {
-  font-size: var(--mkcg-font-size-xl);
-  color: var(--mkcg-text-primary);
-  margin: 0 0 var(--mkcg-space-sm) 0;
-  font-weight: var(--mkcg-font-weight-semibold);
-  line-height: var(--mkcg-line-height-tight);
-}
-
-.questions-generator__guidance-subtitle {
-  color: var(--mkcg-text-secondary);
-  margin-bottom: var(--mkcg-space-lg);
-  font-size: var(--mkcg-font-size-md);
-  line-height: var(--mkcg-line-height-relaxed);
-}
-
-.questions-generator__formula-box {
-  background-color: var(--mkcg-bg-primary);
-  border: 1px solid var(--mkcg-border-light);
-  border-radius: var(--mkcg-radius);
-  padding: var(--mkcg-space-md);
-  margin-bottom: var(--mkcg-space-lg);
-  font-size: var(--mkcg-font-size-md);
-  line-height: var(--mkcg-line-height-relaxed);
-  color: var(--mkcg-text-primary);
-}
-
-.questions-generator__formula-label {
-  display: inline-block;
-  background-color: var(--mkcg-bg-tertiary);
-  color: var(--mkcg-text-secondary);
-  padding: 3px var(--mkcg-space-xs);
-  border-radius: var(--mkcg-radius-sm);
-  font-size: var(--mkcg-font-size-xs);
-  font-weight: var(--mkcg-font-weight-bold);
-  margin-bottom: var(--mkcg-space-xs);
-}
-
-.questions-generator__highlight {
-  color: var(--mkcg-primary);
-  font-weight: var(--mkcg-font-weight-semibold);
-}
-
-.questions-generator__process-step {
-  display: flex;
-  margin-bottom: var(--mkcg-space-lg);
-}
-
-.questions-generator__process-icon {
-  flex: 0 0 40px;
-  color: var(--mkcg-primary);
-  margin-right: var(--mkcg-space-sm);
-  margin-top: 5px;
-}
-
-.questions-generator__process-content {
-  flex: 1;
-}
-
-.questions-generator__process-title {
-  font-size: var(--mkcg-font-size-md);
-  margin: 0 0 var(--mkcg-space-xs) 0;
-  color: var(--mkcg-text-primary);
-  font-weight: var(--mkcg-font-weight-semibold);
-}
-
-.questions-generator__process-description {
-  color: var(--mkcg-text-secondary);
-  font-size: var(--mkcg-font-size-sm);
-  line-height: var(--mkcg-line-height-relaxed);
-  margin: 0;
-}
-
-.questions-generator__examples-header {
-  margin: var(--mkcg-space-lg) 0 var(--mkcg-space-sm);
-  font-size: var(--mkcg-font-size-md);
-  color: var(--mkcg-text-primary);
-  font-weight: var(--mkcg-font-weight-semibold);
-}
-
-.questions-generator__example-card {
-  background-color: var(--mkcg-bg-primary);
-  border: 1px solid var(--mkcg-border-light);
-  border-radius: var(--mkcg-radius);
-  padding: var(--mkcg-space-sm);
-  margin-bottom: var(--mkcg-space-sm);
-}
-
-.questions-generator__example-card strong {
-  display: block;
-  margin-bottom: var(--mkcg-space-xs);
-  color: var(--mkcg-text-primary);
-  font-weight: var(--mkcg-font-weight-semibold);
-}
-
-.questions-generator__example-card p {
-  margin: var(--mkcg-space-xs) 0;
-  color: var(--mkcg-text-secondary);
-  font-size: var(--mkcg-font-size-sm);
-  line-height: var(--mkcg-line-height-normal);
-}
+/* Questions Generator Right Panel Content - Now uses base .generator__* classes */
 
 /* Responsive Design for Questions Generator */
 @media screen and (max-width: 768px) {
@@ -2901,6 +3409,39 @@
   padding-top: var(--mkcg-space-md);
   border-top: 1px solid var(--mkcg-border-light);
   text-align: center;
+}
+
+/* Generator Call-to-Action Button - Unified save/generate button styling */
+.generator__button--call-to-action {
+  background: linear-gradient(135deg, var(--mkcg-secondary) 0%, var(--mkcg-secondary-dark) 100%);
+  color: var(--mkcg-text-white);
+  border: none;
+  padding: var(--mkcg-space-sm) var(--mkcg-space-lg);
+  border-radius: var(--mkcg-radius);
+  font-size: var(--mkcg-font-size-md);
+  font-weight: var(--mkcg-font-weight-semibold);
+  cursor: pointer;
+  transition: var(--mkcg-transition-fast);
+  box-shadow: var(--mkcg-shadow-md);
+  font-family: inherit;
+}
+
+.generator__button--call-to-action:hover {
+  background: linear-gradient(135deg, var(--mkcg-secondary-dark) 0%, #a04000 100%);
+  transform: translateY(-1px);
+  box-shadow: var(--mkcg-shadow-lg);
+}
+
+.generator__button--call-to-action:active {
+  transform: translateY(0);
+  box-shadow: var(--mkcg-shadow-sm);
+}
+
+.generator__button--call-to-action:disabled {
+  background: var(--mkcg-text-light);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .generator__save-status {
@@ -3719,25 +4260,7 @@
   text-align: center;
 }
 
-.biography-generator__save-button {
-  background: linear-gradient(135deg, var(--mkcg-secondary) 0%, var(--mkcg-secondary-dark) 100%);
-  color: var(--mkcg-text-white);
-  border: none;
-  padding: var(--mkcg-space-sm) var(--mkcg-space-lg);
-  border-radius: var(--mkcg-radius);
-  font-size: var(--mkcg-font-size-md);
-  font-weight: var(--mkcg-font-weight-semibold);
-  cursor: pointer;
-  transition: var(--mkcg-transition-fast);
-  box-shadow: var(--mkcg-shadow-md);
-  font-family: inherit;
-}
-
-.biography-generator__save-button:hover {
-  background: linear-gradient(135deg, var(--mkcg-secondary-dark) 0%, #a04000 100%);
-  transform: translateY(-1px);
-  box-shadow: var(--mkcg-shadow-lg);
-}
+/* Biography Generator Save Button - Now uses base .generator__button--call-to-action */
 
 /* Responsive Design for Biography Generator */
 @media screen and (max-width: 768px) {

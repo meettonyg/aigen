@@ -288,9 +288,9 @@ if ($all_components_exist) {
                     </div>
                     
                     <!-- Enhanced Save Section - Comprehensive Save to Both Locations -->
-                    <div class="topics-generator__save-section">
+                    <div class="generator__save-section">
                         <!-- Prominent Save Button with Enhanced Functionality -->
-                        <button class="topics-generator__save-button topics-generator__save-button--enhanced" id="topics-generator-save-topics" type="button">
+                        <button class="generator__button--call-to-action" id="topics-generator-save-topics" type="button">
                             💾 Save All Topics & Authority Hook
                         </button>
                         
@@ -362,32 +362,32 @@ if ($all_components_exist) {
         
         <!-- RIGHT PANEL -->
         <div class="generator__panel generator__panel--right">
-                <h2 class="topics-generator__guidance-header">Crafting Perfect Interview Topics</h2>
-                <p class="topics-generator__guidance-subtitle">Strong interview topics provide value to listeners, suggest a structure for the conversation, and showcase your expertise. They should be focused on one concept at a time while remaining general enough to allow for discussion.</p>
+                <h2 class="generator__guidance-header">Crafting Perfect Interview Topics</h2>
+                <p class="generator__guidance-subtitle">Strong interview topics provide value to listeners, suggest a structure for the conversation, and showcase your expertise. They should be focused on one concept at a time while remaining general enough to allow for discussion.</p>
                 
-                <div class="topics-generator__formula-box">
-                    <span class="topics-generator__formula-label">APPROACH</span>
-                    Provide <span class="topics-generator__highlight">solutions</span> that focus on <span class="topics-generator__highlight">one concept</span> per topic while remaining <span class="topics-generator__highlight">general enough</span> to expand upon.
+                <div class="generator__formula-box">
+                    <span class="generator__formula-label">APPROACH</span>
+                    Provide <span class="generator__highlight">solutions</span> that focus on <span class="generator__highlight">one concept</span> per topic while remaining <span class="generator__highlight">general enough</span> to expand upon.
                 </div>
                 
-                <div class="topics-generator__process-step">
-                    <div class="topics-generator__process-icon">
+                <div class="generator__process-step">
+                    <div class="generator__process-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="10"></circle>
                             <circle cx="12" cy="12" r="6"></circle>
                             <circle cx="12" cy="12" r="2"></circle>
                         </svg>
                     </div>
-                    <div class="topics-generator__process-content">
-                        <h3 class="topics-generator__process-title">Focus on Value for Listeners</h3>
-                        <p class="topics-generator__process-description">
+                    <div class="generator__process-content">
+                        <h3 class="generator__process-title">Focus on Value for Listeners</h3>
+                        <p class="generator__process-description">
                             Great topics provide actionable solutions that listeners can implement. Think about your audience's pain points and how your knowledge can help solve their problems. Avoid overly promotional topics and focus on delivering value first.
                         </p>
                     </div>
                 </div>
                 
-                <div class="topics-generator__process-step">
-                    <div class="topics-generator__process-icon">
+                <div class="generator__process-step">
+                    <div class="generator__process-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="8" y1="6" x2="21" y2="6"></line>
                             <line x1="8" y1="12" x2="21" y2="12"></line>
@@ -397,16 +397,16 @@ if ($all_components_exist) {
                             <line x1="3" y1="18" x2="3.01" y2="18"></line>
                         </svg>
                     </div>
-                    <div class="topics-generator__process-content">
-                        <h3 class="topics-generator__process-title">One Concept per Topic</h3>
-                        <p class="topics-generator__process-description">
+                    <div class="generator__process-content">
+                        <h3 class="generator__process-title">One Concept per Topic</h3>
+                        <p class="generator__process-description">
                             Each topic should focus on a single concept, similar to a blog post. This makes it easier for hosts to structure the interview and helps listeners follow along. You'll have the opportunity to go into detail during the conversation.
                         </p>
                     </div>
                 </div>
                 
-                <div class="topics-generator__process-step">
-                    <div class="topics-generator__process-icon">
+                <div class="generator__process-step">
+                    <div class="generator__process-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                             <circle cx="9" cy="7" r="4"></circle>
@@ -414,31 +414,31 @@ if ($all_components_exist) {
                             <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                         </svg>
                     </div>
-                    <div class="topics-generator__process-content">
-                        <h3 class="topics-generator__process-title">Tailored to the Audience</h3>
-                        <p class="topics-generator__process-description">
+                    <div class="generator__process-content">
+                        <h3 class="generator__process-title">Tailored to the Audience</h3>
+                        <p class="generator__process-description">
                             While you can have core topics you're prepared to discuss, the best approach is to tailor them to each podcast's specific audience. Research the show beforehand and adjust your topics to align with what their listeners would find most valuable.
                         </p>
                     </div>
                 </div>
                 
-                <h3 class="topics-generator__examples-header">Example Topic Sets:</h3>
+                <h3 class="generator__examples-header">Example Topic Sets:</h3>
                 
-                <div class="topics-generator__example-card">
+                <div class="generator__example-card">
                     <strong>For a Marketing Podcast:</strong>
                     <p>1. The 3-step framework for landing high-profile podcast interviews</p>
                     <p>2. How to craft a compelling story that makes you memorable</p>
                     <p>3. Converting podcast appearances into high-ticket clients</p>
                 </div>
                 
-                <div class="topics-generator__example-card">
+                <div class="generator__example-card">
                     <strong>For a Business Growth Podcast:</strong>
                     <p>1. The 5 most common mistakes when scaling SaaS businesses</p>
                     <p>2. Building a team that can operate without your daily involvement</p>
                     <p>3. Creating systems that allow for sustainable growth</p>
                 </div>
                 
-                <div class="topics-generator__example-card">
+                <div class="generator__example-card">
                     <strong>For an Author/Content Creator Podcast:</strong>
                     <p>1. Turning your expertise into a bestselling book</p>
                     <p>2. Building an audience that eagerly awaits your content</p>

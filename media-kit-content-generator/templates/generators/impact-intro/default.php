@@ -188,7 +188,7 @@ error_log('MKCG Impact Intro Template: Rendering with post_id=' . $post_id . ', 
             
             <!-- Save Section -->
             <div class="generator__save-section">
-                <button class="generator__button generator__button--primary" id="save-button" type="button">
+                <button class="generator__button--call-to-action" id="save-button" type="button">
                     💾 Save Impact Intro
                 </button>
                 

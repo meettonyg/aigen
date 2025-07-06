@@ -135,99 +135,99 @@ $authority_hook_components = $template_data['authority_hook_components'];
 $business_data = $template_data['business_data'];
 $has_data = $template_data['has_data'];
 
-// Define right panel content using Offers Generator classes
-$content = '<div class="offers-generator__guidance">
-    <h2 class="offers-generator__guidance-header">Crafting Perfect Interview Offers</h2>
-    <p class="offers-generator__guidance-subtitle">
+// Define right panel content using unified Generator classes
+$content = '<div class="generator__panel--right">
+    <h2 class="generator__guidance-header">Crafting Perfect Interview Offers</h2>
+    <p class="generator__guidance-subtitle">
       Strategic offers turn podcast interviews into business opportunities. Based on your Authority Hook, these offers create a natural bridge from listener to prospect, allowing you to capture value from each interview appearance.
     </p>
     
-    <div class="offers-generator__formula-box">
-      <span class="offers-generator__formula-label">FORMULA</span>
-      <span class="offers-generator__highlight">[FREE OFFER]</span> → <span class="offers-generator__highlight">[LOW-TICKET OFFER]</span> → <span class="offers-generator__highlight">[PREMIUM OFFER]</span> = Complete Value Ladder for Podcast Audiences
+    <div class="generator__formula-box">
+      <span class="generator__formula-label">FORMULA</span>
+      <span class="generator__highlight">[FREE OFFER]</span> → <span class="generator__highlight">[LOW-TICKET OFFER]</span> → <span class="generator__highlight">[PREMIUM OFFER]</span> = Complete Value Ladder for Podcast Audiences
     </div>
     
-    <div class="offers-generator__process-step">
-      <div class="offers-generator__process-icon">
+    <div class="generator__process-step">
+      <div class="generator__process-icon">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"></circle>
           <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
           <line x1="12" y1="17" x2="12.01" y2="17"></line>
         </svg>
       </div>
-      <div class="offers-generator__process-content">
-        <h3 class="offers-generator__process-title">Why Podcast-Specific Offers Matter</h3>
-        <p class="offers-generator__process-description">
+      <div class="generator__process-content">
+        <h3 class="generator__process-title">Why Podcast-Specific Offers Matter</h3>
+        <p class="generator__process-description">
           Podcast listeners want immediate value after hearing your interview. A well-crafted offer creates a frictionless path from listener to subscriber to client. Without a dedicated offer, you\'re leaving relationship-building opportunities and revenue on the table with every interview.
         </p>
       </div>
     </div>
     
-    <div class="offers-generator__process-step">
-      <div class="offers-generator__process-icon">
+    <div class="generator__process-step">
+      <div class="generator__process-icon">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
           <polyline points="22 4 12 14.01 9 11.01"></polyline>
         </svg>
       </div>
-      <div class="offers-generator__process-content">
-        <h3 class="offers-generator__process-title">The Perfect Offer Structure</h3>
-        <p class="offers-generator__process-description">
+      <div class="generator__process-content">
+        <h3 class="generator__process-title">The Perfect Offer Structure</h3>
+        <p class="generator__process-description">
           The most effective podcast offers follow a tiered structure: a free lead magnet to capture initial interest, a low-ticket offer ($97-$497) for those ready to invest, and a premium offer ($997+) for committed prospects. This gives listeners options regardless of where they are in their journey.
         </p>
       </div>
     </div>
     
-    <h3 class="offers-generator__examples-header">Example Offers:</h3>
+    <h3 class="generator__examples-header">Example Offers:</h3>
     
-    <div class="offers-generator__example-card">
+    <div class="generator__example-card">
       <strong>For Lead Generation:</strong>
       <p>1. "The AI Marketing Audit Checklist" – A practical guide to identify AI-driven opportunities in your marketing funnel, complete with implementation templates and ROI calculators.</p>
       <p>2. "AI Marketing Amplifier Workshop ($197)" – A 3-hour virtual workshop where SaaS founders learn how to implement AI tools that automate lead generation and nurture campaigns.</p>
       <p>3. "Elite AI Growth Accelerator ($4,997)" – A 3-month done-with-you program implementing complete AI marketing systems for your SaaS business.</p>
     </div>
     
-    <div class="offers-generator__example-card">
+    <div class="generator__example-card">
       <strong>For Consulting Services:</strong>
       <p>1. "The Strategic Planning Toolkit" – Free 15-page guide with templates for quarterly business planning and goal setting.</p>
       <p>2. "Strategy Sprint Session ($497)" – 2-hour intensive strategy session to identify your biggest growth opportunities and create an action plan.</p>
       <p>3. "Executive Growth Program ($2,997)" – 6-month program with monthly strategy sessions and ongoing support for scaling your business.</p>
     </div>
     
-    <div class="offers-generator__example-card">
+    <div class="generator__example-card">
       <strong>For Coaching Services:</strong>
       <p>1. "The Confidence Building Challenge" – Free 7-day email series with daily exercises to boost professional confidence.</p>
       <p>2. "Leadership Breakthrough Workshop ($297)" – Half-day virtual workshop on developing authentic leadership presence and communication skills.</p>
       <p>3. "Executive Leadership Mastery ($5,997)" – 3-month intensive coaching program with weekly sessions and 24/7 Slack support.</p>
     </div>
     
-    <div class="offers-generator__process-step">
-      <div class="offers-generator__process-icon">
+    <div class="generator__process-step">
+      <div class="generator__process-icon">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"></circle>
           <line x1="12" y1="8" x2="12" y2="16"></line>
           <line x1="8" y1="12" x2="16" y2="12"></line>
         </svg>
       </div>
-      <div class="offers-generator__process-content">
-        <h3 class="offers-generator__process-title">How to Mention Your Offer</h3>
-        <p class="offers-generator__process-description">
+      <div class="generator__process-content">
+        <h3 class="generator__process-title">How to Mention Your Offer</h3>
+        <p class="generator__process-description">
           When mentioning your offer during an interview, keep it concise and natural. Use a clear call-to-action with a memorable URL or text option. For example: "If you\'d like my AI Marketing Audit Checklist we discussed, just text \'AI AUDIT\' to 555-123-4567 and I\'ll send it right over."
         </p>
       </div>
     </div>
     
-    <div class="offers-generator__process-step">
-      <div class="offers-generator__process-icon">
+    <div class="generator__process-step">
+      <div class="generator__process-icon">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="4 7 4 4 20 4 20 7"></polyline>
           <line x1="9" y1="20" x2="15" y2="20"></line>
           <line x1="12" y1="4" x2="12" y2="20"></line>
         </svg>
       </div>
-      <div class="offers-generator__process-content">
-        <h3 class="offers-generator__process-title">Tracking Offer Effectiveness</h3>
-        <p class="offers-generator__process-description">
+      <div class="generator__process-content">
+        <h3 class="generator__process-title">Tracking Offer Effectiveness</h3>
+        <p class="generator__process-description">
           Create unique tracking links or coupon codes for each podcast appearance. This helps you measure which shows drive the most conversions and where to focus your future guesting efforts. Remember to follow up with podcast listeners who take your free offer within 48 hours.
         </p>
       </div>
@@ -267,7 +267,7 @@ error_log('MKCG Offers Template: Rendering with post_id=' . $post_id . ', has_da
                     
                     <div class="generator__authority-hook-actions">
                         <!-- Generate Button -->
-                        <button class="generator__button generator__button--secondary offers-generator__button--generate" id="offers-generator-generate-offers">
+                        <button class="generator__button--call-to-action" id="offers-generator-generate-offers">
                             🚀 Generate Offer Suggestions
                         </button>
                         <button type="button" class="generator__button generator__button--outline" id="offers-generator-toggle-builder">

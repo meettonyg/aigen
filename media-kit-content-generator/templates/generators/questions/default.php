@@ -367,7 +367,7 @@ error_log('MKCG Questions Template: Rendering with post_id=' . $post_id . ', has
                 
                 <!-- Simple Save Button -->
                 <div class="questions-generator__save-section">
-                    <button class="generator__button generator__button--secondary" id="questions-generator-save-all-questions" type="button">
+                    <button class="generator__button--call-to-action" id="questions-generator-save-all-questions" type="button">
                         Save All Questions
                     </button>
                 </div>
@@ -377,32 +377,32 @@ error_log('MKCG Questions Template: Rendering with post_id=' . $post_id . ', has
         
         <!-- RIGHT PANEL -->
         <div class="generator__panel generator__panel--right">
-            <h2 class="questions-generator__guidance-header">Crafting Effective Interview Questions</h2>
-            <p class="questions-generator__guidance-subtitle">Well-crafted questions help podcast hosts guide the conversation while giving you opportunities to showcase your expertise. Each question should be open-ended and allow you to deliver valuable insights to listeners.</p>
+            <h2 class="generator__guidance-header">Crafting Effective Interview Questions</h2>
+            <p class="generator__guidance-subtitle">Well-crafted questions help podcast hosts guide the conversation while giving you opportunities to showcase your expertise. Each question should be open-ended and allow you to deliver valuable insights to listeners.</p>
                 
-            <div class="questions-generator__formula-box">
-                <span class="questions-generator__formula-label">APPROACH</span>
-                Balance <span class="questions-generator__highlight">specific questions</span> that demonstrate your expertise with <span class="questions-generator__highlight">story-based questions</span> that engage the audience.
+            <div class="generator__formula-box">
+                <span class="generator__formula-label">APPROACH</span>
+                Balance <span class="generator__highlight">specific questions</span> that demonstrate your expertise with <span class="generator__highlight">story-based questions</span> that engage the audience.
             </div>
                 
-            <div class="questions-generator__process-step">
-                <div class="questions-generator__process-icon">
+            <div class="generator__process-step">
+                <div class="generator__process-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
                         <circle cx="12" cy="12" r="6"></circle>
                         <circle cx="12" cy="12" r="2"></circle>
                     </svg>
                 </div>
-                <div class="questions-generator__process-content">
-                    <h3 class="questions-generator__process-title">Frame Questions for Stories</h3>
-                    <p class="questions-generator__process-description">
+                <div class="generator__process-content">
+                    <h3 class="generator__process-title">Frame Questions for Stories</h3>
+                    <p class="generator__process-description">
                         Include questions that prompt you to share real-world examples and stories. Listeners connect with narratives, and hosts appreciate guests who illustrate points with compelling stories.
                     </p>
                 </div>
             </div>
                 
-            <div class="questions-generator__process-step">
-                <div class="questions-generator__process-icon">
+            <div class="generator__process-step">
+                <div class="generator__process-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="8" y1="6" x2="21" y2="6"></line>
                         <line x1="8" y1="12" x2="21" y2="12"></line>
@@ -412,16 +412,16 @@ error_log('MKCG Questions Template: Rendering with post_id=' . $post_id . ', has
                         <line x1="3" y1="18" x2="3.01" y2="18"></line>
                     </svg>
                 </div>
-                <div class="questions-generator__process-content">
-                    <h3 class="questions-generator__process-title">Show Range and Depth</h3>
-                    <p class="questions-generator__process-description">
+                <div class="generator__process-content">
+                    <h3 class="generator__process-title">Show Range and Depth</h3>
+                    <p class="generator__process-description">
                         Mix high-level strategic questions with tactical implementation details. This demonstrates both your big-picture understanding and your practical expertise in executing solutions.
                     </p>
                 </div>
             </div>
                 
-            <div class="questions-generator__process-step">
-                <div class="questions-generator__process-icon">
+            <div class="generator__process-step">
+                <div class="generator__process-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                         <circle cx="9" cy="7" r="4"></circle>
@@ -429,29 +429,29 @@ error_log('MKCG Questions Template: Rendering with post_id=' . $post_id . ', has
                         <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                     </svg>
                 </div>
-                <div class="questions-generator__process-content">
-                    <h3 class="questions-generator__process-title">Include Audience Transformation</h3>
-                    <p class="questions-generator__process-description">
+                <div class="generator__process-content">
+                    <h3 class="generator__process-title">Include Audience Transformation</h3>
+                    <p class="generator__process-description">
                         Create questions that allow you to describe the transformation your clients or audience experience. Podcast hosts love when guests can articulate clear before-and-after scenarios.
                     </p>
                 </div>
             </div>
                 
-            <h3 class="questions-generator__examples-header">Question Types to Include:</h3>
+            <h3 class="generator__examples-header">Question Types to Include:</h3>
             
-            <div class="questions-generator__example-card">
+            <div class="generator__example-card">
                 <strong>Origin Questions:</strong>
                 <p>"What led you to develop this approach to content creation?"</p>
                 <p>"How did you discover this common mistake in SaaS scaling?"</p>
             </div>
             
-            <div class="questions-generator__example-card">
+            <div class="generator__example-card">
                 <strong>Process Questions:</strong>
                 <p>"Can you walk us through your step-by-step approach to building self-sufficient teams?"</p>
                 <p>"What does your content creation process look like from start to finish?"</p>
             </div>
             
-            <div class="questions-generator__example-card">
+            <div class="generator__example-card">
                 <strong>Result Questions:</strong>
                 <p>"What kind of results have your clients seen after implementing these strategies?"</p>
                 <p>"How does a properly scaled SaaS business operate differently than one that's struggling?"</p>

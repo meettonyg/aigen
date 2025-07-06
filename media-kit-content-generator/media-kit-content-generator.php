@@ -66,33 +66,53 @@ class Media_Kit_Content_Generator {
     // REMOVED: Old init_ajax_handlers() method - replaced with on-demand initialization
     
     /**
-     * ROOT FIX: Direct AJAX handler for save topics to avoid complex handler chain
+     * ROOT FIX: Enhanced AJAX handler with comprehensive debugging for save topics
      */
-    public function ajax_save_topics() {
-        $this->debug_log('MKCG: Starting ajax_save_topics handler - direct implementation');
+    public function ajax_save_topics_data() {
+        // Enhanced logging
+        error_log('MKCG FIXED: Starting ajax_save_topics_data handler with enhanced debugging');
+        error_log('MKCG FIXED: Request method: ' . $_SERVER['REQUEST_METHOD']);
+        error_log('MKCG FIXED: Content type: ' . ($_SERVER['CONTENT_TYPE'] ?? 'not set'));
+        error_log('MKCG FIXED: Raw POST data: ' . print_r($_POST, true));
         
-        // Verify request
+        // Verify request with enhanced logging
         if (!$this->verify_ajax_request()) {
+            error_log('MKCG FIXED: Security check failed - detailed info:');
+            error_log('  - User logged in: ' . (is_user_logged_in() ? 'YES' : 'NO'));
+            error_log('  - Can edit posts: ' . (current_user_can('edit_posts') ? 'YES' : 'NO'));
+            error_log('  - Nonce provided: ' . (isset($_POST['nonce']) || isset($_POST['security']) ? 'YES' : 'NO'));
+            if (isset($_POST['nonce'])) {
+                error_log('  - Nonce value: ' . substr($_POST['nonce'], 0, 10) . '...');
+                error_log('  - Nonce valid: ' . (wp_verify_nonce($_POST['nonce'], 'mkcg_nonce') ? 'YES' : 'NO'));
+            }
             wp_send_json_error(['message' => 'Security check failed']);
             return;
         }
         
-        // Get post ID
+        error_log('MKCG FIXED: Security check passed');
+        
+        // Get post ID with enhanced validation
         $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
+        error_log('MKCG FIXED: Post ID extraction: raw=' . ($_POST['post_id'] ?? 'not set') . ', parsed=' . $post_id);
+        
         if (!$post_id) {
+            error_log('MKCG FIXED: Post ID validation failed');
             wp_send_json_error(['message' => 'Post ID required']);
             return;
         }
         
-        $this->debug_log('MKCG: Processing save for post ID: ' . $post_id);
-        $this->debug_log('MKCG: POST data: ' . print_r($_POST, true));
+        error_log('MKCG FIXED: Processing save for post ID: ' . $post_id);
         
-        // Extract topics data
+        // Enhanced data extraction with debugging
+        error_log('MKCG FIXED: Starting data extraction...');
         $topics_data = $this->extract_topics_data();
         $authority_hook_data = $this->extract_authority_hook_data();
         
-        $this->debug_log('MKCG: Extracted topics: ' . print_r($topics_data, true));
-        $this->debug_log('MKCG: Extracted authority hook: ' . print_r($authority_hook_data, true));
+        error_log('MKCG FIXED: Data extraction results:');
+        error_log('  - Topics extracted: ' . count($topics_data) . ' items');
+        error_log('  - Topics data: ' . json_encode($topics_data));
+        error_log('  - Authority hook extracted: ' . count($authority_hook_data) . ' components');
+        error_log('  - Authority hook data: ' . json_encode($authority_hook_data));
         
         if (empty($topics_data) && empty($authority_hook_data)) {
             wp_send_json_error(['message' => 'No data provided to save']);
@@ -665,23 +685,52 @@ class Media_Kit_Content_Generator {
     }
     
     /**
-     * Simple AJAX request verification
+     * FIXED: Enhanced AJAX request verification with detailed logging
      */
     private function verify_ajax_request() {
+        error_log('MKCG FIXED: Starting AJAX request verification...');
+        
+        // Check 1: User authentication
         if (!is_user_logged_in()) {
+            error_log('MKCG FIXED: Verification failed - user not logged in');
             return false;
         }
+        error_log('MKCG FIXED: User authentication: PASSED');
         
+        // Check 2: User capabilities
         if (!current_user_can('edit_posts')) {
+            error_log('MKCG FIXED: Verification failed - user cannot edit posts');
+            error_log('MKCG FIXED: Current user ID: ' . get_current_user_id());
+            error_log('MKCG FIXED: User capabilities: ' . json_encode(wp_get_current_user()->allcaps ?? []));
             return false;
         }
+        error_log('MKCG FIXED: User capabilities: PASSED');
         
+        // Check 3: Nonce verification (multiple sources)
         $nonce = $_POST['nonce'] ?? $_POST['security'] ?? '';
+        error_log('MKCG FIXED: Nonce extraction attempts:');
+        error_log('  - $_POST["nonce"]: ' . ($_POST['nonce'] ?? 'not found'));
+        error_log('  - $_POST["security"]: ' . ($_POST['security'] ?? 'not found'));
+        error_log('  - Final nonce: ' . ($nonce ?: 'empty'));
+        
         if (empty($nonce)) {
+            error_log('MKCG FIXED: Verification failed - no nonce provided');
             return false;
         }
         
-        return wp_verify_nonce($nonce, 'mkcg_nonce');
+        // Verify nonce
+        $nonce_valid = wp_verify_nonce($nonce, 'mkcg_nonce');
+        error_log('MKCG FIXED: Nonce verification result: ' . ($nonce_valid ? 'VALID' : 'INVALID'));
+        
+        if (!$nonce_valid) {
+            error_log('MKCG FIXED: Verification failed - invalid nonce');
+            error_log('MKCG FIXED: Expected nonce action: mkcg_nonce');
+            error_log('MKCG FIXED: Provided nonce: ' . substr($nonce, 0, 10) . '...');
+            return false;
+        }
+        
+        error_log('MKCG FIXED: AJAX request verification: ALL CHECKS PASSED');
+        return true;
     }
     
     /**
@@ -719,7 +768,7 @@ class Media_Kit_Content_Generator {
         register_deactivation_hook(__FILE__, [$this, 'deactivate']);
         
         // CRITICAL FIX: Register AJAX actions directly here - simplest solution
-        add_action('wp_ajax_mkcg_save_topics_data', [$this, 'ajax_save_topics']);
+        add_action('wp_ajax_mkcg_save_topics_data', [$this, 'ajax_save_topics_data']);
         add_action('wp_ajax_mkcg_get_topics_data', [$this, 'ajax_get_topics']);
         add_action('wp_ajax_mkcg_save_authority_hook', [$this, 'ajax_save_authority_hook']);
         add_action('wp_ajax_mkcg_generate_topics', [$this, 'ajax_generate_topics']);
