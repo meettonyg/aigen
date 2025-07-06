@@ -102,4 +102,164 @@ class Enhanced_Authority_Hook_Generator {
             'complete_hook' => $authority_hook_data['complete_hook']
         ];
         
-        error_log('MKCG Authority Hook Generator: Data loaded successfully from Authority
+        error_log('MKCG Authority Hook Generator: Data loaded successfully from Authority Hook Service');
+        
+        return $template_data;
+    }
+    
+    /**
+     * Get post_id from request parameters
+     */
+    private function get_post_id_from_request() {
+        // Method 1: post_id parameter
+        if (isset($_GET['post_id']) && intval($_GET['post_id']) > 0) {
+            return intval($_GET['post_id']);
+        }
+        
+        // Method 2: entry parameter (Formidable compatibility)
+        if (isset($_GET['entry']) && intval($_GET['entry']) > 0) {
+            return intval($_GET['entry']);
+        }
+        
+        // Method 3: Check if we're on a specific guest post page
+        if (is_singular('guests') && get_the_ID()) {
+            return get_the_ID();
+        }
+        
+        return 0;
+    }
+    
+    /**
+     * Get default template data structure
+     */
+    private function get_default_template_data() {
+        return [
+            'post_id' => 0,
+            'has_data' => false,
+            'authority_hook_components' => [
+                'who' => '',
+                'what' => '',
+                'when' => '',
+                'how' => ''
+            ],
+            'complete_hook' => ''
+        ];
+    }
+    
+    /**
+     * Handle save Authority Hook AJAX request
+     */
+    public function handle_save_authority_hook() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'mkcg_nonce')) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
+        
+        // Check permissions
+        if (!current_user_can('edit_posts')) {
+            wp_send_json_error(['message' => 'Insufficient permissions']);
+            return;
+        }
+        
+        $post_id = intval($_POST['post_id'] ?? 0);
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID required']);
+            return;
+        }
+        
+        // Validate this is a guests post
+        if (!$this->pods_service->is_guests_post($post_id)) {
+            wp_send_json_error(['message' => 'Invalid post type - must be guests post']);
+            return;
+        }
+        
+        // Collect Authority Hook components
+        $components = [
+            'who' => sanitize_text_field($_POST['who'] ?? ''),
+            'what' => sanitize_text_field($_POST['what'] ?? ''),
+            'when' => sanitize_text_field($_POST['when'] ?? ''),
+            'how' => sanitize_text_field($_POST['how'] ?? '')
+        ];
+        
+        // Save using Authority Hook Service
+        $result = $this->authority_hook_service->save_authority_hook_data($post_id, $components);
+        
+        if ($result['success']) {
+            wp_send_json_success([
+                'message' => 'Authority Hook saved successfully',
+                'post_id' => $post_id,
+                'components' => $result['components']
+            ]);
+        } else {
+            wp_send_json_error([
+                'message' => $result['message'] ?? 'Save failed',
+                'post_id' => $post_id
+            ]);
+        }
+    }
+    
+    /**
+     * Handle get Authority Hook AJAX request
+     */
+    public function handle_get_authority_hook() {
+        // Verify nonce
+        if (!wp_verify_nonce($_GET['nonce'] ?? '', 'mkcg_nonce')) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
+        
+        $post_id = intval($_GET['post_id'] ?? 0);
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID required']);
+            return;
+        }
+        
+        // Get Authority Hook data using service
+        $authority_hook_data = $this->authority_hook_service->get_authority_hook_data($post_id);
+        
+        wp_send_json_success($authority_hook_data);
+    }
+    
+    /**
+     * Validate Authority Hook components
+     */
+    private function validate_components($components) {
+        $errors = [];
+        
+        if (empty($components['who'])) {
+            $errors[] = 'WHO field is required';
+        }
+        
+        if (empty($components['what'])) {
+            $errors[] = 'WHAT field is required';
+        }
+        
+        if (empty($components['when'])) {
+            $errors[] = 'WHEN field is required';
+        }
+        
+        if (empty($components['how'])) {
+            $errors[] = 'HOW field is required';
+        }
+        
+        return [
+            'valid' => empty($errors),
+            'errors' => $errors
+        ];
+    }
+    
+    /**
+     * Get Authority Hook Service instance
+     */
+    public function get_authority_hook_service() {
+        return $this->authority_hook_service;
+    }
+    
+    /**
+     * Get Pods Service instance
+     */
+    public function get_pods_service() {
+        return $this->pods_service;
+    }
+}
