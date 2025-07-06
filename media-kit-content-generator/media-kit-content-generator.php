@@ -599,6 +599,7 @@ class Media_Kit_Content_Generator {
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_topics_generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_questions_generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_offers_generator.php';
+        require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_authority_hook_generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_ajax_handlers.php';
     }
     
@@ -671,6 +672,9 @@ class Media_Kit_Content_Generator {
         $this->generators['offers'] = new Enhanced_Offers_Generator(
             $this->api_service
         );
+        
+        // Initialize Authority Hook Generator (pure Authority Hook service)
+        $this->generators['authority_hook'] = new Enhanced_Authority_Hook_Generator();
         
         error_log('MKCG: Generators initialized: ' . implode(', ', array_keys($this->generators)));
     }
@@ -754,6 +758,7 @@ class Media_Kit_Content_Generator {
         add_shortcode('mkcg_biography', [$this, 'biography_shortcode']);
         add_shortcode('mkcg_offers', [$this, 'offers_shortcode']);
         add_shortcode('mkcg_questions', [$this, 'questions_shortcode']);
+        add_shortcode('mkcg_authority_hook', [$this, 'authority_hook_shortcode']);
     }
     
     /**
@@ -903,6 +908,41 @@ class Media_Kit_Content_Generator {
         return ob_get_clean();
     }
     
+    /**
+     * Authority Hook Generator Shortcode - Dedicated Authority Hook page
+     */
+    public function authority_hook_shortcode($atts) {
+        $atts = shortcode_atts([
+            'post_id' => 0
+        ], $atts);
+        
+        // Force load scripts for shortcode
+        $this->enqueue_scripts();
+        
+        ob_start();
+        
+        // CRITICAL FIX: Ensure global variables are set for template
+        $this->ensure_global_services();
+        
+        // SIMPLIFIED: Set required global variables for template
+        global $pods_service, $generator_instance, $generator_type, $authority_hook_service;
+        $pods_service = $this->pods_service; // Primary data source
+        $authority_hook_service = $this->authority_hook_service; // Centralized Authority Hook functionality
+        $generator_instance = isset($this->generators['authority_hook']) ? $this->generators['authority_hook'] : null;
+        $generator_type = 'authority_hook';
+        
+        // Also make services available
+        global $api_service;
+        $api_service = $this->api_service;
+        
+        error_log('MKCG Shortcode: Loading authority hook template with centralized Authority Hook service');
+        
+        // Include the template
+        include MKCG_PLUGIN_PATH . 'templates/generators/authority-hook/default.php';
+        
+        return ob_get_clean();
+    }
+    
     public function enqueue_scripts() {
         // Load CSS
         wp_enqueue_style(
@@ -972,6 +1012,14 @@ class Media_Kit_Content_Generator {
         wp_enqueue_script(
             'offers-generator',
             MKCG_PLUGIN_URL . 'assets/js/generators/offers-generator.js',
+            ['simple-event-bus', 'simple-ajax', 'authority-hook-builder'],
+            MKCG_VERSION,
+            true
+        );
+        
+        wp_enqueue_script(
+            'authority-hook-generator',
+            MKCG_PLUGIN_URL . 'assets/js/generators/authority-hook-generator.js',
             ['simple-event-bus', 'simple-ajax', 'authority-hook-builder'],
             MKCG_VERSION,
             true
