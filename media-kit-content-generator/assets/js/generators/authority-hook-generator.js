@@ -12,15 +12,16 @@
         // Configuration
         config: {
             selectors: {
-                saveButton: '#authority-hook-generator-save-button',
-                saveStatus: '#authority-hook-generator-save-status',
-                saveMessages: '#authority-hook-generator-save-messages',
-                postIdField: '#authority-hook-generator-post-id',
-                nonceField: '#authority-hook-generator-nonce',
+                saveButton: '#save-button',
+                saveStatus: '#save-status', 
+                saveMessages: '#save-messages',
+                postIdField: '#post-id',
+                nonceField: '#nonce',
                 whoField: '#mkcg-who',
                 whatField: '#mkcg-result',
                 whenField: '#mkcg-when',
                 howField: '#mkcg-how',
+                copyToClipboard: '#copy-authority-hook-btn',
                 hiddenField: '#mkcg-authority-hook'
             },
             ajax: {
@@ -43,6 +44,12 @@
         // Bind event handlers
         bindEvents: function() {
             const self = this;
+            
+            // Copy to clipboard button click
+            $(this.config.selectors.copyToClipboard).on('click', function(e) {
+                e.preventDefault();
+                self.copyToClipboard();
+            });
             
             // Save button click
             $(this.config.selectors.saveButton).on('click', function(e) {
@@ -140,6 +147,62 @@
             
             const completeHook = `I help ${who} ${what} when ${when} ${how}.`;
             $(this.config.selectors.hiddenField).val(completeHook);
+        },
+        
+        // Copy complete authority hook to clipboard
+        copyToClipboard: function() {
+            const who = $(this.config.selectors.whoField).val() || '';
+            const what = $(this.config.selectors.whatField).val() || '';
+            const when = $(this.config.selectors.whenField).val() || '';
+            const how = $(this.config.selectors.howField).val() || '';
+            
+            // Validate that we have content to copy
+            if (!who && !what && !when && !how) {
+                this.showMessage('⚠️ Please fill in the authority hook fields before copying.', 'warning');
+                return;
+            }
+            
+            const completeHook = `I help ${who} ${what} when ${when} ${how}.`;
+            
+            // Use modern clipboard API if available
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(completeHook).then(() => {
+                    this.showMessage('📋 Authority Hook copied to clipboard!', 'success');
+                    console.log('✅ Authority Hook copied to clipboard:', completeHook);
+                }).catch((err) => {
+                    console.error('❌ Failed to copy to clipboard:', err);
+                    this.fallbackCopyToClipboard(completeHook);
+                });
+            } else {
+                // Fallback for older browsers
+                this.fallbackCopyToClipboard(completeHook);
+            }
+        },
+        
+        // Fallback copy method for older browsers
+        fallbackCopyToClipboard: function(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-9999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    this.showMessage('📋 Authority Hook copied to clipboard!', 'success');
+                    console.log('✅ Authority Hook copied via fallback method');
+                } else {
+                    this.showMessage('❌ Failed to copy to clipboard. Please copy manually.', 'error');
+                }
+            } catch (err) {
+                console.error('❌ Fallback copy failed:', err);
+                this.showMessage('❌ Copy not supported. Please copy manually.', 'error');
+            }
+            
+            document.body.removeChild(textArea);
         },
         
         // Save Authority Hook data
@@ -282,7 +345,7 @@
             const $messages = $(this.config.selectors.saveMessages);
             const $status = $(this.config.selectors.saveStatus);
             
-            const messageClass = `authority-hook-generator__message authority-hook-generator__message--${type}`;
+            const messageClass = `generator__message generator__message--${type}`;
             const messageHtml = `<div class="${messageClass}">${message}</div>`;
             
             $messages.html(messageHtml);
@@ -307,7 +370,8 @@
                     when: $(this.config.selectors.whenField).val(),
                     how: $(this.config.selectors.howField).val()
                 },
-                windowData: window.MKCG_Authority_Hook_Data
+                windowData: window.MKCG_Authority_Hook_Data,
+                copyButton: $(this.config.selectors.copyToClipboard).length
             });
         }
     };
@@ -315,7 +379,7 @@
     // Initialize when DOM is ready
     $(document).ready(function() {
         // Only initialize if we're on the Authority Hook generator page
-        if ($('.authority-hook-generator').length) {
+        if ($('[data-generator="authority-hook"]').length) {
             AuthorityHookGenerator.init();
         }
     });

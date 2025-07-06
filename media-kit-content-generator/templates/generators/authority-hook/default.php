@@ -95,7 +95,7 @@ error_log('MKCG Authority Hook Template: Authority Hook Components: ' . json_enc
 error_log('MKCG Authority Hook Template: Rendering with post_id=' . $post_id . ', has_data=' . ($has_data ? 'true' : 'false'));
 ?>
 
-<div class="generator__container authority-hook-generator" data-generator="authority-hook">
+<div class="generator__container" data-generator="authority-hook">
     <div class="generator__header">
         <h1 class="generator__title">Create Your Authority Hook</h1>
     </div>
@@ -104,12 +104,12 @@ error_log('MKCG Authority Hook Template: Rendering with post_id=' . $post_id . '
         <!-- LEFT PANEL -->
         <div class="generator__panel generator__panel--left">
             <!-- Introduction Text -->
-            <p class="authority-hook-generator__intro">
+            <p class="generator__intro">
                 Your Authority Hook is the opening line that establishes your credibility when reaching out to podcast hosts. A powerful hook immediately communicates who you help, what results you deliver, when they need you, and how you do it.
             </p>
             
             <!-- Authority Hook Builder - CENTRALIZED SERVICE -->                
-            <div class="generator__builder mkcg-authority-hook authority-hook-builder" id="authority-hook-generator-authority-hook-builder" data-component="authority-hook">
+            <div class="generator__builder" id="authority-hook-builder" data-component="authority-hook">
             <?php 
             // ROOT FIX: Ensure Authority Hook Service is properly loaded and configured for clean slate
             
@@ -196,52 +196,52 @@ error_log('MKCG Authority Hook Template: Rendering with post_id=' . $post_id . '
             </div>
             
             <!-- Save Section -->
-            <div class="authority-hook-generator__save-section">
-                <button class="generator__button generator__button--primary" id="authority-hook-generator-save-button" type="button">
+            <div class="generator__save-section">
+                <button class="generator__button generator__button--primary" id="save-button" type="button">
                     💾 Save Authority Hook
                 </button>
                 
-                <div class="authority-hook-generator__save-status" id="authority-hook-generator-save-status" style="display: none;">
-                    <div class="authority-hook-generator__save-messages" id="authority-hook-generator-save-messages"></div>
+                <div class="generator__save-status" id="save-status" style="display: none;">
+                    <div class="generator__save-messages" id="save-messages"></div>
                 </div>
             </div>
             
             <!-- Hidden fields for AJAX - Pure Pods -->
-            <input type="hidden" id="authority-hook-generator-post-id" value="<?php echo esc_attr($post_id); ?>">
-            <input type="hidden" id="authority-hook-generator-nonce" value="<?php echo wp_create_nonce('mkcg_nonce'); ?>">
+            <input type="hidden" id="post-id" value="<?php echo esc_attr($post_id); ?>">
+            <input type="hidden" id="nonce" value="<?php echo wp_create_nonce('mkcg_nonce'); ?>">
             
         </div>
         
         <!-- RIGHT PANEL -->
         <div class="generator__panel generator__panel--right">
-            <h2 class="authority-hook-generator__guidance-header">Crafting Your Perfect Authority Hook</h2>
-            <p class="authority-hook-generator__guidance-subtitle">
+            <h2 class="generator__guidance-header">Crafting Your Perfect Authority Hook</h2>
+            <p class="generator__guidance-subtitle">
                 Your Authority Hook is the opening line that establishes your credibility when reaching out to podcast hosts. A powerful hook immediately communicates who you help, what results you deliver, when they need you, and how you do it.
             </p>
             
-            <div class="authority-hook-generator__formula-box">
-                <span class="authority-hook-generator__formula-label">FORMULA</span>
-                I help <span class="authority-hook-generator__highlight">[WHO]</span> achieve <span class="authority-hook-generator__highlight">[RESULT]</span> when <span class="authority-hook-generator__highlight">[WHEN]</span> through <span class="authority-hook-generator__highlight">[HOW]</span>.
+            <div class="generator__formula-box">
+                <span class="generator__formula-label">FORMULA</span>
+                I help <span class="generator__highlight">[WHO]</span> achieve <span class="generator__highlight">[RESULT]</span> when <span class="generator__highlight">[WHEN]</span> through <span class="generator__highlight">[HOW]</span>.
             </div>
             
-            <div class="authority-hook-generator__process-step">
-                <div class="authority-hook-generator__process-icon">
+            <div class="generator__process-step">
+                <div class="generator__process-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
                         <circle cx="12" cy="12" r="6"></circle>
                         <circle cx="12" cy="12" r="2"></circle>
                     </svg>
                 </div>
-                <div class="authority-hook-generator__process-content">
-                    <h3 class="authority-hook-generator__process-title">Why Authority Hooks Matter</h3>
-                    <p class="authority-hook-generator__process-description">
+                <div class="generator__process-content">
+                    <h3 class="generator__process-title">Why Authority Hooks Matter</h3>
+                    <p class="generator__process-description">
                         Podcast hosts receive dozens of guest pitches daily. A strong Authority Hook immediately signals your value to their audience and increases your chances of getting booked.
                     </p>
                 </div>
             </div>
             
-            <div class="authority-hook-generator__process-step">
-                <div class="authority-hook-generator__process-icon">
+            <div class="generator__process-step">
+                <div class="generator__process-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="8" y1="6" x2="21" y2="6"></line>
                         <line x1="8" y1="12" x2="21" y2="12"></line>
@@ -251,30 +251,30 @@ error_log('MKCG Authority Hook Template: Rendering with post_id=' . $post_id . '
                         <line x1="3" y1="18" x2="3.01" y2="18"></line>
                     </svg>
                 </div>
-                <div class="authority-hook-generator__process-content">
-                    <h3 class="authority-hook-generator__process-title">What Makes a Great Hook</h3>
-                    <p class="authority-hook-generator__process-description">
+                <div class="generator__process-content">
+                    <h3 class="generator__process-title">What Makes a Great Hook</h3>
+                    <p class="generator__process-description">
                         The best Authority Hooks are specific, outcome-focused, and address timing. Avoid vague terms like "entrepreneurs" or "success" – be precise about who you help, what results you deliver, when they need you, and how you achieve it.
                     </p>
                 </div>
             </div>
             
-            <h3 class="authority-hook-generator__examples-header">Example Authority Hooks:</h3>
+            <h3 class="generator__examples-header">Example Authority Hooks:</h3>
             
-            <div class="authority-hook-generator__example-card">
+            <div class="generator__example-card">
                 <p>"I help SaaS founders scale to $1M+ ARR when they're struggling to break revenue plateaus through AI-driven marketing."</p>
             </div>
             
-            <div class="authority-hook-generator__example-card">
+            <div class="generator__example-card">
                 <p>"I help coaches fill their programs with high-ticket clients when their current marketing isn't working through podcast guesting."</p>
             </div>
             
-            <div class="authority-hook-generator__example-card">
+            <div class="generator__example-card">
                 <p>"I help authors turn their books into six-figure businesses when they're launching new titles through media exposure."</p>
             </div>
             
-            <div class="authority-hook-generator__process-step">
-                <div class="authority-hook-generator__process-icon">
+            <div class="generator__process-step">
+                <div class="generator__process-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                         <circle cx="9" cy="7" r="4"></circle>
@@ -282,9 +282,9 @@ error_log('MKCG Authority Hook Template: Rendering with post_id=' . $post_id . '
                         <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                     </svg>
                 </div>
-                <div class="authority-hook-generator__process-content">
-                    <h3 class="authority-hook-generator__process-title">How to Use Your Authority Hook</h3>
-                    <p class="authority-hook-generator__process-description">
+                <div class="generator__process-content">
+                    <h3 class="generator__process-title">How to Use Your Authority Hook</h3>
+                    <p class="generator__process-description">
                         Once generated, your Authority Hook should be used as the opening line in your podcast guest pitches, social media bios, speaker introductions, and anywhere you need to quickly establish credibility.
                     </p>
                 </div>
