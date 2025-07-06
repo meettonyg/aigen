@@ -28,7 +28,7 @@
                 copyButtons: '[id^="copy-"][id$="-bio"]',
                 downloadButtons: '[id^="download-"][id$="-bio"]',
                 emailButtons: '[id^="email-"][id$="-bio"]',
-                saveButton: '#biography-save-to-formidable',
+                saveButton: '#biography-save-to-post-meta',
                 saveStatus: '#biography-save-status',
                 saveStatusText: '#biography-save-status-text',
                 // Hidden fields
@@ -39,7 +39,7 @@
                 nonceField: '#biography-nonce'
             },
             endpoints: {
-                saveBiography: 'mkcg_save_biography_to_formidable',
+                saveBiography: 'mkcg_save_biography_to_post_meta',
                 modifyBiographyTone: 'mkcg_modify_biography_tone'
             },
             classes: {
@@ -151,7 +151,7 @@
                 });
             }
             
-            // Save to Formidable functionality
+            // Save to WordPress Post Meta functionality
             if (this.elements.saveButton) {
                 this.elements.saveButton.addEventListener('click', () => this.saveBiographies());
             }
@@ -391,7 +391,7 @@
         },
         
         /**
-         * Save biographies to Formidable Forms
+         * Save biographies to WordPress Post Meta
          */
         saveBiographies: function() {
             // Get post ID and entry ID
@@ -418,7 +418,7 @@
             const data = new FormData();
             data.append('action', this.config.endpoints.saveBiography);
             data.append('post_id', postId);
-            data.append('entry_id', entryId);
+            // Note: entryId not needed for WordPress post meta saving
             data.append('nonce', nonce);
             data.append('short_bio', this.data.biographies.short);
             data.append('medium_bio', this.data.biographies.medium);

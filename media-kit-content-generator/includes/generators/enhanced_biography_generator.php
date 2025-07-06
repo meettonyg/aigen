@@ -118,7 +118,7 @@ class MKCG_Enhanced_Biography_Generator {
             $this->impact_intro_service = new MKCG_Impact_Intro_Service();
         }
         
-        error_log('MKCG Biography Generator: Initialized with centralized services (Pure Pods integration)');
+        error_log('MKCG Biography Generator: Initialized with centralized services (WordPress Post Meta integration)');
     }
     
     /**
@@ -129,8 +129,9 @@ class MKCG_Enhanced_Biography_Generator {
         add_action('wp_ajax_mkcg_modify_biography_tone', [$this, 'ajax_modify_biography_tone']);
         add_action('wp_ajax_mkcg_save_biography_data', [$this, 'ajax_save_biography_data']);
         add_action('wp_ajax_mkcg_save_biography_field', [$this, 'ajax_save_biography_field']);
+        add_action('wp_ajax_mkcg_save_biography_to_post_meta', [$this, 'ajax_save_biography_to_post_meta']);
         
-        error_log('MKCG Biography Generator: AJAX handlers registered (Pure Pods integration)');
+        error_log('MKCG Biography Generator: AJAX handlers registered (WordPress Post Meta integration)');
         add_action('wp_ajax_mkcg_get_biography_data', [$this, 'ajax_get_biography_data']);
         add_action('wp_ajax_mkcg_validate_biography_data', [$this, 'ajax_validate_biography_data']);
         add_action('wp_ajax_mkcg_regenerate_biography', [$this, 'ajax_regenerate_biography']);
@@ -1242,19 +1243,16 @@ class MKCG_Enhanced_Biography_Generator {
         }
     }
     
+
+    
     /**
-     * AJAX handler for saving biography to Formidable Forms
+     * AJAX handler for saving biography to WordPress post meta - Following Topics Generator pattern
      */
-    public function ajax_save_biography_to_formidable() {
-        // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mkcg_nonce')) {
-            wp_send_json_error(['message' => 'Security check failed.']);
-            return;
-        }
-        
-        // Check if we have entry ID
-        if (!isset($_POST['entry_id']) || intval($_POST['entry_id']) <= 0) {
-            wp_send_json_error(['message' => 'Entry ID is required.']);
+    public function ajax_save_biography_to_post_meta() {
+        // Enhanced security verification
+        $security_check = $this->verify_security_comprehensive('save');
+        if (!$security_check['success']) {
+            wp_send_json_error($security_check);
             return;
         }
         
@@ -1264,11 +1262,9 @@ class MKCG_Enhanced_Biography_Generator {
             return;
         }
         
-        // Get post ID and entry ID
         $post_id = intval($_POST['post_id']);
-        $entry_id = intval($_POST['entry_id']);
         
-        // Get biography data from post meta
+        // Get biography data from post meta (current state)
         $biography_data = $this->get_biography_data($post_id);
         
         // Check if we have biographies to save
@@ -1277,18 +1273,23 @@ class MKCG_Enhanced_Biography_Generator {
             return;
         }
         
-        // Save biographies to Formidable Forms
-        $result = $this->save_biographies_to_formidable($entry_id, $biography_data['biographies'], $biography_data['settings']);
+        // Save biographies to WordPress post meta (already done by generate/modify functions)
+        // This just confirms the data is saved and returns current state
+        $result = $this->save_biographies_to_post_meta($post_id, $biography_data['biographies'], $biography_data['settings']);
         
         if ($result) {
+            // Update last modified timestamp
+            update_post_meta($post_id, $this->post_meta_fields['last_modified'], current_time('mysql'));
+            
             wp_send_json_success([
-                'message' => 'Biographies saved to Formidable Forms successfully.',
-                'entry_id' => $entry_id
+                'message' => 'Biographies saved successfully.',
+                'post_id' => $post_id,
+                'data' => $biography_data
             ]);
         } else {
             wp_send_json_error([
-                'message' => 'Failed to save biographies to Formidable Forms.',
-                'entry_id' => $entry_id
+                'message' => 'Failed to save biographies.',
+                'post_id' => $post_id
             ]);
         }
     }

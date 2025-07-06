@@ -213,9 +213,9 @@ $display_date = date_i18n(get_option('date_format') . ' ' . get_option('time_for
                     </div>
                 </div>
                 
-                <!-- Save to Formidable Section -->
+                <!-- Save to WordPress Post Meta Section -->
                 <div class="biography-generator__save-section">
-                    <button type="button" id="biography-save-to-formidable" class="biography-generator__save-button">
+                    <button type="button" id="biography-save-to-post-meta" class="biography-generator__save-button">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 8px;">
                             <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
                         </svg>
@@ -223,7 +223,7 @@ $display_date = date_i18n(get_option('date_format') . ' ' . get_option('time_for
                     </button>
                     
                     <p style="margin-top: 10px; font-size: 14px; color: #666;">
-                        <small>Saves all three biography versions to your guest profile.</small>
+                        <small>Saves all three biography versions to your WordPress profile.</small>
                     </p>
                     
                     <!-- Save Status -->
@@ -572,8 +572,8 @@ $display_date = date_i18n(get_option('date_format') . ' ' . get_option('time_for
             });
         });
         
-        // Save to Formidable functionality
-        const saveButton = document.getElementById('biography-save-to-formidable');
+        // Save to WordPress Post Meta functionality
+        const saveButton = document.getElementById('biography-save-to-post-meta');
         if (saveButton) {
             saveButton.addEventListener('click', function() {
                 const postId = document.getElementById('biography-post-id').value;
@@ -654,7 +654,7 @@ $display_date = date_i18n(get_option('date_format') . ' ' . get_option('time_for
                 };
                 
                 // Send the request
-                xhr.send(`action=mkcg_save_biography_to_formidable&post_id=${postId}&entry_id=${entryId}&nonce=${nonce}`);
+                xhr.send(`action=mkcg_save_biography_to_post_meta&post_id=${postId}&nonce=${nonce}`);
             });
         }
     });
