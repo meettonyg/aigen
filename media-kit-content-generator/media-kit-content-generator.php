@@ -13,6 +13,11 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// Define MKCG_PLUGIN_FILE if not already defined
+if (!defined('MKCG_PLUGIN_FILE')) {
+    define('MKCG_PLUGIN_FILE', __FILE__);
+}
+
 // Define plugin constants
 define('MKCG_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('MKCG_PLUGIN_PATH', plugin_dir_path(__FILE__));
@@ -538,6 +543,129 @@ class Media_Kit_Content_Generator {
     }
     
     /**
+     * ROOT FIX: Biography Generator AJAX handlers
+     */
+    public function ajax_generate_biography() {
+        // Ensure biography generator is initialized
+        if (!isset($this->generators['biography'])) {
+            require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_biography_generator.php';
+            $this->generators['biography'] = new MKCG_Enhanced_Biography_Generator();
+        }
+        
+        // Delegate to Biography Generator
+        if (isset($this->generators['biography'])) {
+            $this->generators['biography']->ajax_generate_biography();
+        } else {
+            wp_send_json_error(['message' => 'Biography generator not available']);
+        }
+    }
+    
+    public function ajax_modify_biography_tone() {
+        // Ensure biography generator is initialized
+        if (!isset($this->generators['biography'])) {
+            require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_biography_generator.php';
+            $this->generators['biography'] = new MKCG_Enhanced_Biography_Generator();
+        }
+        
+        // Delegate to Biography Generator
+        if (isset($this->generators['biography'])) {
+            $this->generators['biography']->ajax_modify_biography_tone();
+        } else {
+            wp_send_json_error(['message' => 'Biography generator not available']);
+        }
+    }
+    
+    public function ajax_save_biography_to_formidable() {
+        // Ensure biography generator is initialized
+        if (!isset($this->generators['biography'])) {
+            require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_biography_generator.php';
+            $this->generators['biography'] = new MKCG_Enhanced_Biography_Generator();
+        }
+        
+        // Delegate to Biography Generator
+        if (isset($this->generators['biography'])) {
+            $this->generators['biography']->ajax_save_biography_to_formidable();
+        } else {
+            wp_send_json_error(['message' => 'Biography generator not available']);
+        }
+    }
+    
+    public function ajax_save_biography_data() {
+        // Ensure biography generator is initialized
+        if (!isset($this->generators['biography'])) {
+            require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_biography_generator.php';
+            $this->generators['biography'] = new MKCG_Enhanced_Biography_Generator();
+        }
+        
+        // Delegate to Biography Generator
+        if (isset($this->generators['biography'])) {
+            $this->generators['biography']->ajax_save_biography_data();
+        } else {
+            wp_send_json_error(['message' => 'Biography generator not available']);
+        }
+    }
+    
+    public function ajax_save_biography_field() {
+        // Ensure biography generator is initialized
+        if (!isset($this->generators['biography'])) {
+            require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_biography_generator.php';
+            $this->generators['biography'] = new MKCG_Enhanced_Biography_Generator();
+        }
+        
+        // Delegate to Biography Generator
+        if (isset($this->generators['biography'])) {
+            $this->generators['biography']->ajax_save_biography_field();
+        } else {
+            wp_send_json_error(['message' => 'Biography generator not available']);
+        }
+    }
+    
+    public function ajax_get_biography_data() {
+        // Ensure biography generator is initialized
+        if (!isset($this->generators['biography'])) {
+            require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_biography_generator.php';
+            $this->generators['biography'] = new MKCG_Enhanced_Biography_Generator();
+        }
+        
+        // Delegate to Biography Generator
+        if (isset($this->generators['biography'])) {
+            $this->generators['biography']->ajax_get_biography_data();
+        } else {
+            wp_send_json_error(['message' => 'Biography generator not available']);
+        }
+    }
+    
+    public function ajax_validate_biography_data() {
+        // Ensure biography generator is initialized
+        if (!isset($this->generators['biography'])) {
+            require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_biography_generator.php';
+            $this->generators['biography'] = new MKCG_Enhanced_Biography_Generator();
+        }
+        
+        // Delegate to Biography Generator
+        if (isset($this->generators['biography'])) {
+            $this->generators['biography']->ajax_validate_biography_data();
+        } else {
+            wp_send_json_error(['message' => 'Biography generator not available']);
+        }
+    }
+    
+    public function ajax_regenerate_biography() {
+        // Ensure biography generator is initialized
+        if (!isset($this->generators['biography'])) {
+            require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_biography_generator.php';
+            $this->generators['biography'] = new MKCG_Enhanced_Biography_Generator();
+        }
+        
+        // Delegate to Biography Generator
+        if (isset($this->generators['biography'])) {
+            $this->generators['biography']->ajax_regenerate_biography();
+        } else {
+            wp_send_json_error(['message' => 'Biography generator not available']);
+        }
+    }
+    
+    /**
      * Simple AJAX request verification
      */
     private function verify_ajax_request() {
@@ -619,6 +747,13 @@ class Media_Kit_Content_Generator {
         add_action('wp_ajax_mkcg_generate_biography', [$this, 'ajax_generate_biography']);
         add_action('wp_ajax_mkcg_modify_biography_tone', [$this, 'ajax_modify_biography_tone']);
         add_action('wp_ajax_mkcg_save_biography_to_formidable', [$this, 'ajax_save_biography_to_formidable']);
+        add_action('wp_ajax_mkcg_save_biography_data', [$this, 'ajax_save_biography_data']);
+        add_action('wp_ajax_mkcg_save_biography_field', [$this, 'ajax_save_biography_field']);
+        add_action('wp_ajax_mkcg_get_biography_data', [$this, 'ajax_get_biography_data']);
+        add_action('wp_ajax_mkcg_validate_biography_data', [$this, 'ajax_validate_biography_data']);
+        add_action('wp_ajax_mkcg_regenerate_biography', [$this, 'ajax_regenerate_biography']);
+        
+        error_log('MKCG: Registered all Biography Generator AJAX handlers');
     }
     
     private function load_dependencies() {
@@ -633,6 +768,7 @@ class Media_Kit_Content_Generator {
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_offers_generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_authority_hook_generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_impact_intro_generator.php';
+        require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_biography_generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_ajax_handlers.php';
     }
     
@@ -721,6 +857,9 @@ class Media_Kit_Content_Generator {
         
         // Initialize Impact Intro Generator (pure Impact Intro service)
         $this->generators['impact_intro'] = new Enhanced_Impact_Intro_Generator();
+        
+        // Initialize Biography Generator (comprehensive AI-powered biography generation)
+        $this->generators['biography'] = new MKCG_Enhanced_Biography_Generator();
         
         error_log('MKCG: Generators initialized: ' . implode(', ', array_keys($this->generators)));
     }
@@ -1198,7 +1337,15 @@ class Media_Kit_Content_Generator {
                 'generate_offers' => 'mkcg_generate_offers',
                 'save_offers' => 'mkcg_save_offers',
                 'save_impact_intro' => 'mkcg_save_impact_intro',
-                'get_impact_intro' => 'mkcg_get_impact_intro'
+                'get_impact_intro' => 'mkcg_get_impact_intro',
+                'generate_biography' => 'mkcg_generate_biography',
+                'modify_biography_tone' => 'mkcg_modify_biography_tone',
+                'save_biography_to_formidable' => 'mkcg_save_biography_to_formidable',
+                'save_biography_data' => 'mkcg_save_biography_data',
+                'save_biography_field' => 'mkcg_save_biography_field',
+                'get_biography_data' => 'mkcg_get_biography_data',
+                'validate_biography_data' => 'mkcg_validate_biography_data',
+                'regenerate_biography' => 'mkcg_regenerate_biography'
             ]
         ]);
         

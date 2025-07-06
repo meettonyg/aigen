@@ -1,12 +1,15 @@
 <?php
 /**
- * Enhanced Biography Generator - Backend PHP Class
+ * Enhanced Biography Generator - Complete Backend PHP Class
+ * 
+ * PROMPT 4 IMPLEMENTATION: Complete PHP backend with all AJAX handlers, OpenAI integration,
+ * and Formidable Forms compatibility following established patterns.
  * 
  * Handles biography generation, AJAX requests, OpenAI integration, and Formidable Forms compatibility.
  * Follows unified generator architecture and service-based approach.
  *
  * @package Media_Kit_Content_Generator
- * @version 1.0
+ * @version 2.0
  */
 
 if (!defined('ABSPATH')) {
@@ -16,9 +19,25 @@ if (!defined('ABSPATH')) {
 class MKCG_Enhanced_Biography_Generator {
     
     /**
-     * Version for cache busting
+     * Version for cache busting and feature tracking
      */
-    const VERSION = '1.0';
+    const VERSION = '2.0';
+    
+    /**
+     * Rate limiting settings for API protection
+     */
+    const RATE_LIMIT_REQUESTS = 10;
+    const RATE_LIMIT_PERIOD = 3600; // 1 hour
+    
+    /**
+     * Maximum API request timeout
+     */
+    const API_TIMEOUT = 60;
+    
+    /**
+     * Cache duration for API responses
+     */
+    const CACHE_DURATION = 1800; // 30 minutes
     
     /**
      * OpenAI model to use for generation
@@ -54,23 +73,102 @@ class MKCG_Enhanced_Biography_Generator {
         'long_bio' => '_biography_long',
         'tone' => '_biography_tone',
         'pov' => '_biography_pov',
-        'generation_date' => '_biography_generation_date'
+        'generation_date' => '_biography_generation_date',
+        'generation_count' => '_biography_generation_count',
+        'last_modified' => '_biography_last_modified',
+        'api_usage' => '_biography_api_usage',
+        'cache_key' => '_biography_cache_key'
     ];
     
     /**
-     * Initialize the generator
+     * Authority Hook Service for centralized data
+     */
+    private $authority_hook_service;
+    
+    /**
+     * Impact Intro Service for centralized data
+     */
+    private $impact_intro_service;
+    
+    /**
+     * Rate limiting cache
+     */
+    private static $rate_limit_cache = [];
+    
+    /**
+     * Initialize the generator with enhanced features
      */
     public function __construct() {
-        // Register AJAX handlers
+        // Initialize services
+        $this->init_services();
+        
+        // Register AJAX handlers with enhanced security
+        // NOTE: AJAX handlers are now registered by main plugin to avoid double registration
+        // $this->register_ajax_handlers();
+        
+        // Register WordPress hooks
+        $this->register_hooks();
+        
+        // Initialize rate limiting
+        $this->init_rate_limiting();
+        
+        error_log('MKCG Biography Generator: Enhanced backend initialized v' . self::VERSION . ' (AJAX handlers managed by main plugin)');
+    }
+    
+    /**
+     * Initialize centralized services
+     */
+    private function init_services() {
+        // Initialize Authority Hook Service
+        if (class_exists('MKCG_Authority_Hook_Service')) {
+            $this->authority_hook_service = new MKCG_Authority_Hook_Service();
+        }
+        
+        // Initialize Impact Intro Service
+        if (class_exists('MKCG_Impact_Intro_Service')) {
+            $this->impact_intro_service = new MKCG_Impact_Intro_Service();
+        }
+    }
+    
+    /**
+     * Register all AJAX handlers with enhanced security
+     */
+    private function register_ajax_handlers() {
         add_action('wp_ajax_mkcg_generate_biography', [$this, 'ajax_generate_biography']);
         add_action('wp_ajax_mkcg_modify_biography_tone', [$this, 'ajax_modify_biography_tone']);
         add_action('wp_ajax_mkcg_save_biography_data', [$this, 'ajax_save_biography_data']);
         add_action('wp_ajax_mkcg_save_biography_field', [$this, 'ajax_save_biography_field']);
         add_action('wp_ajax_mkcg_save_biography_to_formidable', [$this, 'ajax_save_biography_to_formidable']);
         
+        error_log('MKCG Biography Generator: All AJAX handlers registered');
+        add_action('wp_ajax_mkcg_get_biography_data', [$this, 'ajax_get_biography_data']);
+        add_action('wp_ajax_mkcg_validate_biography_data', [$this, 'ajax_validate_biography_data']);
+        add_action('wp_ajax_mkcg_regenerate_biography', [$this, 'ajax_regenerate_biography']);
+        
+        error_log('MKCG Biography Generator: All AJAX handlers registered');
+    }
+    
+    /**
+     * Register WordPress hooks
+     */
+    private function register_hooks() {
         // Register scripts and styles - hook into the main plugin
         add_action('mkcg_register_scripts', [$this, 'register_scripts']);
         add_action('mkcg_enqueue_generator_scripts', [$this, 'enqueue_scripts'], 10, 1);
+        
+        // Add meta boxes for biography data
+        add_action('add_meta_boxes', [$this, 'add_meta_boxes']);
+        
+        // Save post hooks
+        add_action('save_post', [$this, 'save_post_data'], 10, 2);
+    }
+    
+    /**
+     * Initialize rate limiting system
+     */
+    private function init_rate_limiting() {
+        // Clean old rate limit entries
+        $this->cleanup_rate_limit_cache();
     }
     
     /**
@@ -271,12 +369,178 @@ class MKCG_Enhanced_Biography_Generator {
     }
     
     /**
-     * Generate biography with OpenAI
+     * Enhanced security verification with comprehensive checks
+     */
+    private function verify_security_comprehensive($action = 'generate') {
+        // Check user authentication
+        if (!is_user_logged_in()) {
+            error_log('MKCG Biography: Security check failed - user not logged in');
+            return ['success' => false, 'message' => 'User authentication required'];
+        }
+        
+        // Check user capabilities
+        if (!current_user_can('edit_posts')) {
+            error_log('MKCG Biography: Security check failed - insufficient capabilities');
+            return ['success' => false, 'message' => 'Insufficient user permissions'];
+        }
+        
+        // Verify nonce (check both POST and GET)
+        $nonce = $_POST['nonce'] ?? $_POST['security'] ?? $_GET['nonce'] ?? $_GET['security'] ?? '';
+        if (!wp_verify_nonce($nonce, 'mkcg_nonce')) {
+            error_log('MKCG Biography: Security check failed - invalid nonce');
+            return ['success' => false, 'message' => 'Security verification failed'];
+        }
+        
+        // Check rate limiting
+        $rate_check = $this->check_rate_limit();
+        if (!$rate_check['allowed']) {
+            error_log('MKCG Biography: Rate limit exceeded for user ' . get_current_user_id());
+            return ['success' => false, 'message' => 'Rate limit exceeded. Please wait before making another request.'];
+        }
+        
+        return ['success' => true, 'message' => 'Security verification passed'];
+    }
+    
+    /**
+     * Rate limiting implementation
+     */
+    private function check_rate_limit() {
+        $user_id = get_current_user_id();
+        $current_time = time();
+        $cache_key = 'mkcg_rate_limit_' . $user_id;
+        
+        // Get existing rate limit data
+        $rate_data = get_transient($cache_key);
+        
+        if (!$rate_data) {
+            $rate_data = [
+                'count' => 0,
+                'start_time' => $current_time
+            ];
+        }
+        
+        // Reset if period has passed
+        if (($current_time - $rate_data['start_time']) >= self::RATE_LIMIT_PERIOD) {
+            $rate_data = [
+                'count' => 0,
+                'start_time' => $current_time
+            ];
+        }
+        
+        // Check if limit exceeded
+        if ($rate_data['count'] >= self::RATE_LIMIT_REQUESTS) {
+            return [
+                'allowed' => false,
+                'remaining' => 0,
+                'reset_time' => $rate_data['start_time'] + self::RATE_LIMIT_PERIOD
+            ];
+        }
+        
+        // Increment counter
+        $rate_data['count']++;
+        set_transient($cache_key, $rate_data, self::RATE_LIMIT_PERIOD);
+        
+        return [
+            'allowed' => true,
+            'remaining' => self::RATE_LIMIT_REQUESTS - $rate_data['count'],
+            'reset_time' => $rate_data['start_time'] + self::RATE_LIMIT_PERIOD
+        ];
+    }
+    
+    /**
+     * Clean up old rate limit cache entries
+     */
+    private function cleanup_rate_limit_cache() {
+        global $wpdb;
+        
+        // Clean up old transients
+        $wpdb->query(
+            $wpdb->prepare(
+                "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s AND option_name LIKE %s",
+                '%_transient_timeout_mkcg_rate_limit_%',
+                '%' . (time() - self::RATE_LIMIT_PERIOD) . '%'
+            )
+        );
+    }
+    
+    /**
+     * Enhanced input validation and sanitization
+     */
+    private function validate_and_sanitize_input($data) {
+        $sanitized = [];
+        $errors = [];
+        
+        // Validate required fields
+        $required_fields = ['name'];
+        foreach ($required_fields as $field) {
+            if (empty($data[$field])) {
+                $errors[] = "Field '{$field}' is required";
+            }
+        }
+        
+        // Sanitize all text fields
+        $text_fields = ['name', 'title', 'organization', 'tone', 'pov', 'length'];
+        foreach ($text_fields as $field) {
+            $sanitized[$field] = isset($data[$field]) ? sanitize_text_field($data[$field]) : '';
+        }
+        
+        // Sanitize textarea fields
+        $textarea_fields = ['authority_hook', 'impact_intro', 'existing_bio', 'additional_notes'];
+        foreach ($textarea_fields as $field) {
+            $sanitized[$field] = isset($data[$field]) ? sanitize_textarea_field($data[$field]) : '';
+        }
+        
+        // Validate tone options
+        $valid_tones = ['professional', 'conversational', 'authoritative', 'friendly'];
+        if (!empty($sanitized['tone']) && !in_array($sanitized['tone'], $valid_tones)) {
+            $errors[] = 'Invalid tone specified';
+            $sanitized['tone'] = $this->default_settings['tone'];
+        }
+        
+        // Validate POV options
+        $valid_povs = ['first', 'third'];
+        if (!empty($sanitized['pov']) && !in_array($sanitized['pov'], $valid_povs)) {
+            $errors[] = 'Invalid point of view specified';
+            $sanitized['pov'] = $this->default_settings['pov'];
+        }
+        
+        // Validate length options
+        $valid_lengths = ['short', 'medium', 'long'];
+        if (!empty($sanitized['length']) && !in_array($sanitized['length'], $valid_lengths)) {
+            $errors[] = 'Invalid length specified';
+            $sanitized['length'] = $this->default_settings['length'];
+        }
+        
+        // Validate post ID
+        if (isset($data['post_id'])) {
+            $sanitized['post_id'] = intval($data['post_id']);
+            if ($sanitized['post_id'] <= 0) {
+                $errors[] = 'Invalid post ID';
+            }
+        }
+        
+        return [
+            'success' => empty($errors),
+            'data' => $sanitized,
+            'errors' => $errors
+        ];
+    }
+    
+    /**
+     * Enhanced biography generation with comprehensive error handling and caching
      * 
      * @param array $data Form data
      * @return array Generated biographies
      */
     private function generate_biography($data) {
+        // Check cache first
+        $cache_key = $this->generate_cache_key($data);
+        $cached_result = $this->get_cached_biography($cache_key);
+        
+        if ($cached_result) {
+            error_log('MKCG Biography: Using cached result for request');
+            return $cached_result;
+        }
         // Initialize results
         $biographies = [
             'short' => '',
@@ -363,12 +627,24 @@ class MKCG_Enhanced_Biography_Generator {
         $prompt .= "MEDIUM BIO:\n[Medium biography here]\n\n";
         $prompt .= "LONG BIO:\n[Long biography here]\n";
         
-        // Check if OpenAI API key is available
+        // Check if OpenAI API key is available with enhanced validation
         $api_key = get_option('mkcg_openai_api_key');
         if (empty($api_key)) {
+            error_log('MKCG Biography: OpenAI API key not configured');
             return [
                 'success' => false,
-                'message' => 'OpenAI API key is not configured. Please set it in the plugin settings.'
+                'message' => 'OpenAI API key is not configured. Please set it in the plugin settings.',
+                'error_code' => 'API_KEY_MISSING'
+            ];
+        }
+        
+        // Validate API key format
+        if (!$this->validate_api_key_format($api_key)) {
+            error_log('MKCG Biography: Invalid API key format');
+            return [
+                'success' => false,
+                'message' => 'Invalid OpenAI API key format. Please check your configuration.',
+                'error_code' => 'API_KEY_INVALID'
             ];
         }
         
@@ -401,7 +677,7 @@ class MKCG_Enhanced_Biography_Generator {
                 [
                     'headers' => $headers,
                     'body' => wp_json_encode($request_body),
-                    'timeout' => 60,
+                    'timeout' => self::API_TIMEOUT,
                     'data_format' => 'body'
                 ]
             );
@@ -458,21 +734,17 @@ class MKCG_Enhanced_Biography_Generator {
             
             // Check if we have at least one biography
             if (empty($biographies['short']) && empty($biographies['medium']) && empty($biographies['long'])) {
+                error_log('MKCG Biography: Failed to parse biographies from OpenAI response');
                 return [
                     'success' => false,
-                    'message' => 'Failed to parse biographies from OpenAI response.'
+                    'message' => 'Failed to parse biographies from OpenAI response.',
+                    'error_code' => 'PARSE_FAILED',
+                    'raw_response' => substr($content, 0, 500) // First 500 chars for debugging
                 ];
             }
             
-            // Save biographies to post meta if we have a post ID
-            if (!empty($data['post_id'])) {
-                $this->save_biographies_to_post_meta($data['post_id'], $biographies, [
-                    'tone' => $data['tone'],
-                    'pov' => $data['pov']
-                ]);
-            }
-            
-            return [
+            // Cache successful result
+            $result = [
                 'success' => true,
                 'biographies' => $biographies,
                 'settings' => [
@@ -484,8 +756,24 @@ class MKCG_Enhanced_Biography_Generator {
                     'title' => $data['title'],
                     'organization' => $data['organization']
                 ],
-                'generation_date' => current_time('mysql')
+                'generation_date' => current_time('mysql'),
+                'cache_key' => $cache_key
             ];
+            
+            $this->cache_biography_result($cache_key, $result);
+            
+            // Save biographies to post meta if we have a post ID
+            if (!empty($data['post_id'])) {
+                $this->save_biographies_to_post_meta($data['post_id'], $biographies, [
+                    'tone' => $data['tone'],
+                    'pov' => $data['pov']
+                ]);
+                
+                // Update generation count and API usage
+                $this->update_generation_stats($data['post_id']);
+            }
+            
+            return $result;
         } catch (Exception $e) {
             error_log('MKCG Biography: Exception - ' . $e->getMessage());
             return [
@@ -721,6 +1009,156 @@ class MKCG_Enhanced_Biography_Generator {
     }
     
     /**
+     * Generate cache key for biography request
+     */
+    private function generate_cache_key($data) {
+        $key_data = [
+            'name' => $data['name'],
+            'title' => $data['title'],
+            'organization' => $data['organization'],
+            'tone' => $data['tone'],
+            'pov' => $data['pov'],
+            'authority_hook' => $data['authority_hook'],
+            'impact_intro' => $data['impact_intro'],
+            'existing_bio' => $data['existing_bio']
+        ];
+        
+        return 'mkcg_bio_' . md5(serialize($key_data));
+    }
+    
+    /**
+     * Get cached biography result
+     */
+    private function get_cached_biography($cache_key) {
+        return get_transient($cache_key);
+    }
+    
+    /**
+     * Cache biography result
+     */
+    private function cache_biography_result($cache_key, $result) {
+        set_transient($cache_key, $result, self::CACHE_DURATION);
+    }
+    
+    /**
+     * Validate OpenAI API key format
+     */
+    private function validate_api_key_format($api_key) {
+        // OpenAI API keys typically start with 'sk-' and are 51 characters long
+        return (strlen($api_key) >= 20 && strpos($api_key, 'sk-') === 0);
+    }
+    
+    /**
+     * Update generation statistics
+     */
+    private function update_generation_stats($post_id) {
+        // Update generation count
+        $current_count = get_post_meta($post_id, $this->post_meta_fields['generation_count'], true);
+        $new_count = intval($current_count) + 1;
+        update_post_meta($post_id, $this->post_meta_fields['generation_count'], $new_count);
+        
+        // Update last modified
+        update_post_meta($post_id, $this->post_meta_fields['last_modified'], current_time('mysql'));
+        
+        // Update API usage statistics
+        $api_usage = get_post_meta($post_id, $this->post_meta_fields['api_usage'], true);
+        if (!is_array($api_usage)) {
+            $api_usage = [];
+        }
+        
+        $today = date('Y-m-d');
+        if (!isset($api_usage[$today])) {
+            $api_usage[$today] = 0;
+        }
+        $api_usage[$today]++;
+        
+        // Keep only last 30 days
+        $cutoff_date = date('Y-m-d', strtotime('-30 days'));
+        foreach ($api_usage as $date => $count) {
+            if ($date < $cutoff_date) {
+                unset($api_usage[$date]);
+            }
+        }
+        
+        update_post_meta($post_id, $this->post_meta_fields['api_usage'], $api_usage);
+    }
+    
+    /**
+     * Add meta boxes for biography data
+     */
+    public function add_meta_boxes() {
+        $post_types = ['post', 'page', 'guests'];
+        
+        foreach ($post_types as $post_type) {
+            add_meta_box(
+                'mkcg_biography_data',
+                'Biography Generator Data',
+                [$this, 'render_meta_box'],
+                $post_type,
+                'normal',
+                'default'
+            );
+        }
+    }
+    
+    /**
+     * Render meta box content
+     */
+    public function render_meta_box($post) {
+        $biography_data = $this->get_biography_data($post->ID);
+        
+        wp_nonce_field('mkcg_biography_meta_box', 'mkcg_biography_nonce');
+        
+        echo '<div class="mkcg-meta-box">';
+        echo '<h4>Generated Biographies</h4>';
+        
+        if ($biography_data['has_data']) {
+            foreach (['short', 'medium', 'long'] as $length) {
+                $bio = $biography_data['biographies'][$length];
+                if (!empty($bio)) {
+                    echo '<div class="biography-section">';
+                    echo '<h5>' . ucfirst($length) . ' Biography</h5>';
+                    echo '<textarea readonly rows="4" style="width:100%;">' . esc_textarea($bio) . '</textarea>';
+                    echo '<p><small>Word count: ' . str_word_count($bio) . '</small></p>';
+                    echo '</div>';
+                }
+            }
+            
+            echo '<div class="biography-settings">';
+            echo '<p><strong>Settings:</strong> Tone: ' . esc_html($biography_data['settings']['tone']) . ', POV: ' . esc_html($biography_data['settings']['pov']) . '</p>';
+            echo '<p><strong>Generated:</strong> ' . esc_html($biography_data['generation_date']) . '</p>';
+            echo '</div>';
+        } else {
+            echo '<p>No biographies generated yet.</p>';
+        }
+        
+        echo '</div>';
+    }
+    
+    /**
+     * Save post data hook
+     */
+    public function save_post_data($post_id, $post) {
+        // Verify nonce
+        if (!isset($_POST['mkcg_biography_nonce']) || !wp_verify_nonce($_POST['mkcg_biography_nonce'], 'mkcg_biography_meta_box')) {
+            return;
+        }
+        
+        // Check user capabilities
+        if (!current_user_can('edit_post', $post_id)) {
+            return;
+        }
+        
+        // Auto-save handling
+        if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+            return;
+        }
+        
+        // Update last modified timestamp
+        update_post_meta($post_id, $this->post_meta_fields['last_modified'], current_time('mysql'));
+    }
+    
+    /**
      * Save biographies to Formidable Forms entry
      * 
      * @param int $entry_id Entry ID
@@ -756,63 +1194,95 @@ class MKCG_Enhanced_Biography_Generator {
     }
     
     /**
-     * AJAX handler for generating biography
+     * Enhanced AJAX handler for generating biography with comprehensive security
      */
     public function ajax_generate_biography() {
-        // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mkcg_nonce')) {
-            wp_send_json_error(['message' => 'Security check failed.']);
+        // Enhanced security verification
+        $security_check = $this->verify_security_comprehensive('generate');
+        if (!$security_check['success']) {
+            wp_send_json_error($security_check);
             return;
         }
         
-        // Collect form data
-        $data = [
-            'post_id' => isset($_POST['post_id']) ? intval($_POST['post_id']) : 0,
-            'entry_id' => isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0,
-            'authority_hook' => isset($_POST['authority_hook']) ? sanitize_textarea_field($_POST['authority_hook']) : '',
-            'impact_intro' => isset($_POST['impact_intro']) ? sanitize_textarea_field($_POST['impact_intro']) : '',
-            'name' => isset($_POST['name']) ? sanitize_text_field($_POST['name']) : '',
-            'title' => isset($_POST['title']) ? sanitize_text_field($_POST['title']) : '',
-            'organization' => isset($_POST['organization']) ? sanitize_text_field($_POST['organization']) : '',
-            'tone' => isset($_POST['tone']) ? sanitize_text_field($_POST['tone']) : $this->default_settings['tone'],
-            'pov' => isset($_POST['pov']) ? sanitize_text_field($_POST['pov']) : $this->default_settings['pov'],
-            'length' => isset($_POST['length']) ? sanitize_text_field($_POST['length']) : $this->default_settings['length'],
-            'existing_bio' => isset($_POST['existing_bio']) ? sanitize_textarea_field($_POST['existing_bio']) : '',
-            'additional_notes' => isset($_POST['additional_notes']) ? sanitize_textarea_field($_POST['additional_notes']) : ''
+        // Enhanced data collection and validation
+        $raw_data = [
+            'post_id' => isset($_POST['post_id']) ? $_POST['post_id'] : 0,
+            'entry_id' => isset($_POST['entry_id']) ? $_POST['entry_id'] : 0,
+            'authority_hook' => isset($_POST['authority_hook']) ? $_POST['authority_hook'] : '',
+            'impact_intro' => isset($_POST['impact_intro']) ? $_POST['impact_intro'] : '',
+            'name' => isset($_POST['name']) ? $_POST['name'] : '',
+            'title' => isset($_POST['title']) ? $_POST['title'] : '',
+            'organization' => isset($_POST['organization']) ? $_POST['organization'] : '',
+            'tone' => isset($_POST['tone']) ? $_POST['tone'] : $this->default_settings['tone'],
+            'pov' => isset($_POST['pov']) ? $_POST['pov'] : $this->default_settings['pov'],
+            'length' => isset($_POST['length']) ? $_POST['length'] : $this->default_settings['length'],
+            'existing_bio' => isset($_POST['existing_bio']) ? $_POST['existing_bio'] : '',
+            'additional_notes' => isset($_POST['additional_notes']) ? $_POST['additional_notes'] : ''
         ];
+        
+        // Validate and sanitize input
+        $validation_result = $this->validate_and_sanitize_input($raw_data);
+        if (!$validation_result['success']) {
+            wp_send_json_error([
+                'message' => 'Validation failed: ' . implode(', ', $validation_result['errors']),
+                'errors' => $validation_result['errors']
+            ]);
+            return;
+        }
+        
+        $data = $validation_result['data'];
         
         // Generate biography
         $result = $this->generate_biography($data);
         
         if ($result['success']) {
+            // Log successful generation
+            error_log('MKCG Biography: Successfully generated biography for post ' . $data['post_id']);
             wp_send_json_success($result);
         } else {
+            // Log failed generation
+            error_log('MKCG Biography: Failed to generate biography - ' . $result['message']);
             wp_send_json_error($result);
         }
     }
     
     /**
-     * AJAX handler for modifying biography tone
+     * Enhanced AJAX handler for modifying biography tone
      */
     public function ajax_modify_biography_tone() {
-        // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mkcg_nonce')) {
-            wp_send_json_error(['message' => 'Security check failed.']);
+        // Enhanced security verification
+        $security_check = $this->verify_security_comprehensive('modify_tone');
+        if (!$security_check['success']) {
+            wp_send_json_error($security_check);
             return;
         }
         
-        // Collect form data
-        $data = [
-            'post_id' => isset($_POST['post_id']) ? intval($_POST['post_id']) : 0,
-            'tone' => isset($_POST['tone']) ? sanitize_text_field($_POST['tone']) : $this->default_settings['tone']
+        // Enhanced data collection and validation
+        $raw_data = [
+            'post_id' => isset($_POST['post_id']) ? $_POST['post_id'] : 0,
+            'tone' => isset($_POST['tone']) ? $_POST['tone'] : $this->default_settings['tone']
         ];
+        
+        // Validate input
+        $validation_result = $this->validate_and_sanitize_input($raw_data);
+        if (!$validation_result['success']) {
+            wp_send_json_error([
+                'message' => 'Validation failed: ' . implode(', ', $validation_result['errors']),
+                'errors' => $validation_result['errors']
+            ]);
+            return;
+        }
+        
+        $data = $validation_result['data'];
         
         // Modify biography tone
         $result = $this->modify_biography_tone($data);
         
         if ($result['success']) {
+            error_log('MKCG Biography: Successfully modified tone for post ' . $data['post_id']);
             wp_send_json_success($result);
         } else {
+            error_log('MKCG Biography: Failed to modify tone - ' . $result['message']);
             wp_send_json_error($result);
         }
     }
@@ -1018,6 +1488,116 @@ class MKCG_Enhanced_Biography_Generator {
                 'message' => 'Failed to save field.',
                 'field_name' => $field_name
             ]);
+        }
+    }
+    
+    /**
+     * AJAX handler for getting biography data
+     */
+    public function ajax_get_biography_data() {
+        // Enhanced security verification
+        $security_check = $this->verify_security_comprehensive('get');
+        if (!$security_check['success']) {
+            wp_send_json_error($security_check);
+            return;
+        }
+        
+        $post_id = isset($_GET['post_id']) ? intval($_GET['post_id']) : 0;
+        
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID is required']);
+            return;
+        }
+        
+        // Get biography data
+        $biography_data = $this->get_biography_data($post_id);
+        
+        wp_send_json_success($biography_data);
+    }
+    
+    /**
+     * AJAX handler for validating biography data
+     */
+    public function ajax_validate_biography_data() {
+        // Enhanced security verification
+        $security_check = $this->verify_security_comprehensive('validate');
+        if (!$security_check['success']) {
+            wp_send_json_error($security_check);
+            return;
+        }
+        
+        // Collect data for validation
+        $raw_data = [
+            'name' => isset($_POST['name']) ? $_POST['name'] : '',
+            'title' => isset($_POST['title']) ? $_POST['title'] : '',
+            'organization' => isset($_POST['organization']) ? $_POST['organization'] : '',
+            'tone' => isset($_POST['tone']) ? $_POST['tone'] : '',
+            'pov' => isset($_POST['pov']) ? $_POST['pov'] : '',
+            'authority_hook' => isset($_POST['authority_hook']) ? $_POST['authority_hook'] : '',
+            'impact_intro' => isset($_POST['impact_intro']) ? $_POST['impact_intro'] : ''
+        ];
+        
+        // Validate input
+        $validation_result = $this->validate_and_sanitize_input($raw_data);
+        
+        wp_send_json_success([
+            'valid' => $validation_result['success'],
+            'errors' => $validation_result['errors'],
+            'data' => $validation_result['data']
+        ]);
+    }
+    
+    /**
+     * AJAX handler for regenerating biography with modified settings
+     */
+    public function ajax_regenerate_biography() {
+        // Enhanced security verification
+        $security_check = $this->verify_security_comprehensive('regenerate');
+        if (!$security_check['success']) {
+            wp_send_json_error($security_check);
+            return;
+        }
+        
+        $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
+        
+        if (!$post_id) {
+            wp_send_json_error(['message' => 'Post ID is required']);
+            return;
+        }
+        
+        // Get existing biography data
+        $existing_data = $this->get_biography_data($post_id);
+        
+        if (!$existing_data['has_data']) {
+            wp_send_json_error(['message' => 'No existing biography data found']);
+            return;
+        }
+        
+        // Merge with new settings
+        $regeneration_data = array_merge($existing_data['personal_info'], [
+            'post_id' => $post_id,
+            'tone' => isset($_POST['tone']) ? sanitize_text_field($_POST['tone']) : $existing_data['settings']['tone'],
+            'pov' => isset($_POST['pov']) ? sanitize_text_field($_POST['pov']) : $existing_data['settings']['pov'],
+            'length' => isset($_POST['length']) ? sanitize_text_field($_POST['length']) : $this->default_settings['length'],
+            'authority_hook' => isset($_POST['authority_hook']) ? sanitize_textarea_field($_POST['authority_hook']) : '',
+            'impact_intro' => isset($_POST['impact_intro']) ? sanitize_textarea_field($_POST['impact_intro']) : '',
+            'existing_bio' => isset($_POST['existing_bio']) ? sanitize_textarea_field($_POST['existing_bio']) : '',
+            'additional_notes' => isset($_POST['additional_notes']) ? sanitize_textarea_field($_POST['additional_notes']) : ''
+        ]);
+        
+        // Clear cache for this regeneration
+        $cache_key = $this->generate_cache_key($regeneration_data);
+        delete_transient($cache_key);
+        
+        // Generate new biography
+        $result = $this->generate_biography($regeneration_data);
+        
+        if ($result['success']) {
+            error_log('MKCG Biography: Successfully regenerated biography for post ' . $post_id);
+            wp_send_json_success($result);
+        } else {
+            error_log('MKCG Biography: Failed to regenerate biography - ' . $result['message']);
+            wp_send_json_error($result);
         }
     }
 }
