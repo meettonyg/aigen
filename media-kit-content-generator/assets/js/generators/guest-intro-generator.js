@@ -64,6 +64,11 @@
                 button.textContent = builderType === 'authority-hook' ? 'Hide Components' : 'Hide Impact Intro';
             }
             
+            // Populate fields with existing data
+            setTimeout(() => {
+                populateBuilderFields(builderType);
+            }, 100);
+            
             // Scroll to builder
             builder.scrollIntoView({ behavior: 'smooth', block: 'start' });
         } else {
@@ -83,16 +88,166 @@
     }
 
     /**
+     * Populate builder fields with existing data
+     */
+    function populateBuilderFields(builderType) {
+        if (!window.MKCG_Guest_Intro_Data) return;
+        
+        if (builderType === 'authority-hook') {
+            const data = window.MKCG_Guest_Intro_Data.authorityHook;
+            const fieldMappings = [
+                { field: 'who', selector: '#mkcg-who' },
+                { field: 'what', selector: '#mkcg-result' },
+                { field: 'when', selector: '#mkcg-when' },
+                { field: 'how', selector: '#mkcg-how' }
+            ];
+            
+            fieldMappings.forEach(({ field, selector }) => {
+                const input = document.querySelector(selector);
+                if (input && data[field] && data[field].trim()) {
+                    input.value = data[field];
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            });
+            
+        } else if (builderType === 'impact-intro') {
+            const data = window.MKCG_Guest_Intro_Data.impactIntro;
+            const fieldMappings = [
+                { field: 'where', selector: '#mkcg-where' },
+                { field: 'why', selector: '#mkcg-why' }
+            ];
+            
+            fieldMappings.forEach(({ field, selector }) => {
+                const input = document.querySelector(selector);
+                if (input && data[field] && data[field].trim()) {
+                    input.value = data[field];
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            });
+        }
+    }
+
+    /**
      * Initialize the Guest Intro Generator
      */
     function init() {
+        console.log('🚀 Guest Intro Generator: Initializing...');
+        
         // Setup event listeners
         setupEventListeners();
+        
+        // Setup field change listeners for real-time updates
+        setupFieldChangeListeners();
+        
+        // Update displays with initial data
+        setTimeout(() => {
+            updateAuthorityHookDisplay();
+            updateImpactIntroDisplay();
+        }, 100);
         
         // Check if we need to load existing data
         const postId = getPostId();
         if (postId) {
             loadExistingData(postId);
+        }
+        
+        console.log('✅ Guest Intro Generator: Initialization complete');
+    }
+
+    /**
+     * Setup field change listeners for real-time updates
+     */
+    function setupFieldChangeListeners() {
+        // Retry setup multiple times to catch dynamically loaded fields
+        const setupFields = () => {
+            // Authority Hook field listeners
+            const authorityFields = ['#mkcg-who', '#mkcg-result', '#mkcg-when', '#mkcg-how'];
+            let authorityFieldsFound = 0;
+            
+            authorityFields.forEach(selector => {
+                const field = document.querySelector(selector);
+                if (field) {
+                    authorityFieldsFound++;
+                    // Remove existing listeners to avoid duplicates
+                    field.removeEventListener('input', updateAuthorityHookDisplay);
+                    field.removeEventListener('change', updateAuthorityHookDisplay);
+                    // Add new listeners
+                    field.addEventListener('input', updateAuthorityHookDisplay);
+                    field.addEventListener('change', updateAuthorityHookDisplay);
+                }
+            });
+            
+            // Impact Intro field listeners
+            const impactFields = ['#mkcg-where', '#mkcg-why'];
+            let impactFieldsFound = 0;
+            
+            impactFields.forEach(selector => {
+                const field = document.querySelector(selector);
+                if (field) {
+                    impactFieldsFound++;
+                    // Remove existing listeners to avoid duplicates
+                    field.removeEventListener('input', updateImpactIntroDisplay);
+                    field.removeEventListener('change', updateImpactIntroDisplay);
+                    // Add new listeners
+                    field.addEventListener('input', updateImpactIntroDisplay);
+                    field.addEventListener('change', updateImpactIntroDisplay);
+                }
+            });
+            
+            console.log(`🔧 Guest Intro: Found ${authorityFieldsFound}/4 authority fields, ${impactFieldsFound}/2 impact fields`);
+            return { authorityFieldsFound, impactFieldsFound };
+        };
+        
+        // Try immediately
+        const initial = setupFields();
+        
+        // Retry if not all fields found
+        if (initial.authorityFieldsFound < 4 || initial.impactFieldsFound < 2) {
+            setTimeout(setupFields, 500);
+            setTimeout(setupFields, 1000);
+            setTimeout(setupFields, 2000);
+        }
+    }
+
+    /**
+     * Update Authority Hook display in real-time
+     */
+    function updateAuthorityHookDisplay() {
+        const who = getFieldValue('mkcg-who');
+        const what = getFieldValue('mkcg-result');
+        const when = getFieldValue('mkcg-when');
+        const how = getFieldValue('mkcg-how');
+        
+        const display = document.getElementById('guest-intro-generator-authority-hook-text');
+        if (!display) return;
+        
+        if (who && what && when && how) {
+            const authorityHook = `I help ${who} ${what} when ${when} through ${how}.`;
+            display.textContent = authorityHook;
+            display.style.fontStyle = 'normal';
+            display.style.color = '';
+        } else {
+            display.innerHTML = '<em style="color: #666;">Authority Hook will appear here once you fill in the WHO, WHAT, WHEN, and HOW components below.</em>';
+        }
+    }
+
+    /**
+     * Update Impact Intro display in real-time
+     */
+    function updateImpactIntroDisplay() {
+        const where = getFieldValue('mkcg-where');
+        const why = getFieldValue('mkcg-why');
+        
+        const display = document.getElementById('guest-intro-generator-impact-intro-text');
+        if (!display) return;
+        
+        if (where && why) {
+            const impactIntro = `${where}. ${why}.`;
+            display.textContent = impactIntro;
+            display.style.fontStyle = 'normal';
+            display.style.color = '';
+        } else {
+            display.innerHTML = '<em style="color: #666;">Impact Intro will appear here once you fill in the WHERE credentials and WHY mission components below.</em>';
         }
     }
 

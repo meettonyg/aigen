@@ -13,8 +13,134 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Get post ID from URL
-$post_id = isset($_GET['post_id']) ? intval($_GET['post_id']) : 0;
+// COMPREHENSIVE DATA LOADING - Following Topics Generator Pattern
+$template_data = [];
+$debug_info = [];
+
+// Primary Method: Try to get data from generator instance
+if (isset($generator_instance) && method_exists($generator_instance, 'get_template_data')) {
+    $template_data = $generator_instance->get_template_data();
+    $debug_info[] = '✅ Got data from generator instance';
+    error_log('MKCG Guest Intro Template: Got data from generator instance');
+} else {
+    $debug_info[] = '⚠️ Generator instance not available';
+    
+    // Try to get post ID from various sources
+    $post_id = 0;
+    if (isset($_GET['post_id']) && intval($_GET['post_id']) > 0) {
+        $post_id = intval($_GET['post_id']);
+        $debug_info[] = "📍 Using post_id from URL: {$post_id}";
+    } else if (isset($_GET['entry']) && intval($_GET['entry']) > 0) {
+        $post_id = intval($_GET['entry']);
+        $debug_info[] = "📍 Using entry from URL: {$post_id}";
+    } else {
+        // Get the most recent guest post for testing
+        $recent_guest = get_posts([
+            'post_type' => 'guests',
+            'post_status' => 'publish',
+            'numberposts' => 1,
+            'orderby' => 'date',
+            'order' => 'DESC'
+        ]);
+        if (!empty($recent_guest)) {
+            $post_id = $recent_guest[0]->ID;
+            $debug_info[] = "🎯 Using most recent guest post: {$post_id}";
+        }
+    }
+    
+    if ($post_id > 0) {
+        // Load Authority Hook and Impact Intro data using services
+        $authority_hook_components = [];
+        $impact_intro_components = [];
+        
+        // Load Authority Hook data
+        if (class_exists('MKCG_Authority_Hook_Service')) {
+            try {
+                $authority_hook_service = new MKCG_Authority_Hook_Service();
+                $authority_hook_data = $authority_hook_service->get_authority_hook_data($post_id);
+                
+                if (!empty($authority_hook_data)) {
+                    $authority_hook_components = [
+                        'who' => $authority_hook_data['components']['who'] ?? '',
+                        'what' => $authority_hook_data['components']['what'] ?? '',
+                        'when' => $authority_hook_data['components']['when'] ?? '',
+                        'how' => $authority_hook_data['components']['how'] ?? '',
+                        'complete' => $authority_hook_data['complete'] ?? ''
+                    ];
+                    $debug_info[] = "✅ Authority Hook loaded: " . strlen($authority_hook_components['complete']) . " chars";
+                } else {
+                    $debug_info[] = "⚠️ Authority Hook service returned empty data";
+                }
+            } catch (Exception $e) {
+                $debug_info[] = "❌ Authority Hook service error: " . $e->getMessage();
+            }
+        }
+        
+        // Load Impact Intro data
+        if (class_exists('MKCG_Impact_Intro_Service')) {
+            try {
+                $impact_intro_service = new MKCG_Impact_Intro_Service();
+                $impact_intro_data = $impact_intro_service->get_impact_intro_data($post_id);
+                
+                if (!empty($impact_intro_data)) {
+                    $impact_intro_components = [
+                        'where' => $impact_intro_data['components']['where'] ?? '',
+                        'why' => $impact_intro_data['components']['why'] ?? '',
+                        'complete' => $impact_intro_data['complete'] ?? ''
+                    ];
+                    $debug_info[] = "✅ Impact Intro loaded: " . strlen($impact_intro_components['complete']) . " chars";
+                } else {
+                    $debug_info[] = "⚠️ Impact Intro service returned empty data";
+                }
+            } catch (Exception $e) {
+                $debug_info[] = "❌ Impact Intro service error: " . $e->getMessage();
+            }
+        }
+        
+        $template_data = [
+            'post_id' => $post_id,
+            'authority_hook_components' => $authority_hook_components,
+            'impact_intro_components' => $impact_intro_components,
+            'has_data' => !empty($authority_hook_components['complete']) || !empty($impact_intro_components['complete'])
+        ];
+        
+        $debug_info[] = "✅ Template data loaded for post {$post_id}";
+        
+    } else {
+        $debug_info[] = "❌ No valid post ID found";
+        
+        // Create empty structure when no data found
+        $template_data = [
+            'post_id' => 0,
+            'authority_hook_components' => [
+                'who' => '',
+                'what' => '',
+                'when' => '',
+                'how' => '',
+                'complete' => ''
+            ],
+            'impact_intro_components' => [
+                'where' => '',
+                'why' => '',
+                'complete' => ''
+            ],
+            'has_data' => false
+        ];
+    }
+    
+    error_log('MKCG Guest Intro Template: ' . implode(' | ', $debug_info));
+}
+
+// Extract data for easier access in template
+$post_id = $template_data['post_id'];
+$authority_hook_components = $template_data['authority_hook_components'];
+$impact_intro_components = $template_data['impact_intro_components'];
+$has_data = $template_data['has_data'];
+
+// Debug logging
+error_log('MKCG Guest Intro Template: Authority Hook Complete: ' . ($authority_hook_components['complete'] ?? 'EMPTY'));
+error_log('MKCG Guest Intro Template: Impact Intro Complete: ' . ($impact_intro_components['complete'] ?? 'EMPTY'));
+error_log('MKCG Guest Intro Template: Has Data: ' . ($has_data ? 'true' : 'false'));
 ?>
 <div class="generator__container guest-intro-generator">
     <div class="generator__header">
@@ -39,13 +165,11 @@ $post_id = isset($_GET['post_id']) ? intval($_GET['post_id']) : 0;
                 
                 <div class="generator__authority-hook-content">
                     <p id="guest-intro-generator-authority-hook-text"><?php 
-                        // Show Authority Hook if available
-                        if ($post_id && class_exists('MKCG_Authority_Hook_Service')) {
-                            $authority_hook_service = new MKCG_Authority_Hook_Service();
-                            $authority_hook_data = $authority_hook_service->get_authority_hook_data($post_id);
-                            if (!empty($authority_hook_data['complete'])) {
-                                echo esc_html($authority_hook_data['complete']);
-                            }
+                        // Show Authority Hook content if available
+                        if (!empty($authority_hook_components['complete'])) {
+                            echo esc_html($authority_hook_components['complete']);
+                        } else {
+                            echo '<em style="color: #666;">Authority Hook will appear here once you fill in the WHO, WHAT, WHEN, and HOW components below.</em>';
                         }
                     ?></p>
                 </div>
@@ -60,15 +184,9 @@ $post_id = isset($_GET['post_id']) ? intval($_GET['post_id']) : 0;
             <!-- Authority Hook Builder - Expanded/Collapsible -->
             <div class="generator__builder generator__builder--hidden" id="guest-intro-generator-authority-hook-builder">
             <?php 
-            // Initialize Authority Hook Service
+            // Render Authority Hook Builder using loaded data
             if (class_exists('MKCG_Authority_Hook_Service')) {
                 $authority_hook_service = new MKCG_Authority_Hook_Service();
-                $authority_hook_data = array();
-                
-                if ($post_id) {
-                    $authority_hook_data = $authority_hook_service->get_authority_hook_data($post_id);
-                    $authority_hook_data = $authority_hook_data['components'] ?? array();
-                }
                 
                 $render_options = array(
                     'show_preview' => false,
@@ -79,7 +197,7 @@ $post_id = isset($_GET['post_id']) ? intval($_GET['post_id']) : 0;
                     'tabs_enabled' => true
                 );
                 
-                echo $authority_hook_service->render_authority_hook_builder('guest_intro', $authority_hook_data, $render_options);
+                echo $authority_hook_service->render_authority_hook_builder('guest_intro', $authority_hook_components, $render_options);
             }
             ?>
             </div>
@@ -94,13 +212,11 @@ $post_id = isset($_GET['post_id']) ? intval($_GET['post_id']) : 0;
                 
                 <div class="generator__impact-intro-content">
                     <p id="guest-intro-generator-impact-intro-text"><?php 
-                        // Show Impact Intro if available
-                        if ($post_id && class_exists('MKCG_Impact_Intro_Service')) {
-                            $impact_intro_service = new MKCG_Impact_Intro_Service();
-                            $impact_intro_data = $impact_intro_service->get_impact_intro_data($post_id);
-                            if (!empty($impact_intro_data['complete'])) {
-                                echo esc_html($impact_intro_data['complete']);
-                            }
+                        // Show Impact Intro content if available
+                        if (!empty($impact_intro_components['complete'])) {
+                            echo esc_html($impact_intro_components['complete']);
+                        } else {
+                            echo '<em style="color: #666;">Impact Intro will appear here once you fill in the WHERE credentials and WHY mission components below.</em>';
                         }
                     ?></p>
                 </div>
@@ -115,15 +231,9 @@ $post_id = isset($_GET['post_id']) ? intval($_GET['post_id']) : 0;
             <!-- Impact Intro Builder - Expanded/Collapsible -->
             <div class="generator__builder generator__builder--hidden" id="guest-intro-generator-impact-intro-builder">
             <?php 
-            // Initialize Impact Intro Service
+            // Render Impact Intro Builder using loaded data
             if (class_exists('MKCG_Impact_Intro_Service')) {
                 $impact_intro_service = new MKCG_Impact_Intro_Service();
-                $impact_intro_data = array();
-                
-                if ($post_id) {
-                    $impact_intro_data = $impact_intro_service->get_impact_intro_data($post_id);
-                    $impact_intro_data = $impact_intro_data['components'] ?? array();
-                }
                 
                 $render_options = array(
                     'show_preview' => false,
@@ -134,7 +244,7 @@ $post_id = isset($_GET['post_id']) ? intval($_GET['post_id']) : 0;
                     'tabs_enabled' => true
                 );
                 
-                echo $impact_intro_service->render_impact_intro_builder('guest_intro', $impact_intro_data, $render_options);
+                echo $impact_intro_service->render_impact_intro_builder('guest_intro', $impact_intro_components, $render_options);
             }
             ?>
             </div>
@@ -379,6 +489,37 @@ $post_id = isset($_GET['post_id']) ? intval($_GET['post_id']) : 0;
 
 <!-- Enqueue script -->
 <script type="text/javascript">
+    // MKCG Debug Info
+    console.log('🎯 MKCG Guest Intro: Template data loaded', {
+        postId: <?php echo intval($post_id); ?>,
+        hasData: <?php echo $has_data ? 'true' : 'false'; ?>
+    });
+    
+    // Pass PHP data to JavaScript
+    window.MKCG_Guest_Intro_Data = {
+        postId: <?php echo intval($post_id); ?>,
+        hasData: <?php echo $has_data ? 'true' : 'false'; ?>,
+        authorityHook: {
+            who: '<?php echo esc_js($authority_hook_components['who'] ?? ''); ?>',
+            what: '<?php echo esc_js($authority_hook_components['what'] ?? ''); ?>',
+            when: '<?php echo esc_js($authority_hook_components['when'] ?? ''); ?>',
+            how: '<?php echo esc_js($authority_hook_components['how'] ?? ''); ?>',
+            complete: '<?php echo esc_js($authority_hook_components['complete'] ?? ''); ?>'
+        },
+        impactIntro: {
+            where: '<?php echo esc_js($impact_intro_components['where'] ?? ''); ?>',
+            why: '<?php echo esc_js($impact_intro_components['why'] ?? ''); ?>',
+            complete: '<?php echo esc_js($impact_intro_components['complete'] ?? ''); ?>'
+        }
+    };
+    
+    console.log('✅ MKCG Guest Intro: Data loaded', window.MKCG_Guest_Intro_Data);
+    
+    // Set up AJAX URL for WordPress
+    if (!window.ajaxurl) {
+        window.ajaxurl = '<?php echo admin_url('admin-ajax.php'); ?>';
+    }
+
     // Register guest intro generator script
     if (typeof wp !== 'undefined' && wp.hooks && wp.hooks.addAction) {
         wp.hooks.addAction('mkcg.scriptsLoaded', 'mkcg/guest-intro', function() {
