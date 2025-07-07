@@ -180,6 +180,8 @@ error_log('MKCG Tagline Template: Rendering with post_id=' . $post_id . ', has_d
 
                         if ($all_components_exist) {
                             echo esc_html($authority_hook_components['complete']);
+                        } else {
+                            echo '<em style="color: #666;">Authority Hook will appear here once you fill in the WHO, WHAT, WHEN, and HOW components below.</em>';
                         }
                         // Empty when incomplete - no defaults
                     ?></p>
@@ -187,10 +189,7 @@ error_log('MKCG Tagline Template: Rendering with post_id=' . $post_id . ', has_d
                 
                 <div class="generator__authority-hook-actions">
                     <button type="button" class="generator__button generator__button--outline" id="tagline-generator-toggle-authority-builder">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-                        </svg>
-                        Edit Authority Hook
+                        Edit Components
                     </button>
                 </div>
             </div>
@@ -247,14 +246,14 @@ error_log('MKCG Tagline Template: Rendering with post_id=' . $post_id . ', has_d
             </div>
             
             <!-- Impact Intro Section -->
-            <div class="generator__authority-hook tagline-generator__impact-intro">
-                <div class="generator__authority-hook-header">
-                    <span class="generator__authority-hook-icon">🎯</span>
-                    <h3 class="generator__authority-hook-title">Your Impact Intro</h3>
+            <div class="generator__impact-intro">
+                <div class="generator__impact-intro-header">
+                    <span class="generator__impact-intro-icon">🎯</span>
+                    <h3 class="generator__impact-intro-title">Your Impact Intro</h3>
                     <span class="generator__badge">CREDENTIALS & MISSION</span>
                 </div>
                 
-                <div class="generator__authority-hook-content">
+                <div class="generator__impact-intro-content">
                     <p id="tagline-generator-impact-intro-text"><?php 
                         // CLEAN CODE: Show text only when components have real data
                         $impact_components_exist = !empty($impact_intro_components['where']) && 
@@ -262,16 +261,15 @@ error_log('MKCG Tagline Template: Rendering with post_id=' . $post_id . ', has_d
 
                         if ($impact_components_exist) {
                             echo esc_html($impact_intro_components['complete']);
+                        } else {
+                            echo '<em style="color: #666;">Impact Intro will appear here once you fill in the WHERE credentials and WHY mission components below.</em>';
                         }
                         // Empty when incomplete - no defaults
                     ?></p>
                 </div>
                 
-                <div class="generator__authority-hook-actions">
+                <div class="generator__impact-intro-actions">
                     <button type="button" class="generator__button generator__button--outline" id="tagline-generator-toggle-impact-builder">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-                        </svg>
                         Edit Impact Intro
                     </button>
                 </div>

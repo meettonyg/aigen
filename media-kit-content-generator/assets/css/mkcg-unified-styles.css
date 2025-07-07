@@ -3520,8 +3520,17 @@
   gap: var(--mkcg-space-xs);
 }
 
+/* Enhanced Radio Button Styling for Guest Intro Generator */
+.guest-intro-generator__radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mkcg-space-xs);
+}
+
 .guest-intro-generator__radio-input {
-  margin-right: var(--mkcg-space-xs);
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .guest-intro-generator__radio-label {
@@ -3530,13 +3539,54 @@
   font-size: var(--mkcg-font-size-sm);
   color: var(--mkcg-text-primary);
   cursor: pointer;
-  padding: var(--mkcg-space-xs);
+  padding: var(--mkcg-space-sm) var(--mkcg-space-md);
   border-radius: var(--mkcg-radius-sm);
   transition: var(--mkcg-transition-fast);
+  border: 1px solid var(--mkcg-border-light);
+  background: var(--mkcg-bg-primary);
+  margin-bottom: var(--mkcg-space-xs);
+  font-weight: var(--mkcg-font-weight-medium);
+  position: relative;
+  user-select: none;
+}
+
+.guest-intro-generator__radio-label::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--mkcg-border-medium);
+  border-radius: 50%;
+  margin-right: var(--mkcg-space-sm);
+  background: var(--mkcg-bg-primary);
+  transition: var(--mkcg-transition-fast);
+  flex-shrink: 0;
 }
 
 .guest-intro-generator__radio-label:hover {
   background-color: var(--mkcg-bg-tertiary);
+  border-color: var(--mkcg-border-medium);
+}
+
+.guest-intro-generator__radio-label:hover::before {
+  border-color: var(--mkcg-primary-light);
+}
+
+.guest-intro-generator__radio-input:checked + .guest-intro-generator__radio-label {
+  background-color: #e3f2fd;
+  border-color: var(--mkcg-primary);
+  color: var(--mkcg-primary-dark);
+  font-weight: var(--mkcg-font-weight-semibold);
+}
+
+.guest-intro-generator__radio-input:checked + .guest-intro-generator__radio-label::before {
+  border-color: var(--mkcg-primary);
+  background-color: var(--mkcg-primary);
+  box-shadow: inset 0 0 0 3px var(--mkcg-bg-primary);
+}
+
+.guest-intro-generator__radio-input:focus + .guest-intro-generator__radio-label {
+  outline: 2px solid var(--mkcg-primary);
+  outline-offset: 2px;
 }
 
 /* Generation Controls */
