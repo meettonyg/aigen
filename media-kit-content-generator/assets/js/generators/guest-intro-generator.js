@@ -38,6 +38,51 @@
     };
 
     /**
+     * Toggle builder visibility
+     */
+    function toggleBuilder(builderType) {
+        const builderId = builderType === 'authority-hook' 
+            ? 'guest-intro-generator-authority-hook-builder'
+            : 'guest-intro-generator-impact-intro-builder';
+        
+        const builder = document.getElementById(builderId);
+        if (!builder) return;
+        
+        const isHidden = builder.classList.contains('generator__builder--hidden');
+        
+        if (isHidden) {
+            // Show builder
+            builder.classList.remove('generator__builder--hidden');
+            
+            // Update button text
+            const buttonId = builderType === 'authority-hook'
+                ? 'guest-intro-generator-toggle-authority-builder'
+                : 'guest-intro-generator-toggle-impact-builder';
+            
+            const button = document.getElementById(buttonId);
+            if (button) {
+                button.textContent = builderType === 'authority-hook' ? 'Hide Components' : 'Hide Impact Intro';
+            }
+            
+            // Scroll to builder
+            builder.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+            // Hide builder
+            builder.classList.add('generator__builder--hidden');
+            
+            // Reset button text
+            const buttonId = builderType === 'authority-hook'
+                ? 'guest-intro-generator-toggle-authority-builder'
+                : 'guest-intro-generator-toggle-impact-builder';
+            
+            const button = document.getElementById(buttonId);
+            if (button) {
+                button.textContent = builderType === 'authority-hook' ? 'Edit Components' : 'Edit Impact Intro';
+            }
+        }
+    }
+
+    /**
      * Initialize the Guest Intro Generator
      */
     function init() {
@@ -92,6 +137,17 @@
         hookStyleRadios.forEach(radio => {
             radio.addEventListener('change', handleSettingChange);
         });
+
+        // Authority Hook and Impact Intro toggle buttons
+        const authorityToggle = document.getElementById('guest-intro-generator-toggle-authority-builder');
+        if (authorityToggle) {
+            authorityToggle.addEventListener('click', () => toggleBuilder('authority-hook'));
+        }
+
+        const impactToggle = document.getElementById('guest-intro-generator-toggle-impact-builder');
+        if (impactToggle) {
+            impactToggle.addEventListener('click', () => toggleBuilder('impact-intro'));
+        }
     }
 
     /**
@@ -162,17 +218,39 @@
             data[key] = value;
         }
 
-        // Get Authority Hook data if available
-        if (window.authorityHookService && typeof window.authorityHookService.getAuthorityHookData === 'function') {
-            data.authority_hook = window.authorityHookService.getAuthorityHookData();
+        // Get Authority Hook data from the builder fields
+        const authorityHookData = {
+            who: getFieldValue('mkcg-who'),
+            what: getFieldValue('mkcg-result'), 
+            when: getFieldValue('mkcg-when'),
+            how: getFieldValue('mkcg-how')
+        };
+        
+        // Only include authority hook if we have some data
+        if (Object.values(authorityHookData).some(val => val && val.trim())) {
+            data.authority_hook = authorityHookData;
         }
 
-        // Get Impact Intro data if available
-        if (window.impactIntroService && typeof window.impactIntroService.getImpactIntroData === 'function') {
-            data.impact_intro = window.impactIntroService.getImpactIntroData();
+        // Get Impact Intro data from the builder fields
+        const impactIntroData = {
+            where: getFieldValue('mkcg-where'),
+            why: getFieldValue('mkcg-why')
+        };
+        
+        // Only include impact intro if we have some data
+        if (Object.values(impactIntroData).some(val => val && val.trim())) {
+            data.impact_intro = impactIntroData;
         }
 
         return data;
+    }
+
+    /**
+     * Helper function to get field value
+     */
+    function getFieldValue(fieldId) {
+        const field = document.getElementById(fieldId);
+        return field ? field.value.trim() : '';
     }
 
     /**

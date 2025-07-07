@@ -30,6 +30,35 @@ $post_id = isset($_GET['post_id']) ? intval($_GET['post_id']) : 0;
             </div>
 
             <!-- Authority Hook Integration -->
+            <div class="generator__authority-hook">
+                <div class="generator__authority-hook-header">
+                    <span class="generator__authority-hook-icon">★</span>
+                    <h3 class="generator__authority-hook-title">Your Authority Hook</h3>
+                    <span class="generator__badge">AI GENERATED</span>
+                </div>
+                
+                <div class="generator__authority-hook-content">
+                    <p id="guest-intro-generator-authority-hook-text"><?php 
+                        // Show Authority Hook if available
+                        if ($post_id && class_exists('MKCG_Authority_Hook_Service')) {
+                            $authority_hook_service = new MKCG_Authority_Hook_Service();
+                            $authority_hook_data = $authority_hook_service->get_authority_hook_data($post_id);
+                            if (!empty($authority_hook_data['complete'])) {
+                                echo esc_html($authority_hook_data['complete']);
+                            }
+                        }
+                    ?></p>
+                </div>
+                
+                <div class="generator__authority-hook-actions">
+                    <button type="button" class="generator__button generator__button--outline" id="guest-intro-generator-toggle-authority-builder">
+                        Edit Components
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Authority Hook Builder - Expanded/Collapsible -->
+            <div class="generator__builder generator__builder--hidden" id="guest-intro-generator-authority-hook-builder">
             <?php 
             // Initialize Authority Hook Service
             if (class_exists('MKCG_Authority_Hook_Service')) {
@@ -46,14 +75,45 @@ $post_id = isset($_GET['post_id']) ? intval($_GET['post_id']) : 0;
                     'show_examples' => true,
                     'show_audience_manager' => true,
                     'css_classes' => 'authority-hook guest-intro-authority-hook',
+                    'field_prefix' => 'mkcg-',
                     'tabs_enabled' => true
                 );
                 
                 echo $authority_hook_service->render_authority_hook_builder('guest_intro', $authority_hook_data, $render_options);
             }
             ?>
+            </div>
 
             <!-- Impact Intro Integration -->
+            <div class="generator__impact-intro">
+                <div class="generator__impact-intro-header">
+                    <span class="generator__impact-intro-icon">🎯</span>
+                    <h3 class="generator__impact-intro-title">Your Impact Intro</h3>
+                    <span class="generator__badge">CREDENTIALS & MISSION</span>
+                </div>
+                
+                <div class="generator__impact-intro-content">
+                    <p id="guest-intro-generator-impact-intro-text"><?php 
+                        // Show Impact Intro if available
+                        if ($post_id && class_exists('MKCG_Impact_Intro_Service')) {
+                            $impact_intro_service = new MKCG_Impact_Intro_Service();
+                            $impact_intro_data = $impact_intro_service->get_impact_intro_data($post_id);
+                            if (!empty($impact_intro_data['complete'])) {
+                                echo esc_html($impact_intro_data['complete']);
+                            }
+                        }
+                    ?></p>
+                </div>
+                
+                <div class="generator__impact-intro-actions">
+                    <button type="button" class="generator__button generator__button--outline" id="guest-intro-generator-toggle-impact-builder">
+                        Edit Impact Intro
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Impact Intro Builder - Expanded/Collapsible -->
+            <div class="generator__builder generator__builder--hidden" id="guest-intro-generator-impact-intro-builder">
             <?php 
             // Initialize Impact Intro Service
             if (class_exists('MKCG_Impact_Intro_Service')) {
@@ -70,12 +130,14 @@ $post_id = isset($_GET['post_id']) ? intval($_GET['post_id']) : 0;
                     'show_examples' => true,
                     'show_credential_manager' => true,
                     'css_classes' => 'impact-intro guest-intro-impact-intro',
+                    'field_prefix' => 'mkcg-',
                     'tabs_enabled' => true
                 );
                 
                 echo $impact_intro_service->render_impact_intro_builder('guest_intro', $impact_intro_data, $render_options);
             }
             ?>
+            </div>
 
             <!-- Guest Intro Form -->
             <form class="guest-intro-generator__form">
