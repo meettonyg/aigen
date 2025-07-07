@@ -1,45 +1,28 @@
-Fix: Add missing radio button styling for Guest Intro Generator + Standardize Authority Hook/Impact Intro design
+🔧 Fix Tagline Generator: Impact Intro population & Edit Component buttons
 
-ISSUE RESOLVED:
-- Guest Intro Generator radio buttons for "Tone" and "Hook Style" settings had incomplete CSS styling
-- Radio buttons appeared as default browser styling without proper visual feedback for selected states
-- Missing hover effects, focus states, and checked state styling
-- Tagline Generator Authority Hook and Impact Intro sections had inconsistent design compared to Guest Intro Generator
+ROOT-LEVEL FIXES (No patches or workarounds):
 
-SOLUTION IMPLEMENTED:
+## Issue 1: Impact Intro not dynamically populating from ?post_id querystring
+**Root Cause**: Pods service was missing Impact Intro data loading method
+**Solution**: Added complete Impact Intro integration to Pods service
+- ✅ Added get_impact_intro_components() method using Impact Intro Service
+- ✅ Added save_impact_intro_components() method for data persistence
+- ✅ Added get_empty_impact_intro() helper method
+- ✅ Updated get_guest_data() to include 'impact_intro_components'
 
-1. RADIO BUTTON STYLING:
-- Added comprehensive CSS styling for .guest-intro-generator__radio-input elements
-- Implemented custom radio button appearance with cross-browser compatibility
-- Used CSS ::before pseudo-elements for professional radio button design
-- Added proper checked state styling with primary color and visual feedback
-- Enhanced hover and focus states for better user interaction feedback
-- Added visual styling for selected labels with background color and border changes
-- Used consistent BEM methodology and design tokens from unified CSS system
+## Issue 2: Edit Component buttons not working
+**Root Cause**: Event delegation scoped too narrowly + field selector mismatch
+**Solution**: Enhanced event system and corrected field mappings
+- ✅ Changed from container-level to document-level event delegation
+- ✅ Enhanced toggleBuilder() with detailed debugging and verification
+- ✅ Fixed field selector mismatch: #mkcg-impact-where → #mkcg-where
+- ✅ Fixed field selector mismatch: #mkcg-impact-why → #mkcg-why
+- ✅ Updated all field mapping methods (updateImpactIntroInputs, populateImpactIntroFields, bindServiceInputs)
+- ✅ Added button text updates to reflect toggle state
+- ✅ Added comprehensive console logging for debugging
 
-2. DESIGN CONSISTENCY:
-- Updated Tagline Generator to match Guest Intro Generator's Authority Hook and Impact Intro design
-- Changed button text from "Edit Authority Hook" to "Edit Components" for consistency
-- Removed unnecessary eye icons from buttons
-- Updated CSS classes: changed .generator__authority-hook to .generator__impact-intro for Impact Intro section
-- Added placeholder text when sections are empty to provide user guidance
-- Standardized all header, content, and action classes between generators
+**Files Modified**:
+- includes/services/class-mkcg-pods-service.php (Impact Intro integration)
+- assets/js/generators/tagline-generator.js (Event system & field mappings)
 
-TECHNICAL DETAILS:
-- Used appearance: none to override default browser radio styling
-- Implemented ::before pseudo-element for checked state indicator with inset box-shadow
-- Added transition effects for smooth state changes
-- Enhanced accessibility with proper focus outlines
-- Applied consistent spacing and typography using CSS variables
-- Proper BEM methodology with generator-specific prefixes
-
-FILES MODIFIED:
-- assets/css/mkcg-unified-styles.css (Enhanced radio button styling section)
-- templates/generators/tagline/default.php (Standardized Authority Hook and Impact Intro design)
-
-TESTING:
-- Radio buttons now display properly with visual feedback
-- Checked states show clear selection indication
-- Hover and focus states provide proper user interaction feedback
-- Cross-browser compatibility maintained
-- Authority Hook and Impact Intro sections now have consistent design across all generators
+**Testing**: Both issues should now be resolved with proper data loading and working edit buttons.

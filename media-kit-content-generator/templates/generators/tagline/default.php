@@ -11,90 +11,127 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// CLEAN CODE: Simple data loading following Topics Generator pattern
+// ROOT FIX: COMPREHENSIVE DATA LOADING - Following Guest Intro Generator Pattern EXACTLY
 $template_data = [];
 $debug_info = [];
 
 // Primary Method: Try to get data from generator instance
 if (isset($generator_instance) && method_exists($generator_instance, 'get_template_data')) {
     $template_data = $generator_instance->get_template_data();
-    $debug_info[] = '✅ Got data from Tagline generator instance';
+    $debug_info[] = '✅ Got data from generator instance';
     error_log('MKCG Tagline Template: Got data from generator instance');
 } else {
-    $debug_info[] = '⚠️ Tagline generator instance not available';
+    $debug_info[] = '⚠️ Generator instance not available';
     
-    // Fallback Method: Try direct Pods service
-    if (class_exists('MKCG_Pods_Service')) {
-        $pods_service = new MKCG_Pods_Service();
+    // Try to get post ID from various sources
+    $post_id = 0;
+    if (isset($_GET['post_id']) && intval($_GET['post_id']) > 0) {
+        $post_id = intval($_GET['post_id']);
+        $debug_info[] = "📍 Using post_id from URL: {$post_id}";
+    } else if (isset($_GET['entry']) && intval($_GET['entry']) > 0) {
+        $post_id = intval($_GET['entry']);
+        $debug_info[] = "📍 Using entry from URL: {$post_id}";
+    } else {
+        // Get the most recent guest post for testing
+        $recent_guest = get_posts([
+            'post_type' => 'guests',
+            'post_status' => 'publish',
+            'numberposts' => 1,
+            'orderby' => 'date',
+            'order' => 'DESC'
+        ]);
+        if (!empty($recent_guest)) {
+            $post_id = $recent_guest[0]->ID;
+            $debug_info[] = "🎯 Using most recent guest post: {$post_id}";
+        }
+    }
+    
+    if ($post_id > 0) {
+        // ROOT FIX: Load Authority Hook and Impact Intro data using services - SAME as Guest Intro
+        $authority_hook_components = [];
+        $impact_intro_components = [];
         
-        // Try to get post ID from various sources
-        $post_id = 0;
-        if (isset($_GET['post_id']) && intval($_GET['post_id']) > 0) {
-            $post_id = intval($_GET['post_id']);
-            $debug_info[] = "📍 Using post_id from URL: {$post_id}";
-        } else if (isset($_GET['entry']) && intval($_GET['entry']) > 0) {
-            $post_id = intval($_GET['entry']);
-            $debug_info[] = "📍 Using entry from URL: {$post_id}";
-        } else {
-            // Get the most recent guest post for testing
-            $recent_guest = get_posts([
-                'post_type' => 'guests',
-                'post_status' => 'publish',
-                'numberposts' => 1,
-                'orderby' => 'date',
-                'order' => 'DESC'
-            ]);
-            if (!empty($recent_guest)) {
-                $post_id = $recent_guest[0]->ID;
-                $debug_info[] = "🎯 Using most recent guest post: {$post_id}";
+        // Load Authority Hook data
+        if (class_exists('MKCG_Authority_Hook_Service')) {
+            try {
+                $authority_hook_service = new MKCG_Authority_Hook_Service();
+                $authority_hook_data = $authority_hook_service->get_authority_hook_data($post_id);
+                
+                if (!empty($authority_hook_data)) {
+                    $authority_hook_components = [
+                        'who' => $authority_hook_data['components']['who'] ?? '',
+                        'what' => $authority_hook_data['components']['what'] ?? '',
+                        'when' => $authority_hook_data['components']['when'] ?? '',
+                        'how' => $authority_hook_data['components']['how'] ?? '',
+                        'complete' => $authority_hook_data['complete'] ?? ''
+                    ];
+                    $debug_info[] = "✅ Authority Hook loaded: " . strlen($authority_hook_components['complete']) . " chars";
+                } else {
+                    $debug_info[] = "⚠️ Authority Hook service returned empty data";
+                }
+            } catch (Exception $e) {
+                $debug_info[] = "❌ Authority Hook service error: " . $e->getMessage();
             }
         }
         
-        if ($post_id > 0) {
-            $guest_data = $pods_service->get_guest_data($post_id);
-            
-            // Get tagline-specific data from post meta
-            $tagline_data = [
-                'selected_tagline' => get_post_meta($post_id, '_selected_tagline', true),
-                'generated_taglines' => get_post_meta($post_id, '_generated_taglines', true) ?: [],
-                'tagline_style' => get_post_meta($post_id, '_tagline_style', true) ?: 'problem-focused',
-                'tagline_tone' => get_post_meta($post_id, '_tagline_tone', true) ?: 'professional',
-                'tagline_length' => get_post_meta($post_id, '_tagline_length', true) ?: 'medium'
-            ];
-            
-            $additional_context = [
-                'industry' => get_post_meta($post_id, '_guest_industry', true),
-                'unique_factors' => get_post_meta($post_id, '_tagline_unique_factors', true),
-                'existing_taglines' => get_post_meta($post_id, '_tagline_existing', true)
-            ];
-            
-            $personal_info = [
-                'name' => get_post_meta($post_id, '_guest_name', true) ?: get_the_title($post_id),
-                'title' => get_post_meta($post_id, '_guest_title', true),
-                'organization' => get_post_meta($post_id, '_guest_company', true)
-            ];
-            
-            $template_data = [
-                'post_id' => $post_id,
-                'authority_hook_components' => $guest_data['authority_hook_components'],
-                'impact_intro_components' => $guest_data['impact_intro_components'],
-                'tagline_data' => $tagline_data,
-                'additional_context' => $additional_context,
-                'personal_info' => $personal_info,
-                'has_data' => $guest_data['has_data'] || !empty($tagline_data['selected_tagline'])
-            ];
-            $debug_info[] = "✅ Loaded data via direct Pods service";
-            $debug_info[] = "👤 Name: " . $personal_info['name'];
-            $debug_info[] = "🔑 Authority hook WHO: " . $guest_data['authority_hook_components']['who'];
-        } else {
-            $debug_info[] = "❌ No valid post ID found";
+        // ROOT FIX: Load Impact Intro data - EXACTLY as Guest Intro does
+        if (class_exists('MKCG_Impact_Intro_Service')) {
+            try {
+                $impact_intro_service = new MKCG_Impact_Intro_Service();
+                $impact_intro_data = $impact_intro_service->get_impact_intro_data($post_id);
+                
+                if (!empty($impact_intro_data)) {
+                    $impact_intro_components = [
+                        'where' => $impact_intro_data['components']['where'] ?? '',
+                        'why' => $impact_intro_data['components']['why'] ?? '',
+                        'complete' => $impact_intro_data['complete'] ?? ''
+                    ];
+                    $debug_info[] = "✅ Impact Intro loaded: " . strlen($impact_intro_components['complete']) . " chars";
+                } else {
+                    $debug_info[] = "⚠️ Impact Intro service returned empty data";
+                }
+            } catch (Exception $e) {
+                $debug_info[] = "❌ Impact Intro service error: " . $e->getMessage();
+            }
         }
+        
+        // Load tagline-specific data
+        $tagline_data = [
+            'selected_tagline' => get_post_meta($post_id, '_selected_tagline', true),
+            'generated_taglines' => get_post_meta($post_id, '_generated_taglines', true) ?: [],
+            'style' => get_post_meta($post_id, '_tagline_style', true) ?: 'problem-focused',
+            'tone' => get_post_meta($post_id, '_tagline_tone', true) ?: 'professional',
+            'length' => get_post_meta($post_id, '_tagline_length', true) ?: 'medium'
+        ];
+        
+        $additional_context = [
+            'industry' => get_post_meta($post_id, '_guest_industry', true),
+            'unique_factors' => get_post_meta($post_id, '_tagline_unique_factors', true),
+            'existing_taglines' => get_post_meta($post_id, '_tagline_existing', true)
+        ];
+        
+        $personal_info = [
+            'name' => get_post_meta($post_id, '_guest_name', true) ?: get_the_title($post_id),
+            'title' => get_post_meta($post_id, '_guest_title', true),
+            'organization' => get_post_meta($post_id, '_guest_company', true)
+        ];
+        
+        $template_data = [
+            'post_id' => $post_id,
+            'authority_hook_components' => $authority_hook_components,
+            'impact_intro_components' => $impact_intro_components,
+            'tagline_data' => $tagline_data,
+            'additional_context' => $additional_context,
+            'personal_info' => $personal_info,
+            'has_data' => !empty($authority_hook_components['complete']) || !empty($impact_intro_components['complete'])
+        ];
+        
+        $debug_info[] = "✅ Template data loaded for post {$post_id}";
+        
     } else {
-        $debug_info[] = "❌ MKCG_Pods_Service not available";
-    }
-    
-    // Fallback: Create empty structure when no data found
-    if (empty($template_data)) {
+        $debug_info[] = "❌ No valid post ID found";
+        
+        // Create empty structure when no data found
         $template_data = [
             'post_id' => 0,
             'authority_hook_components' => [
@@ -112,9 +149,9 @@ if (isset($generator_instance) && method_exists($generator_instance, 'get_templa
             'tagline_data' => [
                 'selected_tagline' => '',
                 'generated_taglines' => [],
-                'tagline_style' => 'problem-focused',
-                'tagline_tone' => 'professional',
-                'tagline_length' => 'medium'
+                'style' => 'problem-focused',
+                'tone' => 'professional',
+                'length' => 'medium'
             ],
             'additional_context' => [
                 'industry' => '',
@@ -128,7 +165,6 @@ if (isset($generator_instance) && method_exists($generator_instance, 'get_templa
             ],
             'has_data' => false
         ];
-        $debug_info[] = "⚠️ Using empty structure (no data found)";
     }
     
     error_log('MKCG Tagline Template: ' . implode(' | ', $debug_info));
@@ -143,7 +179,10 @@ $additional_context = $template_data['additional_context'];
 $personal_info = $template_data['personal_info'];
 $has_data = $template_data['has_data'];
 
-error_log('MKCG Tagline Template: Rendering with post_id=' . $post_id . ', has_data=' . ($has_data ? 'true' : 'false'));
+// Debug logging - same as Guest Intro
+error_log('MKCG Tagline Template: Authority Hook Complete: ' . ($authority_hook_components['complete'] ?? 'EMPTY'));
+error_log('MKCG Tagline Template: Impact Intro Complete: ' . ($impact_intro_components['complete'] ?? 'EMPTY'));
+error_log('MKCG Tagline Template: Has Data: ' . ($has_data ? 'true' : 'false'));
 ?>
 
 <div class="generator__container tagline-generator" data-generator="tagline">
@@ -172,18 +211,12 @@ error_log('MKCG Tagline Template: Rendering with post_id=' . $post_id . ', has_d
                 
                 <div class="generator__authority-hook-content">
                     <p id="tagline-generator-authority-hook-text"><?php 
-                        // CLEAN CODE: Show text only when all components have real data
-                        $all_components_exist = !empty($authority_hook_components['who']) && 
-                                                !empty($authority_hook_components['what']) && 
-                                                !empty($authority_hook_components['when']) && 
-                                                !empty($authority_hook_components['how']);
-
-                        if ($all_components_exist) {
+                        // ROOT FIX: Show Authority Hook content if available - exactly like Guest Intro
+                        if (!empty($authority_hook_components['complete'])) {
                             echo esc_html($authority_hook_components['complete']);
                         } else {
                             echo '<em style="color: #666;">Authority Hook will appear here once you fill in the WHO, WHAT, WHEN, and HOW components below.</em>';
                         }
-                        // Empty when incomplete - no defaults
                     ?></p>
                 </div>
                 
@@ -194,55 +227,25 @@ error_log('MKCG Tagline Template: Rendering with post_id=' . $post_id . ', has_d
                 </div>
             </div>
             
-            <!-- Authority Hook Builder - Centralized Service -->
-            <div class="generator__builder generator__builder--hidden tagline-authority-hook-builder" id="tagline-generator-authority-hook-builder" data-component="authority-hook">
-                <?php
-                // Get Authority Hook Service
-                $authority_hook_service = null;
-                if (isset($GLOBALS['authority_hook_service'])) {
-                    $authority_hook_service = $GLOBALS['authority_hook_service'];
-                } else {
-                    // Create new instance if not available
-                    if (!class_exists('MKCG_Authority_Hook_Service')) {
-                        $service_path = defined('MKCG_PLUGIN_PATH') 
-                            ? MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-authority-hook-service.php'
-                            : dirname(dirname(dirname(__FILE__))) . '/includes/services/class-mkcg-authority-hook-service.php';
-                        require_once $service_path;
-                    }
-                    $authority_hook_service = new MKCG_Authority_Hook_Service();
-                    $GLOBALS['authority_hook_service'] = $authority_hook_service;
-                }
+            <!-- Authority Hook Builder - ROOT FIX: Render using service exactly like Guest Intro -->
+            <div class="generator__builder generator__builder--hidden" id="tagline-generator-authority-hook-builder">
+            <?php 
+            // ROOT FIX: Render Authority Hook Builder using loaded data - SAME as Guest Intro
+            if (class_exists('MKCG_Authority_Hook_Service')) {
+                $authority_hook_service = new MKCG_Authority_Hook_Service();
                 
-                if ($authority_hook_service) {
-                    // CLEAN CODE: Pass values as-is to Authority Hook Service
-                    $current_values = [
-                        'who' => $authority_hook_components['who'] ?? '',
-                        'what' => $authority_hook_components['what'] ?? '', 
-                        'when' => $authority_hook_components['when'] ?? '',
-                        'how' => $authority_hook_components['how'] ?? ''
-                    ];
-                    
-                    error_log('MKCG Tagline Template: Authority Hook Components: ' . json_encode($authority_hook_components));
-                    error_log('MKCG Tagline Template: Current Values: ' . json_encode($current_values));
-                    
-                    // Render options for Tagline Generator
-                    $render_options = [
-                        'show_preview' => false, // Tagline doesn't need preview in builder
-                        'show_examples' => true,
-                        'show_audience_manager' => true,
-                        'css_classes' => 'authority-hook',
-                        'field_prefix' => 'mkcg-',
-                        'tabs_enabled' => true
-                    ];
-                    
-                    // Render Authority Hook Builder
-                    echo $authority_hook_service->render_authority_hook_builder('tagline', $current_values, $render_options);
-                    error_log('MKCG Tagline: Authority Hook Builder rendered via centralized service');
-                } else {
-                    echo '<div class="generator__message generator__message--error">Authority Hook Service not available</div>';
-                    error_log('MKCG Tagline: ERROR - Authority Hook Service not available');
-                }
-                ?>
+                $render_options = array(
+                    'show_preview' => false,
+                    'show_examples' => true,
+                    'show_audience_manager' => true,
+                    'css_classes' => 'authority-hook tagline-authority-hook',
+                    'field_prefix' => 'mkcg-',
+                    'tabs_enabled' => true
+                );
+                
+                echo $authority_hook_service->render_authority_hook_builder('tagline', $authority_hook_components, $render_options);
+            }
+            ?>
             </div>
             
             <!-- Impact Intro Section -->
@@ -255,16 +258,12 @@ error_log('MKCG Tagline Template: Rendering with post_id=' . $post_id . ', has_d
                 
                 <div class="generator__impact-intro-content">
                     <p id="tagline-generator-impact-intro-text"><?php 
-                        // CLEAN CODE: Show text only when components have real data
-                        $impact_components_exist = !empty($impact_intro_components['where']) && 
-                                                  !empty($impact_intro_components['why']);
-
-                        if ($impact_components_exist) {
+                        // ROOT FIX: Show Impact Intro content if available - exactly like Guest Intro
+                        if (!empty($impact_intro_components['complete'])) {
                             echo esc_html($impact_intro_components['complete']);
                         } else {
                             echo '<em style="color: #666;">Impact Intro will appear here once you fill in the WHERE credentials and WHY mission components below.</em>';
                         }
-                        // Empty when incomplete - no defaults
                     ?></p>
                 </div>
                 
@@ -275,53 +274,25 @@ error_log('MKCG Tagline Template: Rendering with post_id=' . $post_id . ', has_d
                 </div>
             </div>
             
-            <!-- Impact Intro Builder - Centralized Service -->
-            <div class="generator__builder generator__builder--hidden tagline-impact-intro-builder" id="tagline-generator-impact-intro-builder" data-component="impact-intro">
-                <?php
-                // Get Impact Intro Service
-                $impact_intro_service = null;
-                if (isset($GLOBALS['impact_intro_service'])) {
-                    $impact_intro_service = $GLOBALS['impact_intro_service'];
-                } else {
-                    // Create new instance if not available
-                    if (!class_exists('MKCG_Impact_Intro_Service')) {
-                        $service_path = defined('MKCG_PLUGIN_PATH') 
-                            ? MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-impact-intro-service.php'
-                            : dirname(dirname(dirname(__FILE__))) . '/includes/services/class-mkcg-impact-intro-service.php';
-                        require_once $service_path;
-                    }
-                    $impact_intro_service = new MKCG_Impact_Intro_Service();
-                    $GLOBALS['impact_intro_service'] = $impact_intro_service;
-                }
+            <!-- Impact Intro Builder - ROOT FIX: Render using service exactly like Guest Intro -->
+            <div class="generator__builder generator__builder--hidden" id="tagline-generator-impact-intro-builder">
+            <?php 
+            // ROOT FIX: Render Impact Intro Builder using loaded data - SAME as Guest Intro
+            if (class_exists('MKCG_Impact_Intro_Service')) {
+                $impact_intro_service = new MKCG_Impact_Intro_Service();
                 
-                if ($impact_intro_service) {
-                    // CLEAN CODE: Pass values as-is to Impact Intro Service
-                    $current_impact_values = [
-                        'where' => $impact_intro_components['where'] ?? '',
-                        'why' => $impact_intro_components['why'] ?? ''
-                    ];
-                    
-                    error_log('MKCG Tagline Template: Impact Intro Components: ' . json_encode($impact_intro_components));
-                    error_log('MKCG Tagline Template: Current Impact Values: ' . json_encode($current_impact_values));
-                    
-                    // Render options for Tagline Generator
-                    $render_options = [
-                        'show_preview' => false, // Tagline doesn't need preview in builder
-                        'show_examples' => true,
-                        'show_credential_manager' => true,
-                        'css_classes' => 'impact-intro',
-                        'field_prefix' => 'mkcg-',
-                        'tabs_enabled' => true
-                    ];
-                    
-                    // Render Impact Intro Builder
-                    echo $impact_intro_service->render_impact_intro_builder('tagline', $current_impact_values, $render_options);
-                    error_log('MKCG Tagline: Impact Intro Builder rendered via centralized service');
-                } else {
-                    echo '<div class="generator__message generator__message--error">Impact Intro Service not available</div>';
-                    error_log('MKCG Tagline: ERROR - Impact Intro Service not available');
-                }
-                ?>
+                $render_options = array(
+                    'show_preview' => false,
+                    'show_examples' => true,
+                    'show_credential_manager' => true,
+                    'css_classes' => 'impact-intro tagline-impact-intro',
+                    'field_prefix' => 'mkcg-',
+                    'tabs_enabled' => true
+                );
+                
+                echo $impact_intro_service->render_impact_intro_builder('tagline', $impact_intro_components, $render_options);
+            }
+            ?>
             </div>
             
             <!-- Additional Context Section -->
@@ -464,13 +435,10 @@ error_log('MKCG Tagline Template: Rendering with post_id=' . $post_id . ', has_d
                 </div>
             </div>
             
-            <!-- Hidden fields for data transmission - Pure Pods -->
-            <input type="hidden" id="tagline-post-id" value="<?php echo esc_attr($post_id); ?>">
-            <input type="hidden" id="tagline-nonce" value="<?php echo wp_create_nonce('mkcg_nonce'); ?>">
-            
-            <!-- Data storage for services -->
-            <input type="hidden" id="mkcg-authority-hook" name="authority_hook" value="">
-            <input type="hidden" id="mkcg-impact-intro" name="impact_intro" value="">
+            <!-- Hidden fields for data transmission -->
+            <?php if ($post_id): ?>
+                <input type="hidden" name="post_id" value="<?php echo esc_attr($post_id); ?>">
+            <?php endif; ?>
         </div>
         
         <!-- RIGHT PANEL -->
@@ -578,23 +546,13 @@ error_log('MKCG Tagline Template: Rendering with post_id=' . $post_id . ', has_d
 
 <!-- Pass PHP data to JavaScript -->
 <script type="text/javascript">
-    // Tagline Generator data for JavaScript - Pure Pods integration
+    // MKCG Debug Info
     console.log('🎯 MKCG Tagline: Template data loaded', {
         postId: <?php echo intval($post_id); ?>,
         hasData: <?php echo $has_data ? 'true' : 'false'; ?>
     });
     
-    // ENHANCED DEBUG: Show what data we're passing to JavaScript
-    console.log('🔍 Authority Hook Components from PHP:', <?php echo json_encode($authority_hook_components); ?>);
-    console.log('🔍 Impact Intro Components from PHP:', <?php echo json_encode($impact_intro_components); ?>);
-    console.log('🔍 Personal Info from PHP:', <?php echo json_encode($personal_info); ?>);
-    console.log('🔍 Tagline Data from PHP:', <?php echo json_encode($tagline_data); ?>);
-    console.log('🔍 Current URL parameters:', {
-        entry: '<?php echo esc_js($_GET['entry'] ?? ''); ?>',
-        post_id: '<?php echo esc_js($_GET['post_id'] ?? ''); ?>'
-    });
-    
-    // CLEAN CODE: Template data - always empty defaults, loads real data if exists
+    // Pass PHP data to JavaScript
     window.MKCG_Tagline_Data = {
         postId: <?php echo intval($post_id); ?>,
         hasData: <?php echo $has_data ? 'true' : 'false'; ?>,
@@ -609,76 +567,36 @@ error_log('MKCG Tagline Template: Rendering with post_id=' . $post_id . ', has_d
             where: '<?php echo esc_js($impact_intro_components['where'] ?? ''); ?>',
             why: '<?php echo esc_js($impact_intro_components['why'] ?? ''); ?>',
             complete: '<?php echo esc_js($impact_intro_components['complete'] ?? ''); ?>'
-        },
-        personalInfo: {
-            name: '<?php echo esc_js($personal_info['name'] ?? ''); ?>',
-            title: '<?php echo esc_js($personal_info['title'] ?? ''); ?>',
-            organization: '<?php echo esc_js($personal_info['organization'] ?? ''); ?>'
-        },
-        additionalContext: {
-            industry: '<?php echo esc_js($additional_context['industry'] ?? ''); ?>',
-            uniqueFactors: '<?php echo esc_js($additional_context['unique_factors'] ?? ''); ?>',
-            existingTaglines: '<?php echo esc_js($additional_context['existing_taglines'] ?? ''); ?>'
-        },
-        taglineData: {
-            selectedTagline: '<?php echo esc_js($tagline_data['selected_tagline'] ?? ''); ?>',
-            generatedTaglines: <?php echo json_encode($tagline_data['generated_taglines']); ?>,
-            style: '<?php echo esc_js($tagline_data['tagline_style'] ?? 'problem-focused'); ?>',
-            tone: '<?php echo esc_js($tagline_data['tagline_tone'] ?? 'professional'); ?>',
-            length: '<?php echo esc_js($tagline_data['tagline_length'] ?? 'medium'); ?>'
-        },
-        dataSource: '<?php echo isset($generator_instance) ? 'generator_instance' : 'fallback'; ?>'
+        }
     };
     
-    console.log('✅ MKCG Tagline: Final data loaded', window.MKCG_Tagline_Data);
+    console.log('✅ MKCG Tagline: Data loaded', window.MKCG_Tagline_Data);
     
     // Set up AJAX URL for WordPress
     if (!window.ajaxurl) {
         window.ajaxurl = '<?php echo admin_url('admin-ajax.php'); ?>';
     }
-    
-    // CRITICAL DEBUG: Check for immediate population
-    if (window.MKCG_Tagline_Data.hasData) {
-        console.log('📋 MKCG Tagline: Data found - should populate automatically');
-        
-        // ROOT FIX: Check if authority hook text element exists and populate if needed
-        const hookText = document.getElementById('tagline-generator-authority-hook-text');
-        if (hookText) {
-            console.log('✅ Authority hook element found with text:', hookText.textContent);
-            
-            // ROOT FIX: If element is empty but we have authority hook data, populate it
-            if (!hookText.textContent.trim() && window.MKCG_Tagline_Data.authorityHook.complete) {
-                hookText.textContent = window.MKCG_Tagline_Data.authorityHook.complete;
-                console.log('✅ Populated empty authority hook element with template data');
+
+    // Register tagline generator script
+    if (typeof wp !== 'undefined' && wp.hooks && wp.hooks.addAction) {
+        wp.hooks.addAction('mkcg.scriptsLoaded', 'mkcg/tagline', function() {
+            console.log('Loading Tagline Generator script');
+            if (document.querySelector('.tagline-generator')) {
+                const script = document.createElement('script');
+                script.src = '<?php echo MKCG_PLUGIN_URL; ?>assets/js/generators/tagline-generator.js';
+                script.async = true;
+                document.head.appendChild(script);
             }
-        } else {
-            console.error('❌ Authority hook element not found - check selector mismatch');
-        }
-        
-        // Check if impact intro element exists and populate if needed
-        const impactText = document.getElementById('tagline-generator-impact-intro-text');
-        if (impactText) {
-            console.log('✅ Impact intro element found with text:', impactText.textContent);
-            
-            if (!impactText.textContent.trim() && window.MKCG_Tagline_Data.impactIntro.complete) {
-                impactText.textContent = window.MKCG_Tagline_Data.impactIntro.complete;
-                console.log('✅ Populated empty impact intro element with template data');
-            }
-        }
-        
+        });
     } else {
-        console.log('⚠️ MKCG Tagline: No data found - using defaults');
+        // Fallback for non-WordPress environments
+        document.addEventListener('DOMContentLoaded', function() {
+            if (document.querySelector('.tagline-generator')) {
+                const script = document.createElement('script');
+                script.src = '<?php echo MKCG_PLUGIN_URL; ?>assets/js/generators/tagline-generator.js';
+                script.async = true;
+                document.head.appendChild(script);
+            }
+        });
     }
-    
-    console.log('✅ MKCG Tagline: Template loaded - Pure Pods integration applied');
-    
-    // Load cross-browser compatibility utilities
-    document.addEventListener('DOMContentLoaded', function() {
-        if (window.MKCG_Compatibility && typeof window.MKCG_Compatibility.init === 'function') {
-            console.log('✅ Initializing cross-browser compatibility utilities');
-            window.MKCG_Compatibility.init();
-        } else {
-            console.log('⚠️ Cross-browser compatibility utilities not available');
-        }
-    });
 </script>

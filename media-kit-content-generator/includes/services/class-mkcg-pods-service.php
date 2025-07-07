@@ -37,6 +37,7 @@ class MKCG_Pods_Service {
             'has_data' => true,
             'topics' => $this->get_topics($post_id),
             'authority_hook_components' => $this->get_authority_hook_components($post_id),
+            'impact_intro_components' => $this->get_impact_intro_components($post_id),
             'questions' => $this->get_questions($post_id),
             'contact' => $this->get_contact_info($post_id),
             'messaging' => $this->get_messaging_info($post_id)
@@ -101,6 +102,40 @@ class MKCG_Pods_Service {
         // Fallback to empty structure (no defaults)
         error_log('MKCG Pods Service: Authority Hook Service returned no data, using empty structure');
         return $this->get_empty_authority_hook();
+    }
+    
+    /**
+     * ROOT FIX: Get impact intro components using the cleaned Impact Intro Service
+     * This ensures unified data handling and eliminates default values at the source
+     */
+    public function get_impact_intro_components($post_id) {
+        error_log('MKCG Pods Service: get_impact_intro_components() - Using Impact Intro Service');
+        
+        // ROOT FIX: Load the cleaned Impact Intro Service if not already loaded
+        if (!isset($this->impact_intro_service)) {
+            if (!class_exists('MKCG_Impact_Intro_Service')) {
+                require_once dirname(__FILE__) . '/class-mkcg-impact-intro-service.php';
+            }
+            $this->impact_intro_service = new MKCG_Impact_Intro_Service();
+        }
+        
+        // ROOT FIX: Use the cleaned Impact Intro Service instead of our own logic
+        $impact_intro_data = $this->impact_intro_service->get_impact_intro_data($post_id);
+        
+        if ($impact_intro_data && isset($impact_intro_data['components'])) {
+            $components = $impact_intro_data['components'];
+            
+            // Add the complete intro
+            $components['complete'] = $impact_intro_data['complete_intro'] ?? '';
+            
+            error_log('MKCG Pods Service: Using cleaned Impact Intro Service data: ' . json_encode($components));
+            
+            return $components;
+        }
+        
+        // Fallback to empty structure (no defaults)
+        error_log('MKCG Pods Service: Impact Intro Service returned no data, using empty structure');
+        return $this->get_empty_impact_intro();
     }
     
     /**
@@ -206,6 +241,32 @@ class MKCG_Pods_Service {
         $result = $this->authority_hook_service->save_authority_hook_data($post_id, $hook_data);
         
         error_log('MKCG Pods Service: Authority Hook Service save result: ' . json_encode($result));
+        
+        return $result;
+    }
+    
+    /**
+     * ROOT FIX: Save impact intro components using the cleaned Impact Intro Service
+     */
+    public function save_impact_intro_components($post_id, $intro_data) {
+        if (!$post_id || empty($intro_data)) {
+            return ['success' => false, 'message' => 'Invalid parameters'];
+        }
+        
+        error_log('MKCG Pods Service: save_impact_intro_components() - Using Impact Intro Service');
+        
+        // ROOT FIX: Load the cleaned Impact Intro Service if not already loaded
+        if (!isset($this->impact_intro_service)) {
+            if (!class_exists('MKCG_Impact_Intro_Service')) {
+                require_once dirname(__FILE__) . '/class-mkcg-impact-intro-service.php';
+            }
+            $this->impact_intro_service = new MKCG_Impact_Intro_Service();
+        }
+        
+        // ROOT FIX: Use the cleaned Impact Intro Service for saving
+        $result = $this->impact_intro_service->save_impact_intro_data($post_id, $intro_data);
+        
+        error_log('MKCG Pods Service: Impact Intro Service save result: ' . json_encode($result));
         
         return $result;
     }
@@ -408,6 +469,17 @@ class MKCG_Pods_Service {
             'what' => '',
             'when' => '',
             'how' => '',
+            'where' => '',
+            'why' => '',
+            'complete' => ''
+        ];
+    }
+    
+    /**
+     * ROOT FIX: Get empty impact intro structure - NO DEFAULTS
+     */
+    private function get_empty_impact_intro() {
+        return [
             'where' => '',
             'why' => '',
             'complete' => ''

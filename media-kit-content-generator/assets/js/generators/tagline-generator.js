@@ -250,12 +250,12 @@
     },
     
     /**
-     * Update Impact Intro input fields
+     * Update Impact Intro input fields - ROOT FIX: Corrected field selectors
      */
     updateImpactIntroInputs: function() {
       const fieldMappings = [
-        { field: 'where', selector: '#mkcg-impact-where' },
-        { field: 'why', selector: '#mkcg-impact-why' }
+        { field: 'where', selector: '#mkcg-where' },
+        { field: 'why', selector: '#mkcg-why' }
       ];
       
       let fieldsFound = 0;
@@ -315,46 +315,64 @@
     },
     
     /**
-     * Bind events - Following Topics/Biography Generator pattern with tagline enhancements
+     * Set up all event listeners - ROOT FIX: Using Guest Intro Generator pattern
      */
     bindEvents: function() {
-      // Use event delegation for better performance
-      const containerLeft = document.querySelector('.generator__panel--left');
-      if (containerLeft) {
-        // Delegate button clicks
-        containerLeft.addEventListener('click', (e) => {
-          const target = e.target.closest('button');
-          if (!target) return;
-          
-          // Handle button clicks based on ID
-          if (target.id === 'tagline-generator-toggle-authority-builder') {
-            e.preventDefault();
-            this.toggleBuilder('tagline-generator-authority-hook-builder', 'authority');
-          } else if (target.id === 'tagline-generator-toggle-impact-builder') {
-            e.preventDefault();
-            this.toggleBuilder('tagline-generator-impact-intro-builder', 'impact');
-          } else if (target.id === 'tagline-preview-data') {
-            e.preventDefault();
-            this.previewData();
-          } else if (target.id === 'tagline-generate-with-ai') {
-            e.preventDefault();
-            console.log('🔘 Generate taglines button clicked');
-            this.generateTaglines();
-          } else if (target.classList.contains('tagline-generator__option-copy')) {
-            e.preventDefault();
-            this.copyTaglineToClipboard(target);
-          } else if (target.classList.contains('tagline-generator__option-select')) {
-            e.preventDefault();
-            this.selectTagline(target);
-          } else if (target.id === 'tagline-copy-selected') {
-            e.preventDefault();
-            this.copySelectedTagline();
-          } else if (target.id === 'tagline-save-selected') {
-            e.preventDefault();
-            this.saveSelectedTagline();
-          }
-        });
+      // Authority Hook and Impact Intro toggle buttons - same as Guest Intro
+      const authorityToggle = document.getElementById('tagline-generator-toggle-authority-builder');
+      if (authorityToggle) {
+          authorityToggle.addEventListener('click', () => this.toggleBuilder('authority-hook'));
       }
+
+      const impactToggle = document.getElementById('tagline-generator-toggle-impact-builder');
+      if (impactToggle) {
+          impactToggle.addEventListener('click', () => this.toggleBuilder('impact-intro'));
+      }
+      
+      // Generate and preview buttons
+      const generateButton = document.getElementById('tagline-generate-with-ai');
+      if (generateButton) {
+          generateButton.addEventListener('click', (e) => {
+              e.preventDefault();
+              this.generateTaglines();
+          });
+      }
+      
+      const previewButton = document.getElementById('tagline-preview-data');
+      if (previewButton) {
+          previewButton.addEventListener('click', (e) => {
+              e.preventDefault();
+              this.previewData();
+          });
+      }
+      
+      // Copy and save selected tagline buttons
+      const copySelectedButton = document.getElementById('tagline-copy-selected');
+      if (copySelectedButton) {
+          copySelectedButton.addEventListener('click', (e) => {
+              e.preventDefault();
+              this.copySelectedTagline();
+          });
+      }
+      
+      const saveSelectedButton = document.getElementById('tagline-save-selected');
+      if (saveSelectedButton) {
+          saveSelectedButton.addEventListener('click', (e) => {
+              e.preventDefault();
+              this.saveSelectedTagline();
+          });
+      }
+      
+      // Document-level delegation for dynamically created tagline options
+      document.addEventListener('click', (e) => {
+        if (e.target.closest('.tagline-generator__option-copy')) {
+          e.preventDefault();
+          this.copyTaglineToClipboard(e.target.closest('.tagline-generator__option-copy'));
+        } else if (e.target.closest('.tagline-generator__option-select')) {
+          e.preventDefault();
+          this.selectTagline(e.target.closest('.tagline-generator__option-select'));
+        }
+      });
       
       // Authority Hook input events with debounced input handling
       this.bindServiceInputs('authority');
@@ -411,8 +429,8 @@
           'mkcg-how': 'how'
         } : 
         {
-          'mkcg-impact-where': 'where',
-          'mkcg-impact-why': 'why'
+          'mkcg-where': 'where',
+          'mkcg-why': 'why'
         };
       
       // Create debounced update function
@@ -505,41 +523,53 @@
     },
     
     /**
-     * Toggle service builder visibility
+     * Toggle builder visibility - ROOT FIX: Following Guest Intro Generator pattern
      */
-    toggleBuilder: function(builderId, serviceType) {
-      const builder = document.querySelector(`#${builderId}`);
-      if (!builder) {
-        console.warn(`⚠️ Builder not found: #${builderId}`);
-        return;
-      }
-      
-      const isHidden = builder.classList.contains('generator__builder--hidden');
-      
-      if (isHidden) {
-        builder.classList.remove('generator__builder--hidden');
-        console.log(`✅ ${serviceType} Builder shown`);
+    toggleBuilder: function(builderType) {
+        const builderId = builderType === 'authority-hook' 
+            ? 'tagline-generator-authority-hook-builder'
+            : 'tagline-generator-impact-intro-builder';
         
-        // Auto-populate fields when builder becomes visible
-        setTimeout(() => {
-          if (serviceType === 'authority') {
-            this.populateAuthorityHookFields();
-          } else if (serviceType === 'impact') {
-            this.populateImpactIntroFields();
-          }
-        }, 100);
-      } else {
-        builder.classList.add('generator__builder--hidden');
-        console.log(`✅ ${serviceType} Builder hidden`);
-      }
-      
-      // Trigger centralized service for UX enhancements
-      if (window.AuthorityHookBuilder && serviceType === 'authority') {
-        window.AuthorityHookBuilder.updateToggleButtonState(
-          'tagline-generator-toggle-authority-builder',
-          'tagline-generator-authority-hook-builder'
-        );
-      }
+        const builder = document.getElementById(builderId);
+        if (!builder) return;
+        
+        const isHidden = builder.classList.contains('generator__builder--hidden');
+        
+        if (isHidden) {
+            // Show builder
+            builder.classList.remove('generator__builder--hidden');
+            
+            // Update button text
+            const buttonId = builderType === 'authority-hook'
+                ? 'tagline-generator-toggle-authority-builder'
+                : 'tagline-generator-toggle-impact-builder';
+            
+            const button = document.getElementById(buttonId);
+            if (button) {
+                button.textContent = builderType === 'authority-hook' ? 'Hide Components' : 'Hide Impact Intro';
+            }
+            
+            // Populate fields with existing data
+            setTimeout(() => {
+                this.populateBuilderFields(builderType);
+            }, 100);
+            
+            // Scroll to builder
+            builder.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+            // Hide builder
+            builder.classList.add('generator__builder--hidden');
+            
+            // Reset button text
+            const buttonId = builderType === 'authority-hook'
+                ? 'tagline-generator-toggle-authority-builder'
+                : 'tagline-generator-toggle-impact-builder';
+            
+            const button = document.getElementById(buttonId);
+            if (button) {
+                button.textContent = builderType === 'authority-hook' ? 'Edit Components' : 'Edit Impact Intro';
+            }
+        }
     },
     
     /**
@@ -595,8 +625,8 @@
       
       const data = window.MKCG_Tagline_Data.impactIntro;
       const fieldMappings = [
-        { field: 'where', selector: '#mkcg-impact-where' },
-        { field: 'why', selector: '#mkcg-impact-why' }
+        { field: 'where', selector: '#mkcg-where' },
+        { field: 'why', selector: '#mkcg-why' }
       ];
       
       let populatedCount = 0;
