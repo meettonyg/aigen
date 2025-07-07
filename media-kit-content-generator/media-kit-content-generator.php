@@ -1000,7 +1000,8 @@ class Media_Kit_Content_Generator {
                 'questions' => 'Enhanced_Questions_Generator',
                 'offers' => 'Enhanced_Offers_Generator',
                 'authority_hook' => 'Enhanced_Authority_Hook_Generator',
-                'impact_intro' => 'Enhanced_Impact_Intro_Generator'
+                'impact_intro' => 'Enhanced_Impact_Intro_Generator',
+                'guest_intro' => 'MKCG_Enhanced_Guest_Intro_Generator'
             ];
             
             $file_path = MKCG_PLUGIN_PATH . 'includes/generators/enhanced_' . $type . '_generator.php';
@@ -1384,6 +1385,15 @@ class Media_Kit_Content_Generator {
         add_action('wp_ajax_mkcg_validate_biography_data', [$this, 'ajax_validate_biography_data']);
         add_action('wp_ajax_mkcg_regenerate_biography', [$this, 'ajax_regenerate_biography']);
         
+        // Guest Intro Generator AJAX handlers
+        add_action('wp_ajax_generate_guest_intro', [$this->generators['guest_intro'], 'ajax_generate_guest_intro']);
+        add_action('wp_ajax_save_guest_intro_data', [$this->generators['guest_intro'], 'ajax_save_guest_intro_data']);
+        add_action('wp_ajax_save_guest_intro_results', [$this->generators['guest_intro'], 'ajax_save_guest_intro_results']);
+        
+        // Tagline Generator AJAX handlers
+        add_action('wp_ajax_mkcg_generate_taglines', [$this->generators['tagline'], 'ajax_generate_taglines']);
+        add_action('wp_ajax_mkcg_save_tagline', [$this->generators['tagline'], 'ajax_save_tagline']);
+        
         error_log('MKCG: Successfully registered all AJAX handlers via wp_loaded');
         error_log('MKCG: AJAX URL: ' . admin_url('admin-ajax.php'));
         
@@ -1408,6 +1418,8 @@ class Media_Kit_Content_Generator {
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_authority_hook_generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_impact_intro_generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_biography_generator.php';
+        require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_guest_intro_generator.php';
+        require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_tagline_generator.php';
         require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_ajax_handlers.php';
     }
     
@@ -1514,6 +1526,12 @@ class Media_Kit_Content_Generator {
         // Initialize Biography Generator (comprehensive AI-powered biography generation)
         $this->generators['biography'] = new MKCG_Enhanced_Biography_Generator();
         
+        // Initialize Guest Intro Generator (AI-powered guest introduction generator)
+        $this->generators['guest_intro'] = new MKCG_Enhanced_Guest_Intro_Generator();
+        
+        // Initialize Tagline Generator (AI-powered tagline generation with multi-option selection)
+        $this->generators['tagline'] = new MKCG_Enhanced_Tagline_Generator();
+        
         error_log('MKCG: Generators initialized: ' . implode(', ', array_keys($this->generators)));
     }
     
@@ -1598,6 +1616,8 @@ class Media_Kit_Content_Generator {
         add_shortcode('mkcg_questions', [$this, 'questions_shortcode']);
         add_shortcode('mkcg_authority_hook', [$this, 'authority_hook_shortcode']);
         add_shortcode('mkcg_impact_intro', [$this, 'impact_intro_shortcode']);
+        add_shortcode('mkcg_guest_intro', [$this, 'guest_intro_shortcode']);
+        add_shortcode('mkcg_tagline', [$this, 'tagline_shortcode']);
     }
     
     /**
@@ -1631,6 +1651,42 @@ class Media_Kit_Content_Generator {
         
         // Include the template
         include MKCG_PLUGIN_PATH . 'templates/generators/topics/default.php';
+        
+        return ob_get_clean();
+    }
+    
+    /**
+     * Tagline Generator Shortcode - AI-powered tagline generation with multi-option selection
+     */
+    public function tagline_shortcode($atts) {
+        $atts = shortcode_atts([
+            'post_id' => 0
+        ], $atts);
+        
+        // Force load scripts for shortcode
+        $this->enqueue_scripts();
+        
+        ob_start();
+        
+        // CRITICAL FIX: Ensure global variables are set for template
+        $this->ensure_global_services();
+        
+        // Set required global variables for template
+        global $pods_service, $generator_instance, $generator_type, $authority_hook_service, $impact_intro_service;
+        $pods_service = $this->pods_service;
+        $authority_hook_service = $this->authority_hook_service;
+        $impact_intro_service = $this->impact_intro_service;
+        $generator_instance = isset($this->generators['tagline']) ? $this->generators['tagline'] : null;
+        $generator_type = 'tagline';
+        
+        // Also make services available
+        global $api_service;
+        $api_service = $this->api_service;
+        
+        error_log('MKCG Shortcode: Loading tagline template with centralized services');
+        
+        // Include the template
+        include MKCG_PLUGIN_PATH . 'templates/generators/tagline/default.php';
         
         return ob_get_clean();
     }
@@ -1853,6 +1909,42 @@ class Media_Kit_Content_Generator {
         return ob_get_clean();
     }
     
+    /**
+     * Guest Intro Generator Shortcode - AI-powered guest introductions
+     */
+    public function guest_intro_shortcode($atts) {
+        $atts = shortcode_atts([
+            'post_id' => 0
+        ], $atts);
+        
+        // Force load scripts for shortcode
+        $this->enqueue_scripts();
+        
+        ob_start();
+        
+        // CRITICAL FIX: Ensure global variables are set for template
+        $this->ensure_global_services();
+        
+        // SIMPLIFIED: Set required global variables for template
+        global $pods_service, $generator_instance, $generator_type, $authority_hook_service, $impact_intro_service;
+        $pods_service = $this->pods_service; // Primary data source
+        $authority_hook_service = $this->authority_hook_service; // Centralized Authority Hook functionality
+        $impact_intro_service = $this->impact_intro_service; // Centralized Impact Intro functionality
+        $generator_instance = isset($this->generators['guest_intro']) ? $this->generators['guest_intro'] : null;
+        $generator_type = 'guest_intro';
+        
+        // Also make services available
+        global $api_service;
+        $api_service = $this->api_service;
+        
+        error_log('MKCG Shortcode: Loading guest intro template with centralized services');
+        
+        // Include the template
+        include MKCG_PLUGIN_PATH . 'templates/generators/guest-intro/default.php';
+        
+        return ob_get_clean();
+    }
+    
     public function enqueue_scripts() {
         // Only load scripts if needed
         if (!$this->should_load_scripts()) {
@@ -1869,6 +1961,9 @@ class Media_Kit_Content_Generator {
             MKCG_VERSION,
             'all'
         );
+        
+        // Cross-browser compatibility is now built into the unified styles
+        // No separate cross-browser CSS file needed
         
         // Load jQuery
         wp_enqueue_script('jquery');
@@ -1959,6 +2054,33 @@ class Media_Kit_Content_Generator {
             true
         );
         
+        // Guest Intro Generator
+        wp_enqueue_script(
+            'guest-intro-generator',
+            MKCG_PLUGIN_URL . 'assets/js/generators/guest-intro-generator.js',
+            ['simple-event-bus', 'simple-ajax', 'authority-hook-builder'],
+            MKCG_VERSION,
+            true
+        );
+        
+        // Tagline Generator
+        wp_enqueue_script(
+            'tagline-generator',
+            MKCG_PLUGIN_URL . 'assets/js/generators/tagline-generator.js',
+            ['simple-event-bus', 'simple-ajax', 'authority-hook-builder'],
+            MKCG_VERSION,
+            true
+        );
+        
+        // Load Cross-Browser Compatibility JS (after all generators)
+        wp_enqueue_script(
+            'mkcg-cross-browser-fixes',
+            MKCG_PLUGIN_URL . 'assets/js/cross-browser-fixes.js',
+            ['jquery', 'simple-event-bus', 'simple-ajax', 'tagline-generator'],
+            MKCG_VERSION,
+            true
+        );
+        
         // Pass data to JavaScript - CRITICAL FIX: Ensure proper AJAX setup
         wp_localize_script('simple-ajax', 'mkcg_vars', [
             'ajax_url' => admin_url('admin-ajax.php'),
@@ -1966,6 +2088,11 @@ class Media_Kit_Content_Generator {
             'plugin_url' => MKCG_PLUGIN_URL,
             'data_source' => 'post_meta', // Using direct post meta for reliability
             'debug' => defined('WP_DEBUG') && WP_DEBUG,
+            'browser_info' => [
+                'user_agent' => $_SERVER['HTTP_USER_AGENT'],
+                'platform' => php_uname('s') . ' ' . php_uname('r'),
+                'version' => MKCG_VERSION
+            ],
             'fields' => [
                 'topics' => [
                     'topic_1' => 'topic_1',
@@ -1996,7 +2123,12 @@ class Media_Kit_Content_Generator {
                 'get_impact_intro' => 'mkcg_get_impact_intro',
                 'generate_biography' => 'mkcg_generate_biography',
                 'save_biography' => 'mkcg_save_biography_data',
-                'get_biography' => 'mkcg_get_biography_data'
+                'get_biography' => 'mkcg_get_biography_data',
+                'generate_guest_intro' => 'generate_guest_intro',
+                'save_guest_intro_data' => 'save_guest_intro_data',
+                'save_guest_intro_results' => 'save_guest_intro_results',
+                'generate_taglines' => 'mkcg_generate_taglines',
+                'save_tagline' => 'mkcg_save_tagline'
             ]
         ]);
         
@@ -2008,7 +2140,7 @@ class Media_Kit_Content_Generator {
             window.formidableService = true;
         ');
         
-        error_log('MKCG: Simplified script loading completed with simple notifications');
+        error_log('MKCG: Script loading completed with cross-browser compatibility support');
     }
     
     // SIMPLIFIED: No complex generator detection needed
@@ -2033,7 +2165,7 @@ class Media_Kit_Content_Generator {
         }
         
         // Check for shortcodes in post content
-        $generator_shortcodes = ['mkcg_biography', 'mkcg_offers', 'mkcg_topics', 'mkcg_questions', 'mkcg_authority_hook', 'mkcg_impact_intro'];
+        $generator_shortcodes = ['mkcg_biography', 'mkcg_offers', 'mkcg_topics', 'mkcg_questions', 'mkcg_authority_hook', 'mkcg_impact_intro', 'mkcg_guest_intro'];
         foreach ($generator_shortcodes as $shortcode) {
             if (has_shortcode($post->post_content, $shortcode)) {
                 $this->debug_log('MKCG: Loading scripts for shortcode: ' . $shortcode);

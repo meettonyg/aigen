@@ -1,0 +1,454 @@
+/**
+ * Guest Intro Generator JavaScript
+ * 
+ * Handles all client-side functionality for the Guest Intro Generator
+ * including form submission, API calls, and UI updates.
+ */
+
+(function() {
+    'use strict';
+
+    // Constants
+    const SELECTORS = {
+        FORM: '.guest-intro-generator__form',
+        GENERATE_BUTTON: '.guest-intro-generator__generate-button',
+        LOADING_INDICATOR: '.guest-intro-generator__loading',
+        RESULTS_CONTAINER: '.guest-intro-generator__results',
+        TABS: '.guest-intro-generator__tab',
+        INTRO_CONTENT: '.guest-intro-generator__intro-content',
+        COPY_BUTTON: '.guest-intro-generator__copy-button',
+        SAVE_BUTTON: '.guest-intro-generator__save-button',
+        TONE_RADIO: 'input[name="intro_tone"]',
+        HOOK_STYLE_RADIO: 'input[name="intro_hook_style"]'
+    };
+
+    // State
+    let state = {
+        loading: false,
+        currentTab: 'short',
+        generatedIntros: {
+            short: '',
+            medium: '',
+            long: ''
+        },
+        settings: {
+            intro_tone: 'professional',
+            intro_hook_style: 'question'
+        }
+    };
+
+    /**
+     * Initialize the Guest Intro Generator
+     */
+    function init() {
+        // Setup event listeners
+        setupEventListeners();
+        
+        // Check if we need to load existing data
+        const postId = getPostId();
+        if (postId) {
+            loadExistingData(postId);
+        }
+    }
+
+    /**
+     * Set up all event listeners
+     */
+    function setupEventListeners() {
+        // Generate button
+        const generateButton = document.querySelector(SELECTORS.GENERATE_BUTTON);
+        if (generateButton) {
+            generateButton.addEventListener('click', handleGenerateClick);
+        }
+
+        // Tab switching
+        const tabs = document.querySelectorAll(SELECTORS.TABS);
+        tabs.forEach(tab => {
+            tab.addEventListener('click', handleTabClick);
+        });
+
+        // Copy buttons
+        document.addEventListener('click', function(e) {
+            if (e.target.closest(SELECTORS.COPY_BUTTON)) {
+                const button = e.target.closest(SELECTORS.COPY_BUTTON);
+                const contentType = button.dataset.type || state.currentTab;
+                copyIntroToClipboard(contentType);
+            }
+        });
+
+        // Save button
+        const saveButton = document.querySelector(SELECTORS.SAVE_BUTTON);
+        if (saveButton) {
+            saveButton.addEventListener('click', handleSaveClick);
+        }
+
+        // Settings changes
+        const toneRadios = document.querySelectorAll(SELECTORS.TONE_RADIO);
+        toneRadios.forEach(radio => {
+            radio.addEventListener('change', handleSettingChange);
+        });
+
+        const hookStyleRadios = document.querySelectorAll(SELECTORS.HOOK_STYLE_RADIO);
+        hookStyleRadios.forEach(radio => {
+            radio.addEventListener('change', handleSettingChange);
+        });
+    }
+
+    /**
+     * Get the post ID from the URL
+     */
+    function getPostId() {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get('post_id') || 0;
+    }
+
+    /**
+     * Load existing data for a post
+     */
+    function loadExistingData(postId) {
+        // This would load any saved guest intro data
+        // For this implementation, we'll just leave it empty
+    }
+
+    /**
+     * Handle generate button click
+     */
+    function handleGenerateClick(e) {
+        e.preventDefault();
+        
+        // Get form data
+        const form = document.querySelector(SELECTORS.FORM);
+        if (!form) return;
+
+        // Validate form
+        if (!validateForm(form)) {
+            showNotification('Please fill in all required fields.', 'error');
+            return;
+        }
+
+        // Show loading state
+        setLoading(true);
+
+        // Collect form data
+        const formData = collectFormData(form);
+
+        // Call the API
+        generateGuestIntro(formData);
+    }
+
+    /**
+     * Validate the form
+     */
+    function validateForm(form) {
+        // Check for required fields
+        const guestName = form.querySelector('input[name="guest_name"]');
+        if (!guestName || !guestName.value.trim()) {
+            guestName.classList.add('error');
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Collect form data
+     */
+    function collectFormData(form) {
+        const formData = new FormData(form);
+        const data = {};
+
+        // Convert FormData to object
+        for (let [key, value] of formData.entries()) {
+            data[key] = value;
+        }
+
+        // Get Authority Hook data if available
+        if (window.authorityHookService && typeof window.authorityHookService.getAuthorityHookData === 'function') {
+            data.authority_hook = window.authorityHookService.getAuthorityHookData();
+        }
+
+        // Get Impact Intro data if available
+        if (window.impactIntroService && typeof window.impactIntroService.getImpactIntroData === 'function') {
+            data.impact_intro = window.impactIntroService.getImpactIntroData();
+        }
+
+        return data;
+    }
+
+    /**
+     * Generate guest introduction via AJAX
+     */
+    function generateGuestIntro(formData) {
+        // Save current settings to state
+        state.settings.intro_tone = formData.intro_tone;
+        state.settings.intro_hook_style = formData.intro_hook_style;
+
+        // Create AJAX request
+        const ajaxData = new FormData();
+        ajaxData.append('action', 'generate_guest_intro');
+        ajaxData.append('security', window.mkcg_vars.nonce);
+        ajaxData.append('form_data', JSON.stringify(formData));
+
+        // Make the request
+        fetch(window.mkcg_vars.ajax_url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            body: ajaxData
+        })
+        .then(response => response.json())
+        .then(response => {
+            setLoading(false);
+
+            if (response.success) {
+                // Save generated intros to state
+                state.generatedIntros = {
+                    short: response.data.short,
+                    medium: response.data.medium,
+                    long: response.data.long
+                };
+
+                // Show the results
+                displayResults();
+                showNotification('Guest introductions generated successfully!', 'success');
+            } else {
+                showNotification(response.data.message || 'Error generating introductions.', 'error');
+            }
+        })
+        .catch(error => {
+            setLoading(false);
+            showNotification('Error: ' + error.message, 'error');
+            console.error('Error generating guest intro:', error);
+        });
+    }
+
+    /**
+     * Set loading state
+     */
+    function setLoading(isLoading) {
+        state.loading = isLoading;
+        
+        const generateButton = document.querySelector(SELECTORS.GENERATE_BUTTON);
+        const loadingIndicator = document.querySelector(SELECTORS.LOADING_INDICATOR);
+        
+        if (generateButton) {
+            if (isLoading) {
+                generateButton.setAttribute('disabled', 'disabled');
+                generateButton.textContent = 'Generating...';
+            } else {
+                generateButton.removeAttribute('disabled');
+                generateButton.textContent = 'Generate Guest Introductions';
+            }
+        }
+        
+        if (loadingIndicator) {
+            loadingIndicator.style.display = isLoading ? 'flex' : 'none';
+        }
+    }
+
+    /**
+     * Display the generated results
+     */
+    function displayResults() {
+        const resultsContainer = document.querySelector(SELECTORS.RESULTS_CONTAINER);
+        if (!resultsContainer) return;
+
+        // Make results visible
+        resultsContainer.style.display = 'block';
+        
+        // Scroll to results
+        resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+        // Set the active tab
+        setActiveTab(state.currentTab);
+        
+        // Update the content
+        updateActiveContent();
+    }
+
+    /**
+     * Handle tab click
+     */
+    function handleTabClick(e) {
+        const tab = e.currentTarget;
+        const tabType = tab.dataset.type;
+        
+        if (tabType && state.generatedIntros[tabType]) {
+            setActiveTab(tabType);
+            updateActiveContent();
+        }
+    }
+
+    /**
+     * Set the active tab
+     */
+    function setActiveTab(tabType) {
+        state.currentTab = tabType;
+        
+        // Update tab UI
+        const tabs = document.querySelectorAll(SELECTORS.TABS);
+        tabs.forEach(tab => {
+            if (tab.dataset.type === tabType) {
+                tab.classList.add('guest-intro-generator__tab--active');
+            } else {
+                tab.classList.remove('guest-intro-generator__tab--active');
+            }
+        });
+    }
+
+    /**
+     * Update the active content based on the current tab
+     */
+    function updateActiveContent() {
+        const content = state.generatedIntros[state.currentTab] || '';
+        const contentContainer = document.querySelector(SELECTORS.INTRO_CONTENT);
+        
+        if (contentContainer) {
+            contentContainer.innerHTML = content;
+            
+            // Update reading time
+            updateReadingTime(content, contentContainer);
+        }
+    }
+
+    /**
+     * Update the reading time for the current content
+     */
+    function updateReadingTime(content, container) {
+        const words = content.split(/\s+/).length;
+        const readingTimeMinutes = Math.max(1, Math.ceil(words / 130)); // Average reading speed
+        
+        let readingTimeText;
+        if (readingTimeMinutes < 1) {
+            readingTimeText = 'Less than 1 min';
+        } else if (readingTimeMinutes === 1) {
+            readingTimeText = '~1 min';
+        } else {
+            readingTimeText = `~${readingTimeMinutes} mins`;
+        }
+        
+        // Find or create reading time element
+        let readingTimeElement = container.querySelector('.guest-intro-generator__intro-reading-time');
+        
+        if (!readingTimeElement) {
+            readingTimeElement = document.createElement('div');
+            readingTimeElement.className = 'guest-intro-generator__intro-reading-time';
+            container.appendChild(readingTimeElement);
+        }
+        
+        readingTimeElement.textContent = readingTimeText;
+    }
+
+    /**
+     * Copy introduction text to clipboard
+     */
+    function copyIntroToClipboard(type) {
+        const content = state.generatedIntros[type] || '';
+        
+        if (!content) {
+            showNotification('No content to copy', 'error');
+            return;
+        }
+        
+        // Create a temporary element to hold the text
+        const textarea = document.createElement('textarea');
+        textarea.value = content;
+        document.body.appendChild(textarea);
+        textarea.select();
+        
+        try {
+            document.execCommand('copy');
+            showNotification(`${capitalizeFirstLetter(type)} introduction copied to clipboard!`, 'success');
+        } catch (err) {
+            showNotification('Failed to copy text: ' + err, 'error');
+        }
+        
+        document.body.removeChild(textarea);
+    }
+
+    /**
+     * Handle save button click
+     */
+    function handleSaveClick(e) {
+        e.preventDefault();
+        
+        const postId = getPostId();
+        if (!postId) {
+            showNotification('No post ID found for saving results.', 'error');
+            return;
+        }
+        
+        // Prepare data for saving
+        const resultsData = {
+            short: state.generatedIntros.short,
+            medium: state.generatedIntros.medium,
+            long: state.generatedIntros.long,
+            settings: state.settings
+        };
+        
+        // Create AJAX request
+        const ajaxData = new FormData();
+        ajaxData.append('action', 'save_guest_intro_results');
+        ajaxData.append('security', window.mkcg_vars.nonce);
+        ajaxData.append('post_id', postId);
+        ajaxData.append('results_data', JSON.stringify(resultsData));
+        
+        // Make the request
+        fetch(window.mkcg_vars.ajax_url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            body: ajaxData
+        })
+        .then(response => response.json())
+        .then(response => {
+            if (response.success) {
+                showNotification('Guest introductions saved successfully!', 'success');
+            } else {
+                showNotification(response.data.message || 'Error saving introductions.', 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Error: ' + error.message, 'error');
+            console.error('Error saving guest intro results:', error);
+        });
+    }
+
+    /**
+     * Handle setting change
+     */
+    function handleSettingChange(e) {
+        const setting = e.target.name;
+        const value = e.target.value;
+        
+        // Update state
+        if (setting === 'intro_tone') {
+            state.settings.intro_tone = value;
+        } else if (setting === 'intro_hook_style') {
+            state.settings.intro_hook_style = value;
+        }
+    }
+
+    /**
+     * Show a notification message
+     */
+    function showNotification(message, type = 'info') {
+        // Check if we have a notification service
+        if (window.simpleNotifications && typeof window.simpleNotifications.show === 'function') {
+            window.simpleNotifications.show(message, type);
+            return;
+        }
+        
+        // Fallback to alert for simplicity
+        alert(message);
+    }
+
+    /**
+     * Capitalize the first letter of a string
+     */
+    function capitalizeFirstLetter(string) {
+        return string.charAt(0).toUpperCase() + string.slice(1);
+    }
+
+    // Initialize on DOM content loaded
+    document.addEventListener('DOMContentLoaded', init);
+
+})();

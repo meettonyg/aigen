@@ -1,0 +1,70 @@
+/**
+ * Cross-Browser Compatibility Fixes for Media Kit Content Generator
+ * Addresses specific issues in Safari, Firefox, and Edge
+ */
+
+/* Fix for Safari flexbox issues */
+@supports (-webkit-touch-callout: none) {
+  .tagline-generator__options-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  
+  .tagline-generator__option {
+    height: 100%;
+    min-height: 80px;
+  }
+}
+
+/* Fix for Firefox focus outline issues */
+@-moz-document url-prefix() {
+  .tagline-generator__option:focus {
+    outline: 2px solid #0073aa;
+    outline-offset: 2px;
+  }
+  
+  .tagline-generator__settings select:focus,
+  .tagline-generator__settings input:focus,
+  .tagline-generator__settings textarea:focus {
+    box-shadow: 0 0 0 1px #0073aa;
+  }
+}
+
+/* Fix for Edge/IE rendering issues with grid */
+@supports (-ms-ime-align:auto) {
+  .tagline-generator__options-container {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  
+  .tagline-generator__option {
+    flex: 1 1 280px;
+    margin: 8px;
+    max-width: calc(50% - 16px);
+  }
+}
+
+/* Fix for mobile Safari and Chrome touch target sizes */
+@media (max-width: 768px) {
+  .tagline-generator__option {
+    min-height: 60px;
+    padding: 12px;
+  }
+  
+  .tagline-generator__controls button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* High contrast mode improvements for accessibility */
+@media (forced-colors: active) {
+  .tagline-generator__option--selected {
+    outline: 3px solid CanvasText;
+  }
+  
+  .tagline-generator__controls button:focus {
+    outline: 2px solid CanvasText;
+  }
+}

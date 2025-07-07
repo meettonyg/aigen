@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tagline Generator Integration Tests</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.5;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            background: #f5f7fa;
+        }
+        
+        h1, h2, h3 {
+            color: #1a9bdc;
+        }
+        
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #e9ecef;
+            padding-bottom: 20px;
+        }
+        
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .controls {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+        }
+        
+        button {
+            background: #1a9bdc;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #0d8ecf;
+        }
+        
+        .results {
+            margin-top: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        
+        .results-header {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-bottom: 1px solid #dee2e6;
+            font-weight: 600;
+        }
+        
+        .results-content {
+            padding: 15px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        #test-output {
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+            white-space: pre-wrap;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #333;
+        }
+        
+        .pass {
+            color: #28a745;
+        }
+        
+        .fail {
+            color: #dc3545;
+        }
+        
+        .warning {
+            color: #ffc107;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 14px;
+        }
+        
+        /* Log styling */
+        .log-entry {
+            margin-bottom: 5px;
+            border-left: 3px solid transparent;
+            padding-left: 10px;
+        }
+        
+        .log-entry.info {
+            border-left-color: #1a9bdc;
+            background: #f0f9ff;
+        }
+        
+        .log-entry.success {
+            border-left-color: #28a745;
+            background: #f0fff4;
+        }
+        
+        .log-entry.warning {
+            border-left-color: #ffc107;
+            background: #fffbf0;
+        }
+        
+        .log-entry.error {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+        
+        /* Test configuration panel */
+        .test-config {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .config-group {
+            margin-bottom: 15px;
+        }
+        
+        .config-group h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            margin-right: 15px;
+        }
+        
+        .checkbox-item input {
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Tagline Generator Integration Tests</h1>
+            <p>Phase 5 Testing Suite - Cross-Browser Compatibility and Performance Tests</p>
+        </div>
+        
+        <div class="info">
+            <p><strong>About this test:</strong> This page runs comprehensive tests on the Tagline Generator to verify integration, performance, user experience, data quality, security, and cross-browser compatibility. The tests help ensure the generator works correctly across different browsers and devices.</p>
+        </div>
+        
+        <div class="test-config">
+            <h2>Test Configuration</h2>
+            
+            <div class="config-group">
+                <h3>Test Categories</h3>
+                <div class="checkbox-group">
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="integration-tests" checked>
+                        Integration Tests
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="performance-tests" checked>
+                        Performance Tests
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="ux-tests" checked>
+                        User Experience Tests
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="data-quality-tests" checked>
+                        Data Quality Tests
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="security-tests" checked>
+                        Security Tests
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="cross-browser-tests" checked>
+                        Cross-Browser Tests
+                    </label>
+                </div>
+            </div>
+            
+            <div class="config-group">
+                <h3>Performance Thresholds</h3>
+                <div>
+                    <label>
+                        Load Time Threshold (ms):
+                        <input type="number" id="load-threshold" value="2000" min="100" max="10000">
+                    </label>
+                </div>
+                <div style="margin-top: 10px;">
+                    <label>
+                        Generation Time Threshold (ms):
+                        <input type="number" id="generation-threshold" value="30000" min="1000" max="60000">
+                    </label>
+                </div>
+                <div style="margin-top: 10px;">
+                    <label>
+                        Render Time Threshold (ms):
+                        <input type="number" id="render-threshold" value="100" min="10" max="1000">
+                    </label>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="run-tests">Run All Tests</button>
+            <button id="clear-results">Clear Results</button>
+        </div>
+        
+        <div class="results">
+            <div class="results-header">Test Results</div>
+            <div class="results-content">
+                <div id="test-output">No tests run yet. Click "Run All Tests" to start testing.</div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Tagline Generator Testing Suite - Part of Phase 5 Implementation</p>
+        </div>
+    </div>
+    
+    <script>
+        // Configuration for the tests
+        let TEST_CONFIG = {
+            runIntegrationTests: true,
+            runPerformanceTests: true,
+            runUserExperienceTests: true,
+            runDataQualityTests: true,
+            runSecurityTests: true,
+            runCrossBrowserTests: true,
+            
+            timeouts: {
+                load: 2000,
+                generate: 30000,
+                render: 100
+            }
+        };
+        
+        // Custom console.log replacement to capture output
+        const originalConsole = {
+            log: console.log,
+            error: console.error,
+            warn: console.warn,
+            info: console.info,
+            group: console.group,
+            groupEnd: console.groupEnd
+        };
+        
+        const testOutput = document.getElementById('test-output');
+        const outputLines = [];
+        let groupLevel = 0;
+        
+        function captureLog(type, args) {
+            const message = Array.from(args).map(arg => {
+                if (typeof arg === 'object') {
+                    try {
+                        return JSON.stringify(arg, null, 2);
+                    } catch (e) {
+                        return arg.toString();
+                    }
+                }
+                return arg;
+            }).join(' ');
+            
+            const prefix = '  '.repeat(groupLevel);
+            const cssClass = `log-entry ${type}`;
+            
+            let icon = '';
+            if (message.includes('✅')) icon = '✅';
+            else if (message.includes('❌')) icon = '❌';
+            else if (message.includes('⚠️')) icon = '⚠️';
+            else if (type === 'success') icon = '✅';
+            else if (type === 'error') icon = '❌';
+            else if (type === 'warning') icon = '⚠️';
+            else if (type === 'info') icon = 'ℹ️';
+            
+            outputLines.push(`<div class="${cssClass}">${prefix}${icon} ${message}</div>`);
+            testOutput.innerHTML = outputLines.join('\n');
+            testOutput.scrollTop = testOutput.scrollHeight;
+            
+            // Also call the original
+            originalConsole[type](...args);
+        }
+        
+        console.log = function() { captureLog('info', arguments); };
+        console.error = function() { captureLog('error', arguments); };
+        console.warn = function() { captureLog('warning', arguments); };
+        console.info = function() { captureLog('info', arguments); };
+        
+        console.group = function() {
+            captureLog('info', arguments);
+            groupLevel++;
+            originalConsole.group(...arguments);
+        };
+        
+        console.groupEnd = function() {
+            groupLevel = Math.max(0, groupLevel - 1);
+            originalConsole.groupEnd();
+        };
+        
+        // Set up the event listeners
+        document.getElementById('run-tests').addEventListener('click', function() {
+            // Update configuration from UI
+            TEST_CONFIG.runIntegrationTests = document.getElementById('integration-tests').checked;
+            TEST_CONFIG.runPerformanceTests = document.getElementById('performance-tests').checked;
+            TEST_CONFIG.runUserExperienceTests = document.getElementById('ux-tests').checked;
+            TEST_CONFIG.runDataQualityTests = document.getElementById('data-quality-tests').checked;
+            TEST_CONFIG.runSecurityTests = document.getElementById('security-tests').checked;
+            TEST_CONFIG.runCrossBrowserTests = document.getElementById('cross-browser-tests').checked;
+            
+            TEST_CONFIG.timeouts.load = parseInt(document.getElementById('load-threshold').value);
+            TEST_CONFIG.timeouts.generate = parseInt(document.getElementById('generation-threshold').value);
+            TEST_CONFIG.timeouts.render = parseInt(document.getElementById('render-threshold').value);
+            
+            // Clear previous results
+            outputLines.length = 0;
+            testOutput.innerHTML = '';
+            
+            // Log the start
+            console.log('🧪 Starting Tagline Generator Tests with configuration:');
+            console.log(TEST_CONFIG);
+            
+            // Create script element to load the test script
+            const script = document.createElement('script');
+            script.src = '../tagline-generator-integration-test.js';
+            script.addEventListener('load', function() {
+                console.log('🧪 Test script loaded - running tests...');
+            });
+            script.addEventListener('error', function() {
+                console.error('❌ Failed to load test script');
+            });
+            document.body.appendChild(script);
+        });
+        
+        document.getElementById('clear-results').addEventListener('click', function() {
+            outputLines.length = 0;
+            testOutput.innerHTML = 'Results cleared. Click "Run All Tests" to start testing again.';
+        });
+        
+        // Test framework export
+        window.TEST_CONFIG = TEST_CONFIG;
+    </script>
+</body>
+</html>
