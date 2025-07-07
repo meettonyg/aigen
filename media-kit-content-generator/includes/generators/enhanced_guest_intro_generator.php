@@ -182,9 +182,6 @@ class MKCG_Enhanced_Guest_Intro_Generator {
         $sanitized_data['guest_name'] = isset( $form_data['guest_name'] ) ? sanitize_text_field( $form_data['guest_name'] ) : '';
         $sanitized_data['guest_title'] = isset( $form_data['guest_title'] ) ? sanitize_text_field( $form_data['guest_title'] ) : '';
         $sanitized_data['guest_company'] = isset( $form_data['guest_company'] ) ? sanitize_text_field( $form_data['guest_company'] ) : '';
-        $sanitized_data['guest_expertise'] = isset( $form_data['guest_expertise'] ) ? sanitize_text_field( $form_data['guest_expertise'] ) : '';
-        $sanitized_data['guest_achievements'] = isset( $form_data['guest_achievements'] ) ? sanitize_textarea_field( $form_data['guest_achievements'] ) : '';
-        $sanitized_data['guest_website'] = isset( $form_data['guest_website'] ) ? esc_url_raw( $form_data['guest_website'] ) : '';
 
         // Episode information.
         $sanitized_data['episode_title'] = isset( $form_data['episode_title'] ) ? sanitize_text_field( $form_data['episode_title'] ) : '';
@@ -313,9 +310,6 @@ class MKCG_Enhanced_Guest_Intro_Generator {
         update_post_meta( $post_id, '_mkcg_guest_intro_name', $form_data['guest_name'] );
         update_post_meta( $post_id, '_mkcg_guest_intro_title', $form_data['guest_title'] );
         update_post_meta( $post_id, '_mkcg_guest_intro_company', $form_data['guest_company'] );
-        update_post_meta( $post_id, '_mkcg_guest_intro_expertise', $form_data['guest_expertise'] );
-        update_post_meta( $post_id, '_mkcg_guest_intro_achievements', $form_data['guest_achievements'] );
-        update_post_meta( $post_id, '_mkcg_guest_intro_website', $form_data['guest_website'] );
 
         // Save episode info.
         update_post_meta( $post_id, '_mkcg_guest_intro_episode_title', $form_data['episode_title'] );
@@ -479,9 +473,6 @@ class MKCG_Enhanced_Guest_Intro_Generator {
         $guest_name = ! empty( $form_data['guest_name'] ) ? $form_data['guest_name'] : '';
         $guest_title = ! empty( $form_data['guest_title'] ) ? $form_data['guest_title'] : '';
         $guest_company = ! empty( $form_data['guest_company'] ) ? $form_data['guest_company'] : '';
-        $guest_expertise = ! empty( $form_data['guest_expertise'] ) ? $form_data['guest_expertise'] : '';
-        $guest_achievements = ! empty( $form_data['guest_achievements'] ) ? $form_data['guest_achievements'] : '';
-        $guest_website = ! empty( $form_data['guest_website'] ) ? $form_data['guest_website'] : '';
 
         // Get episode information.
         $episode_title = ! empty( $form_data['episode_title'] ) ? $form_data['episode_title'] : '';
@@ -506,15 +497,6 @@ class MKCG_Enhanced_Guest_Intro_Generator {
         }
         if ( ! empty( $guest_company ) ) {
             $prompt .= "\nCompany/Organization: {$guest_company}";
-        }
-        if ( ! empty( $guest_expertise ) ) {
-            $prompt .= "\nArea of Expertise: {$guest_expertise}";
-        }
-        if ( ! empty( $guest_achievements ) ) {
-            $prompt .= "\nKey Achievements: {$guest_achievements}";
-        }
-        if ( ! empty( $guest_website ) ) {
-            $prompt .= "\nWebsite: {$guest_website}";
         }
 
         $prompt .= "\n\nEPISODE/EVENT INFORMATION:";

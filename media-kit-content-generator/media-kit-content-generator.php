@@ -1391,8 +1391,20 @@ class Media_Kit_Content_Generator {
         add_action('wp_ajax_save_guest_intro_results', [$this->generators['guest_intro'], 'ajax_save_guest_intro_results']);
         
         // Tagline Generator AJAX handlers
-        add_action('wp_ajax_mkcg_generate_taglines', [$this->generators['tagline'], 'ajax_generate_taglines']);
-        add_action('wp_ajax_mkcg_save_tagline', [$this->generators['tagline'], 'ajax_save_tagline']);
+        add_action('wp_ajax_mkcg_generate_taglines', function() {
+            // Ensure tagline generator is initialized
+            if (!isset($this->generators['tagline'])) {
+                $this->initialize_tagline_generator();
+            }
+            $this->generators['tagline']->ajax_generate_taglines();
+        });
+        add_action('wp_ajax_mkcg_save_tagline', function() {
+            // Ensure tagline generator is initialized
+            if (!isset($this->generators['tagline'])) {
+                $this->initialize_tagline_generator();
+            }
+            $this->generators['tagline']->ajax_save_tagline();
+        });
         
         error_log('MKCG: Successfully registered all AJAX handlers via wp_loaded');
         error_log('MKCG: AJAX URL: ' . admin_url('admin-ajax.php'));
@@ -1499,6 +1511,29 @@ class Media_Kit_Content_Generator {
     // SIMPLIFIED: Basic validation no longer needed with simplified architecture
     
     /**
+     * ROOT FIX: Initialize Tagline Generator separately to ensure it's loaded properly
+     */
+    private function initialize_tagline_generator() {
+        // Check if already initialized
+        if (isset($this->generators['tagline'])) {
+            return $this->generators['tagline'];
+        }
+        
+        // Create new instance
+        if (!class_exists('MKCG_Enhanced_Tagline_Generator')) {
+            require_once MKCG_PLUGIN_PATH . 'includes/generators/enhanced_tagline_generator.php';
+        }
+        
+        $this->generators['tagline'] = new MKCG_Enhanced_Tagline_Generator();
+        error_log('MKCG: Tagline Generator initialized on demand');
+        
+        // Make sure global services are available to the tagline generator
+        $this->ensure_global_services();
+        
+        return $this->generators['tagline'];
+    }
+    
+    /**
      * SIMPLIFIED: Generator initialization
      */
     private function init_generators() {
@@ -1530,7 +1565,7 @@ class Media_Kit_Content_Generator {
         $this->generators['guest_intro'] = new MKCG_Enhanced_Guest_Intro_Generator();
         
         // Initialize Tagline Generator (AI-powered tagline generation with multi-option selection)
-        $this->generators['tagline'] = new MKCG_Enhanced_Tagline_Generator();
+        $this->initialize_tagline_generator();
         
         error_log('MKCG: Generators initialized: ' . implode(', ', array_keys($this->generators)));
     }
@@ -1671,19 +1706,20 @@ class Media_Kit_Content_Generator {
         // CRITICAL FIX: Ensure global variables are set for template
         $this->ensure_global_services();
         
+        // ROOT FIX: Always initialize the tagline generator and get a valid instance
+        $generator_instance = $this->initialize_tagline_generator();
+        
         // Set required global variables for template
-        global $pods_service, $generator_instance, $generator_type, $authority_hook_service, $impact_intro_service;
+        global $pods_service, $authority_hook_service, $impact_intro_service, $api_service;
         $pods_service = $this->pods_service;
         $authority_hook_service = $this->authority_hook_service;
         $impact_intro_service = $this->impact_intro_service;
-        $generator_instance = isset($this->generators['tagline']) ? $this->generators['tagline'] : null;
-        $generator_type = 'tagline';
-        
-        // Also make services available
-        global $api_service;
         $api_service = $this->api_service;
         
-        error_log('MKCG Shortcode: Loading tagline template with centralized services');
+        // Set generator variables
+        $generator_type = 'tagline';
+        
+        error_log('MKCG Shortcode: Loading tagline template with properly initialized generator');
         
         // Include the template
         include MKCG_PLUGIN_PATH . 'templates/generators/tagline/default.php';
@@ -2153,6 +2189,12 @@ class Media_Kit_Content_Generator {
         // Check if we're on a page that uses any of our generators
         global $post;
         
+        // ROOT FIX: Always load scripts on pages with the guestify.ai domain
+        if (isset($_SERVER['HTTP_HOST']) && (strpos($_SERVER['HTTP_HOST'], 'guestify.ai') !== false)) {
+            $this->debug_log('MKCG: Loading scripts for guestify.ai domain');
+            return true;
+        }
+        
         if (!$post) {
             // Check for admin pages that need our scripts
             if (is_admin()) {
@@ -2165,7 +2207,7 @@ class Media_Kit_Content_Generator {
         }
         
         // Check for shortcodes in post content
-        $generator_shortcodes = ['mkcg_biography', 'mkcg_offers', 'mkcg_topics', 'mkcg_questions', 'mkcg_authority_hook', 'mkcg_impact_intro', 'mkcg_guest_intro'];
+        $generator_shortcodes = ['mkcg_biography', 'mkcg_offers', 'mkcg_topics', 'mkcg_questions', 'mkcg_authority_hook', 'mkcg_impact_intro', 'mkcg_guest_intro', 'mkcg_tagline'];
         foreach ($generator_shortcodes as $shortcode) {
             if (has_shortcode($post->post_content, $shortcode)) {
                 $this->debug_log('MKCG: Loading scripts for shortcode: ' . $shortcode);
@@ -2182,6 +2224,18 @@ class Media_Kit_Content_Generator {
         // Check for biography results pages
         if (isset($_GET['results']) && $_GET['results'] === 'true') {
             $this->debug_log('MKCG: Loading scripts for results page');
+            return true;
+        }
+        
+        // ROOT FIX: Check for URL patterns that indicate we need to load scripts
+        $uri = $_SERVER['REQUEST_URI'] ?? '';
+        if (strpos($uri, 'tagline-generator') !== false || 
+            strpos($uri, 'biography-generator') !== false || 
+            strpos($uri, 'topics-generator') !== false || 
+            strpos($uri, 'questions-generator') !== false || 
+            strpos($uri, 'offers-generator') !== false || 
+            strpos($uri, 'guest-intro-generator') !== false) {
+            $this->debug_log('MKCG: Loading scripts for generator URL pattern: ' . $uri);
             return true;
         }
         

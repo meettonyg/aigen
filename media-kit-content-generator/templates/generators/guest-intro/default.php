@@ -26,38 +26,56 @@ $post_id = isset($_GET['post_id']) ? intval($_GET['post_id']) : 0;
         <!-- Left Panel (Form) -->
         <div class="generator__panel generator__panel--left">
             <div class="guest-intro-generator__intro">
-                <p>Create custom introductions that engage your audience and properly introduce your guest. These introductions are designed to be read aloud by podcast hosts or event moderators.</p>
+                <p>Create custom introductions that engage your audience and properly introduce your guest. These introductions are designed to be read aloud by podcast hosts or event moderators. The generator uses your Authority Hook and Impact Intro components to create personalized, professional introductions.</p>
             </div>
 
             <!-- Authority Hook Integration -->
-            <?php if (function_exists('render_authority_hook_builder')): ?>
-                <?php 
-                    $current_values = array();
-                    $render_options = array(
-                        'show_title' => true,
-                        'title' => 'Authority Hook',
-                        'description' => 'The Authority Hook components help create a compelling introduction that establishes your guest\'s expertise.',
-                        'help_text' => 'Complete these fields to add credibility to your guest introduction.'
-                    );
-                    
-                    render_authority_hook_builder('guest_intro', $current_values, $render_options);
-                ?>
-            <?php endif; ?>
+            <?php 
+            // Initialize Authority Hook Service
+            if (class_exists('MKCG_Authority_Hook_Service')) {
+                $authority_hook_service = new MKCG_Authority_Hook_Service();
+                $authority_hook_data = array();
+                
+                if ($post_id) {
+                    $authority_hook_data = $authority_hook_service->get_authority_hook_data($post_id);
+                    $authority_hook_data = $authority_hook_data['components'] ?? array();
+                }
+                
+                $render_options = array(
+                    'show_preview' => false,
+                    'show_examples' => true,
+                    'show_audience_manager' => true,
+                    'css_classes' => 'authority-hook guest-intro-authority-hook',
+                    'tabs_enabled' => true
+                );
+                
+                echo $authority_hook_service->render_authority_hook_builder('guest_intro', $authority_hook_data, $render_options);
+            }
+            ?>
 
             <!-- Impact Intro Integration -->
-            <?php if (function_exists('render_impact_intro_builder')): ?>
-                <?php 
-                    $current_values = array();
-                    $render_options = array(
-                        'show_title' => true,
-                        'title' => 'Impact Intro',
-                        'description' => 'The Impact Intro adds depth to your guest introduction by highlighting their credentials and mission.',
-                        'help_text' => 'These components enrich your introduction with personal motivation and social proof.'
-                    );
-                    
-                    render_impact_intro_builder('guest_intro', $current_values, $render_options);
-                ?>
-            <?php endif; ?>
+            <?php 
+            // Initialize Impact Intro Service
+            if (class_exists('MKCG_Impact_Intro_Service')) {
+                $impact_intro_service = new MKCG_Impact_Intro_Service();
+                $impact_intro_data = array();
+                
+                if ($post_id) {
+                    $impact_intro_data = $impact_intro_service->get_impact_intro_data($post_id);
+                    $impact_intro_data = $impact_intro_data['components'] ?? array();
+                }
+                
+                $render_options = array(
+                    'show_preview' => false,
+                    'show_examples' => true,
+                    'show_credential_manager' => true,
+                    'css_classes' => 'impact-intro guest-intro-impact-intro',
+                    'tabs_enabled' => true
+                );
+                
+                echo $impact_intro_service->render_impact_intro_builder('guest_intro', $impact_intro_data, $render_options);
+            }
+            ?>
 
             <!-- Guest Intro Form -->
             <form class="guest-intro-generator__form">
@@ -84,21 +102,6 @@ $post_id = isset($_GET['post_id']) ? intval($_GET['post_id']) : 0;
                             <label class="generator__field-label" for="guest_company">Company/Organization</label>
                             <input type="text" id="guest_company" name="guest_company" class="generator__field-input" placeholder="Company Name">
                         </div>
-
-                        <div class="generator__field">
-                            <label class="generator__field-label" for="guest_website">Website</label>
-                            <input type="url" id="guest_website" name="guest_website" class="generator__field-input" placeholder="https://example.com">
-                        </div>
-                    </div>
-
-                    <div class="generator__field">
-                        <label class="generator__field-label" for="guest_expertise">Areas of Expertise</label>
-                        <input type="text" id="guest_expertise" name="guest_expertise" class="generator__field-input" placeholder="Leadership, Marketing, Personal Development, etc.">
-                    </div>
-
-                    <div class="generator__field">
-                        <label class="generator__field-label" for="guest_achievements">Key Achievements</label>
-                        <textarea id="guest_achievements" name="guest_achievements" class="generator__field-input" rows="3" placeholder="Notable accomplishments, publications, awards, etc."></textarea>
                     </div>
                 </div>
 
