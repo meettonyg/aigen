@@ -1432,6 +1432,9 @@ class Media_Kit_Content_Generator {
             $this->generators['tagline']->ajax_save_tagline();
         });
         
+        // Debug AJAX handler for asset loading info
+        add_action('wp_ajax_mkcg_get_asset_debug_info', [$this, 'ajax_get_asset_debug_info']);
+        
         error_log('MKCG: Successfully registered all AJAX handlers via wp_loaded');
         error_log('MKCG: AJAX URL: ' . admin_url('admin-ajax.php'));
         
@@ -2222,6 +2225,15 @@ class Media_Kit_Content_Generator {
                 'mkcg-authority-hook-test',
                 [$this, 'authority_hook_test_page']
             );
+            
+            add_submenu_page(
+                'mkcg-tests',
+                'Asset Loading Debug',
+                'Asset Debug',
+                'manage_options',
+                'mkcg-asset-debug',
+                [$this, 'asset_debug_page']
+            );
         }
     }
     
@@ -2236,6 +2248,7 @@ class Media_Kit_Content_Generator {
         echo '<p>Select a test to validate the plugin functionality:</p>';
         echo '<ul>';
         echo '<li><a href="' . admin_url('admin.php?page=mkcg-authority-hook-test') . '" class="button button-primary">🧪 Authority Hook Service Architecture Test</a> - Validate centralized service implementation</li>';
+        echo '<li><a href="' . admin_url('admin.php?page=mkcg-asset-debug') . '" class="button button-secondary">🔍 Asset Loading Debug</a> - Check page-specific asset loading</li>';
         echo '<li><a href="' . plugins_url('test-authority-hook-service-architecture.php', __FILE__) . '" class="button button-secondary" target="_blank">🔗 Direct Test Link</a> - Run test in new window</li>';
         echo '</ul>';
         echo '</div>';
@@ -2248,6 +2261,14 @@ class Media_Kit_Content_Generator {
         echo '<p><strong>Authority Hook Service:</strong> ' . (class_exists('MKCG_Authority_Hook_Service') ? '✅ Available' : '❌ Not Available') . '</p>';
         echo '<p><strong>API Service:</strong> ' . (isset($this->api_service) ? '✅ Initialized' : '❌ Not Initialized') . '</p>';
         echo '<p><strong>Pods Service:</strong> ' . (isset($this->pods_service) ? '✅ Initialized' : '❌ Not Initialized') . '</p>';
+        echo '<p><strong>Asset Manager:</strong> ' . (isset($this->asset_manager) ? '✅ Initialized' : '❌ Not Initialized') . '</p>';
+        
+        if (isset($this->asset_manager)) {
+            $debug_info = $this->asset_manager->get_debug_info();
+            echo '<p><strong>Current Page ID:</strong> ' . $debug_info['current_page_id'] . '</p>';
+            echo '<p><strong>Detected Generator:</strong> ' . ($debug_info['generator_type'] ?: 'None') . '</p>';
+        }
+        
         echo '</div>';
         echo '</div>';
     }
@@ -2281,6 +2302,118 @@ class Media_Kit_Content_Generator {
         }
         
         echo '</div>';
+        echo '</div>';
+    }
+    
+    /**
+     * AJAX handler to get asset loading debug info
+     */
+    public function ajax_get_asset_debug_info() {
+        if (!current_user_can('administrator')) {
+            wp_send_json_error(['message' => 'Insufficient permissions']);
+            return;
+        }
+        
+        if (!$this->asset_manager) {
+            wp_send_json_error(['message' => 'Asset manager not initialized']);
+            return;
+        }
+        
+        $debug_info = $this->asset_manager->get_debug_info();
+        $enqueued_scripts = $this->asset_manager->get_enqueued_scripts();
+        
+        wp_send_json_success([
+            'debug_info' => $debug_info,
+            'enqueued_scripts' => $enqueued_scripts,
+            'timestamp' => current_time('mysql')
+        ]);
+    }
+    
+    /**
+     * Asset loading debug page
+     */
+    public function asset_debug_page() {
+        echo '<div class="wrap">';
+        echo '<h1>Asset Loading Debug Information</h1>';
+        
+        if ($this->asset_manager) {
+            $debug_info = $this->asset_manager->get_debug_info();
+            $enqueued_scripts = $this->asset_manager->get_enqueued_scripts();
+            
+            echo '<div class="card" style="max-width: none;">';
+            echo '<h2>Current Page Information</h2>';
+            echo '<table class="wp-list-table widefat fixed striped">';
+            echo '<tr><td><strong>Current Page ID:</strong></td><td>' . $debug_info['current_page_id'] . '</td></tr>';
+            echo '<tr><td><strong>Generator Type:</strong></td><td>' . ($debug_info['generator_type'] ?: 'None') . '</td></tr>';
+            echo '<tr><td><strong>Is Generator Page:</strong></td><td>' . ($debug_info['is_generator_page'] ? 'Yes' : 'No') . '</td></tr>';
+            echo '<tr><td><strong>Should Load Assets:</strong></td><td>' . ($debug_info['should_load_assets'] ? 'Yes' : 'No') . '</td></tr>';
+            echo '<tr><td><strong>Assets Loaded:</strong></td><td>' . ($debug_info['assets_loaded'] ? 'Yes' : 'No') . '</td></tr>';
+            echo '</table>';
+            echo '</div>';
+            
+            echo '<div class="card" style="max-width: none; margin-top: 20px;">';
+            echo '<h2>Page ID Mappings</h2>';
+            echo '<table class="wp-list-table widefat fixed striped">';
+            echo '<thead><tr><th>Page ID</th><th>Generator Type</th><th>Status</th></tr></thead>';
+            echo '<tbody>';
+            foreach ($debug_info['page_mappings'] as $page_id => $generator) {
+                $is_current = ($page_id == $debug_info['current_page_id']);
+                $status = $is_current ? '<strong style="color: green;">Current Page</strong>' : 'Available';
+                echo '<tr' . ($is_current ? ' style="background-color: #e7f3ff;"' : '') . '>';
+                echo '<td>' . $page_id . '</td>';
+                echo '<td>' . ucfirst(str_replace('_', ' ', $generator)) . '</td>';
+                echo '<td>' . $status . '</td>';
+                echo '</tr>';
+            }
+            echo '</tbody></table>';
+            echo '</div>';
+            
+            echo '<div class="card" style="max-width: none; margin-top: 20px;">';
+            echo '<h2>Enqueued Assets</h2>';
+            
+            // Display CSS files
+            if (!empty($enqueued_scripts['styles'])) {
+                echo '<h3>Stylesheets (CSS)</h3>';
+                echo '<table class="wp-list-table widefat fixed striped">';
+                echo '<thead><tr><th>Handle</th><th>Source</th><th>Dependencies</th><th>Status</th></tr></thead>';
+                echo '<tbody>';
+                foreach ($enqueued_scripts['styles'] as $handle => $style) {
+                    echo '<tr>';
+                    echo '<td><code>' . $handle . '</code></td>';
+                    echo '<td><small>' . basename($style['src']) . '</small></td>';
+                    echo '<td><small>' . implode(', ', $style['deps']) . '</small></td>';
+                    echo '<td>' . ($style['enqueued'] ? '<span style="color: green;">✓ Enqueued</span>' : '<span style="color: orange;">○ Registered</span>') . '</td>';
+                    echo '</tr>';
+                }
+                echo '</tbody></table>';
+            } else {
+                echo '<h3>Stylesheets (CSS)</h3><p>No MKCG stylesheets found.</p>';
+            }
+            
+            // Display JS files
+            if (!empty($enqueued_scripts['scripts'])) {
+                echo '<h3 style="margin-top: 20px;">JavaScript Files</h3>';
+                echo '<table class="wp-list-table widefat fixed striped">';
+                echo '<thead><tr><th>Handle</th><th>Source</th><th>Dependencies</th><th>Status</th></tr></thead>';
+                echo '<tbody>';
+                foreach ($enqueued_scripts['scripts'] as $handle => $script) {
+                    echo '<tr>';
+                    echo '<td><code>' . $handle . '</code></td>';
+                    echo '<td><small>' . basename($script['src']) . '</small></td>';
+                    echo '<td><small>' . implode(', ', $script['deps']) . '</small></td>';
+                    echo '<td>' . ($script['enqueued'] ? '<span style="color: green;">✓ Enqueued</span>' : '<span style="color: orange;">○ Registered</span>') . '</td>';
+                    echo '</tr>';
+                }
+                echo '</tbody></table>';
+            } else {
+                echo '<h3 style="margin-top: 20px;">JavaScript Files</h3><p>No MKCG scripts found.</p>';
+            }
+            
+            echo '</div>';
+        } else {
+            echo '<div class="notice notice-error"><p>Asset Manager not initialized.</p></div>';
+        }
+        
         echo '</div>';
     }
     
@@ -2328,12 +2461,3 @@ function mkcg_init() {
 
 // Hook into plugins_loaded to ensure WordPress is ready
 add_action('plugins_loaded', 'mkcg_init');
-
-// Debug function to test CSS loading
-function mkcg_debug_css() {
-    if (current_user_can('administrator')) {
-        echo '<!-- MKCG Debug: Plugin URL = ' . MKCG_PLUGIN_URL . ' -->';
-        echo '<!-- MKCG Debug: CSS Path = ' . MKCG_PLUGIN_URL . 'assets/css/mkcg-unified-styles.css -->';
-    }
-}
-add_action('wp_head', 'mkcg_debug_css');

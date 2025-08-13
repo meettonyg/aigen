@@ -1,0 +1,101 @@
+/**
+ * Tagline Generator Specific Styles
+ * Only loaded on Tagline Generator page (ID: 46202)
+ */
+
+.mkcg-tagline-generator {
+    background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.tagline-options-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.tagline-option {
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.tagline-option:hover {
+    border-color: #ff6b6b;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.2);
+}
+
+.tagline-option.selected {
+    border-color: #ff6b6b;
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.1) 0%, rgba(254, 202, 87, 0.1) 100%);
+}
+
+.tagline-option .tagline-text {
+    font-size: 16px;
+    font-weight: 600;
+    color: #2d3748;
+    line-height: 1.4;
+}
+
+.tagline-option .tagline-description {
+    font-size: 14px;
+    color: #718096;
+    margin-top: 8px;
+}
+
+.tagline-generate-btn {
+    background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.tagline-generate-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+}
+
+.tagline-input-section {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 8px;
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.tagline-results-section {
+    background: #fff5f5;
+    border-left: 4px solid #ff6b6b;
+    padding: 20px;
+    margin: 20px 0;
+    border-radius: 0 8px 8px 0;
+}
+
+@media (max-width: 768px) {
+    .tagline-options-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .mkcg-tagline-generator {
+        margin: 10px 0;
+        padding: 15px;
+    }
+    
+    .tagline-input-section {
+        padding: 15px;
+        margin: 10px;
+    }
+}

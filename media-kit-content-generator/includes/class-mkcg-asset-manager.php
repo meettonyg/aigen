@@ -20,11 +20,25 @@ class MKCG_Asset_Manager {
     private $assets_loaded = false;
     private $plugin_url;
     private $plugin_path;
+    private $page_mappings;
+    private $current_page_id;
     
     public function __construct($version = '1.0.0', $plugin_url = '', $plugin_path = '') {
         $this->version = $version;
         $this->plugin_url = $plugin_url;
         $this->plugin_path = $plugin_path;
+        
+        // Define page ID to generator mappings based on page IDs
+        $this->page_mappings = [
+            46202 => 'tagline',      // Tagline Generator
+            46200 => 'guest_intro',  // Guest Intro
+            46198 => 'impact_intro', // Impact Intro
+            46195 => 'authority_hook', // Authority Hook
+            46178 => 'questions',    // Questions
+            46176 => 'topics',       // Topics
+            46174 => 'offers',       // Offer Generator
+            46171 => 'biography',    // Biography Generator
+        ];
         
         // Event-driven initialization - no polling
         add_action('wp_enqueue_scripts', array($this, 'conditional_enqueue_assets'), 10);
@@ -33,6 +47,56 @@ class MKCG_Asset_Manager {
         // Listen for generator-specific events
         add_action('mkcg_generator_loaded', array($this, 'on_generator_loaded'), 10, 1);
         add_action('mkcg_shortcode_detected', array($this, 'on_shortcode_detected'), 10, 1);
+    }
+    
+    /**
+     * Get current page ID from various sources
+     */
+    private function get_current_page_id() {
+        if ($this->current_page_id) {
+            return $this->current_page_id;
+        }
+        
+        // Method 1: Direct page ID
+        global $post;
+        if ($post && is_object($post)) {
+            $this->current_page_id = $post->ID;
+            return $this->current_page_id;
+        }
+        
+        // Method 2: URL parameter
+        if (isset($_GET['page_id'])) {
+            $this->current_page_id = intval($_GET['page_id']);
+            return $this->current_page_id;
+        }
+        
+        // Method 3: Queried object
+        $queried_object = get_queried_object();
+        if ($queried_object && isset($queried_object->ID)) {
+            $this->current_page_id = $queried_object->ID;
+            return $this->current_page_id;
+        }
+        
+        return 0;
+    }
+    
+    /**
+     * Determine generator type based on current page ID
+     */
+    private function get_generator_type_by_page_id($page_id = null) {
+        if ($page_id === null) {
+            $page_id = $this->get_current_page_id();
+        }
+        
+        return isset($this->page_mappings[$page_id]) ? $this->page_mappings[$page_id] : null;
+    }
+    
+    /**
+     * Check if current page is a generator page
+     */
+    private function is_generator_page() {
+        $page_id = $this->get_current_page_id();
+        return isset($this->page_mappings[$page_id]);
     }
     
     /**
@@ -47,6 +111,14 @@ class MKCG_Asset_Manager {
         
         if ($this->should_load_assets()) {
             $this->enqueue_frontend_assets();
+            
+            // Load generator-specific assets based on page ID
+            $generator_type = $this->get_generator_type_by_page_id();
+            if ($generator_type) {
+                $this->enqueue_generator_assets($generator_type);
+                error_log('MKCG Asset Manager: Loaded page-specific assets for generator: ' . $generator_type . ' (Page ID: ' . $this->get_current_page_id() . ')');
+            }
+            
             $this->assets_loaded = true;
             
             // Trigger event for other components
@@ -85,25 +157,60 @@ class MKCG_Asset_Manager {
     }
     
     /**
+     * Event handler for shortcode detection
+     */
+    public function on_shortcode_detected($shortcode) {
+        // Force asset loading when shortcode is detected
+        if (!$this->assets_loaded) {
+            $this->enqueue_frontend_assets();
+            $this->assets_loaded = true;
+        }
+        
+        // Try to determine generator type from shortcode
+        $shortcode_mappings = [
+            'mkcg_biography' => 'biography',
+            'mkcg_topics' => 'topics', 
+            'mkcg_questions' => 'questions',
+            'mkcg_offers' => 'offers',
+            'mkcg_guest_intro' => 'guest_intro',
+            'mkcg_tagline' => 'tagline',
+            'mkcg_authority_hook' => 'authority_hook',
+            'mkcg_impact_intro' => 'impact_intro'
+        ];
+        
+        if (isset($shortcode_mappings[$shortcode])) {
+            $this->enqueue_generator_assets($shortcode_mappings[$shortcode]);
+        }
+        
+        error_log('MKCG Asset Manager: Shortcode detected: ' . $shortcode);
+    }
+    
+    /**
      * ✅ Root cause detection - no global object sniffing
      */
     private function should_load_assets() {
-        // Method 1: Shortcode detection
+        // Method 1: Page ID detection (primary method)
+        if ($this->is_generator_page()) {
+            error_log('MKCG Asset Manager: Loading assets for generator page ID: ' . $this->get_current_page_id());
+            return true;
+        }
+        
+        // Method 2: Shortcode detection
         if ($this->has_plugin_shortcodes()) {
             return true;
         }
         
-        // Method 2: URL parameter detection
+        // Method 3: URL parameter detection
         if ($this->has_generator_parameters()) {
             return true;
         }
         
-        // Method 3: Template detection
+        // Method 4: Template detection
         if ($this->is_plugin_template()) {
             return true;
         }
         
-        // Method 4: AJAX request detection
+        // Method 5: AJAX request detection
         if ($this->is_plugin_ajax_request()) {
             return true;
         }
@@ -175,10 +282,10 @@ class MKCG_Asset_Manager {
     
     /**
      * ✅ Correct enqueuing with proper dependencies for PUBLIC FRONTEND
-     * FIXED: Uses actual JavaScript files that exist
+     * UPDATED: Loads general styles and scripts that should be on all generator pages
      */
     private function enqueue_frontend_assets() {
-        // ✅ CSS for ALL USERS (public-facing pages)
+        // ✅ General CSS for ALL generator pages
         wp_enqueue_style(
             'mkcg-unified-styles',
             $this->plugin_url . 'assets/css/mkcg-unified-styles.css',
@@ -187,11 +294,36 @@ class MKCG_Asset_Manager {
             'all'
         );
         
-        // ✅ FIXED: Use actual JavaScript files that exist
+        // Cross-browser fixes CSS
+        wp_enqueue_style(
+            'mkcg-cross-browser-fixes',
+            $this->plugin_url . 'assets/css/cross-browser-fixes.css',
+            array('mkcg-unified-styles'),
+            $this->version,
+            'all'
+        );
+        
+        // ✅ General JavaScript files that should load on ALL generator pages
+        wp_enqueue_script(
+            'simple-event-bus',
+            $this->plugin_url . 'assets/js/simple-event-bus.js',
+            array('jquery'),
+            $this->version,
+            true
+        );
+        
+        wp_enqueue_script(
+            'simple-notifications',
+            $this->plugin_url . 'assets/js/simple-notifications.js',
+            array('simple-event-bus'),
+            $this->version,
+            true
+        );
+        
         wp_enqueue_script(
             'mkcg-simple-ajax',
             $this->plugin_url . 'assets/js/simple-ajax.js',
-            array('jquery'),
+            array('simple-notifications'),
             $this->version,
             true
         );
@@ -204,10 +336,27 @@ class MKCG_Asset_Manager {
             true
         );
         
+        // Cross-browser compatibility scripts
         wp_enqueue_script(
-            'mkcg-notifications',
-            $this->plugin_url . 'assets/js/simple-notifications.js',
+            'cross-browser-compatibility',
+            $this->plugin_url . 'assets/js/cross-browser-compatibility.js',
             array('mkcg-form-utils'),
+            $this->version,
+            true
+        );
+        
+        wp_enqueue_script(
+            'cross-browser-fixes',
+            $this->plugin_url . 'assets/js/cross-browser-fixes.js',
+            array('cross-browser-compatibility'),
+            $this->version,
+            true
+        );
+        
+        wp_enqueue_script(
+            'enhanced-ui-feedback',
+            $this->plugin_url . 'assets/js/enhanced-ui-feedback.js',
+            array('cross-browser-fixes'),
             $this->version,
             true
         );
@@ -218,7 +367,7 @@ class MKCG_Asset_Manager {
             'nonce' => wp_create_nonce('mkcg_nonce'),
         ));
         
-        error_log('MKCG Asset Manager: Frontend assets loaded for PUBLIC users');
+        error_log('MKCG Asset Manager: General frontend assets loaded for all generator pages');
     }
     
     private function enqueue_admin_assets() {
@@ -241,30 +390,120 @@ class MKCG_Asset_Manager {
     
     /**
      * ✅ Generator-specific asset loading with proper dependencies
-     * FIXED: Uses correct dependency chain with actual scripts
+     * UPDATED: Loads specific styles and scripts only for matching generator pages
      */
     private function enqueue_generator_assets($generator_type) {
-        $generator_scripts = array(
-            'biography' => 'biography-generator.js',
-            'topics' => 'topics-generator.js',
-            'questions' => 'questions-generator.js',
-            'offers' => 'offers-generator.js',
-            'guest_intro' => 'guest-intro-generator.js',
-            'tagline' => 'tagline-generator.js'
+        // Generator-specific CSS files
+        $generator_styles = array(
+            'biography' => [
+                'generators/biography-generator.css'
+            ],
+            'topics' => [
+                'generators/topics-generator.css'
+            ],
+            'questions' => [
+                'generators/questions-generator.css'
+            ],
+            'offers' => [
+                'generators/offers-generator.css'
+            ],
+            'guest_intro' => [
+                'generators/guest-intro-generator.css'
+            ],
+            'tagline' => [
+                'generators/tagline-generator.css'
+            ],
+            'authority_hook' => [
+                'generators/authority-hook-generator.css'
+            ],
+            'impact_intro' => [
+                'generators/impact-intro-generator.css'
+            ]
         );
         
+        // Generator-specific JavaScript files
+        $generator_scripts = array(
+            'biography' => [
+                'biography-generator.js',
+                'biography-results.js'
+            ],
+            'topics' => [
+                'topics-generator.js'
+            ],
+            'questions' => [
+                'questions-generator.js'
+            ],
+            'offers' => [
+                'offers-generator.js'
+            ],
+            'guest_intro' => [
+                'guest-intro-generator.js'
+            ],
+            'tagline' => [
+                'tagline-generator.js'
+            ],
+            'authority_hook' => [
+                'authority-hook-generator.js'
+            ],
+            'impact_intro' => [
+                'impact-intro-generator.js'
+            ]
+        );
+        
+        // Enqueue generator-specific CSS
+        if (isset($generator_styles[$generator_type])) {
+            foreach ($generator_styles[$generator_type] as $style_file) {
+                $style_name = str_replace('.css', '', basename($style_file));
+                $style_handle = $style_name . '-css';
+                
+                // Check if the CSS file exists before enqueueing
+                $css_path = $this->plugin_path . 'assets/css/' . $style_file;
+                if (file_exists($css_path)) {
+                    wp_enqueue_style(
+                        $style_handle,
+                        $this->plugin_url . 'assets/css/' . $style_file,
+                        array('mkcg-unified-styles', 'mkcg-cross-browser-fixes'),
+                        $this->version,
+                        'all'
+                    );
+                    
+                    error_log('MKCG Asset Manager: Loaded ' . $style_file . ' CSS for ' . $generator_type . ' generator (Page ID: ' . $this->get_current_page_id() . ')');
+                } else {
+                    error_log('MKCG Asset Manager: CSS file not found: ' . $css_path);
+                }
+            }
+        }
+        
+        // Enqueue generator-specific JavaScript
         if (isset($generator_scripts[$generator_type])) {
-            $script_handle = 'mkcg-' . $generator_type . '-generator';
+            $base_dependencies = array('enhanced-ui-feedback', 'mkcg-simple-ajax', 'mkcg-form-utils', 'simple-notifications');
             
-            wp_enqueue_script(
-                $script_handle,
-                $this->plugin_url . 'assets/js/generators/' . $generator_scripts[$generator_type],
-                array('mkcg-simple-ajax', 'mkcg-form-utils', 'mkcg-notifications'), // ✅ FIXED dependency chain
-                $this->version,
-                true
-            );
+            foreach ($generator_scripts[$generator_type] as $script_file) {
+                $script_name = str_replace('.js', '', $script_file);
+                $script_handle = $script_name . '-js';
+                
+                wp_enqueue_script(
+                    $script_handle,
+                    $this->plugin_url . 'assets/js/generators/' . $script_file,
+                    $base_dependencies,
+                    $this->version,
+                    true
+                );
+                
+                error_log('MKCG Asset Manager: Loaded ' . $script_file . ' for ' . $generator_type . ' generator (Page ID: ' . $this->get_current_page_id() . ')');
+            }
             
-            error_log('MKCG Asset Manager: Loaded ' . $generator_type . ' generator assets for PUBLIC users');
+            // Special case for authority hook builder
+            if ($generator_type === 'authority_hook') {
+                wp_enqueue_script(
+                    'authority-hook-builder-js',
+                    $this->plugin_url . 'assets/js/authority-hook-builder.js',
+                    $base_dependencies,
+                    $this->version,
+                    true
+                );
+            }
+            
             do_action('mkcg_generator_assets_loaded', $generator_type);
         }
     }
@@ -278,5 +517,66 @@ class MKCG_Asset_Manager {
     
     public function are_assets_loaded() {
         return $this->assets_loaded;
+    }
+    
+    /**
+     * Get debug information about current asset loading
+     */
+    public function get_debug_info() {
+        $page_id = $this->get_current_page_id();
+        $generator_type = $this->get_generator_type_by_page_id($page_id);
+        
+        return [
+            'current_page_id' => $page_id,
+            'generator_type' => $generator_type,
+            'is_generator_page' => $this->is_generator_page(),
+            'assets_loaded' => $this->assets_loaded,
+            'page_mappings' => $this->page_mappings,
+            'should_load_assets' => $this->should_load_assets()
+        ];
+    }
+    
+    /**
+     * Get list of enqueued MKCG scripts and styles for debugging
+     */
+    public function get_enqueued_scripts() {
+        global $wp_scripts, $wp_styles;
+        $mkcg_assets = ['scripts' => [], 'styles' => []];
+        
+        // Get scripts
+        if (isset($wp_scripts->registered)) {
+            foreach ($wp_scripts->registered as $handle => $script) {
+                if (strpos($handle, 'mkcg-') === 0 || 
+                    strpos($handle, 'simple-') === 0 ||
+                    strpos($handle, 'cross-browser') === 0 ||
+                    strpos($handle, 'enhanced-') === 0 ||
+                    strpos($script->src, 'media-kit-content-generator') !== false) {
+                    $mkcg_assets['scripts'][$handle] = [
+                        'src' => $script->src,
+                        'deps' => $script->deps,
+                        'enqueued' => wp_script_is($handle, 'enqueued')
+                    ];
+                }
+            }
+        }
+        
+        // Get styles
+        if (isset($wp_styles->registered)) {
+            foreach ($wp_styles->registered as $handle => $style) {
+                if (strpos($handle, 'mkcg-') === 0 || 
+                    strpos($handle, 'simple-') === 0 ||
+                    strpos($handle, 'cross-browser') === 0 ||
+                    strpos($handle, 'enhanced-') === 0 ||
+                    strpos($style->src, 'media-kit-content-generator') !== false) {
+                    $mkcg_assets['styles'][$handle] = [
+                        'src' => $style->src,
+                        'deps' => $style->deps,
+                        'enqueued' => wp_style_is($handle, 'enqueued')
+                    ];
+                }
+            }
+        }
+        
+        return $mkcg_assets;
     }
 }
