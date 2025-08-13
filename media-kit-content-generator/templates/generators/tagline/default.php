@@ -11,6 +11,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// ✅ Trigger asset loading for templates accessed directly
+do_action('mkcg_shortcode_detected', 'mkcg_tagline');
+do_action('mkcg_generator_loaded', 'tagline');
+
 // ROOT FIX: COMPREHENSIVE DATA LOADING - Following Guest Intro Generator Pattern EXACTLY
 $template_data = [];
 $debug_info = [];
@@ -546,13 +550,9 @@ error_log('MKCG Tagline Template: Has Data: ' . ($has_data ? 'true' : 'false'));
 
 <!-- Pass PHP data to JavaScript -->
 <script type="text/javascript">
-    // MKCG Debug Info
-    console.log('🎯 MKCG Tagline: Template data loaded', {
-        postId: <?php echo intval($post_id); ?>,
-        hasData: <?php echo $has_data ? 'true' : 'false'; ?>
-    });
+    // ✅ Assets are now loaded by Asset Manager - no manual script loading
     
-    // Pass PHP data to JavaScript
+    // Pass PHP data to JavaScript for when assets are loaded
     window.MKCG_Tagline_Data = {
         postId: <?php echo intval($post_id); ?>,
         hasData: <?php echo $has_data ? 'true' : 'false'; ?>,
@@ -570,33 +570,10 @@ error_log('MKCG Tagline Template: Has Data: ' . ($has_data ? 'true' : 'false'));
         }
     };
     
-    console.log('✅ MKCG Tagline: Data loaded', window.MKCG_Tagline_Data);
+    console.log('✅ MKCG Tagline: Data prepared for Asset Manager', window.MKCG_Tagline_Data);
     
     // Set up AJAX URL for WordPress
     if (!window.ajaxurl) {
         window.ajaxurl = '<?php echo admin_url('admin-ajax.php'); ?>';
-    }
-
-    // Register tagline generator script
-    if (typeof wp !== 'undefined' && wp.hooks && wp.hooks.addAction) {
-        wp.hooks.addAction('mkcg.scriptsLoaded', 'mkcg/tagline', function() {
-            console.log('Loading Tagline Generator script');
-            if (document.querySelector('.tagline-generator')) {
-                const script = document.createElement('script');
-                script.src = '<?php echo MKCG_PLUGIN_URL; ?>assets/js/generators/tagline-generator.js';
-                script.async = true;
-                document.head.appendChild(script);
-            }
-        });
-    } else {
-        // Fallback for non-WordPress environments
-        document.addEventListener('DOMContentLoaded', function() {
-            if (document.querySelector('.tagline-generator')) {
-                const script = document.createElement('script');
-                script.src = '<?php echo MKCG_PLUGIN_URL; ?>assets/js/generators/tagline-generator.js';
-                script.async = true;
-                document.head.appendChild(script);
-            }
-        });
     }
 </script>

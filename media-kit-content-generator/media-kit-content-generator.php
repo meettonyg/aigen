@@ -32,6 +32,7 @@ class Media_Kit_Content_Generator {
     private $authority_hook_service;
     private $impact_intro_service;
     private $ajax_handlers = null;
+    private $asset_manager;
 
     private $generators = [];
     
@@ -1323,17 +1324,42 @@ class Media_Kit_Content_Generator {
     
     private function init_hooks() {
         add_action('init', [$this, 'init']);
-        add_action('wp_enqueue_scripts', [$this, 'enqueue_scripts']);
-        add_action('admin_enqueue_scripts', [$this, 'enqueue_scripts']); // Also load in admin
+        
+        // ✅ REMOVED global asset loading - now handled by Asset Manager conditionally
+        // OLD: add_action('wp_enqueue_scripts', [$this, 'enqueue_scripts']);
+        // OLD: add_action('admin_enqueue_scripts', [$this, 'enqueue_scripts']);
+        
         add_action('wp_head', [$this, 'add_ajax_url_to_head']);
         add_action('admin_menu', [$this, 'add_admin_menu']);
         register_activation_hook(__FILE__, [$this, 'activate']);
         register_deactivation_hook(__FILE__, [$this, 'deactivate']);
         
+        // ✅ Event-driven initialization - Asset Manager will be initialized on init
+        add_action('init', [$this, 'init_asset_manager'], 15);
+        
         // CRITICAL FIX: Register AJAX actions with higher priority to avoid conflicts
         add_action('wp_loaded', [$this, 'register_ajax_handlers'], 5);
         
-        error_log('MKCG: Init hooks registered with AJAX handlers on wp_loaded');
+        error_log('MKCG: Init hooks registered with conditional Asset Manager');
+    }
+    
+    /**
+     * ✅ Initialize Asset Manager for conditional loading
+     * Event-driven initialization - no polling
+     */
+    public function init_asset_manager() {
+        if (!$this->asset_manager) {
+            $this->asset_manager = new MKCG_Asset_Manager(
+                MKCG_VERSION,
+                MKCG_PLUGIN_URL,
+                MKCG_PLUGIN_PATH
+            );
+            
+            error_log('MKCG: Asset Manager initialized with conditional loading');
+            
+            // ✅ Trigger event for other components
+            do_action('mkcg_asset_manager_ready');
+        }
     }
     
     /**
@@ -1418,6 +1444,9 @@ class Media_Kit_Content_Generator {
     }
     
     private function load_dependencies() {
+        // ✅ Load Asset Manager first for conditional loading
+        require_once MKCG_PLUGIN_PATH . 'includes/class-mkcg-asset-manager.php';
+        
         require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-config.php';
         require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-api-service.php';
         require_once MKCG_PLUGIN_PATH . 'includes/services/class-mkcg-pods-service.php';
@@ -1659,12 +1688,16 @@ class Media_Kit_Content_Generator {
      * Topics Generator Shortcode - Pure Pods integration
      */
     public function topics_shortcode($atts) {
+        // ✅ Trigger asset loading when shortcode is processed
+        do_action('mkcg_shortcode_detected', 'mkcg_topics');
+        do_action('mkcg_generator_loaded', 'topics');
+        
         $atts = shortcode_atts([
             'post_id' => 0
         ], $atts);
         
-        // Force load scripts for shortcode
-        $this->enqueue_scripts();
+        // Assets now loaded conditionally by Asset Manager
+        // $this->enqueue_scripts();
         
         ob_start();
         
@@ -1694,12 +1727,16 @@ class Media_Kit_Content_Generator {
      * Tagline Generator Shortcode - AI-powered tagline generation with multi-option selection
      */
     public function tagline_shortcode($atts) {
+        // ✅ Trigger asset loading when shortcode is processed
+        do_action('mkcg_shortcode_detected', 'mkcg_tagline');
+        do_action('mkcg_generator_loaded', 'tagline');
+        
         $atts = shortcode_atts([
             'post_id' => 0
         ], $atts);
         
-        // Force load scripts for shortcode
-        $this->enqueue_scripts();
+        // Assets now loaded conditionally by Asset Manager
+        // $this->enqueue_scripts();
         
         ob_start();
         
@@ -1731,12 +1768,16 @@ class Media_Kit_Content_Generator {
      * Biography Generator Shortcode
      */
     public function biography_shortcode($atts) {
+        // ✅ Trigger asset loading when shortcode is processed
+        do_action('mkcg_shortcode_detected', 'mkcg_biography');
+        do_action('mkcg_generator_loaded', 'biography');
+        
         $atts = shortcode_atts([
             'post_id' => 0
         ], $atts);
         
-        // Force load scripts for shortcode
-        $this->enqueue_scripts();
+        // Assets now loaded conditionally by Asset Manager
+        // $this->enqueue_scripts();
         
         ob_start();
         
@@ -1777,12 +1818,16 @@ class Media_Kit_Content_Generator {
      * Offers Generator Shortcode - Active implementation
      */
     public function offers_shortcode($atts) {
+        // ✅ Trigger asset loading when shortcode is processed
+        do_action('mkcg_shortcode_detected', 'mkcg_offers');
+        do_action('mkcg_generator_loaded', 'offers');
+        
         $atts = shortcode_atts([
             'post_id' => 0
         ], $atts);
         
-        // Force load scripts for shortcode
-        $this->enqueue_scripts();
+        // Assets now loaded conditionally by Asset Manager
+        // $this->enqueue_scripts();
         
         ob_start();
         
@@ -1812,12 +1857,16 @@ class Media_Kit_Content_Generator {
      * Questions Generator Shortcode - Pure Pods integration
      */
     public function questions_shortcode($atts) {
+        // ✅ Trigger asset loading when shortcode is processed
+        do_action('mkcg_shortcode_detected', 'mkcg_questions');
+        do_action('mkcg_generator_loaded', 'questions');
+        
         $atts = shortcode_atts([
             'post_id' => 0
         ], $atts);
         
-        // Force load scripts for shortcode
-        $this->enqueue_scripts();
+        // Assets now loaded conditionally by Asset Manager
+        // $this->enqueue_scripts();
         
         ob_start();
         
@@ -1879,12 +1928,16 @@ class Media_Kit_Content_Generator {
      * Authority Hook Generator Shortcode - Dedicated Authority Hook page
      */
     public function authority_hook_shortcode($atts) {
+        // ✅ Trigger asset loading when shortcode is processed
+        do_action('mkcg_shortcode_detected', 'mkcg_authority_hook');
+        do_action('mkcg_generator_loaded', 'authority_hook');
+        
         $atts = shortcode_atts([
             'post_id' => 0
         ], $atts);
         
-        // Force load scripts for shortcode
-        $this->enqueue_scripts();
+        // Assets now loaded conditionally by Asset Manager
+        // $this->enqueue_scripts();
         
         ob_start();
         
@@ -1914,12 +1967,16 @@ class Media_Kit_Content_Generator {
      * Impact Intro Generator Shortcode - Dedicated Impact Intro page
      */
     public function impact_intro_shortcode($atts) {
+        // ✅ Trigger asset loading when shortcode is processed
+        do_action('mkcg_shortcode_detected', 'mkcg_impact_intro');
+        do_action('mkcg_generator_loaded', 'impact_intro');
+        
         $atts = shortcode_atts([
             'post_id' => 0
         ], $atts);
         
-        // Force load scripts for shortcode
-        $this->enqueue_scripts();
+        // Assets now loaded conditionally by Asset Manager
+        // $this->enqueue_scripts();
         
         ob_start();
         
@@ -1949,12 +2006,16 @@ class Media_Kit_Content_Generator {
      * Guest Intro Generator Shortcode - AI-powered guest introductions
      */
     public function guest_intro_shortcode($atts) {
+        // ✅ Trigger asset loading when shortcode is processed
+        do_action('mkcg_shortcode_detected', 'mkcg_guest_intro');
+        do_action('mkcg_generator_loaded', 'guest_intro');
+        
         $atts = shortcode_atts([
             'post_id' => 0
         ], $atts);
         
-        // Force load scripts for shortcode
-        $this->enqueue_scripts();
+        // Assets now loaded conditionally by Asset Manager
+        // $this->enqueue_scripts();
         
         ob_start();
         
@@ -1982,143 +2043,19 @@ class Media_Kit_Content_Generator {
     }
     
     public function enqueue_scripts() {
-        // Only load scripts if needed
-        if (!$this->should_load_scripts()) {
+        // ✅ Assets are now loaded conditionally by Asset Manager
+        // This method only handles AJAX data localization when assets are loaded
+        
+        // ✅ FIXED: Check for the correct script handle that actually exists
+        if (!wp_script_is('mkcg-simple-ajax', 'enqueued')) {
+            // Assets not loaded by Asset Manager, skip AJAX setup
             return;
         }
         
-        $this->debug_log('MKCG: Enqueuing scripts for current page');
+        $this->debug_log('MKCG: Localizing AJAX data for conditionally loaded assets');
         
-        // Load CSS
-        wp_enqueue_style(
-            'mkcg-unified-styles', 
-            MKCG_PLUGIN_URL . 'assets/css/mkcg-unified-styles.css', 
-            [], 
-            MKCG_VERSION,
-            'all'
-        );
-        
-        // Cross-browser compatibility is now built into the unified styles
-        // No separate cross-browser CSS file needed
-        
-        // Load jQuery
-        wp_enqueue_script('jquery');
-        
-        // Load Authority Hook Builder (includes all functionality)
-        wp_enqueue_script(
-            'authority-hook-builder',
-            MKCG_PLUGIN_URL . 'assets/js/authority-hook-builder.js',
-            ['jquery'],
-            MKCG_VERSION,
-            true
-        );
-        
-        // Load Simple AJAX System (single AJAX solution)
-        wp_enqueue_script(
-            'simple-ajax',
-            MKCG_PLUGIN_URL . 'assets/js/simple-ajax.js',
-            ['jquery'],
-            MKCG_VERSION,
-            true
-        );
-        
-        // Load Simple Event Bus (replaces complex MKCG_DataManager)
-        wp_enqueue_script(
-            'simple-event-bus',
-            MKCG_PLUGIN_URL . 'assets/js/simple-event-bus.js',
-            [],
-            MKCG_VERSION,
-            true
-        );
-        
-        // Load Simple Notifications System
-        wp_enqueue_script(
-            'simple-notifications',
-            MKCG_PLUGIN_URL . 'assets/js/simple-notifications.js',
-            [],
-            MKCG_VERSION,
-            true
-        );
-        
-        // Load generators
-        wp_enqueue_script(
-            'topics-generator',
-            MKCG_PLUGIN_URL . 'assets/js/generators/topics-generator.js',
-            ['simple-event-bus', 'simple-ajax', 'authority-hook-builder'],
-            MKCG_VERSION,
-            true
-        );
-        
-        wp_enqueue_script(
-            'questions-generator',
-            MKCG_PLUGIN_URL . 'assets/js/generators/questions-generator.js',
-            ['simple-event-bus', 'simple-ajax', 'authority-hook-builder'],
-            MKCG_VERSION,
-            true
-        );
-        
-        wp_enqueue_script(
-            'offers-generator',
-            MKCG_PLUGIN_URL . 'assets/js/generators/offers-generator.js',
-            ['simple-event-bus', 'simple-ajax', 'authority-hook-builder'],
-            MKCG_VERSION,
-            true
-        );
-        
-        wp_enqueue_script(
-            'authority-hook-generator',
-            MKCG_PLUGIN_URL . 'assets/js/generators/authority-hook-generator.js',
-            ['simple-event-bus', 'simple-ajax', 'authority-hook-builder'],
-            MKCG_VERSION,
-            true
-        );
-        
-        // Biography Generator
-        wp_enqueue_script(
-            'biography-generator',
-            MKCG_PLUGIN_URL . 'assets/js/generators/biography-generator.js',
-            ['simple-event-bus', 'simple-ajax', 'authority-hook-builder'],
-            MKCG_VERSION,
-            true
-        );
-        
-        wp_enqueue_script(
-            'biography-results',
-            MKCG_PLUGIN_URL . 'assets/js/generators/biography-results.js',
-            ['simple-event-bus', 'simple-ajax'],
-            MKCG_VERSION,
-            true
-        );
-        
-        // Guest Intro Generator
-        wp_enqueue_script(
-            'guest-intro-generator',
-            MKCG_PLUGIN_URL . 'assets/js/generators/guest-intro-generator.js',
-            ['simple-event-bus', 'simple-ajax', 'authority-hook-builder'],
-            MKCG_VERSION,
-            true
-        );
-        
-        // Tagline Generator
-        wp_enqueue_script(
-            'tagline-generator',
-            MKCG_PLUGIN_URL . 'assets/js/generators/tagline-generator.js',
-            ['simple-event-bus', 'simple-ajax', 'authority-hook-builder'],
-            MKCG_VERSION,
-            true
-        );
-        
-        // Load Cross-Browser Compatibility JS (after all generators)
-        wp_enqueue_script(
-            'mkcg-cross-browser-fixes',
-            MKCG_PLUGIN_URL . 'assets/js/cross-browser-fixes.js',
-            ['jquery', 'simple-event-bus', 'simple-ajax', 'tagline-generator'],
-            MKCG_VERSION,
-            true
-        );
-        
-        // Pass data to JavaScript - CRITICAL FIX: Ensure proper AJAX setup
-        wp_localize_script('simple-ajax', 'mkcg_vars', [
+        // ✅ FIXED: Localize with correct script handle
+        wp_localize_script('mkcg-simple-ajax', 'mkcg_vars', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('mkcg_nonce'),
             'plugin_url' => MKCG_PLUGIN_URL,
@@ -2168,15 +2105,7 @@ class Media_Kit_Content_Generator {
             ]
         ]);
         
-        // Make services available globally for testing
-        wp_add_inline_script('simple-ajax', '
-            window.MKCG_Pods_Service = true;
-            window.MKCG_Formidable_Service = true;
-            window.podsService = true;
-            window.formidableService = true;
-        ');
-        
-        error_log('MKCG: Script loading completed with cross-browser compatibility support');
+        error_log('MKCG: AJAX data localized for conditionally loaded assets');
     }
     
     // SIMPLIFIED: No complex generator detection needed
@@ -2368,7 +2297,9 @@ class Media_Kit_Content_Generator {
         return $this->authority_hook_service;
     }
     
-
+    public function get_asset_manager() {
+        return $this->asset_manager;
+    }
     
     public function get_generator($type) {
         return isset($this->generators[$type]) ? $this->generators[$type] : null;

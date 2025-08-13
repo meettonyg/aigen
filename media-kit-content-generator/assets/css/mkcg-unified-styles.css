@@ -2058,7 +2058,7 @@
    ============================================================================= */
 
 /* Tab Container - Use CSS Grid to reorder elements */
-.tabs {
+.generator__container .tabs {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   grid-template-rows: auto 1fr;

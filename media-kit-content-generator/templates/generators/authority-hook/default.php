@@ -9,6 +9,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// ✅ Trigger asset loading for templates accessed directly
+do_action('mkcg_shortcode_detected', 'mkcg_authority_hook');
+do_action('mkcg_generator_loaded', 'authority_hook');
+
 // CLEAN CODE: Simple data loading - no parameter checking needed
 $template_data = [];
 $debug_info = [];

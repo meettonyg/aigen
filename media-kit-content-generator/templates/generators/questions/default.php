@@ -10,6 +10,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// ✅ Trigger asset loading for templates accessed directly
+do_action('mkcg_shortcode_detected', 'mkcg_questions');
+do_action('mkcg_generator_loaded', 'questions');
+
 // ROOT FIX: Use template data from generator class (passed from shortcode)
 global $mkcg_template_data, $generator_instance;
 

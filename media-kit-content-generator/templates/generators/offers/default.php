@@ -10,6 +10,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// ✅ Trigger asset loading for templates accessed directly
+do_action('mkcg_shortcode_detected', 'mkcg_offers');
+do_action('mkcg_generator_loaded', 'offers');
+
 // ENHANCED DATA LOADING: Root-level fixes for Pods data loading - Pure Pods
 $template_data = [];
 $debug_info = [];

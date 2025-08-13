@@ -13,6 +13,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// ✅ Trigger asset loading for templates accessed directly
+do_action('mkcg_shortcode_detected', 'mkcg_guest_intro');
+do_action('mkcg_generator_loaded', 'guest_intro');
+
 // COMPREHENSIVE DATA LOADING - Following Topics Generator Pattern
 $template_data = [];
 $debug_info = [];
