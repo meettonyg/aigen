@@ -61,12 +61,14 @@ class MKCG_Asset_Manager {
         global $post;
         if ($post && is_object($post)) {
             $this->current_page_id = $post->ID;
+            error_log('MKCG Asset Manager: Page ID detected via $post: ' . $this->current_page_id);
             return $this->current_page_id;
         }
         
         // Method 2: URL parameter
         if (isset($_GET['page_id'])) {
             $this->current_page_id = intval($_GET['page_id']);
+            error_log('MKCG Asset Manager: Page ID detected via URL parameter: ' . $this->current_page_id);
             return $this->current_page_id;
         }
         
@@ -74,9 +76,11 @@ class MKCG_Asset_Manager {
         $queried_object = get_queried_object();
         if ($queried_object && isset($queried_object->ID)) {
             $this->current_page_id = $queried_object->ID;
+            error_log('MKCG Asset Manager: Page ID detected via queried object: ' . $this->current_page_id);
             return $this->current_page_id;
         }
         
+        error_log('MKCG Asset Manager: No page ID could be determined');
         return 0;
     }
     
@@ -96,7 +100,11 @@ class MKCG_Asset_Manager {
      */
     private function is_generator_page() {
         $page_id = $this->get_current_page_id();
-        return isset($this->page_mappings[$page_id]);
+        $is_generator = isset($this->page_mappings[$page_id]);
+        
+        error_log('MKCG Asset Manager: is_generator_page() - Page ID: ' . $page_id . ', Result: ' . ($is_generator ? 'YES' : 'NO') . ', Available IDs: ' . implode(', ', array_keys($this->page_mappings)));
+        
+        return $is_generator;
     }
     
     /**
@@ -109,7 +117,15 @@ class MKCG_Asset_Manager {
             return; // Prevent duplicate loading
         }
         
-        if ($this->should_load_assets()) {
+        // CRITICAL DEBUG: Log every attempt to load assets
+        $current_page_id = $this->get_current_page_id();
+        $is_generator_page = $this->is_generator_page();
+        $should_load = $this->should_load_assets();
+        
+        error_log('MKCG Asset Manager DEBUG: Page ID: ' . $current_page_id . ', Is Generator: ' . ($is_generator_page ? 'YES' : 'NO') . ', Should Load: ' . ($should_load ? 'YES' : 'NO'));
+        
+        if ($should_load) {
+            error_log('MKCG Asset Manager: LOADING ASSETS on page ID: ' . $current_page_id);
             $this->enqueue_frontend_assets();
             
             // Load generator-specific assets based on page ID
@@ -123,6 +139,8 @@ class MKCG_Asset_Manager {
             
             // Trigger event for other components
             do_action('mkcg_assets_loaded', 'frontend');
+        } else {
+            error_log('MKCG Asset Manager: SKIPPING ASSETS on page ID: ' . $current_page_id);
         }
     }
     
@@ -186,34 +204,27 @@ class MKCG_Asset_Manager {
     }
     
     /**
-     * ✅ Root cause detection - no global object sniffing
+     * ✅ Root cause detection - strict page ID checking ONLY
      */
     private function should_load_assets() {
-        // Method 1: Page ID detection (primary method)
+        // Method 1: Page ID detection (PRIMARY and ONLY method for standard page loads)
         if ($this->is_generator_page()) {
             error_log('MKCG Asset Manager: Loading assets for generator page ID: ' . $this->get_current_page_id());
             return true;
         }
         
-        // Method 2: Shortcode detection
-        if ($this->has_plugin_shortcodes()) {
-            return true;
-        }
-        
-        // Method 3: URL parameter detection
-        if ($this->has_generator_parameters()) {
-            return true;
-        }
-        
-        // Method 4: Template detection
-        if ($this->is_plugin_template()) {
-            return true;
-        }
-        
-        // Method 5: AJAX request detection
+        // Method 2: AJAX request detection (for generator AJAX calls only)
         if ($this->is_plugin_ajax_request()) {
+            error_log('MKCG Asset Manager: Loading assets for AJAX request');
             return true;
         }
+        
+        // REMOVED: Shortcode detection - was causing assets to load on any page with shortcodes
+        // REMOVED: URL parameter detection - was too broad and triggered on unrelated pages
+        
+        // Log when we decide NOT to load assets
+        $current_page_id = $this->get_current_page_id();
+        error_log('MKCG Asset Manager: NOT loading assets - Page ID: ' . $current_page_id . ' (not a generator page)');
         
         return false;
     }
@@ -225,18 +236,22 @@ class MKCG_Asset_Manager {
             return false;
         }
         
+        // Only check for actual generator shortcodes, not any mention of the plugin
         $shortcodes = array(
             'mkcg_biography',
             'mkcg_topics', 
             'mkcg_questions',
             'mkcg_offers',
             'mkcg_guest_intro',
-            'mkcg_tagline'
+            'mkcg_tagline',
+            'mkcg_authority_hook',
+            'mkcg_impact_intro'
         );
         
         foreach ($shortcodes as $shortcode) {
             if (has_shortcode($post->post_content, $shortcode)) {
                 do_action('mkcg_shortcode_detected', $shortcode);
+                error_log('MKCG Asset Manager: Found shortcode: ' . $shortcode . ' on page ID: ' . $post->ID);
                 return true;
             }
         }
@@ -244,21 +259,22 @@ class MKCG_Asset_Manager {
         return false;
     }
     
-    private function has_generator_parameters() {
-        $generator_params = array('post_id', 'entry', 'generator_type', 'mkcg_generator');
+    private function has_specific_generator_parameters() {
+        // Only check for very specific generator parameters that indicate we're actually on a generator page
+        $specific_generator_params = array('mkcg_generator', 'generator_type', 'mkcg_action');
         
-        foreach ($generator_params as $param) {
+        foreach ($specific_generator_params as $param) {
             if (isset($_GET[$param])) {
                 return true;
             }
         }
         
+        // Check for Formidable edit pages with our entries
+        if (isset($_GET['frm_action']) && $_GET['frm_action'] === 'edit' && isset($_GET['entry'])) {
+            return true;
+        }
+        
         return false;
-    }
-    
-    private function is_plugin_template() {
-        $template = get_page_template_slug();
-        return strpos($template, 'media-kit') !== false || strpos($template, 'mkcg') !== false;
     }
     
     private function is_plugin_ajax_request() {
