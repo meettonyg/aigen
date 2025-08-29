@@ -1,7 +1,7 @@
 /**
  * Questions Generator JavaScript - Unified BEM Architecture
  * Handles questions generation with cross-generator communication
- * Version: 2.0.0 - Updated for BEM Architecture
+ * Version: 2.0.1 - Updated for BEM Architecture
  */
 
 (function() {
@@ -263,6 +263,26 @@
                 });
             });
             
+            // ROOT FIX: Edit Topics button handler
+            const editTopicsBtn = document.getElementById('questions-generator-edit-topics');
+            if (editTopicsBtn) {
+                editTopicsBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.handleEditTopicsClick();
+                });
+                console.log('✅ Edit Topics button handler bound');
+            }
+            
+            // ROOT FIX: Individual topic edit icon handlers
+            document.querySelectorAll('.questions-generator__topic-edit-icon').forEach(icon => {
+                icon.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation(); // Prevent topic card click
+                    this.handleTopicEditClick(icon);
+                });
+            });
+            console.log('✅ Topic edit icon handlers bound');
+            
             console.log('✅ Questions Generator: Events bound successfully');
         },
         
@@ -332,13 +352,300 @@
         },
         
         /**
-         * Update questions heading
-         */
+        * Update questions heading
+        */
         updateQuestionsHeading: function(topicText) {
-            const heading = document.getElementById('questions-generator-questions-heading');
-            if (heading) {
-                heading.textContent = `Interview Questions for "${topicText || 'Add topic above'}"`;  
+        const heading = document.getElementById('questions-generator-questions-heading');
+        if (heading) {
+        heading.textContent = `Interview Questions for "${topicText || 'Add topic above'}"`;
+        }
+        },
+        
+        /**
+         * ROOT FIX: Handle Edit Topics button click
+         */
+        handleEditTopicsClick: function() {
+            console.log('🎨 Edit Topics button clicked');
+            
+            // Check if we have access to Topics Generator or Authority Hook Builder
+            if (window.AuthorityHookBuilder) {
+                console.log('🔄 Opening Authority Hook Builder for topics editing');
+                window.AuthorityHookBuilder.show();
+            } else {
+                // Fallback: Navigate to Topics Generator if on separate page
+                const topicsUrl = this.getTopicsGeneratorUrl();
+                if (topicsUrl) {
+                    window.open(topicsUrl, '_blank');
+                } else {
+                    this.showNotification('Topics editing functionality not available', 'warning');
+                }
             }
+        },
+        
+        /**
+         * ROOT FIX: Handle individual topic edit icon click
+         */
+        handleTopicEditClick: function(icon) {
+            console.log('🎨 Topic edit icon clicked', icon);
+            
+            // Find the parent topic card
+            const topicCard = icon.closest('.questions-generator__topic-card');
+            if (!topicCard) {
+                console.error('❌ Could not find parent topic card');
+                return;
+            }
+            
+            const topicId = parseInt(topicCard.getAttribute('data-topic'));
+            const topicTextElement = topicCard.querySelector('.questions-generator__topic-text');
+            
+            if (!topicTextElement) {
+                console.error('❌ Could not find topic text element');
+                return;
+            }
+            
+            // Create inline editing interface
+            this.enableInlineTopicEditing(topicCard, topicId, topicTextElement);
+        },
+        
+        /**
+         * ROOT FIX: Enable inline editing for individual topic
+         */
+        enableInlineTopicEditing: function(topicCard, topicId, topicTextElement) {
+            console.log('🔍 DEBUGGING: Starting topic edit for ID:', topicId);
+            
+            // ROOT FIX: Check if already in edit mode and extract value from existing input
+            const existingInput = topicTextElement.querySelector('input.questions-generator__topic-edit-input');
+            if (existingInput) {
+                console.log('🔴 Already in edit mode - extracting value from existing input:', existingInput.value);
+                // Already in edit mode, just focus the existing input
+                existingInput.focus();
+                existingInput.select();
+                return;
+            }
+            
+            console.log('🔍 DEBUGGING: topicTextElement:', topicTextElement);
+            console.log('🔍 DEBUGGING: topicTextElement.innerHTML:', topicTextElement.innerHTML);
+            console.log('🔍 DEBUGGING: topicTextElement.textContent:', topicTextElement.textContent);
+            console.log('🔍 DEBUGGING: topicTextElement classes:', Array.from(topicTextElement.classList));
+            
+            // ROOT FIX: Better text extraction logic to preserve existing values
+            let currentText = '';
+            
+            // Get current text - handle both placeholder and real content
+            const isPlaceholder = topicTextElement.classList.contains('questions-generator__topic-text--placeholder');
+            const placeholderSpan = topicTextElement.querySelector('.questions-generator__placeholder-text');
+            
+            console.log('🔍 DEBUGGING: isPlaceholder:', isPlaceholder);
+            console.log('🔍 DEBUGGING: placeholderSpan:', placeholderSpan);
+            
+            if (placeholderSpan) {
+                // This is a placeholder - use empty text
+                currentText = '';
+                console.log('🎨 Found placeholder span - using empty text');
+            } else if (isPlaceholder) {
+                // Has placeholder class but no span - might be old format
+                currentText = '';
+                console.log('🎨 Has placeholder class - using empty text');
+            } else {
+                // Real content - get the actual text
+                currentText = topicTextElement.textContent.trim();
+                console.log('🎨 Extracting real content:', currentText);
+            }
+            
+            // ROOT FIX: MORE AGGRESSIVE fallback - always try to get text if element has content
+            if (!currentText || currentText === '') {
+                const rawText = topicTextElement.textContent || topicTextElement.innerText || '';
+                console.log('🔍 DEBUGGING: Raw text attempt:', rawText);
+                
+                if (rawText && rawText.trim()) {
+                    const trimmedText = rawText.trim();
+                    // Only skip if it's obviously placeholder text
+                    if (!trimmedText.toLowerCase().includes('click to add') && 
+                        !trimmedText.toLowerCase().includes('add topic') &&
+                        !trimmedText.toLowerCase().includes('placeholder')) {
+                        currentText = trimmedText;
+                        console.log('🎨 Aggressive fallback extracted text:', currentText);
+                    }
+                }
+            }
+            
+            console.log('🔍 DEBUGGING: Final text for input field:', JSON.stringify(currentText));
+            
+            // Create input field
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentText; // This should now have the correct text
+            input.className = 'questions-generator__topic-edit-input';
+            input.style.cssText = `
+                width: 100%;
+                padding: 4px 8px;
+                border: 2px solid var(--mkcg-primary, #1a9bdc);
+                border-radius: 4px;
+                font-size: inherit;
+                font-family: inherit;
+                background: white;
+                z-index: 1000;
+            `;
+            
+            console.log('🔍 DEBUGGING: Created input with value:', JSON.stringify(input.value));
+            
+            // ROOT FIX: Store original content more carefully
+            const originalContent = {
+                innerHTML: topicTextElement.innerHTML,
+                textContent: topicTextElement.textContent,
+                classList: Array.from(topicTextElement.classList)
+            };
+            
+            console.log('🔍 DEBUGGING: Stored original content:', originalContent);
+            
+            // Replace text element with input
+            topicTextElement.innerHTML = '';
+            topicTextElement.appendChild(input);
+            
+            // Focus and select all
+            input.focus();
+            input.select();
+            
+            console.log('🔍 DEBUGGING: Input field focused and selected');
+            
+            // ROOT FIX: Prevent multiple blur handlers by using a flag
+            let saveInProgress = false;
+            
+            // Handle save/cancel
+            const saveEdit = () => {
+                if (saveInProgress) return;
+                saveInProgress = true;
+                
+                const newText = input.value.trim();
+                console.log('💾 Saving with text:', JSON.stringify(newText));
+                if (newText) {
+                    this.saveTopicEdit(topicId, newText, topicTextElement, originalContent);
+                } else {
+                    this.cancelTopicEdit(topicTextElement, originalContent);
+                }
+            };
+            
+            const cancelEdit = () => {
+                if (saveInProgress) return;
+                saveInProgress = true;
+                
+                console.log('❌ Canceling edit');
+                this.cancelTopicEdit(topicTextElement, originalContent);
+            };
+            
+            // Bind events
+            input.addEventListener('blur', saveEdit);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveEdit();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cancelEdit();
+                }
+            });
+            
+            console.log('✅ Inline editing enabled for topic', topicId, 'with final text:', JSON.stringify(currentText));
+        },
+        
+        /**
+         * ROOT FIX: Save topic edit
+         */
+        saveTopicEdit: function(topicId, newText, topicTextElement, originalContent) {
+            console.log('💾 Saving topic edit:', topicId, newText);
+            
+            // Update UI immediately
+            topicTextElement.innerHTML = newText;
+            topicTextElement.classList.remove('questions-generator__topic-text--placeholder');
+            
+            // Update topic card state
+            const topicCard = topicTextElement.closest('.questions-generator__topic-card');
+            if (topicCard) {
+                topicCard.setAttribute('data-empty', 'false');
+                topicCard.classList.remove('questions-generator__topic-card--empty');
+            }
+            
+            // Update internal state
+            if (topicId === this.selectedTopicId) {
+                this.selectedTopicText = newText;
+                this.updateQuestionsHeading(newText);
+            }
+            
+            // Save to backend
+            this.saveTopicToBackend(topicId, newText)
+                .then(() => {
+                    this.showNotification('Topic updated successfully', 'success');
+                    
+                    // Trigger cross-generator event
+                    if (window.AppEvents) {
+                        window.AppEvents.trigger('topic:updated', {
+                            topicId: topicId,
+                            topicText: newText,
+                            source: 'questions-generator'
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Failed to save topic:', error);
+                    // Revert UI on error
+                    topicTextElement.innerHTML = originalContent.innerHTML;
+                    topicTextElement.className = originalContent.classList.join(' ');
+                    this.showNotification('Failed to save topic: ' + error.message, 'error');
+                });
+        },
+        
+        /**
+         * ROOT FIX: Cancel topic edit
+         */
+        cancelTopicEdit: function(topicTextElement, originalContent) {
+            topicTextElement.innerHTML = originalContent.innerHTML;
+            topicTextElement.className = originalContent.classList.join(' ');
+            console.log('❌ Topic edit cancelled - restored original content');
+        },
+        
+        /**
+         * ROOT FIX: Save topic to backend
+         */
+        saveTopicToBackend: function(topicId, topicText) {
+            // Get post_id
+            let postId = 0;
+            if (window.MKCG_Questions_Data && window.MKCG_Questions_Data.postId) {
+                postId = window.MKCG_Questions_Data.postId;
+            }
+            
+            if (!postId) {
+                return Promise.reject(new Error('No post ID found'));
+            }
+            
+            // Save using Topics Generator endpoint
+            return this.makeAjaxRequest('mkcg_save_topic_field', {
+                post_id: postId,
+                field_name: `topic_${topicId}`,
+                field_value: topicText
+            });
+        },
+        
+        /**
+         * ROOT FIX: Get Topics Generator URL for fallback navigation
+         */
+        getTopicsGeneratorUrl: function() {
+            // Try to find Topics Generator page URL from data or configuration
+            if (window.MKCG_Config && window.MKCG_Config.topicsGeneratorUrl) {
+                return window.MKCG_Config.topicsGeneratorUrl;
+            }
+            
+            // Fallback: construct URL with current post_id
+            let postId = 0;
+            if (window.MKCG_Questions_Data && window.MKCG_Questions_Data.postId) {
+                postId = window.MKCG_Questions_Data.postId;
+            }
+            
+            if (postId) {
+                // Assuming Topics Generator is at a known URL pattern
+                return `/topics-generator/?post_id=${postId}`;
+            }
+            
+            return null;
         },
         
         /**

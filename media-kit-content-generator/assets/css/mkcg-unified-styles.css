@@ -271,6 +271,9 @@
 .generator__panel {
   flex: 1;
   min-width: 300px;
+  /* ROOT FIX: Ensure panels don't allow content overflow */
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 .generator__panel--left {
@@ -3178,6 +3181,9 @@
   padding: var(--mkcg-space-md);
   margin: var(--mkcg-space-md) 0;
   box-shadow: var(--mkcg-shadow-sm);
+  /* ROOT FIX: Prevent entire topic selector from being too wide */
+  max-width: 100%;
+  width: 100%;
 }
 
 .questions-generator__selector-header {
@@ -3202,6 +3208,9 @@
   grid-template-columns: 1fr;
   gap: var(--mkcg-space-xs);
   margin-bottom: var(--mkcg-space-sm);
+  /* ROOT FIX: Prevent overly wide grid container */
+  max-width: 100%;
+  width: 100%;
 }
 
 /* Individual Topic Cards - Compact like original */
@@ -3217,6 +3226,11 @@
   gap: var(--mkcg-space-xs);
   position: relative;
   min-height: 60px;
+  /* ROOT FIX: Much more conservative width to fit in container */
+  max-width: 100%;
+  width: 100%;
+  /* Prevent text overflow issues */
+  overflow: hidden;
 }
 
 .questions-generator__topic-card:hover {
@@ -3263,9 +3277,11 @@
   font-size: var(--mkcg-font-size-sm);
   line-height: var(--mkcg-line-height-tight);
   font-weight: var(--mkcg-font-weight-normal);
+  /* ROOT FIX: Prevent text from causing card overflow */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0; /* Important for flex text truncation */
 }
 
 .questions-generator__topic-text--placeholder {
