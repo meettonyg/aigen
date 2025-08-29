@@ -509,8 +509,11 @@ class MKCG_Asset_Manager {
                 error_log('MKCG Asset Manager: Loaded ' . $script_file . ' for ' . $generator_type . ' generator (Page ID: ' . $this->get_current_page_id() . ')');
             }
             
-            // Special case for authority hook builder
-            if ($generator_type === 'authority_hook') {
+            // ROOT FIX: Authority Hook Builder is needed by MULTIPLE generators
+            // Topics, Questions, Offers, Biography all use the Authority Hook Builder
+            $generators_needing_authority_hook = ['topics', 'questions', 'offers', 'biography', 'authority_hook'];
+            
+            if (in_array($generator_type, $generators_needing_authority_hook)) {
                 wp_enqueue_script(
                     'authority-hook-builder-js',
                     $this->plugin_url . 'assets/js/authority-hook-builder.js',
@@ -518,6 +521,7 @@ class MKCG_Asset_Manager {
                     $this->version,
                     true
                 );
+                error_log('MKCG Asset Manager: ROOT FIX - Loaded authority-hook-builder.js for ' . $generator_type . ' generator');
             }
             
             do_action('mkcg_generator_assets_loaded', $generator_type);

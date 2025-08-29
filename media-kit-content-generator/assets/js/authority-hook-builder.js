@@ -14,11 +14,11 @@
     let initialized = false;
     let templateData = null;
     
-    console.log('🚀 Authority Hook Builder loading (Clean Slate v3.0)...');
+    console.log('🚀 Authority Hook Builder loading v5.0...');
     
     function init() {
         if (initialized) return;
-        console.log('🔧 Initializing Authority Hook Builder (Clean Slate)...');
+        console.log('🔧 Initializing Authority Hook Builder...');
         loadTemplateData();
         prePopulateFields();
         setupClearButtons();
@@ -27,20 +27,7 @@
         setupLiveUpdates();
         loadExistingAudiences();
         initialized = true;
-        console.log('✅ Authority Hook Builder ready (Clean Slate)!');
-        
-        // Check for example chips after initialization
-        setTimeout(() => {
-            const chips = document.querySelectorAll('.tag');
-            const addLinks = document.querySelectorAll('.tag__add-link');
-            console.log(`🔍 Found ${chips.length} example chips, ${addLinks.length} add links`);
-            
-            if (chips.length === 0) {
-                console.warn('⚠️ No example chips found - they may not be rendered yet');
-            } else {
-                console.log('✅ Example chips detected and ready for interaction');
-            }
-        }, 1000);
+        console.log('✅ Authority Hook Builder ready!');
     }
     
     function loadTemplateData() {
@@ -179,8 +166,6 @@
     }
 
     function setupExampleChips() {
-        console.log('🔧 Setting up example chips click handlers...');
-        
         // Handle clicks on example chips - delegate to document for dynamic content
         document.addEventListener('click', function(e) {
             // Check if clicked element or its parent is a tag with add link
@@ -312,7 +297,7 @@
         return div.innerHTML;
     }
     
-    // Enhanced initialization with example chips debugging
+    // Initialize when DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
@@ -519,5 +504,104 @@
     
     console.log('🔧 Authority Hook Builder loaded with example chips support');
     console.log('   Run window.MKCG_DebugExampleChips() to test example chips');
+    console.log('   Run window.MKCG_DebugAudienceManager() to test audience manager');
+    
+    // Audience Manager Diagnostic Function
+    window.MKCG_DebugAudienceManager = function() {
+        console.log('🔍 Debugging Audience Manager...');
+        console.log('=====================================');
+        
+        // Check for elements
+        const tagInput = document.getElementById('tag_input');
+        const addButton = document.getElementById('add_tag');
+        const tagsContainer = document.getElementById('tags_container');
+        const whoField = document.getElementById('mkcg-who');
+        
+        console.log('Element Status:');
+        console.log(`  Tag Input: ${tagInput ? '✅ Found' : '❌ Not Found'}`);
+        console.log(`  Add Button: ${addButton ? '✅ Found' : '❌ Not Found'}`);
+        console.log(`  Tags Container: ${tagsContainer ? '✅ Found' : '❌ Not Found'}`);
+        console.log(`  WHO Field: ${whoField ? '✅ Found' : '❌ Not Found'}`);
+        
+        // Check audience tags state
+        console.log('\nAudience Tags State:');
+        console.log(`  Total tags: ${audienceTags.length}`);
+        console.log(`  Tags array:`, audienceTags);
+        
+        // Check visual tags
+        const visualTags = document.querySelectorAll('#tags_container .audience-tag');
+        console.log(`\nVisual Tags: ${visualTags.length} found`);
+        visualTags.forEach((tag, index) => {
+            const text = tag.querySelector('span:not(.credential-remove)')?.textContent || 'Unknown';
+            const checked = tag.querySelector('input[type="checkbox"]')?.checked || false;
+            console.log(`  ${index + 1}. "${text}" - ${checked ? 'Selected' : 'Not selected'}`);
+        });
+        
+        // Check WHO field value
+        console.log(`\nWHO Field Value: "${whoField ? whoField.value : 'N/A'}"`);
+        
+        // Test adding an audience programmatically
+        console.log('\n🧪 Testing programmatic add...');
+        try {
+            addAudienceTag('Test Audience ' + Date.now(), true);
+            console.log('✅ Successfully added test audience');
+        } catch (e) {
+            console.error('❌ Failed to add test audience:', e);
+        }
+        
+        // Check for event listeners
+        console.log('\n🎯 Simulating button click...');
+        if (addButton) {
+            // Set a test value in the input
+            if (tagInput) {
+                tagInput.value = 'Click Test Audience';
+            }
+            // Simulate click
+            addButton.click();
+            console.log('✅ Button click simulated');
+        } else {
+            console.log('❌ Cannot simulate - button not found');
+        }
+        
+        // Check Authority Hook Builder visibility
+        const builder = document.querySelector('.authority-hook__builder');
+        const builderContainer = document.querySelector('[id$="-authority-hook-builder"]');
+        const isHidden = builderContainer && builderContainer.classList.contains('generator__builder--hidden');
+        
+        console.log('\n🏗️ Authority Hook Builder Status:');
+        console.log(`  Builder element: ${builder ? '✅ Found' : '❌ Not Found'}`);
+        console.log(`  Builder container: ${builderContainer ? '✅ Found' : '❌ Not Found'}`);
+        console.log(`  Is hidden: ${isHidden ? 'Yes (click "Edit Components" to show)' : 'No (visible)'}`);
+        
+        if (isHidden) {
+            console.log('\n💡 TIP: The Authority Hook Builder is hidden.');
+            console.log('   Click the "Edit Components" button to show it and access the Audience Manager.');
+        }
+        
+        return {
+            elements: {
+                tagInput: !!tagInput,
+                addButton: !!addButton,
+                tagsContainer: !!tagsContainer,
+                whoField: !!whoField
+            },
+            state: {
+                audienceTags: audienceTags.length,
+                visualTags: visualTags.length,
+                whoValue: whoField ? whoField.value : null
+            },
+            builderVisible: !isHidden
+        };
+    };
+    
+    // Auto-diagnose on load if there's an issue
+    setTimeout(() => {
+        const container = document.getElementById('tags_container');
+        const button = document.getElementById('add_tag');
+        if ((container || button) && audienceTags.length === 0) {
+            console.log('⚠️ Audience Manager detected but no tags loaded.');
+            console.log('   Run window.MKCG_DebugAudienceManager() for diagnostics.');
+        }
+    }, 2000);
 
 })();
