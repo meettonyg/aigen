@@ -710,17 +710,20 @@ class MKCG_Enhanced_Biography_Generator {
             preg_match('/MEDIUM BIO:\s*(.*?)(?=\s*LONG BIO:|$)/s', $content, $medium_matches);
             preg_match('/LONG BIO:\s*(.*?)(?=\s*$)/s', $content, $long_matches);
             
-            // Clean up the matches
+            // Clean up the matches - ROOT FIX: Remove all leading/trailing whitespace and any indentation
             if (!empty($short_matches[1])) {
-                $biographies['short'] = trim($short_matches[1]);
+                // Remove all leading/trailing whitespace, including from each line
+                $biographies['short'] = trim(preg_replace('/^\s+/m', '', trim($short_matches[1])));
             }
             
             if (!empty($medium_matches[1])) {
-                $biographies['medium'] = trim($medium_matches[1]);
+                // Remove all leading/trailing whitespace, including from each line
+                $biographies['medium'] = trim(preg_replace('/^\s+/m', '', trim($medium_matches[1])));
             }
             
             if (!empty($long_matches[1])) {
-                $biographies['long'] = trim($long_matches[1]);
+                // Remove all leading/trailing whitespace, including from each line
+                $biographies['long'] = trim(preg_replace('/^\s+/m', '', trim($long_matches[1])));
             }
             
             // Check if we have at least one biography
@@ -934,17 +937,20 @@ class MKCG_Enhanced_Biography_Generator {
             // Initialize modified biographies with existing ones
             $modified_biographies = $biography_data['biographies'];
             
-            // Update with modified biographies if available
+            // Update with modified biographies if available - ROOT FIX: Remove indentation
             if (!empty($short_matches[1])) {
-                $modified_biographies['short'] = trim($short_matches[1]);
+                // Remove all leading/trailing whitespace, including from each line
+                $modified_biographies['short'] = trim(preg_replace('/^\s+/m', '', trim($short_matches[1])));
             }
             
             if (!empty($medium_matches[1])) {
-                $modified_biographies['medium'] = trim($medium_matches[1]);
+                // Remove all leading/trailing whitespace, including from each line
+                $modified_biographies['medium'] = trim(preg_replace('/^\s+/m', '', trim($medium_matches[1])));
             }
             
             if (!empty($long_matches[1])) {
-                $modified_biographies['long'] = trim($long_matches[1]);
+                // Remove all leading/trailing whitespace, including from each line
+                $modified_biographies['long'] = trim(preg_replace('/^\s+/m', '', trim($long_matches[1])));
             }
             
             // Save modified biographies to post meta

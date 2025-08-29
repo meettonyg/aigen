@@ -1693,6 +1693,317 @@
  */
 
 /* ============================================================================
+   BIOGRAPHY GENERATOR SPECIFIC STYLES
+   ============================================================================ */
+
+/* Biography Generator Container */
+.biography-generator {
+  font-family: var(--mkcg-font-family);
+  color: var(--mkcg-text-primary);
+  line-height: var(--mkcg-line-height-normal);
+}
+
+/* Biography Results Container */
+.biography-generator__results-container {
+  background: var(--mkcg-bg-primary);
+  border-radius: var(--mkcg-radius);
+  padding: var(--mkcg-space-lg);
+}
+
+/* Biography Results Header */
+.biography-generator__results-header {
+  margin-bottom: var(--mkcg-space-lg);
+  text-align: center;
+}
+
+.biography-generator__results-header h3 {
+  color: var(--mkcg-text-primary);
+  font-size: var(--mkcg-font-size-xl);
+  font-weight: var(--mkcg-font-weight-semibold);
+  margin: 0 0 var(--mkcg-space-xs) 0;
+}
+
+.biography-generator__results-header p {
+  color: var(--mkcg-text-secondary);
+  font-size: var(--mkcg-font-size-md);
+  margin: 0;
+}
+
+/* Biography Result Tabs */
+.biography-generator__results-tabs {
+  display: flex;
+  gap: var(--mkcg-space-xs);
+  margin-bottom: var(--mkcg-space-lg);
+  border-bottom: 2px solid var(--mkcg-border-light);
+}
+
+.biography-generator__results-tab {
+  padding: var(--mkcg-space-sm) var(--mkcg-space-md);
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: var(--mkcg-text-secondary);
+  font-weight: var(--mkcg-font-weight-medium);
+  font-size: var(--mkcg-font-size-md);
+  transition: var(--mkcg-transition-fast);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+
+.biography-generator__results-tab:hover {
+  color: var(--mkcg-primary);
+}
+
+.biography-generator__results-tab--active {
+  color: var(--mkcg-primary);
+  border-bottom-color: var(--mkcg-primary);
+}
+
+.biography-generator__length-indicator {
+  color: var(--mkcg-text-tertiary);
+  font-size: var(--mkcg-font-size-sm);
+  font-weight: var(--mkcg-font-weight-normal);
+}
+
+/* Biography Result Content */
+.biography-generator__results-content {
+  margin-bottom: var(--mkcg-space-lg);
+}
+
+.biography-generator__result-item {
+  display: none;
+}
+
+.biography-generator__result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--mkcg-space-md);
+}
+
+.biography-generator__result-title {
+  font-size: var(--mkcg-font-size-lg);
+  font-weight: var(--mkcg-font-weight-semibold);
+  color: var(--mkcg-text-primary);
+  margin: 0;
+}
+
+.biography-generator__result-badge {
+  background: var(--mkcg-primary);
+  color: var(--mkcg-text-white);
+  padding: var(--mkcg-space-xs) var(--mkcg-space-sm);
+  border-radius: var(--mkcg-radius-sm);
+  font-size: var(--mkcg-font-size-xs);
+  font-weight: var(--mkcg-font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Biography Content Display - ROOT FIX: Remove indentation */
+.biography-generator__result-content {
+  background: var(--mkcg-bg-secondary);
+  border: 1px solid var(--mkcg-border-light);
+  border-radius: var(--mkcg-radius);
+  padding: var(--mkcg-space-md);
+  margin-bottom: var(--mkcg-space-md);
+  font-size: var(--mkcg-font-size-md);
+  line-height: var(--mkcg-line-height-relaxed);
+  color: var(--mkcg-text-primary);
+  /* ROOT FIX: Ensure text is not indented */
+  text-indent: 0 !important;
+  text-align: left !important;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Biography Action Buttons */
+.biography-generator__result-actions {
+  display: flex;
+  gap: var(--mkcg-space-sm);
+  flex-wrap: wrap;
+}
+
+.biography-generator__action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mkcg-space-xs);
+  padding: var(--mkcg-space-xs) var(--mkcg-space-md);
+  border: 1px solid var(--mkcg-border-medium);
+  background: var(--mkcg-bg-primary);
+  color: var(--mkcg-text-primary);
+  border-radius: var(--mkcg-radius-sm);
+  cursor: pointer;
+  font-size: var(--mkcg-font-size-sm);
+  font-weight: var(--mkcg-font-weight-medium);
+  transition: var(--mkcg-transition-fast);
+  font-family: inherit;
+}
+
+.biography-generator__action-button:hover {
+  background: var(--mkcg-bg-secondary);
+  border-color: var(--mkcg-primary);
+  color: var(--mkcg-primary);
+}
+
+.biography-generator__action-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Tone Modification Controls */
+.biography-generator__modification-controls {
+  background: var(--mkcg-bg-secondary);
+  border: 1px solid var(--mkcg-border-light);
+  border-radius: var(--mkcg-radius);
+  padding: var(--mkcg-space-lg);
+  margin-bottom: var(--mkcg-space-lg);
+}
+
+.biography-generator__modification-title {
+  font-size: var(--mkcg-font-size-lg);
+  font-weight: var(--mkcg-font-weight-semibold);
+  color: var(--mkcg-text-primary);
+  margin: 0 0 var(--mkcg-space-xs) 0;
+}
+
+.biography-generator__modification-description {
+  color: var(--mkcg-text-secondary);
+  font-size: var(--mkcg-font-size-md);
+  margin-bottom: var(--mkcg-space-md);
+}
+
+/* Tone Selector */
+.biography-generator__tone-selector {
+  display: flex;
+  gap: var(--mkcg-space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--mkcg-space-md);
+}
+
+.biography-generator__tone-option {
+  padding: var(--mkcg-space-sm) var(--mkcg-space-md);
+  border: 2px solid var(--mkcg-border-medium);
+  border-radius: var(--mkcg-radius);
+  cursor: pointer;
+  transition: var(--mkcg-transition-fast);
+  background: var(--mkcg-bg-primary);
+  color: var(--mkcg-text-primary);
+  font-weight: var(--mkcg-font-weight-medium);
+  display: inline-block;
+}
+
+.biography-generator__tone-option:hover {
+  background: var(--mkcg-bg-secondary);
+  border-color: var(--mkcg-primary);
+}
+
+.biography-generator__tone-option--active {
+  background: var(--mkcg-primary);
+  color: var(--mkcg-text-white);
+  border-color: var(--mkcg-primary);
+}
+
+.biography-generator__tone-option--active:hover {
+  background: var(--mkcg-primary-dark);
+  border-color: var(--mkcg-primary-dark);
+}
+
+.biography-generator__tone-radio {
+  display: none;
+}
+
+/* Button Group */
+.biography-generator__button-group {
+  display: flex;
+  gap: var(--mkcg-space-sm);
+  justify-content: center;
+  margin-top: var(--mkcg-space-md);
+}
+
+/* Save Section */
+.biography-generator__save-section {
+  text-align: center;
+  padding-top: var(--mkcg-space-lg);
+  border-top: 1px solid var(--mkcg-border-light);
+  margin-top: var(--mkcg-space-lg);
+}
+
+.biography-generator__save-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--mkcg-secondary);
+  color: var(--mkcg-text-white);
+  border: none;
+  padding: var(--mkcg-space-sm) var(--mkcg-space-lg);
+  border-radius: var(--mkcg-radius);
+  font-size: var(--mkcg-font-size-md);
+  font-weight: var(--mkcg-font-weight-semibold);
+  cursor: pointer;
+  transition: var(--mkcg-transition-fast);
+  box-shadow: var(--mkcg-shadow-sm);
+  font-family: inherit;
+  gap: var(--mkcg-space-xs);
+}
+
+.biography-generator__save-button:hover {
+  background: var(--mkcg-secondary-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--mkcg-shadow-md);
+}
+
+.biography-generator__save-button:disabled {
+  background: var(--mkcg-text-light);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Responsive Design */
+@media screen and (max-width: 768px) {
+  .biography-generator__results-tabs {
+    flex-direction: column;
+  }
+  
+  .biography-generator__results-tab {
+    width: 100%;
+    text-align: center;
+    border-bottom: none;
+    border-left: 2px solid transparent;
+    margin-bottom: 0;
+    margin-left: -2px;
+  }
+  
+  .biography-generator__results-tab--active {
+    border-left-color: var(--mkcg-primary);
+    background: var(--mkcg-bg-secondary);
+  }
+  
+  .biography-generator__result-header {
+    flex-direction: column;
+    gap: var(--mkcg-space-sm);
+  }
+  
+  .biography-generator__result-actions {
+    flex-direction: column;
+  }
+  
+  .biography-generator__action-button {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .biography-generator__tone-selector {
+    flex-direction: column;
+  }
+  
+  .biography-generator__tone-option {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* ============================================================================
    LEGACY COMPATIBILITY - Streamlined for essential compatibility only
    ============================================================================ */
 
