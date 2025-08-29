@@ -1,28 +1,18 @@
-🔧 Fix Tagline Generator: Impact Intro population & Edit Component buttons
+fix: Biography Generator Impact Intro display and validation issues
 
-ROOT-LEVEL FIXES (No patches or workarounds):
+Root-level fixes applied:
+1. Fixed Impact Intro validation to require either Authority Hook OR Impact Intro (not both)
+2. Fixed Impact Intro display format to include proper prefixes ("I've" and "My mission is to")
+3. Added event listeners to capture updates from centralized Impact Intro Builder
+4. Added Authority Hook event listener for consistency
+5. Added debug function to help diagnose Impact Intro state issues
+6. Created documentation for troubleshooting Impact Intro display problems
 
-## Issue 1: Impact Intro not dynamically populating from ?post_id querystring
-**Root Cause**: Pods service was missing Impact Intro data loading method
-**Solution**: Added complete Impact Intro integration to Pods service
-- ✅ Added get_impact_intro_components() method using Impact Intro Service
-- ✅ Added save_impact_intro_components() method for data persistence
-- ✅ Added get_empty_impact_intro() helper method
-- ✅ Updated get_guest_data() to include 'impact_intro_components'
+Technical changes:
+- Modified validateFormData() to use OR logic instead of AND
+- Updated updateImpactIntro() to build proper format with prefixes
+- Updated collectFormData() to use consistent Impact Intro format
+- Added 'impact-intro-updated' and 'authority-hook-updated' event listeners
+- Added debugImpactIntro() debug function
 
-## Issue 2: Edit Component buttons not working
-**Root Cause**: Event delegation scoped too narrowly + field selector mismatch
-**Solution**: Enhanced event system and corrected field mappings
-- ✅ Changed from container-level to document-level event delegation
-- ✅ Enhanced toggleBuilder() with detailed debugging and verification
-- ✅ Fixed field selector mismatch: #mkcg-impact-where → #mkcg-where
-- ✅ Fixed field selector mismatch: #mkcg-impact-why → #mkcg-why
-- ✅ Updated all field mapping methods (updateImpactIntroInputs, populateImpactIntroFields, bindServiceInputs)
-- ✅ Added button text updates to reflect toggle state
-- ✅ Added comprehensive console logging for debugging
-
-**Files Modified**:
-- includes/services/class-mkcg-pods-service.php (Impact Intro integration)
-- assets/js/generators/tagline-generator.js (Event system & field mappings)
-
-**Testing**: Both issues should now be resolved with proper data loading and working edit buttons.
+This ensures Biography Generator works when either Authority Hook OR Impact Intro is completed, and displays Impact Intro correctly when values are entered.

@@ -799,9 +799,22 @@
     
     // Initialize when DOM is ready
     $(document).ready(function() {
-        // Only initialize if we're on the Impact Intro generator page
+        // Initialize if we're on the dedicated Impact Intro generator page
         if ($('[data-generator="impact-intro"]').length) {
             ImpactIntroGenerator.init();
+        }
+        
+        // ROOT FIX: Also initialize if Impact Intro builder is present in any generator
+        // This allows the credential management to work in Biography Generator and others
+        if ($('#mkcg-where, #mkcg-why').length > 0) {
+            console.log('🎯 Impact Intro fields detected - initializing credential management...');
+            
+            // Initialize the credential management parts even if not on dedicated page
+            ImpactIntroGenerator.initializeCredentialManagement();
+            ImpactIntroGenerator.setupRealTimeUpdates();
+            ImpactIntroGenerator.populateFields();
+            
+            console.log('✅ Impact Intro credential management initialized for embedded builder');
         }
     });
     

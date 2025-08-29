@@ -86,7 +86,7 @@
           postId: window.MKCG_Biography_Data.postId || 0,
           entryId: window.MKCG_Biography_Data.entryId || 0,
           entryKey: window.MKCG_Biography_Data.entryKey || '',
-          nonce: window.MKCG_Biography_Data.nonce || '',
+          nonce: document.getElementById('biography-nonce')?.value || '',
           hasData: window.MKCG_Biography_Data.hasData || false
         };
         
@@ -155,17 +155,19 @@
         this.updateInputFields('impact');
       }
       
-      // Load biography-specific fields
-      if (phpData.biography) {
-        this.fields.name = phpData.biography.name || '';
-        this.fields.title = phpData.biography.title || '';
-        this.fields.organization = phpData.biography.organization || '';
-        this.fields.tone = phpData.biography.tone || 'professional';
-        this.fields.length = phpData.biography.length || 'medium';
-        this.fields.pov = phpData.biography.pov || 'third';
-        this.fields.existingBio = phpData.biography.existing || '';
-        this.fields.notes = phpData.biography.notes || '';
+      // Load personal info and settings from PHP data
+      if (phpData.personalInfo) {
+        this.fields.name = phpData.personalInfo.name || '';
+        this.fields.title = phpData.personalInfo.title || '';
+        this.fields.organization = phpData.personalInfo.organization || '';
         
+        this.updateBiographyFields();
+      }
+      
+      // Load settings
+      if (phpData.settings) {
+        this.fields.tone = phpData.settings.tone || 'professional';
+        this.fields.pov = phpData.settings.pov || 'third';
         this.updateBiographyFields();
       }
       
@@ -255,8 +257,8 @@
      */
     updateImpactIntroInputs: function() {
       const fieldMappings = [
-        { field: 'where', selector: '#mkcg-impact-where' },
-        { field: 'why', selector: '#mkcg-impact-why' }
+        { field: 'where', selector: '#mkcg-where' },
+        { field: 'why', selector: '#mkcg-why' }
       ];
       
       let fieldsFound = 0;
@@ -325,7 +327,7 @@
                 e.preventDefault();
                 console.log('🔘 Generate biography button clicked');
                 this.generateBiography();
-            } else if (target.id === 'biography-generator-preview') {
+            } else if (target.id === 'biography-preview-data') {
                 e.preventDefault();
                 this.previewData();
             } else if (target.id === 'biography-generator-save') {
@@ -347,6 +349,44 @@
         
         // Auto-save on blur for biography fields
         this.bindAutoSave();
+        
+        // ROOT FIX: Listen for Authority Hook updates from the centralized builder
+        document.addEventListener('authority-hook-updated', (e) => {
+            console.log('🔄 Authority Hook updated event received:', e.detail);
+            if (e.detail) {
+                // Update our local fields with the new values
+                if (e.detail.who !== undefined) {
+                    this.fields.who = e.detail.who;
+                }
+                if (e.detail.what !== undefined) {
+                    this.fields.what = e.detail.what;
+                }
+                if (e.detail.when !== undefined) {
+                    this.fields.when = e.detail.when;
+                }
+                if (e.detail.how !== undefined) {
+                    this.fields.how = e.detail.how;
+                }
+                // Update the display
+                this.updateAuthorityHook();
+            }
+        });
+        
+        // ROOT FIX: Listen for Impact Intro updates from the centralized builder
+        document.addEventListener('impact-intro-updated', (e) => {
+            console.log('🔄 Impact Intro updated event received:', e.detail);
+            if (e.detail) {
+                // Update our local fields with the new values
+                if (e.detail.where !== undefined) {
+                    this.fields.where = e.detail.where;
+                }
+                if (e.detail.why !== undefined) {
+                    this.fields.why = e.detail.why;
+                }
+                // Update the display
+                this.updateImpactIntro();
+            }
+        });
     },
     
     /**
@@ -470,8 +510,8 @@
         'mkcg-authority-how': 'how'
         } : 
             {
-                'mkcg-impact-where': 'where',
-                'mkcg-impact-why': 'why'
+                'mkcg-where': 'where',
+                'mkcg-why': 'why'
             };
         
         // Create debounced update function
@@ -597,11 +637,18 @@
         console.log(`✅ ${serviceType} Builder hidden`);
       }
       
-      // Trigger centralized service for UX enhancements
+      // Trigger centralized services for UX enhancements
       if (window.AuthorityHookBuilder && serviceType === 'authority') {
         window.AuthorityHookBuilder.updateToggleButtonState(
           'biography-generator-toggle-authority-builder',
           'biography-generator-authority-hook-builder'
+        );
+      }
+      
+      if (window.ImpactIntroBuilder && serviceType === 'impact') {
+        window.ImpactIntroBuilder.updateToggleButtonState(
+          'biography-generator-toggle-impact-builder',
+          'biography-generator-impact-intro-builder'
         );
       }
     },
@@ -659,8 +706,8 @@
       
       const data = window.MKCG_Biography_Data.impactIntro;
       const fieldMappings = [
-        { field: 'where', selector: '#mkcg-impact-where' },
-        { field: 'why', selector: '#mkcg-impact-why' }
+        { field: 'where', selector: '#mkcg-where' },
+        { field: 'why', selector: '#mkcg-why' }
       ];
       
       let populatedCount = 0;
@@ -729,7 +776,9 @@
       let introText = '';
       
       if (hasAllFields) {
-        introText = `${this.fields.where}. ${this.fields.why}`;
+        // ROOT FIX: Build Impact Intro with proper format
+        // WHERE should be prefixed with "I've" and WHY with "My mission is to"
+        introText = `I've ${this.fields.where}. My mission is to ${this.fields.why}.`;
       }
       
       const displayElement = document.querySelector('#biography-generator-impact-intro-text');
@@ -831,8 +880,9 @@
       const hasAllImpactFields = this.fields.where && this.fields.why &&
                                 this.fields.where.trim() && this.fields.why.trim();
       
+      // ROOT FIX: Build Impact Intro with proper format for consistency
       const impactIntro = hasAllImpactFields ?
-        `${this.fields.where}. ${this.fields.why}` : '';
+        `I've ${this.fields.where}. My mission is to ${this.fields.why}.` : '';
       
       return {
         // Metadata
@@ -886,7 +936,8 @@
         };
       }
       
-      // Require at least one service component
+      // ROOT FIX: Require at least one service component (Authority Hook OR Impact Intro)
+      // Changed from requiring both to requiring at least one
       if (!formData.authorityHook && !formData.impactIntro) {
         return {
           valid: false,
@@ -1326,6 +1377,23 @@
       BiographyGenerator.updateDisplay();
       
       console.log('✅ Test data populated');
+    },
+    
+    // ROOT FIX: Debug function to check Impact Intro state
+    debugImpactIntro: function() {
+      console.log('🔍 Debugging Impact Intro state...');
+      console.log('WHERE field value:', BiographyGenerator.fields.where);
+      console.log('WHY field value:', BiographyGenerator.fields.why);
+      
+      const displayElement = document.querySelector('#biography-generator-impact-intro-text');
+      console.log('Display element text:', displayElement ? displayElement.textContent : 'Not found');
+      
+      const formData = BiographyGenerator.collectFormData();
+      console.log('Impact Intro in form data:', formData.impactIntro);
+      
+      // Force update to see if it helps
+      BiographyGenerator.updateImpactIntro();
+      console.log('Forced update complete');
     }
   };
   

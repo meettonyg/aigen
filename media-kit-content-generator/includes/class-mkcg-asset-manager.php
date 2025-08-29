@@ -323,7 +323,7 @@ class MKCG_Asset_Manager {
         wp_enqueue_script(
             'simple-event-bus',
             $this->plugin_url . 'assets/js/simple-event-bus.js',
-            array('jquery'),
+            array(),
             $this->version,
             true
         );
@@ -437,7 +437,25 @@ class MKCG_Asset_Manager {
             ]
         );
         
-        // Generator-specific JavaScript files
+        // UNIVERSAL BUILDERS: Load builder JavaScript for all generators
+        // These are vanilla JS and work across multiple generators
+        wp_enqueue_script(
+            'authority-hook-builder',
+            $this->plugin_url . 'assets/js/authority-hook-builder.js',
+            $base_dependencies,
+            $this->version,
+            true
+        );
+        
+        wp_enqueue_script(
+            'impact-intro-builder',
+            $this->plugin_url . 'assets/js/impact-intro-builder.js',
+            $base_dependencies,
+            $this->version,
+            true
+        );
+        
+        // Generator-specific JavaScript files (vanilla JS only)
         $generator_scripts = array(
             'biography' => [
                 'biography-generator.js',
@@ -457,12 +475,6 @@ class MKCG_Asset_Manager {
             ],
             'tagline' => [
                 'tagline-generator.js'
-            ],
-            'authority_hook' => [
-                'authority-hook-generator.js'
-            ],
-            'impact_intro' => [
-                'impact-intro-generator.js'
             ]
         );
         
@@ -509,20 +521,8 @@ class MKCG_Asset_Manager {
                 error_log('MKCG Asset Manager: Loaded ' . $script_file . ' for ' . $generator_type . ' generator (Page ID: ' . $this->get_current_page_id() . ')');
             }
             
-            // ROOT FIX: Authority Hook Builder is needed by MULTIPLE generators
-            // Topics, Questions, Offers, Biography all use the Authority Hook Builder
-            $generators_needing_authority_hook = ['topics', 'questions', 'offers', 'biography', 'authority_hook'];
-            
-            if (in_array($generator_type, $generators_needing_authority_hook)) {
-                wp_enqueue_script(
-                    'authority-hook-builder-js',
-                    $this->plugin_url . 'assets/js/authority-hook-builder.js',
-                    $base_dependencies,
-                    $this->version,
-                    true
-                );
-                error_log('MKCG Asset Manager: ROOT FIX - Loaded authority-hook-builder.js for ' . $generator_type . ' generator');
-            }
+            // Universal builders are now loaded above for all generators
+            // No need for conditional loading since they work everywhere
             
             do_action('mkcg_generator_assets_loaded', $generator_type);
         }
