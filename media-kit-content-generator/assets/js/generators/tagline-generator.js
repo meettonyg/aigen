@@ -551,7 +551,11 @@
             
             // Populate fields with existing data
             setTimeout(() => {
-                this.populateBuilderFields(builderType);
+                if (builderType === 'authority-hook') {
+                    this.populateAuthorityHookFields();
+                } else if (builderType === 'impact-intro') {
+                    this.populateImpactIntroFields();
+                }
             }, 100);
             
             // Scroll to builder

@@ -443,6 +443,7 @@ error_log('MKCG Tagline Template: Has Data: ' . ($has_data ? 'true' : 'false'));
             <?php if ($post_id): ?>
                 <input type="hidden" name="post_id" value="<?php echo esc_attr($post_id); ?>">
             <?php endif; ?>
+            <input type="hidden" id="tagline-nonce" name="nonce" value="<?php echo wp_create_nonce('mkcg_nonce'); ?>">
         </div>
         
         <!-- RIGHT PANEL -->

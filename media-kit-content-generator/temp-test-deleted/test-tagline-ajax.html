@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Tagline AJAX</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Test Tagline Generator AJAX</h1>
+    
+    <h2>Test Generate Taglines</h2>
+    <button id="test-generate">Test Generate Taglines</button>
+    <div id="generate-result"></div>
+    
+    <h2>Test Save Tagline</h2>
+    <button id="test-save">Test Save Tagline</button>
+    <div id="save-result"></div>
+    
+    <script>
+    jQuery(document).ready(function($) {
+        // Get AJAX URL and nonce from WordPress
+        var ajaxUrl = '<?php echo admin_url("admin-ajax.php"); ?>';
+        var nonce = '<?php echo wp_create_nonce("mkcg_nonce"); ?>';
+        
+        $('#test-generate').click(function() {
+            $('#generate-result').html('Testing...');
+            
+            $.ajax({
+                url: ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'mkcg_generate_taglines',
+                    nonce: nonce,
+                    post_id: 1,
+                    authorityHook: 'I help test users test things when testing',
+                    impactIntro: 'I have tested many things. My mission is to test.',
+                    style: 'problem-focused',
+                    tone: 'professional',
+                    length: 'medium'
+                },
+                success: function(response) {
+                    $('#generate-result').html('<pre>' + JSON.stringify(response, null, 2) + '</pre>');
+                },
+                error: function(xhr, status, error) {
+                    $('#generate-result').html('Error: ' + error + '<br>Status: ' + status + '<br>Response: ' + xhr.responseText);
+                }
+            });
+        });
+        
+        $('#test-save').click(function() {
+            $('#save-result').html('Testing...');
+            
+            $.ajax({
+                url: ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'mkcg_save_tagline',
+                    nonce: nonce,
+                    post_id: 1,
+                    selected_tagline: 'Test Tagline',
+                    tagline_id: 'test_1'
+                },
+                success: function(response) {
+                    $('#save-result').html('<pre>' + JSON.stringify(response, null, 2) + '</pre>');
+                },
+                error: function(xhr, status, error) {
+                    $('#save-result').html('Error: ' + error + '<br>Status: ' + status + '<br>Response: ' + xhr.responseText);
+                }
+            });
+        });
+    });
+    </script>
+</body>
+</html>
