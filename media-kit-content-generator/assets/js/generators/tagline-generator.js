@@ -1053,7 +1053,6 @@
       return false;
     }
   },
-    },
     
     /**
      * Generate demo taglines when AI is unavailable
