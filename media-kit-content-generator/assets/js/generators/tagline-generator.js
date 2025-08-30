@@ -676,7 +676,11 @@
       // Update display element
       const displayElement = document.querySelector('#tagline-generator-authority-hook-text');
       if (displayElement) {
-      displayElement.textContent = hookText;
+        if (hookText) {
+          displayElement.textContent = hookText;
+        } else {
+          displayElement.innerHTML = '<em style="color: #666;">Authority Hook will appear here once you fill in the WHO, WHAT, WHEN, and HOW components below.</em>';
+        }
       }
       
       // Update hidden field for backend processing
@@ -717,7 +721,11 @@
       
       const displayElement = document.querySelector('#tagline-generator-impact-intro-text');
       if (displayElement) {
-        displayElement.textContent = introText;
+        if (introText) {
+          displayElement.textContent = introText;
+        } else {
+          displayElement.innerHTML = '<em style="color: #666;">Impact Intro will appear here once you fill in the WHERE credentials and WHY mission components below.</em>';
+        }
       }
       
       // Update hidden field for backend processing
